@@ -1,0 +1,13 @@
+# Represents a "typical" type of entity - an idealization that approximates fairly well a large number of real world entities.
+# Because it is an idealization, it can't have features (unlike the InstancedEntity, which does).
+# Therefore, segmentation membership can't be inferred from features.
+# Instead, an ArchetypeEntity has to explicitly declare membership into segments for each segmentation scheme it participates in.
+#
+apiVersion: outbound.apodeixi.io/v1dev
+kind: ArchetypeEntity
+metadata:
+  name: my-entity
+segments:
+- name: my-segment
+  segmentation-scheme: my-segemenation-scheme
+  segment-value: my-specific-segment

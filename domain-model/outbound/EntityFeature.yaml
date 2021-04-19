@@ -1,0 +1,10 @@
+# Represents a property of an Entity, typically used to segment Entities based on the values of such properties
+# These 'features' are intrinsic to an entity and have meaning regardless of what segmentation schemes are used.
+#
+apiVersion: outbound.apodeixi.io/v1dev
+kind: EntityFeature
+metadata:
+  name: my-feature
+value-type: range # Can be number, a range, or a (possibly hierarchical) enum
+units: billion # Can be par-value, thousand, million, or billion. Applies to number features
+enum: my-enum # Applies only when range is an enum

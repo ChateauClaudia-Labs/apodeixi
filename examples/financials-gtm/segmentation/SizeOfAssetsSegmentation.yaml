@@ -1,0 +1,25 @@
+# Used to capture the asset size for financial institutions
+apiVersion: outbound.apodeixi.io/v1dev
+kind: SegmentationScheme
+metadata:
+  name: asset-size-segmentation
+value-type: intervals # Can be intervals (used for numbers) or an enum-tree
+units: billion # Can be par-value, thousand, million, or billion. Applies to interval schemes
+intervals: my-intervals 
+# Tier levels inspired by https://www.usbanklocations.com/bank-rank/total-assets.html for rankings as of December 31, 2020
+- name: Tier 1
+  interval: "[1000, INFINITE)" # Top 4 banks (4 banks)
+- name: Tier 2
+  interval: "[100, 1000)" # Banks 5th-33rd ranked by assets (29 banks)
+- name: Tier 3
+  interval: "[20, 100)" # Banks 34th-97th ranked by assets (64 banks). Example: Webster ($32b)
+- name: Tier 4
+  interval: "[5, 20)" # Banks 98th-260th ranked by assets (163 banks)
+- name: Tier 5
+  interval: "[1, 5)" # Banks 261st-935th ranked by assets (675 banks)
+- name: Tier 6
+  interval: "[0.3, 1)" # Banks 956th-2412th ranked by assets (1456 banks) Example: Seattle Bank ($679m)
+- name: Tier 7
+  interval: "[0.1, 0.3)" # Banks 2413th-4065th ranked by assets (1642 banks)
+- name: Tier 8
+  interval: "[0.0, 0.1)" # Banks 4066th-5010th ranked by assets (944 banks)

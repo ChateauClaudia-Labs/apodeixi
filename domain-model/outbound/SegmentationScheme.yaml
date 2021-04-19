@@ -1,0 +1,10 @@
+# Represents scheme for partitioning a set of entities into disjoint sets based on features of the entities.
+#
+apiVersion: outbound.apodeixi.io/v1dev
+kind: SegmentationScheme
+metadata:
+  name: my-segmentation-scheme
+value-type: intervals # Can be intervals (used for numbers) or an enum-tree
+units: billion # Can be par-value, thousand, million, or billion. Applies to interval schemes
+enum-tree: my-enum # Applies only when value-type is an enum
+intervals: my-intervals # Applies only when value-type is a set of intervals

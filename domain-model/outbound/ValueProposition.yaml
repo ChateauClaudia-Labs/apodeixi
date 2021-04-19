@@ -1,0 +1,26 @@
+# Represents a value proposition
+#
+apiVersion: outbound.apodeixi.io/v1dev
+kind: ValueProposition
+metadata:
+  name: my-value-prop
+vision-statement:
+  - for: <target customer>
+    - segments: 
+  - who: <needs something>
+    - value-dynamics:
+  - the: <product name> is a <product category>
+    - capabilities-scores:
+  - that: <key-benefit, compelling reason to buy>
+    - kpis:
+      - name: my-kpi1
+        description: my-description
+        value: my-value
+        evidence: my evidence that kpi value is correct for my product
+  - unlike: <primary competitive alternative>
+    - capabilities-scores:
+    - kpis:
+  - our-product: <statement of primary differentation>
+    - cookie-contest:
+      - capabilities-scores-comparison:
+      - kpis-comparison:

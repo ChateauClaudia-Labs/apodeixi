@@ -1,0 +1,7 @@
+# Used to capture the asset size for financial institutions
+apiVersion: outbound.apodeixi.io/v1dev
+kind: EntityFeature
+metadata:
+  name: size-of-assets 
+value-type: range # Can be number, a range or enum
+units: billion # Can be par-value, thousand, million, or billion. Applies to number and range features
