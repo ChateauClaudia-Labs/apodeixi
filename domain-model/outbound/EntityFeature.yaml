@@ -1,7 +1,7 @@
 # Represents a property of an Entity, typically used to segment Entities based on the values of such properties
 # These 'features' are intrinsic to an entity and have meaning regardless of what segmentation schemes are used.
 #
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: EntityFeature
 metadata:
   name: my-feature

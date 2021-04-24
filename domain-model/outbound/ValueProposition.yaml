@@ -1,6 +1,6 @@
 # Represents a value proposition
 #
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: ValueProposition
 metadata:
   name: my-value-prop

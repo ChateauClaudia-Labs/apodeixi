@@ -1,5 +1,5 @@
 # Used to capture the asset size for financial institutions
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: SegmentationScheme
 metadata:
   name: asset-size-segmentation

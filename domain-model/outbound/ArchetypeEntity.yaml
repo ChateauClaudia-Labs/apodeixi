@@ -3,11 +3,11 @@
 # Therefore, segmentation membership can't be inferred from features.
 # Instead, an ArchetypeEntity has to explicitly declare membership into segments for each segmentation scheme it participates in.
 #
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: ArchetypeEntity
 metadata:
   name: my-entity
 segments:
 - name: my-segment
-  segmentation-scheme: my-segemenation-scheme
+  segmentation-scheme: my-segmentation-scheme
   segment-value: my-specific-segment

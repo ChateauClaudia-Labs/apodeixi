@@ -1,6 +1,6 @@
 # Represents scheme for partitioning a set of entities into disjoint sets based on features of the entities.
 #
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: SegmentationScheme
 metadata:
   name: my-segmentation-scheme

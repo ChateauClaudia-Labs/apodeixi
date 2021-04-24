@@ -1,6 +1,6 @@
 # Represents a "typical" type of entity - an idealization that approximates fairly well a large number of real world entities.
 #
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: ArchetypeEntity
 metadata:
   name: mega-us-bank

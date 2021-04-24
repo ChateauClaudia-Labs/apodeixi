@@ -1,0 +1,38 @@
+apiVersion: journeys.inbound.a6i.io/v1dev
+kind: JourneyPlan
+metadata:
+  labels:
+    journey: Modernization
+    product: MyTransformingProduct
+    scenario: Default
+    scoringCycle: Dec 2020
+  name: MyTransformingProduct.Modernization.Default
+  namespace: Production.Dec 2020
+plan:
+  estimated_by: joe.thedevhead@mycorp.com
+  estimated_on: 2015-12-01 00:00:00
+  recorded_by: jill.thearchitect@mycorp.com
+  type: Marathon
+  workstreams:
+  - effort: 3000.0
+    workstream: End-to-end support for UXP
+    workstream-id: ws-1
+  - effort: 2000.0
+    workstream: Migrate from Windows to Linux
+    workstream-id: ws-2
+  - effort: 1500.0
+    workstream: Containerization in Linux
+    workstream-id: ws-3
+  - effort: 300.0
+    workstream: Cloud stabilization
+    workstream-id: ws-4
+  - effort: 1000.0
+    workstream: Confirmation migration away for Access
+    workstream-id: ws-5
+  - effort: 1500.0
+    workstream: CI/CD adoption via Anthos
+    workstream-id: ws-6
+  - effort: 3000.0
+    workstream: Decomposition into microservices
+    workstream-id: ws-7
+planMaturity: Draft

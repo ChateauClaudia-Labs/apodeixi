@@ -1,0 +1,31 @@
+apiVersion: journeys.inbound.a6i.io/v1dev
+committment:
+  committed_by: joe.thedevhead@mycorp.com
+  committed_on: 2015-12-01 00:00:00
+  investment:
+  - investment: 2400.0
+    period: FY 2021
+    units: person-days
+  - investment: 3000.0
+    period: FY 2022
+    units: person-days
+  - investment: 2400.0
+    period: FY 2023
+    units: person-days
+  - investment: 2400.0
+    period: FY 2024
+    units: person-days
+  - investment: 2100.0
+    period: FY 2025
+    units: person-days
+  recorded_by: jill.thearchitect@mycorp.com
+kind: JourneyInvestment
+metadata:
+  labels:
+    journey: Modernization
+    product: MyTransformingProduct
+    scenario: Default
+    scoringCycle: Dec 2020
+  name: MyTransformingProduct.Modernization.Default
+  namespace: Production.Dec 2020
+planMaturity: Draft

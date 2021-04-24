@@ -2,7 +2,7 @@
 # Unlike ArchetypeEntities that can only have segmentations, an InstancedEntity can have features intrinsic to the entity
 # and which can be used to infer membership in segmentations.
 #
-apiVersion: outbound.apodeixi.io/v1dev
+apiVersion: outbound.a6i.io/v1dev
 kind: InstancedEntity
 metadata:
   name: my-entity
