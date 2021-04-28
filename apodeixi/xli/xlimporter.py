@@ -89,12 +89,25 @@ class SchemaUtils:
             self.val         = val
             self.callerMsg   = callerMsg
 
-        def is_of_type(self, expected_type):
-            if type(self.val) != expected_type:
-                msg = "For value '" + str(self.val) + "', expected a '" + expected_type.__name__  + "' but instead received a '" + type(self.val).__name__ + "'."
-                raise ValueError(self.callerMsg + '\n' + msg)
-                
-            return self.val
+        def is_of_type(self, allowed_types):
+            '''
+            If type(self.val) is one of the 'allowed_types', returns self.val. Else it raises an exception. 
+            @param allowed_types: list of types for the possible types that self.val may be. Example: [float, int]
+            '''
+            for t in allowed_types:
+                if type(self.val) == t:
+                    return self.val
+            
+            # If we get this far, we didn't match any allowed type so error out with a nice informative message
+            formatted_types_txt = ",".join(["'" + t.__name__ + "'" for t in allowed_types])
+            if len(allowed_types)>1:
+                formatted_types_txt = "one of " + formatted_types_txt
+            else:
+                formatted_types_txt = "a " + formatted_types_txt
+
+            msg = "For value '" + str(self.val) + "', expected " + formatted_types_txt  \
+                    + " but instead received a '" + type(self.val).__name__ + "'."
+            raise ValueError(self.callerMsg + '\n' + msg)
         
         def has_ducktype_method(self, friendly_duck_type_name, method_name):
             if method_name not in dir(self.val):
@@ -294,7 +307,7 @@ def applyMarathonJourneyPlan(ctx, url, excel_range, repo_root_dir):
     for row in plan_df.iterrows():
         workstream      = row[1]['Workstream']
         effort          = row[1]['Effort']
-        effort          = M.validate(effort).is_of_type(float)
+        effort          = M.validate(effort).is_of_type([float, int])
         
         workstreams.append({'workstream'   : workstream, 
                             'effort'       : effort, 
@@ -360,7 +373,7 @@ def applyInvestmentCommittment(ctx, url, excel_range, repo_root_dir):
     for row in plan_df.iterrows():
         period          = row[1]['Period']
         investment      = row[1]['Investment']
-        investment      = M.validate(investment).is_of_type(float)
+        investment      = M.validate(investment).is_of_type([float, int])
         investment_ts.append({'period'      : period, 
                               'investment'  : investment,
                               'units'       : 'person-days'})
