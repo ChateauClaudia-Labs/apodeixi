@@ -10,6 +10,167 @@ from .xlimporter import ExcelTableReader
 
 class UID_Store:
     '''
+    Stores UIDs like 'P12.AC3.E45', and is able to generate the next UID for a given prefix.
+    For example, if the store contains P12.AC3.E45 but not P12.AC3.E46, then the next UID for prefix
+    P12.AC3.E would be P12.AC3.E46. If there is no pre-existing UID for that prefix, then the next prefix
+    would be P12.AC3.E1
+    
+    '''
+    class _TokenTree:
+        '''
+        Represents a tree for which the top level of nodes correspond to tokens, 
+        e.g., AV1, AV2, AV3, ...FRA1, FRA2, ..
+        So for each prefix like 'AV' or 'FRA' there is a unique set of integers used in the tokens for
+        that prefix.
+        The children of such top nodes are other _TokenTree objects.
+
+        To avoid accidental infinite loops, a _TokenTree has a maximum height of 100 levels.
+        '''
+        def __init__(self, level):
+            
+            if level > UID_Store._TokenTree.MAX_LEVELS:
+                raise ValueError('Illegal attempt to create a _TokenTree at a level exceeding ' 
+                                 + str( UID_Store._TokenTree.MAX_LEVELS))
+            self.level     = level
+            
+            # Keys are acronyms like 'P', and values are arrays of non-negative integers like [1, 2, 3]
+            # indicating that this _TokenTree contains 'P1', 'P2', and P3
+            self.vals      = {} 
+            
+            # A dictionary where the key is a string like 'P12' where 12 belongs to array self.vals['P']
+            # Value for that key 'P12' is another _TokenTree
+            self.children  = {} 
+            
+            
+        MAX_LEVELS = 100
+        
+        def initialize(self, tokens):
+            '''
+            Used in cases where the top level is determined externally
+            '''
+            for t in tokens:
+                acronym, val           = self.parseToken(t)
+                if acronym not in self.vals.keys():
+                    self.vals[acronym] = []
+                self.vals[acronym].append(val)
+                self.children[t]       = UID_Store._TokenTree(self.level + 1)             
+        
+        def _generateHere(self, acronym):
+            if acronym not in self.vals.keys():
+                self.vals[acronym] = []
+            
+            used_numbers           = self.vals[acronym]
+            
+            if len(used_numbers) ==0:
+                nextVal            = 1 # Start at 1, not 0. Though parent might have 0's
+            else:
+                nextVal            = max(used_numbers) + 1
+                
+            used_numbers.append(nextVal)
+            uid                    = acronym + str(nextVal)
+            self.children[uid]     = UID_Store._TokenTree(self.level + 1)
+            return uid
+    
+        def generateNextUID(self, branch, acronym):
+            '''
+            @param branch A list of pairs that specify a branch in the _TokenTree. For example:
+                          [['P', 12], ['AC', 3], ['E', 45]]. If the acronym is 'W', it will add a node
+                          [['W', 5]], say, if P12.AC3.E45.W1,2,3,4 already exist.
+                          Returns two uids: a full UID P12.AC3.E45.W5 and the leaf UID W5
+            '''                
+            # Validate acronym is valid
+            REGEX         = '^([a-zA-Z]+)$'
+            m             = _re.match(REGEX, acronym)
+            if m == None or len(m.groups()) != 1:
+                raise ValueError("Invalid acronym='" + acronym + "': expected something like 'P' or 'AV'.  "
+                                + "Level=" + str(self.level))                
+            
+            if len(branch)==0:
+                # We hit bottom
+                leaf_uid           = self._generateHere(acronym)
+                full_uid           = leaf_uid
+                
+            else:
+                head               = branch[0]
+                tail               = branch[1:]
+                child              = self._findChild(head)
+                tail_uid, leaf_uid = child.generateNextUID(tail, acronym)
+                full_uid           = head + '.' + tail_uid
+                
+            return full_uid, leaf_uid
+                
+        def _findChild(self, head):
+            '''
+            @param head A string like 'PR56'. If it exists in this _TokenTree as a top node return it.
+                        Else raises an error.
+            '''
+            acronym, val  = self.parseToken(head)
+
+            # Some of these checks are theoretically duplicate if the inner state of this object
+            # is consistent as in theory it should be. But being paranoid, we do duplicate
+            # checks since that might also catch bugs with inconsistent state
+            if acronym not in self.vals.keys():
+                raise ValueError('Acronym ' + acronym + ' corresponds to no valid child. Level=' 
+                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')')
+            if val not in self.vals[acronym]:
+                raise ValueError('Value ' + str(val) + ' corresponds to no valid child. Level=' 
+                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')')
+            if head not in self.children.keys():
+                raise ValueError('Token ' + head + ' corresponds to no valid child. Level=' 
+                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')')
+
+            # We got past the checks, so this should not crash
+            return self.children[head]
+            
+        def display(self):
+            '''
+            Used for debugging, to return a dictionary representation of the tree
+            '''
+            result_dict = {}
+            for uid in self.children.keys():
+                child   = self.children[uid]
+                result_dict[uid] = child.display()
+            return result_dict
+        
+        def parseToken(self, token):
+            '''
+            Given a token like 'PR34', it returns the acronym 'PR' and the value 34
+            '''
+            REGEX         = '^([a-zA-Z]+)([0-9]+)$'
+            m             = _re.match(REGEX, token)
+            if m == None or len(m.groups())!= 2:
+                raise ValueError("Invalid token='" + token + "': expected something like 'P3' or 'AV45'.  "
+                                + "Level=" + str(self.level))
+            acronym       = m.group(1)
+            val           = int(m.group(2))
+            return acronym, val
+        
+    
+    def __init__(self):
+        self.tree     = UID_Store._TokenTree(level=0)
+        return
+    
+    def generateUID(self, parent_UID, acronym):
+        branch        = self._tokenize(parent_UID)
+        return self.tree.generateNextUID(branch, acronym)
+    
+    def initialize(self, tokens):
+        self.tree.initialize(tokens)
+    
+    def _tokenize(self, uid):
+        if uid==None:
+            return []
+        tokens        = uid.split('.')
+        REGEX         = '^[a-zA-Z]+[0-9]+$' # Something like P3 pr AV456
+        for t in tokens:
+            m         = _re.match(REGEX, t)
+            if m == None:
+                raise ValueError("Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
+        return tokens
+
+
+class DEPRECATED_UID_Store:
+    '''
     @param start_at_0 Boolean. If True, UIDs start at 0 (i.e., for acronym X the first UID is X.00). False
                       by default, so UIDs start at 1 (e.g., X.01)
     '''
@@ -25,6 +186,7 @@ class UID_Store:
             parent_nb              = ''
         else:
             REGEX                  = r"^([a-zA-Z]+).(([0-9]{2})(.[0-9]{2})*)$" # Match eg P.03 or SD.04.12 or C.03.10.11
+
             m                      = _re.match(REGEX, parentUID) 
             if m==None or len(m.groups()) != 4:
                 raise ValueError('Badly given parentUID. Should be something like "P.03" or "SD.02.11". Instead it was "' 
@@ -221,11 +383,12 @@ class BreakdownBuilder:
         stripped_txt = str(txt).replace('\n', '').strip(' ')
         return stripped_txt
     
+    '''
     def _cleanup_UID(txt):
-        '''
-        If the 'txt' finishes in a number but lacks a dot required for UIDs (e.g., txt="W4" or "W-4" instead of "W.04")
-        it will return the correctly formatted txt ("W.04")
-        '''
+        
+        #If the 'txt' finishes in a number but lacks a dot required for UIDs (e.g., txt="W4" or "W-4" instead of "W.04")
+        #it will return the correctly formatted txt ("W.04")
+        
         REGEX = '^[a-zA-Z -\._]*([0-9]+)$'
         m     = _re.match(REGEX, txt.strip(' \n'))
         if m==None or len(m.groups()) != 1:
@@ -240,6 +403,7 @@ class BreakdownBuilder:
         else:
             nb_txt = str(nb) # From '10' to '99'
         return prefix + "." + nb_txt
+    '''
 
     def _buildLevel1Breakdown(self):
         reader                           = ExcelTableReader(url=self.l0_url, excel_range=self.l0_excel_range)
@@ -254,13 +418,14 @@ class BreakdownBuilder:
         l0_dict                          = {}
         for row in l0_df.iterrows():
             l1_data                      = row[1]
-            l1_uid                       = BreakdownBuilder._cleanup_UID(l1_data[UID])
+            l1_uid                       = l1_data[UID] #BreakdownBuilder._cleanup_UID(l1_data[UID])
             l0_dict[l1_uid]              = l1_data[TITLE]
             l0_dict[l1_uid + '-detail']  = {}
             for idx in range(2, len(columns)):
                 col                      = columns[idx]
                 l1_details_dict          = l0_dict[l1_uid + '-detail']
                 l1_details_dict[col]     = l1_data[col]
+                l1_details_dict['UID']   = l1_uid
 
         return l0_dict
     
@@ -311,11 +476,13 @@ class BreakdownBuilder:
         
         # Data that is different for each ith cycle of loop
         l2_dict_i           = {}
-        l3_UID_i            = None
+        l3_fill_UID_i       = None
+        l3_leaf_UID_i       = None
         
         # Data that changes on the nth time a new Level 2 is entered
         l3_children_n       = {}
-        l2_UID_n            = None
+        l2_full_UID_n       = None
+        l2_leaf_UID__n      = None
 
         # Data constructed in subsequent cycles of loop
         all_l2s_dict        = {}
@@ -327,32 +494,35 @@ class BreakdownBuilder:
         Y_L3_DESC           = BreakdownBuilder._nice(L3_DESC)
 
         for row in l2l3_df.iterrows(): # nth cycle of loop
-            data_i                       = row[1]
-            l2_i                         = data_i[L2]
-            l2_desc_i                    = BreakdownBuilder._strip(data_i[L2_DESC])
-            l3_i                         = data_i[L3]
-            l3_desc_i                    = BreakdownBuilder._strip(data_i[L3_DESC])
+            data_i                              = row[1]
+            l2_i                                = data_i[L2]
+            l2_desc_i                           = BreakdownBuilder._strip(data_i[L2_DESC])
+            l3_i                                = data_i[L3]
+            l3_desc_i                           = BreakdownBuilder._strip(data_i[L3_DESC])
             
             if BreakdownBuilder.      _is_blank(l2_i): # We are within the same Level 2 as in prior cycle of the loop
-                l3_UID_i                 = self.uid_store.generateUID(acronym=L3[0], parent_UID=l2_UID_n)
-                l3_children_n[l3_UID_i]  = l3_i
+                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym=L3[0], parent_UID=l2_full_UID_n)
+                l3_children_n[l3_leaf_UID_i]    = {'description': l3_i, 'UID': l3_full_UID_i}
 
             elif (type(l2_i)==str and len(l2_i)>0): # We just entered a new Level 2
-                l2_UID_n                 = self.uid_store.generateUID(acronym    = BreakdownBuilder._acronym(L2[0]), 
+                l2_full_UID_n, l2_leaf_UID_n    = self.uid_store.generateUID(acronym    = BreakdownBuilder._acronym(L2[0]), 
                                                              parent_UID = link.L1_UID)
-                l3_UID_i                 = self.uid_store.generateUID(acronym    = BreakdownBuilder._acronym(L3[0]), 
-                                                             parent_UID = l2_UID_n)
+                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym    = BreakdownBuilder._acronym(L3[0]), 
+                                                             parent_UID = l2_full_UID_n)
+                l3_children_n                   = {}
+                l3_children_n[l3_leaf_UID_i]    = {'description': l3_i, 'UID': l3_full_UID_i}
+
+                # l2_n, l2_desc_n only change every nth loop (when Level 2 changes)
+                l2_n                            = l2_i
+                l2_desc_n                       = l2_desc_i
+                l2_dict_n                       = {}
+                l2_dict_n[Y_L2_DESC]            = l2_desc_n
+                l2_dict_n[Y_L3]                 = l3_children_n
+                l2_dict_n['UID']                = l2_full_UID_n
                 
-                l3_children_n           = {}
-                l3_children_n[l3_UID_i] = l3_i
+                all_l2s_dict[l2_leaf_UID_n]     = l2_n
                 
-                l2_dict_i               = {}
-                l2_dict_i[Y_L2_DESC]    = l2_desc_i
-                l2_dict_i[Y_L3]         = l3_children_n
-                
-                all_l2s_dict[l2_UID_n]   = l2_i 
-                
-                all_l2s_dict[l2_UID_n + '-detail']    = l2_dict_i
+                all_l2s_dict[l2_leaf_UID_n + '-detail']    = l2_dict_n
             else:
                 raise ValueError("Expected a string or a blank, not a '" + str(type(l2_i)) 
                                  + '(row=' + str(row[0]) + " and text is '" + str(l2_i) + "')")
