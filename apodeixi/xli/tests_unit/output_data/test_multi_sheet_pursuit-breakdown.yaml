@@ -1,0 +1,588 @@
+apiVersion: breakdown.a6i.io/v1dev
+breakdown:
+  defined_by: alejandro.hernandez@finastra.com
+  defined_on: 2021-04-27 00:00:00
+  streams:
+    W0: Cloud value proposition
+    W0-detail:
+      Description: Define value proposition for customers on the Cloud
+      Lead: "Product Strategy \u2013 Mike S"
+      P metric: TBD
+      R metric: TBD
+      Support: Andrei
+      UID: W0
+      expectations:
+        E1: Analyze segmentation
+        E1-detail:
+          UID: W0.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W0.E1.A1
+              description: 'Segmentation tree: consolidated tree of segments (verticals,
+                geos, tiers, and breakouts for either) '
+            A2:
+              UID: W0.E1.A2
+              description: Size at each leaf in the segmentation tree
+            A3:
+              UID: W0.E1.A3
+              description: Quantification of how much of that could be cloud
+          description: Break Finastra's space into segments and for each measure the
+            appetite for cloud
+        E2: Analyze "Jobs to be done" / Personas
+        E2-detail:
+          UID: W0.E2
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W0.E2.A1
+              description: Narrated diagrams indicating the timeline-based tasks that
+                Personas engage with and where the struggle lies, using standard notations
+                such as BPMN flows or UML sequence diagrams.
+          description: Using Design Thinking and Clayton Christensens "Jobs to be
+            done" methodology, for each cloud-friendly segment describe the personas
+            and what "struggle" (as in Christensen's approach) they are in.
+        E3: Define Value propositions
+        E3-detail:
+          UID: W0.E3
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W0.E3.A1
+              description: Vision Statement for Value Proposition, using the FOR/WHO/THE/THAT/UNLIKE/OUR
+                PRODUCT template from Geoffrey Moore
+            A2:
+              UID: W0.E3.A2
+              description: Logical diagram of capabilities
+            A3:
+              UID: W0.E3.A3
+              description: Mapping to the Finastra products that would provide such
+                capabilities
+            A4:
+              UID: W0.E3.A4
+              description: Mapping to the "Jobs to be done" diagrams with a narration
+                on how the capabilities in question address the "struggle"
+          description: Define logical bundle of Finastra capabilities which would
+            address each of the "jobs to be done" for each of the cloud-friendly struggles.
+            May be from a Finastra product or a combination of Finastra products.
+        E4: Measure Opportunities's size
+        E4-detail:
+          UID: W0.E4
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W0.E4.A1
+              description: Revenue projection per proposition expressed as a table
+                (time vs revenue)
+          description: For each of the value propositions, establish a revenue projection
+            timeline over the next 3 years assuming that Finastra chooses to get into
+            that space
+        E5: Decide areas to prioritize
+        E5-detail:
+          UID: W0.E5
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W0.E5.A1
+              description: A decision-making model to choose the propositions with
+                the highest ROI
+          description: Determine the priorities to which investment should be focused
+        E6: Fail Fast
+        E6-detail:
+          UID: W0.E6
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W0.E6.A1
+              description: Updated artifacts for segmentation, "jobs to be done"/personas,  value
+                props, opportunity sizing, and prioritization
+          description: Adjust analysis and value propositions as new data comes in,
+            specially around success (or failure) of first market launches
+    W1: Modernization
+    W1-detail:
+      Description: 'Deliver the main components of the cloud roadmap: Microservices,
+        Containerization, Multi-tenancy, UX, Operations / DevOps'
+      Lead: Alex
+      P metric: '# of EPICs delivered in time and budgetExample: By Aug: 20%(20% of
+        what is expected in the 12 months of FY 22 has been done)'
+      R metric: 'Product [X] to target state [Y] by time [Z]Example: Product: Essence
+        to Webapp by end of FY22.'
+      Support: Leigh, GMs, Ouafa
+      UID: W1
+      expectations:
+        E1: Finishing line
+        E1-detail:
+          UID: W1.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E1.A1
+              description: List of Value Propositions in scope for product
+            A2:
+              UID: W1.E1.A2
+              description: 'Numerical business outcome KPIs and targets. Typically:
+                size of CAM expansion, quantification of margin improvements and of
+                any new forms of revenue (for example, perhaps from selling to lower
+                tiers)'
+            A3:
+              UID: W1.E1.A3
+              description: 'Numerical technical KPIs and targets needed to meet business
+                outcome KPIs. Typically: cost-per-tenant, TTM, Quality, QoS, etc.'
+          description: Description of measurable conditions that, if true, indicate
+            that the modernization journey is over because it met its goals.
+        E2: Define architecture target
+        E2-detail:
+          UID: W1.E2
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E2.A1
+              description: Target-state deployment diagrams
+            A2:
+              UID: W1.E2.A2
+              description: Target-state reliabiliy model
+            A3:
+              UID: W1.E2.A3
+              description: For each KPI, a model to predict what the KPI value would
+                be in the target state architecure
+          description: Blueprint for a target state architecture that, if achieved,
+            would deliver the technical KPI targets.
+        E3: Define operational target
+        E3-detail:
+          UID: W1.E3
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E3.A1
+              description: Target-state service operating model
+            A2:
+              UID: W1.E3.A2
+              description: Cost model for target state service operating model
+            A3:
+              UID: W1.E3.A3
+              description: For each KPI of an operational nature, a model to predict
+                what its value would be in the target state operating model.
+          description: Model for how product will be operated in the target state
+        E4: Define milestones for journey
+        E4-detail:
+          UID: W1.E4
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E4.A1
+              description: Enumeration of milestones and when in time they happen
+            A2:
+              UID: W1.E4.A2
+              description: For each milestone, a mapping to a Value Proposition (or
+                portion thereof) that is enabld by the milestone
+            A3:
+              UID: W1.E4.A3
+              description: 'For each milestone, quantified identification of what
+                business outcome KPIs it enables. Typically: size of CAM expansion,
+                margin improvements, new forms of revenue it enables.'
+          description: Decomposition of modernization journey into "milestones", where
+            each milestone has an identifiable customer-facing value and can be monetized
+        E5: Commit roadmap
+        E5-detail:
+          UID: W1.E5
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E5.A1
+              description: Mapping of Aha epics to the milestones
+            A2:
+              UID: W1.E5.A2
+              description: Mapping of roadmap to modernization tactics
+          description: Enumeration of Aha epics over next 4-6 quarters, with a mapping
+            to the milestone(s) they enable
+        E6: Commit investment
+        E6-detail:
+          UID: W1.E6
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E6.A1
+              description: Timeline of how many man-days are committed to modernization
+                for each of the next fiscal years, up to the moment when modernization
+                is done.
+          description: Projection in time on the amount of investment for the modernization
+            journey
+        E7: Deliver modernization
+        E7-detail:
+          UID: W1.E7
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W1.E7.A1
+              description: Burnout of Aha epics corresponding to milestones
+            A2:
+              UID: W1.E7.A2
+              description: Delivery of milestones adhering to the EA standards for
+                each of the modernization tactics
+          description: Timely on-budget delivery of subsequent milestones until the
+            journey is complete, adhering to EA standards
+    W2: Software delivery and production operations
+    W2-detail:
+      Description: 'FusionOperate: Increase automation through deployment and DevOps
+        across all cloud propositions (FMS, FusionCloud, etc). Support native cloud
+        at scale'
+      Lead: Leigh
+      P metric: '% automated tests integrated with pipeline'
+      R metric: '% Cloud clients compliant with EA operating standards & policy (measured
+        quarterly)'
+      Support: Russ, Bryan, Ouafa, Andrew
+      UID: W2
+      expectations:
+        E1: Definition of EA Operating Standards
+        E1-detail:
+          UID: W2.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W2.E1.A1
+              description: CI/CD(GitOps) standards
+            A2:
+              UID: W2.E1.A2
+              description: Reliability standards
+            A3:
+              UID: W2.E1.A3
+              description: Monitoring standards
+            A4:
+              UID: W2.E1.A4
+              description: Testing standards
+            A5:
+              UID: W2.E1.A5
+              description: Security standars
+          description: Define the EA Operating Standards that must be complied with
+            for products going to cloud
+        E2: Define how all cloud propositions can be supported with FusionOperate
+        E2-detail:
+          UID: W2.E2
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W2.E2.A1
+              description: "Define FusionCloud (SaaS) SOM via FusionOperate: \n*full\
+                \ CI/CD automation; \n*multi*tenant environments; \n*multi*tenant\
+                \ ops (monitoring, upgrades, \u2026)\n*no customizations; \n*n-1"
+            A2:
+              UID: W2.E2.A2
+              description: "Define Cloud@Scale SOM via FusionOperate: \n*full CI/CD\
+                \ automation; \n*single*tenant customer environments; \n*multi*tenant\
+                \ ops (monitoring, upgrades, \u2026)\n*no customizations; \n*n-1"
+            A3:
+              UID: W2.E2.A3
+              description: "Define FMS SOM via FusionOperate: \n*full CI/CD automation;\
+                \ \n*single*tenant customer environments; \n*single*tenant ops (monitoring,\
+                \ upgrades, \u2026)\n*customizations built via FO's software factory\
+                \ and FFDC APIs\n*n-3 or better"
+            A4:
+              UID: W2.E2.A4
+              description: Define partner-hosted SOMs by reference to the Finastra-hosted
+                SOMs (FusionCloud, Cloud@Scale, FMS)
+          description: Define all operating models and how FusionOperate is used in
+            each of them
+        E3: Define FusionOperate technical value proposition
+        E3-detail:
+          UID: W2.E3
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W2.E3.A1
+              description: Architecture blueprint for Software Factory
+            A2:
+              UID: W2.E3.A2
+              description: Architecture blueprint for Operating Platform
+            A3:
+              UID: W2.E3.A3
+              description: Architecture blueprint for Testing Platform
+            A4:
+              UID: W2.E3.A4
+              description: Architecture blueprint for Monitoring Platform
+          description: Define the scope of FusionOperate capabilities in a way that
+            it addresses all cross-cutting concerns across Finastra products going
+            to cloud, so that they are addressed once, across the whole DevSecOps
+            spectrum (CI/CD, reliability model, security model, etc.)
+        E4: Deliver FusionOperate
+        E4-detail:
+          UID: W2.E4
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W2.E4.A1
+              description: 'Developer productivity KPIs set and met '
+            A2:
+              UID: W2.E4.A2
+              description: Customer onboarding KPIs set and met. KPIs targets must
+                relate to the modernization stream's business outcome KPIs.
+            A3:
+              UID: W2.E4.A3
+              description: Cost-of-operation KPIs set and met. KPIs targets must relate
+                to the modernization stream's business outcome KPIs.
+            A4:
+              UID: W2.E4.A4
+              description: Speed-of-upgrades KPIs set and met. KPIs targets must relate
+                to the modernization stream's business outcome KPIs.
+          description: Deliver a Finastra-wide DevSecOps platform based on SDNs, K8s
+            and GitOps
+    W3: N-1 compliance (excl. FMS)
+    W3-detail:
+      Description: 'Institutionalise a release and sales policy to ensure all hosted
+        customers are on the latest GA release '
+      Lead: Michael M
+      P metric: '% of Finastra client contracts signed with N-1 compliance clause'
+      R metric: '% of Finastra-hosted clients post Feb 1st, 2021 implemented and maintained
+        on N-1 version'
+      Support: GMs, Andrew
+      UID: W3
+      expectations:
+        E1: Update commercial policy
+        E1-detail:
+          UID: W3.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W3.E1.A1
+              description: Updated commercial policy for all cloud SOMs except FMS
+          description: Update commercial policy to ensure that sales contracts empower
+            Finastra to enforce n-1 (except for FMS)
+        E2: Engage in Opportunities desk
+        E2-detail:
+          UID: W3.E2
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W3.E2.A1
+              description: Periodic report on opportunities and the SOM they were
+                directed to
+          description: Engage in the cloud sales opportunities desks to steer as many
+            opportunities as possible towards the operating models that ensure n-1
+            (Cloud@Scale, FusionCloud)
+        E3: Alert on any n-1 degradation
+        E3-detail:
+          UID: W3.E3
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W3.E3.A1
+              description: Periodic report on customer environments that are on Cloud@Scale
+                or FusionCloud and flagging any n-1 violation
+          description: For cloud sales steered towards SOMs that ensure n-1 (Cloud@Scale,
+            FusionCloud), monitor the customer environments on a permanent basis to
+            ensure that as new product releases occur, the n-1 constraint is enforced
+            (i.e., those environments get upgraded)
+    W4: FMS / AMS
+    W4-detail:
+      Description: Develop and implement a 3-year conversion programme to accelerate
+        sales of Fusion Managed Services solutions for LoanIQ, Trade Innovation, GPP
+        and Kondor
+      Lead: Andrew
+      P metric: FMS SW pipeline of [$XM]
+      R metric: FMS accretive SW bookings of [$XM]
+      Support: Neil
+      UID: W4
+      expectations:
+        E1: Adopt FFDC as exclusive SDK for all customizations
+        E1-detail:
+          UID: W4.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W4.E1.A1
+              description: .nan
+          description: ''
+        E2: Adopt of Fusion Operate as only delivery mechanism
+        E2-detail:
+          UID: W4.E2
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W4.E2.A1
+              description: Customizations built with FO's Software Factory
+            A2:
+              UID: W4.E2.A2
+              description: Full CI/CD automation, with GitOps
+            A3:
+              UID: W4.E2.A3
+              description: Adoption of FO's Monitoring Platform - logs and traces
+                done consistently
+            A4:
+              UID: W4.E2.A4
+              description: Networking via FO's FusionDelivery (SDN)
+            A5:
+              UID: W4.E2.A5
+              description: G/S developers to provide AppOps for the customizations
+                they write
+          description: ''
+        E3: Manage margins and cost structure
+        E3-detail:
+          UID: W4.E3
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W4.E3.A1
+              description: .nan
+            A2:
+              UID: W4.E3.A2
+              description: .nan
+          description: ''
+        E4: Align sales pipeline with Value Propositions
+        E4-detail:
+          UID: W4.E4
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W4.E4.A1
+              description: .nan
+          description: Focus on preparing GTMs for the value propositions identified
+            and prioritized in workstream W0
+    W5: Cloud sales (excl. FMS)
+    W5-detail:
+      Description: Develop and implement GTM and deal support across the sales cycle
+        to accelerate Cloud sales. Scope includes collateral, materials, references,
+        SPP build outs and alignment of product readiness with the messaging / GTM
+        process
+      Lead: Hannes
+      P metric: Cloud pipeline by product by region of [$XM]
+      R metric: Cloud bookings of [$XM]
+      Support: Rudy
+      UID: W5
+      expectations:
+        E1: Align sales pipeline with Value Propositions
+        E1-detail:
+          UID: W5.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W5.E1.A1
+              description: .nan
+          description: Focus on preparing GTMs for the value propositions identified
+            and prioritized in workstream W0
+    W6: Pricing
+    W6-detail:
+      Description: Develop and implement pricing approach for Cloud to ensure pricing
+        takes full account of costs (infrastructure) and workload (e.g., Level 1 support)
+        is moved from client to Finastra when move from on prem to cloud
+      Lead: Christian
+      P metric: Delivery of milestones per product
+      R metric: Pricing approach developed and implemented for all Cloud products
+      Support: Brad B., Bruce B.
+      UID: W6
+      expectations:
+        E1: Align packaging with Value Propositions
+        E1-detail:
+          UID: W6.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W6.E1.A1
+              description: 'Possible bundling models for each value prop, along dimensions
+                like:
+
+                * What is licensed separately
+
+                * What is sold via partners, under a variety of scenarios (white label,
+                OEM, etc.)'
+            A2:
+              UID: W6.E1.A2
+              description: 'For each bundling model, analyze monetization potential
+                by identifying what fees can be commanded given the segmentation sizing
+                analysis from stream W0
+
+                * Upfront fees
+
+                * Usage fees
+
+                * Support fees
+
+                * Renewal fees
+
+                * Partner fees
+
+                etc.'
+          description: Define  packaging associated to the prioritized value propositions
+            from workstream W0
+        E2: Define pricing
+        E2-detail:
+          UID: W6.E2
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W6.E2.A1
+              description: Definition of packages (as bundles) and the pricing structure  for
+                each.
+            A2:
+              UID: W6.E2.A2
+              description: .nan
+            A3:
+              UID: W6.E2.A3
+              description: .nan
+          description: From analysis of bundling models and monetization models, determine
+            the package(s) and associated fees that will be taken to market
+        E3: Ensure profitability
+        E3-detail:
+          UID: W6.E3
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W6.E3.A1
+              description: .nan
+          description: Identify the full cost for the packaging in question, and ensure
+            that price is set so that a target margin can result
+    W7: IT role in native Cloud solutions
+    W7-detail:
+      Description: Revamp, rework and modernize network and infrastructure to support
+        cloud at scale. Scope will address network support to deliver and deploy at
+        scale, end to end monitoring and extensive automation
+      Lead: Russ
+      P metric: '% network deployment automated% products onboarded to status page'
+      R metric: '[X%] Cloud clients compliant utilizing modern network connectivity'
+      Support: Leigh, Bryan
+      UID: W7
+      expectations:
+        E1: Align with Fusion Operate
+        E1-detail:
+          UID: W7.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W7.E1.A1
+              description: .nan
+          description: Understand the FusionOperate strategy around cloud-native networking,
+            service mesh, Fusion Delivery and GitOps, to focus on areas where IT's
+            support is needed, and avoid duplication by not involving IT into areas
+            that FO plans to take care of.
+    W8: Customer Support for native Cloud solutions
+    W8-detail:
+      Description: Implement Cloud customer support model across DevOps, IT and customer
+        support
+      Lead: 'Michael '
+      P metric: Delivery of milestones per product
+      R metric: Number of products with customer self-service capabilities supportability
+        embedded made available to customers
+      Support: Leigh
+      UID: W8
+      expectations:
+        E1: Align with Fusion Operate
+        E1-detail:
+          UID: W8.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W8.E1.A1
+              description: .nan
+          description: Define how customer support would work for each of the service
+            operating models that rely on Fusion Operate (FusionCloud, Cloud@Scale,
+            FMS, and partner-hosted)
+    W9: Talent transformation
+    W9-detail:
+      Description: 'Define and deliver skills & capabilities required fordelivering
+        Cloud faster across organization: Product, GCO, CCO.'
+      Lead: Clare
+      P metric: "Skills & capabilities plans completed\u200B (by workstream)"
+      R metric: Actions from plans in place (training, hires, capabilities addressed)
+      Support: Shira, Neeha
+      UID: W9
+      expectations:
+        E1: Launch FusionOperate - oriented training
+        E1-detail:
+          UID: W9.E1
+          acceptance-criteria-artifacts:
+            A1:
+              UID: W9.E1.A1
+              description: Launch OpenShift training
+            A2:
+              UID: W9.E1.A2
+              description: Launch K8S/SDN-based Networking training
+            A3:
+              UID: W9.E1.A3
+              description: Launch GitOps training
+            A4:
+              UID: W9.E1.A4
+              description: Launch AppOps training
+            A5:
+              UID: W9.E1.A5
+              description: Launch Terraform training
+          description: Devise and launch training programs in the technologies that
+            development teams need in order to leverage the self-service capabilities
+            in FusionOperate and take ownership of their production deliveries
+  type: Opus cloud initiative
+kind: Breakdown
+metadata:
+  labels:
+    pursuit: test_multi_sheet_pursuit
+    scenario: Baseline
+    scoringCycle: FY22
+  name: test_multi_sheet_pursuit.Baseline
+  namespace: Production.FY22
+planMaturity: Draft

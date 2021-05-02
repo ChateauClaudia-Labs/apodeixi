@@ -5,8 +5,11 @@ import sys         as _sys
 import os          as _os
 import math        as _math
 import datetime    as _datetime
+from io import StringIO
+import pandas
 
 from .xlimporter import ExcelTableReader
+from apodeixi.util.ApodeixiError    import *
 
 class UID_Store:
     '''
@@ -344,35 +347,119 @@ class BreakdownBuilder:
         
         for link in self.links:
             l2_key, l2_children                      = self._buildLevel2Breakdown(link) 
-            '''
-            link_dict                                = {}
-            link_dict[l2_key]                        = l2_children
-            streams_dict[link.L1_UID]  = link_dict
-            '''
+
             l1_key                      = link.L1_UID + '-detail' # For example, 'W.03-detail'
+            '''
             if l1_key not in streams_dict.keys():
                 streams_dict[l1_key]    = {}
             streams_dict[l1_key][l2_key] = l2_children
+            '''
+
+            self._dock( parent                 = streams_dict[l1_key],
+                        docking_key             = l2_key, 
+                        children_to_dock        = l2_children, 
+                        concatenate_previous    = False)
             
-        _yaml.dump(manifest_dict, _sys.stdout)
+
+        #_yaml.dump(manifest_dict, _sys.stdout)
+        output = StringIO()
+        _yaml.dump(manifest_dict, output)
+        
 
         with open(self.manifests_repo_dir + '/' + pursuit + '-breakdown.yaml', 'w') as file:
             _yaml.dump(manifest_dict, file)
+
+        return output.getvalue()
+
+    def _dock(self, parent, docking_key, children_to_dock, concatenate_previous):
+        '''
+        Results in this outcome being `True`: `parent[docking_key] == children_to_dock`. It creates any missing references
+        (e.g., if `docking_key` is not a key in `parent`, it creates it). 
+        An exception to the above outcome is when the `docking_key` already existed and previously existing childen
+        were docked at it.
+        In such a case, previously existing children are either removed or concated to, depending on the `concatenate_previous`
+        flag. If concatenation results in conflicts the new children win.
+
+        If the docking key is None, the children are docked at the root (1 level higher than otherwise)
+
+        Example 1: suppose
+
+        .. code::
+
+            parent = {'a', {'b': [1, 2],  
+                            'c': [3, 4]}, 
+                      'x' : {'y': [5, 6]}}
+
+            docking_key = 'a'
+
+            children_to_dock = {'p': [7, 8], 
+                                'c': [9, 10]}
+
+        In such a case, when not concatenating then the result is:
+
+        .. code::
+
+             parent = {'a', {'p': [7, 8],  
+                             'c': [9, 10]}, 
+                      'x' : {'y': [5, 6]}}
+
+        If concatenating, then the result is:
+
+        .. code::
+
+             parent = {'a', {'b': [1, 2],
+                             'p': [7, 8],  
+                             'c': [9, 10]}, 
+                      'x' : {'y': [5, 6]}}
+
+        Example 2: suppose
+
+        .. code::
+
+            parent = {'a', {'b': [1, 2],  
+                            'c': [3, 4]}, 
+                      'x' : {'y': [5, 6]}}
+
+            docking_key = None
+
+            children_to_dock = {'p': [7, 8], 
+                                'c': [9, 10]}
+
+        In such a case, when not concatenating then the result is:
+
+        .. code::
+
+            parent = {'a', {'b': [1, 2],  
+                            'c': [3, 4]}, 
+                      'x' : {'y': [5, 6]},
+                      'p': [7, 8],
+                      'c': [9, 10]}
+
+
+        @param children_to_dock       A dictionary
+        @param parent                 A dictionary
+        @param docking_key            A string
+        @param concatenate_previous   A boolean to determine whether to replace or concatenate pre-existing children
+        '''
+        if docking_key == None:
+            for k in children_to_dock:
+                parent[k] = children_to_dock[k]
+        else:
+            if docking_key not in parent.keys():
+                parent[docking_key] = {}
+
+            if concatenate_previous==False:
+                parent[docking_key] = children_to_dock
+            else:
+                previous_children   = parent[docking_key]
+                for k in children_to_dock:
+                    previous_children[k] = children_to_dock[k]
+    
     
     def _nice(txt):
         return txt.strip().lower().replace(' ', '-')
     
-    def _is_blank(txt):
-        '''
-        Returns True if 'txt' is NaN or just spaces
-        '''
-        if type(txt)==float and _math.isnan(txt):
-            return True
-        elif type(txt)==str:
-            stripped_txt = BreakdownBuilder._strip(txt)
-            return len(stripped_txt)==0
-        else:
-            return False
+
         
     def _strip(txt):
         '''
@@ -438,22 +525,26 @@ class BreakdownBuilder:
         'UID', 'Expectation', 'Description', 'Acceptance Criteria Artifact', 'Evidence of correctness'
 
         expectations:
-          E.01.01: Segment market using "jobs-to-be-done"
-          E.01.01-detail:
-            description: Follow methodology from Clayton Christensen
+            E1: Analyze segmentation
+            E1-detail:
+            UID: W0.E1
             acceptance-criteria-artifacts:
-            - AC.01.01.01: Analysis of verticals, tiers, and geos evidence-of-correctness: a written analysis
-            - AC.01.01.02 Sizing per segment
-              evidence-of-correctness: a chart with sizings
-          E.01.02: Deliver on time
-          E.01.02-detail:
-            description: stick to agreed milestones
-            acceptance-criteria-artifacts:
-            - AC.01.02.01 Project plan showing dates and staffing levels
-              evidence-of-correctness: a Gant chart
-            - AC.01.02.02 Completion of GA version 
-              evidence-of-correctness: a monitoring report proving delivery to production
-        '''    
+                A1:
+                UID: W0.E1.A1
+                description: 'Segmentation tree: consolidated tree of segments (verticals,
+                    geos, tiers, and breakouts for either) '
+                A2:
+                UID: W0.E1.A2
+                description: Size at each leaf in the segmentation tree
+                A3:
+                UID: W0.E1.A3
+                description: Quantification of how much of that could be cloud
+            description: Break Finastra's space into segments and for each measure the
+                appetite for cloud
+            E2: Analyze "Jobs to be done" / Personas
+            E2-detail:
+            UID: W0.E2
+            '''    
         url                 = link.L2_URL
         excel_range         = link.L2_excel_range
         reader              = ExcelTableReader(url, excel_range)
@@ -500,41 +591,354 @@ class BreakdownBuilder:
             l3_i                                = data_i[L3]
             l3_desc_i                           = BreakdownBuilder._strip(data_i[L3_DESC])
             
-            if BreakdownBuilder.      _is_blank(l2_i): # We are within the same Level 2 as in prior cycle of the loop
+            if _is_blank(l2_i): # We are within the same Level 2 as in prior cycle of the loop
                 l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym=L3[0], parent_UID=l2_full_UID_n)
                 l3_children_n[l3_leaf_UID_i]    = {'description': l3_i, 'UID': l3_full_UID_i}
 
             elif (type(l2_i)==str and len(l2_i)>0): # We just entered a new Level 2
-                l2_full_UID_n, l2_leaf_UID_n    = self.uid_store.generateUID(acronym    = BreakdownBuilder._acronym(L2[0]), 
+                l2_full_UID_n, l2_leaf_UID_n    = self.uid_store.generateUID(acronym    = _acronym(L2[0]), 
                                                              parent_UID = link.L1_UID)
-                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym    = BreakdownBuilder._acronym(L3[0]), 
+                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym    = _acronym(L3[0]), 
                                                              parent_UID = l2_full_UID_n)
-                l3_children_n                   = {}
-                l3_children_n[l3_leaf_UID_i]    = {'description': l3_i, 'UID': l3_full_UID_i}
+                # Dock level 3                                             
+                l3_children_n                     = {}
+                self._dock( parent                = l3_children_n,
+                            docking_key           = l3_leaf_UID_i, 
+                            children_to_dock      = {'description': l3_i, 'UID': l3_full_UID_i}, 
+                            concatenate_previous  = False)
 
-                # l2_n, l2_desc_n only change every nth loop (when Level 2 changes)
-                l2_n                            = l2_i
-                l2_desc_n                       = l2_desc_i
-                l2_dict_n                       = {}
-                l2_dict_n[Y_L2_DESC]            = l2_desc_n
-                l2_dict_n[Y_L3]                 = l3_children_n
-                l2_dict_n['UID']                = l2_full_UID_n
-                
-                all_l2s_dict[l2_leaf_UID_n]     = l2_n
-                
-                all_l2s_dict[l2_leaf_UID_n + '-detail']    = l2_dict_n
+                # Dock level 2
+                l2_dict_n                         = {}
+                self._dock( parent                = l2_dict_n,
+                            docking_key           = Y_L3, 
+                            children_to_dock      = l3_children_n, 
+                            concatenate_previous  = False)
+                l2_desc_n                         = l2_desc_i
+                self._dock( parent                = l2_dict_n,
+                            docking_key           = None, 
+                            children_to_dock      = {Y_L2_DESC: l2_desc_n, 'UID': l2_full_UID_n}, 
+                            concatenate_previous  = False)
+
+                # Dock level 1  
+                l2_n                              = l2_i            
+                self._dock( parent                = all_l2s_dict,
+                            docking_key           = l2_leaf_UID_n + '-detail', 
+                            children_to_dock      = l2_dict_n, 
+                            concatenate_previous  = False)
+                self._dock( parent                = all_l2s_dict,
+                            docking_key           = None,
+                            children_to_dock      = {l2_leaf_UID_n: l2_n}, 
+                            concatenate_previous  = False)
+
+
+
+
+
             else:
                 raise ValueError("Expected a string or a blank, not a '" + str(type(l2_i)) 
                                  + '(row=' + str(row[0]) + " and text is '" + str(l2_i) + "')")
             
 
         return Y_L2, all_l2s_dict
-    
+
+
+
+    def _process_row(self, row, intervals, tree_fragments):
+        for interval in metadata: # loops from the more granular to the higher level
+            if interval.not_blank(row): # We just entered a new section for this interval, so post
+                tree_fragments.dock(to=interval, row=
+                row)
+            else:
+                break # By convention, if an interval is blank for a row, all other intervals to the left of it are also blank
+
+class BreakdownTree():
+    '''
+    The intuition behind this class is that it represents `1:N` entity relationships. Consider an `entity A` with a `1:N` relationship
+    to an `entity B`. Then an instance `a` of `A` may "link" to instances `b1, b2, ..., bN` of `B`. A `BreakdownTree` is
+    a way to capture these links, which "breaks down" `a` into `b1, ..., bN`.
+
+    Each of these "linked" objects `b1,...bN` are described based on their named properties, which might be "simple" (a scalar),
+    or "complex" (another `1:N` link from entity `B` to yet another entity `C`). This introduces a natural tree-like
+    structure as one navigates entity relationships.
+
+    A final observation is that since we are talking entities (i.e., domain constructs that have an autonomous existence), 
+    each entity instance should have a unique UID identifying it.
+
+    To represent this domain model, a BreakdownTree is a tree with these characteristics:
+
+    1. Every immedidate child of the root is a node of kind "_EntityInstance". All these immediate children are for a common
+       "entity type" and each child represents an "entity instance" identified with a unique UID.
+    2. Every "_EntityInstance" node has one of four kinds of children: 
+        * A unique child called "UID" that has a scalar value uniquely identifying the _EntityInstance within the "global BreakdownTree"
+            (see below for what is the "global BreakdownTree) 
+        * A unique string-valued child that provides a "name" for the "entity instance" represented by the _EntityInstance. The
+            string value for this child is unique among all _EntityInstances of its immediate parent.
+        * Zero or more scalars "properties"
+        * Zero or more BreakdownTree children (each representing references from the _EntityIntance to yet another entity)
+    3.  Two BreakdownTree objects are "connected" if one is a descendent of the other or if both descend from a common
+        BreakdownTree. For any BreakdownTree T, all other BreakdownTree objects it is connected to descend from a unique, maximal
+        BreakdownTree G, that we call the "global BreakdownTree".
+    4. The unique UIDs are as created by the UID_Store class in this module. The instance of the UID_Store used is common
+        across all nodes in a BreakdownTree
+    4. All children are identified by a unique string. In the case of the _EntityInstance child, the uique string is "UID"
+    '''
+    def __init__(self, uid_store, entity_type, parent_UID):
+        self.uid_store              = uid_store
+        self.entity_type            = entity_type # Common entity type for all the nodes under root
+        self.parent_UID             = parent_UID
+        self.children               = {} # Dictionary of _EntityInstance's, keyed by UID
+        self.last_path              = {} # Keys are entity types, and value is an _EntityInstance
+
+    def as_dicts(self):
+        '''
+        Returns a dictionary of dictionaries representing this BreakoutTree
+        '''
+        result                                  = {}
+
+        for k in self.children.keys():
+            entity_instance                     = self.children[k]
+            entity_instance_dict                = {}
+            entity_instance_dict['UID']         = entity_instance.UID
+            entity_instance_dict['name']        = entity_instance.name
+
+            for prop_k in entity_instance.scalar_children.keys():
+                entity_instance_dict[prop_k]    = entity_instance.scalar_children[prop_k]
+
+            for tree_k in entity_instance.breakdown_children.keys():
+                entity_instance_dict[tree_k + "s"]    = entity_instance.breakdown_children[tree_k].as_dicts()
+
+            result[entity_instance.leaf_UID]         = entity_instance_dict
+            #result.append(entity_instance_dict)
+        return result
+        
+
+    def readDataframeFragment(self, interval, row, parent_trace): 
+        '''
+        Used to attach an immediate child to the root of this BreakdownTree based on information in a row
+        in a Pandas DataFrame.
+
+        The idea is that end-used used something like Excel to capture both the entity relationships and the properties
+        of the entities themselves. As one looks at Excel columns left to right, they partition into
+        intervals, one for each entity. Within an interval, the columns provide the properties of the entity for that
+        row.
+
+        The trick lies in how 1:N entity relationships are represented in Excel. The idea is that if entity `A`'s instance `a` references
+        entity `B`'s instances `b1, ...., bn` this is represented in Excel by n rows and two intervals of columns:
+        `intervalA` on the left and `intervalB` on the right. `b1, ..., bn`'s properties are in the `n` rows under the 
+        `intervalB` columns. The properties of `a` are in the **first row only** under the `intervalA` columns, with all other
+        rows under `intervalA` being blank. That is the convention for how the user easily capture properties for `a`, `b1, ..., bn`
+        and their linkage in a single worksheet in Excel: blank columns under `interval A` indicates that the `B` instances
+        are linked to the same `A` instance for the last row that wasn't blank under `interval A`.
+
+        The above pattern may be repeated across multiple entity depths, e.g., entity `A` having `1:n` linkage to entity `B`, 
+        and `B` in turn having `1:n` linkage to entity `C`, and so on, all within a single worksheet in Excel.
+
+        This Excel is then programmatically loaded into a Pandas Dataframe, and processed row by row in order to produce
+        the inner representation of all these entity representations as an Apodeixi domain model YAML manifest. When a row
+        is processed, it is processed entity by entity, from most general to the more granula, following the order
+        how entity relationships point.
+
+        To explain this, consider again the case of entity `A`'s instance `a` references entity `B`'s instances `b1, ...., bn`,
+        and imagine we are processing a row `i`.
+
+        We first process the columns in `interval A`, and there are two possibilities: we may find them to
+        be blank, or not.
+
+        If `interval A` columns are not blank this means that the user captured `a` in that row (that only happens if `i=0`).
+        In that case, we also create another `_EntityInstance` object to capture `a`, and attach it to the BreakoutTree
+        for the interval before `Interval A`, possible since we process the row from left to right, so such BreakoutTree
+        exists already unless there is no interval to the left of `Interval A`, in which case we are at the root.
+
+        On the other hand, if `interval A` columns are blank (only happens if `i>0`), that means we already processed
+        `a` in a previous row, and so we get that previously constructed instance of `a`'s _EntityInstance, using
+        self.last_path which keeps track of such previously constructed things.
+
+        Either way, we now have `a`'s _EntityInstance. That makes it now possible to process `Interval B` and
+        attach `b1, ..., bn` to `a`'s _EntityInstance as a breakdown child (i.e., a sub-BreakdownTree)
+        
+
+        @param interval     List of strings, corresponding to the columns in `row` that pertain
+        @param row          A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
+                            the Dataframe `itterrows()` iterator.
+        @param parent_trace A apodeixi.util.ApodeixiError.FunctionalTrace object. It contains human-friendly information 
+                            for humans to troubleshoot problems when error are raised.
+        '''
+        encountered_new_entity          = False
+        entity_column_idx               = None
+        my_trace                        = parent_trace.doing("Validating inputs are well-formed")
+        if True:
+            # Check against nulls
+            if interval==None or len(interval)==0:
+                raise ApodeixiError(my_trace, "Empty interval of columns was given.")
+
+            # Check it's the right entity type  ### LOOKS LIKE AN INCORRECT CHECK - Level 2 intervals WON'T MATCH ROOT TREE ENTITY
+            #if interval[0] != self.entity_type:
+            #    raise ApodeixiError(my_trace, "Wrong entity type '" + interval[0] + "'. Should be '" + self.entity_type  + "'.")
+
+            # Check we got a real Dataframe row
+            if row==None or type(row)!=tuple or len(row)!=2 or type(row[1])!=pandas.core.series.Series:
+                raise ApodeixiError(my_trace, "Didn't get a real Pandas row")   
+
+            # Check interval and row are consistent
+            columns                     = list(row[1].index)
+            if not set(interval).issubset(set(columns)):
+                raise ApodeixiError(my_trace, "Interval is not a subset of the row's columns.")
+
+            # Check entity appears in exactly one column. From above know it appears at least once. 
+            idxs                        = [idx for idx in range(len(columns)) if columns[idx]==interval[0]]
+            if len(idxs)>1:
+                raise ApodeixiError(my_trace, "Entity '" + interval[0] + "' appears in multiple columns. Should appear only once.")
+            entity_column_idx           = idxs[0]
+
+            # Check that if interval's entity is blank, all of interval is bank
+            blank_cols                  = [col for col in interval if _is_blank(row[1][col])]
+            encountered_new_entity      = not interval[0] in blank_cols
+            if not encountered_new_entity and len(blank_cols) < len(interval):
+                raise ApodeixiError(my_trace, "Row has a blank '" + interval[0] 
+                                    + "' so rest of row's interval should be blank, but isn't")
+
+        subentity_type                  = None
+        columns                         = list(row[1].index)
+        known_entity_types              = list(self.last_path.keys())
+        my_trace                        = parent_trace.doing("Discovering if there is a sub-entity")
+        if True:
+            # Check that interval itself has no subentities (as any subentity should be *after* the interval)
+            illegal_sub_entities        = set(known_entity_types).intersection(set(interval)).difference(set(interval[0]))
+            if len(illegal_sub_entities) > 0:
+                raise ApodeixiError(my_trace, "There shouldn't be subentities inside the interval, but found some: " 
+                                                + str(illegal_sub_entities))
+            # Check if there is a subentity, i.e., a column right after the interval
+            subentity_column_idx        = next((idx for idx in range(len(columns)-1) if columns[idx]==interval[-1]),
+                                                None)
+            if subentity_column_idx != None:
+                subentity_type          = columns[subentity_column_idx]
+            
+        parent_entity                   = None
+        my_trace                        = parent_trace.doing("Discovering parent entity")
+        if True:
+            ascendent_entities_idxs     = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
+                                                                                    and idx < entity_column_idx]
+            if len(ascendent_entities_idxs) == 0:
+                my_trace                = my_trace.doing("Validating we are the root entity", 
+                                                data={'self.entity_type': self.entity_type,
+                                                        'entity_column_idx': entity_column_idx})
+                if interval[0] != self.entity_type:
+                    raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval[0] + "'") 
+            else:
+                parent_entity           = columns[max(ascendent_entities_idxs)]
+
+        if encountered_new_entity: 
+            my_trace                    = parent_trace.doing("Creating a node for '" + interval[0] + "'.")
+
+            if parent_entity == None: # Attach to the root
+                docking_uid             = self.parent_UID
+                tree_to_attach_to       = self
+
+            else:
+                my_trace                    = my_trace.doing("Validating we previously created a node for '" 
+                                                                + parent_entity + "' to which to attach '" + interval[0] + "'.")
+                if parent_entity not in self.last_path.keys():
+                    raise ApodeixiError(my_trace, "No prior node found for  '" + parent_entity + "'") 
+                
+                parent_entity_instance  = self.last_path[parent_entity]
+                docking_uid             = parent_entity_instance.UID
+
+                tree_to_attach_to       = None
+                if interval[0] not in parent_entity_instance.breakdown_children.keys(): # Need to initialize tree
+                    tree_to_attach_to   = BreakdownTree(self.uid_store, interval[0], parent_entity_instance.UID)
+                    parent_entity_instance.breakdown_children[interval[0]]      = tree_to_attach_to
+                else:
+                    tree_to_attach_to   = parent_entity_instance.breakdown_children[interval[0]]
+
+            full_uid, leaf_uid      = self.uid_store.generateUID(   acronym    = _acronym(interval[0]), 
+                                                                    parent_UID  = docking_uid)
+            new_node                = BreakdownTree._EntityInstance(    uid_store   = self.uid_store, 
+                                                                        name        = row[1][interval[0]],
+                                                                        uid         = full_uid,
+                                                                        leaf_uid    = leaf_uid)
+            for idx in range(1, len(interval)):
+                new_node.setProperty(interval[idx], row[1][interval[idx]])
+
+            tree_to_attach_to.children[full_uid]    = new_node
+            self.last_path[interval[0]]             = new_node
+            
+        else: # Didn't encounter a new entity - so nothing to do for this interval
+            return
+        
+
+    class _EntityInstance():
+        '''
+        Represents an immediate child of the root of a BreakdownTree
+        '''
+        def __init__(self, uid_store, name, uid, leaf_uid):
+            self.uid_store           = uid_store
+            #self.entity_type         = entity_type
+
+            # The four kinds of possible "children"
+            self.name                = name
+            self.UID                 = uid
+            self.leaf_UID            = leaf_uid
+            self.scalar_children     = {}
+            self.breakdown_children  = {}
+            
+        def setProperty(self, name, value):
+            self.scalar_children[name] = value
+
+        def linkAnotherEntity(self, name, breakdown_tree):
+            self.breakdown_children[name]     = breakdown_tree
+
+
+
+    class POSSIBLE_SCRAP_Interval():
+        '''
+        Represents information about a consecutive set of columns, all of which belown to the same level
+
+        @param columns   A list of the consecutive column names that comprise this _Interval. They are sorted from left to right.
+        @param parent    The _Interval immediately to the left of this _Interval, if there is any. None otherwise
+        @param has_title A boolean, determining whether the leftmost column can be considered a friendly, succinct title that
+                         should be visible at the UID level in the tree fragment to be built.
+        '''
+        def __init__(self, columns, parent, title_col):
+            if columns==None or len(columns) < 1:
+                raise ValueError("Invalid '_Interval' - no columns were provided for it")
+            self.columns     = columns
+            self.parent      = parent
+            self.has_title   = has_title
+
+        def not_blank(row):
+            # Return True if row[self.columns[0]] is blank
+            txt   = row[self.columns[0]]
+            return not BreakdownTree._is_blank(txt)
+
+def _is_blank(txt):
+    '''
+    Returns True if 'txt' is NaN or just spaces
+    '''
+    if type(txt)==float and _math.isnan(txt):
+        return True
+    elif type(txt)==str:
+        stripped_txt = BreakdownBuilder._strip(txt)
+        return len(stripped_txt)==0
+    else:
+        return False
+
+
+def _acronym(txt):
+    '''
+    Returns a string of initials for 'txt', in uppercase
+    '''
+    stripped_txt = BreakdownBuilder._strip(txt)
+    tokens       = stripped_txt.split(' ')
+    acronym      = ''.join([token[0].upper() for token in tokens])
+    return acronym
+
+''' SCRAP
+
     def _acronym(txt):
-        '''
-        Returns a string of initials for 'txt', in uppercase
-        '''
+      
         stripped_txt = BreakdownBuilder._strip(txt)
         tokens       = stripped_txt.split(' ')
         acronym      = ''.join([token[0].upper() for token in tokens])
         return acronym
+
+'''

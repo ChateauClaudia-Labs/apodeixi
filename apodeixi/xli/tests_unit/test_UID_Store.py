@@ -1,10 +1,12 @@
-import unittest
+from apodeixi.util.ApodeixiUnitTest import *
+import sys as _sys
 
 from apodeixi.xli.breakdown_builder import *
 
-class Test_UIDStore(unittest.TestCase):
+class Test_UIDStore(ApodeixiUnitTest):
 
     def setUp(self):
+        super().setUp()
         self.store = UID_Store()
         
     def attempt_tokenize(self, uid):
@@ -46,3 +48,15 @@ class Test_UIDStore(unittest.TestCase):
             self.assertEqual(result, expected)
 
 
+if __name__ == "__main__":
+    # execute only if run as a script
+    def main(args):
+        T = Test_UIDStore()
+        T.setUp()
+        what_to_do = args[1]
+        if what_to_do=='tokenize':
+            T.test_tokenize()
+        if what_to_do=='generateUID':
+            T.test_generateUID()
+
+    main(_sys.argv)
