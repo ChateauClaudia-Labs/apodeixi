@@ -14,7 +14,7 @@ setup(name='apodeixi',
       author='Alejandro Hernandez',
       author_email='alejandro@chateauclaudia-labs.com',
       license='MIT',
-      packages=['apodeixi', 'apodeixi.xli'],
+      packages=['apodeixi', 'apodeixi.xli'], 'apodeixi.util',
       zip_safe=False)
 
 

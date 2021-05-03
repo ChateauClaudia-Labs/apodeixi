@@ -84,9 +84,10 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
-        store           = UID_Store()
-        self.root_tree   = BreakdownTree(uid_store = store, entity_type='A', parent_UID=None)
 
+
+
+    def _create_df(self):
         columns         = ['A',     'color',    'size',     'B',    'height',   'coolness',     'C']
         row0            = ['a1',    'brown',    "32in",     'b1',   "5' 8''",   'so-so',        'c1']
         row1            = ['',      '',         "",         'b2',   "6' 1''",   'awesome',      'c2']
@@ -94,44 +95,155 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         row3            = ['a2',    'red hair', "29in",     'b3',   "165cm",    'cool cat',     'c4']
 
         df              = pd.DataFrame(columns=columns, data = [row0, row1, row2, row3])
-        self.df         = df
+        return          df
 
-    def test_read_df_fragment(self):
+    def _create_df2(self):
+        columns         = ['Expectation',           'Description',          'Acceptance Criteria',      'Artifact']
+        row0            = ['Segmentation model',    'Tier/Geo/Vertical',    'Analysis',                 'Tree model']
+        row1            = ['',                      '',                     'Market Validation',        'Analysists data']
+        row2            = ['Jobs to be done model', 'Understand buying',    'Timeline clear',           'BPMN diagram']
+        row3            = ['',                      '',                     'Behavior clear',           'Sequence diagram']
+
+        df2              = pd.DataFrame(columns=columns, data = [row0, row1, row2, row3])
+        return          df2
+
+    def test_read_df_fragment(self):  
+        result_dict                 = None  
+        try:
+            tree                    = self._create_breakdown_tree()
+            result_dict             = tree.as_dicts()
+        except ApodeixiError as ex:
+            print(ex.trace_message())
+
+        self._compare_to_expected_yaml(result_dict, 'read_df_fragment')
+
+    def test_find(self):    
+        UID_TO_FIND                 = 'A2.B1.C1'   
+        NAME_OF_ENTITY_TO_FIND      = 'c4'
+
+        entity_instance             = None
+        try:
+            tree                    = self._create_breakdown_tree()
+            my_trace                = FunctionalTrace(None).doing("Finding uid='" + UID_TO_FIND + "'")
+            entity_instance         = tree.find (UID_TO_FIND, my_trace)
+        except ApodeixiError as ex:
+            print(ex.trace_message())
+
+        self.assertEqual(entity_instance.name, NAME_OF_ENTITY_TO_FIND)
+
+    def test_docking_1(self):
+        DOCKING_UID           = 'A2.B1'   
+        ENTITY_TO_DOCK        = "Costs"
+        
+        columns         = [ENTITY_TO_DOCK,          'Purpose']
+        row0            = ["Charlie's per diem",    'Customer Visit']
+        df              = pd.DataFrame(columns=columns, data = [row0])
+
+        DATA_TO_ATTACH  = next(df.iterrows())[1]
+
+        entity_instance             = None
+        try:
+            tree                    = self._create_breakdown_tree()
+            my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
+            tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
+                                    entity_type         = ENTITY_TO_DOCK, 
+                                    data_to_attach      = DATA_TO_ATTACH, 
+                                    parent_trace        = my_trace)
+            result_dict             = tree.as_dicts()
+        except ApodeixiError as ex:
+            print(ex.trace_message())
+        self._compare_to_expected_yaml(result_dict, 'docking_1')
+
+    def test_docking_2(self):
+        DOCKING_UID           = 'A2.B1'   
+        ENTITY_TO_DOCK        = "C"
+        
+        columns         = [ENTITY_TO_DOCK,      'Typo']
+        row0            = ["Immueble rojo",          'Residencial']
+        df              = pd.DataFrame(columns=columns, data = [row0])
+
+        DATA_TO_ATTACH  = next(df.iterrows())[1]
+
+        entity_instance             = None
+        try:
+            tree                    = self._create_breakdown_tree()
+            my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
+            tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
+                                    entity_type         = ENTITY_TO_DOCK, 
+                                    data_to_attach      = DATA_TO_ATTACH, 
+                                    parent_trace        = my_trace)
+            result_dict             = tree.as_dicts()
+        except ApodeixiError as ex:
+            print(ex.trace_message())
+        self._compare_to_expected_yaml(result_dict, 'docking_2')
+
+    def test_acronyms(self):   
+        entities                    = ['Costs', 'Cost Models', "Ferries", 'Carry Mirrors', 'CO', 'Costs']
+        EXPECTED                    = ['CO', 'CM', 'F', 'CAMI', 'COC', 'CO']
+        try:
+            tree                    = self._create_breakdown_tree()
+            result                  = []
+            my_trace                = FunctionalTrace(None).doing("Testing acronym generation")
+            for e in entities:
+                result.append(tree.getAcronym(e))
+
+        except ApodeixiError as ex:
+            print(ex.trace_message())
+        self.assertEqual(result, EXPECTED)
+
+    def test_attach_subtree(self):  
+        result_dict                 = None  
+        try:
+            tree1                   = self._create_breakdown_tree()
+            subtree_df              = self._create_df2()
+            subtree_intervals = [['Expectation', 'Description'], [ 'Acceptance Criteria', 'Artifact']]
+            self._attach_subtree(subtree_df, subtree_intervals, tree1, 'A2.B1.C1')
+            result_dict             = tree1.as_dicts()
+        except ApodeixiError as ex:
+            print(ex.trace_message())
+
+        self._compare_to_expected_yaml(result_dict, 'attach_subtree')
+
+    def _create_breakdown_tree(self):
+        store           = UID_Store()
+        tree            = BreakdownTree(uid_store = store, entity_type='A', parent_UID=None)
+        df              = self._create_df()
+        
         interval_A      = ['A',     'color',    'size']
         interval_B      = ['B',    'height',   'coolness']
-        interval_C      = 'C'
+        interval_C      = ['C']
 
-        rows            = list(self.df.iterrows())
+        rows            = list(df.iterrows())
         intervals       = [interval_A, interval_B, interval_C]
-        root_trace      = FunctionalTrace(None).doing("Processing DataFrame", data={'root_tree.entity_type': self.root_tree.entity_type})
+        root_trace      = FunctionalTrace(None).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
+                                                                                    'columns'           : list(df.columns)})
         
-        result_dict                 = []
-        try:
-            for idx in range(len(rows)):
-                for interval in intervals:
-                    my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
-                    self.root_tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace)
-            result_dict             = self.root_tree.as_dicts()
-        except ApodeixiError as ex:
-            print(ex.msg)
-            trace_msg = '\n'.join([str(trace_level) for trace_level in ex.functional_trace.examine()])
-            print(trace_msg)
+        for idx in range(len(rows)):
+            for interval in intervals:
+                my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
+                tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace)
 
-        output_stream               = StringIO()
-        _yaml.dump(result_dict, output_stream)
+        return tree
 
+    def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid):
+        store           = tree_to_attach_to.uid_store
+        entity_type     = intervals[0][0]
+        subtree         = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=docking_uid)
+         
+        rows            = list(df_to_attach.iterrows())
+        root_trace      = FunctionalTrace(None).doing("Populating subtree", data={'subtree.entity_type'  : entity_type,
+                                                                                    'columns'           : list(df_to_attach.columns)})
+        
+        for idx in range(len(rows)):
+            for interval in intervals:
+                my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
+                subtree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace)
 
-        result_yaml                 = output_stream.getvalue()
+        root_trace      = FunctionalTrace(None).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
+                                                                                    "entity_type"  : "'" + entity_type + "'"})
+        tree_to_attach_to.dock_subtree(entity_type, subtree, root_trace)
 
-        #with open(self.output_data + '/read_df_fragment.yaml', 'w') as file:
-        #    _yaml.dump(result_dict, file)
-        self._save_output(result_dict)
-
-        self.assertEqual(result_yaml, self._expected_read_df_fragment())
-    
-    def _expected_read_df_fragment(self):
-        return "A1:\n  Bs:\n    B1:\n      Cs:\n        C1:\n          UID: A1.B1.C1\n          name: c1\n      UID: A1.B1\n      coolness: so-so\n      height: 5' 8''\n      name: b1\n    B2:\n      Cs:\n        C1:\n          UID: A1.B2.C1\n          name: c2\n        C2:\n          UID: A1.B2.C2\n          name: c3\n      UID: A1.B2\n      coolness: awesome\n      height: 6' 1''\n      name: b2\n  UID: A1\n  color: brown\n  name: a1\n  size: 32in\nA2:\n  Bs:\n    B1:\n      Cs:\n        C1:\n          UID: A2.B1.C1\n          name: c4\n      UID: A2.B1\n      coolness: cool cat\n      height: 165cm\n      name: b3\n  UID: A2\n  color: red hair\n  name: a2\n  size: 29in\n"
-
+        
 
 if __name__ == "__main__":
     # execute only if run as a script
@@ -143,8 +255,13 @@ if __name__ == "__main__":
             T.test_multi_sheet()
 
         T2 = Test_BreakoutTree()
-        T2.setup()
+        T2.setUp()
         if what_to_do=='read_df_fragment':
             T2.test_read_df_fragment()
+        if what_to_do=='find':
+            T2.test_find()
+        if what_to_do=='attach_subtree':
+            T2.test_attach_subtree()
+
 
     main(_sys.argv)

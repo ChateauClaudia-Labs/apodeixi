@@ -1,7 +1,9 @@
 import unittest
 import sys as _sys
 import os as _os
+import yaml as _yaml
 import inspect
+from io import StringIO
 
 class ApodeixiUnitTest(unittest.TestCase):
     '''
@@ -32,3 +34,26 @@ class ApodeixiUnitTest(unittest.TestCase):
         '''
         with open(self.output_data + '/' + 'tmp.txt', 'w') as file:
             file.write(str(output))
+
+    def _compare_to_expected_yaml(self, result_dict, test_case_name):
+        '''
+        Utility method for derived classes that create YAML files and need to check they match an expected output
+        previously saves as a YAML file as well. 
+
+        It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
+        '''
+        # Persist output and retrieve expected output
+        with open(self.output_data + '/' + test_case_name + '_OUTPUT.yaml', 'w') as file:
+            _yaml.dump(result_dict, file)
+        with open(self.output_data + '/' + test_case_name + '_EXPECTED.yaml', 'r') as file:
+            expected_dict           = _yaml.load(file, Loader=_yaml.FullLoader)
+
+        output_stream               = StringIO()
+        _yaml.dump(result_dict, output_stream)
+        result_yaml                 = output_stream.getvalue()
+
+        expected_stream             = StringIO()
+        _yaml.dump(expected_dict, expected_stream)
+        expected_yaml               = expected_stream.getvalue()
+
+        self.assertEqual(result_yaml, expected_yaml)

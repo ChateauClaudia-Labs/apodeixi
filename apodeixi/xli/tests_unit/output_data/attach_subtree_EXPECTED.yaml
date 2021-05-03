@@ -1,0 +1,69 @@
+A1:
+  Bs:
+    B1:
+      Cs:
+        C1:
+          UID: A1.B1.C1
+          name: c1
+      UID: A1.B1
+      coolness: so-so
+      height: 5' 8''
+      name: b1
+    B2:
+      Cs:
+        C1:
+          UID: A1.B2.C1
+          name: c2
+        C2:
+          UID: A1.B2.C2
+          name: c3
+      UID: A1.B2
+      coolness: awesome
+      height: 6' 1''
+      name: b2
+  UID: A1
+  color: brown
+  name: a1
+  size: 32in
+A2:
+  Bs:
+    B1:
+      Cs:
+        C1:
+          Expectationss:
+            E1:
+              Acceptance Criterias:
+                AC1:
+                  Artifact: Tree model
+                  UID: A2.B1.C1.E1.AC1
+                  name: Analysis
+                AC2:
+                  Artifact: Analysists data
+                  UID: A2.B1.C1.E1.AC2
+                  name: Market Validation
+              Description: Tier/Geo/Vertical
+              UID: A2.B1.C1.E1
+              name: Segmentation model
+            E2:
+              Acceptance Criterias:
+                AC1:
+                  Artifact: BPMN diagram
+                  UID: A2.B1.C1.E2.AC1
+                  name: Timeline clear
+                AC2:
+                  Artifact: Sequence diagram
+                  UID: A2.B1.C1.E2.AC2
+                  name: Behavior clear
+              Description: Understand buying
+              UID: A2.B1.C1.E2
+              name: Jobs to be done model
+          UID: A2.B1.C1
+          name: c4
+      UID: A2.B1
+      coolness: cool cat
+      height: 165cm
+      name: b3
+  UID: A2
+  color: red hair
+  name: a2
+  size: 29in

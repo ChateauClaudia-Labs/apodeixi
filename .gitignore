@@ -1,5 +1,7 @@
 # Added by Alejandro
 *.~vsdx
+tmp.*
+*.tmp.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

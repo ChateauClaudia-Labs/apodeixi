@@ -642,7 +642,7 @@ class BreakdownBuilder:
         return Y_L2, all_l2s_dict
 
 
-
+    '''
     def _process_row(self, row, intervals, tree_fragments):
         for interval in metadata: # loops from the more granular to the higher level
             if interval.not_blank(row): # We just entered a new section for this interval, so post
@@ -650,6 +650,7 @@ class BreakdownBuilder:
                 row)
             else:
                 break # By convention, if an interval is blank for a row, all other intervals to the left of it are also blank
+    '''
 
 class BreakdownTree():
     '''
@@ -688,10 +689,12 @@ class BreakdownTree():
         self.parent_UID             = parent_UID
         self.children               = {} # Dictionary of _EntityInstance's, keyed by UID
         self.last_path              = {} # Keys are entity types, and value is an _EntityInstance
+        self.acronyms               = {} # Keys are entity types, and value is the acronym used for it
 
     def as_dicts(self):
         '''
-        Returns a dictionary of dictionaries representing this BreakoutTree
+        Returns a dictionary of dictionaries representing this BreakdownTree. The keys are the leaf UIDs for the
+        _EntityInstance objects comprising this BreakdownTree
         '''
         result                                  = {}
 
@@ -714,7 +717,7 @@ class BreakdownTree():
 
     def readDataframeFragment(self, interval, row, parent_trace): 
         '''
-        Used to attach an immediate child to the root of this BreakdownTree based on information in a row
+        Used to attach or enrich an immediate child to the root of this BreakdownTree based on information in a row
         in a Pandas DataFrame.
 
         The idea is that end-used used something like Excel to capture both the entity relationships and the properties
@@ -735,7 +738,7 @@ class BreakdownTree():
 
         This Excel is then programmatically loaded into a Pandas Dataframe, and processed row by row in order to produce
         the inner representation of all these entity representations as an Apodeixi domain model YAML manifest. When a row
-        is processed, it is processed entity by entity, from most general to the more granula, following the order
+        is processed, it is processed entity by entity, from most general to the more granular, following the order
         how entity relationships point.
 
         To explain this, consider again the case of entity `A`'s instance `a` references entity `B`'s instances `b1, ...., bn`,
@@ -744,12 +747,13 @@ class BreakdownTree():
         We first process the columns in `interval A`, and there are two possibilities: we may find them to
         be blank, or not.
 
-        If `interval A` columns are not blank this means that the user captured `a` in that row (that only happens if `i=0`).
-        In that case, we also create another `_EntityInstance` object to capture `a`, and attach it to the BreakoutTree
-        for the interval before `Interval A`, possible since we process the row from left to right, so such BreakoutTree
+        If `interval A` columns are not blank this means that the user captured `a` in that row (that only happens if `i=0`
+        in this example).
+        In that case, we create a new `_EntityInstance` object to capture `a`, and attach it to the BreakdownTree
+        for the interval before `Interval A` (if any), possible since we process the row from left to right, so such BreakdownTree
         exists already unless there is no interval to the left of `Interval A`, in which case we are at the root.
 
-        On the other hand, if `interval A` columns are blank (only happens if `i>0`), that means we already processed
+        On the other hand, if `interval A` columns are blank (only happens if `i>0` in this example), that means we already processed
         `a` in a previous row, and so we get that previously constructed instance of `a`'s _EntityInstance, using
         self.last_path which keeps track of such previously constructed things.
 
@@ -757,15 +761,17 @@ class BreakdownTree():
         attach `b1, ..., bn` to `a`'s _EntityInstance as a breakdown child (i.e., a sub-BreakdownTree)
         
 
-        @param interval     List of strings, corresponding to the columns in `row` that pertain
+        @param interval     List of strings, corresponding to the columns in `row` that pertain to an entity being processed
         @param row          A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
-                            the Dataframe `itterrows()` iterator.
+                            the Dataframe `iterrows()` iterator.
         @param parent_trace A apodeixi.util.ApodeixiError.FunctionalTrace object. It contains human-friendly information 
                             for humans to troubleshoot problems when error are raised.
         '''
-        encountered_new_entity          = False
-        entity_column_idx               = None
-        my_trace                        = parent_trace.doing("Validating inputs are well-formed")
+        encountered_new_entity              = False
+        entity_column_idx                   = None
+        known_entity_types                  = list(self.last_path.keys())
+        my_trace                            = parent_trace.doing("Validating inputs are well-formed",
+                                                    data = {'known_entity_types': known_entity_types})
         if True:
             # Check against nulls
             if interval==None or len(interval)==0:
@@ -797,74 +803,187 @@ class BreakdownTree():
                 raise ApodeixiError(my_trace, "Row has a blank '" + interval[0] 
                                     + "' so rest of row's interval should be blank, but isn't")
 
-        subentity_type                  = None
-        columns                         = list(row[1].index)
-        known_entity_types              = list(self.last_path.keys())
-        my_trace                        = parent_trace.doing("Discovering if there is a sub-entity")
-        if True:
             # Check that interval itself has no subentities (as any subentity should be *after* the interval)
-            illegal_sub_entities        = set(known_entity_types).intersection(set(interval)).difference(set(interval[0]))
+            # Remember to not count interval[0] as "illegal", since it is clearly an entity and not a sub-entity/
+            # That's why we intersect the known_entity_types with interval[1:] (as opposed to intersecting with interval)
+            illegal_sub_entities        = set(known_entity_types).intersection(set(interval[1:])) 
             if len(illegal_sub_entities) > 0:
                 raise ApodeixiError(my_trace, "There shouldn't be subentities inside the interval, but found some: " 
                                                 + str(illegal_sub_entities))
-            # Check if there is a subentity, i.e., a column right after the interval
-            subentity_column_idx        = next((idx for idx in range(len(columns)-1) if columns[idx]==interval[-1]),
-                                                None)
-            if subentity_column_idx != None:
-                subentity_type          = columns[subentity_column_idx]
-            
-        parent_entity                   = None
-        my_trace                        = parent_trace.doing("Discovering parent entity")
+
+        columns                             = list(row[1].index)            
+        parent_entity                       = None
+        my_trace                            = parent_trace.doing("Discovering parent entity")
         if True:
-            ascendent_entities_idxs     = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
+            ancestor_entities_idxs      = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
                                                                                     and idx < entity_column_idx]
-            if len(ascendent_entities_idxs) == 0:
+            if len(ancestor_entities_idxs) == 0:
                 my_trace                = my_trace.doing("Validating we are the root entity", 
                                                 data={'self.entity_type': self.entity_type,
                                                         'entity_column_idx': entity_column_idx})
                 if interval[0] != self.entity_type:
                     raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval[0] + "'") 
             else:
-                parent_entity           = columns[max(ascendent_entities_idxs)]
+                parent_entity           = columns[max(ancestor_entities_idxs)]
 
         if encountered_new_entity: 
-            my_trace                    = parent_trace.doing("Creating a node for '" + interval[0] + "'.")
-
-            if parent_entity == None: # Attach to the root
-                docking_uid             = self.parent_UID
-                tree_to_attach_to       = self
-
-            else:
-                my_trace                    = my_trace.doing("Validating we previously created a node for '" 
-                                                                + parent_entity + "' to which to attach '" + interval[0] + "'.")
-                if parent_entity not in self.last_path.keys():
-                    raise ApodeixiError(my_trace, "No prior node found for  '" + parent_entity + "'") 
-                
-                parent_entity_instance  = self.last_path[parent_entity]
-                docking_uid             = parent_entity_instance.UID
-
-                tree_to_attach_to       = None
-                if interval[0] not in parent_entity_instance.breakdown_children.keys(): # Need to initialize tree
-                    tree_to_attach_to   = BreakdownTree(self.uid_store, interval[0], parent_entity_instance.UID)
-                    parent_entity_instance.breakdown_children[interval[0]]      = tree_to_attach_to
+            my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval[0] + "'.")
+            if True:
+                if parent_entity == None: # Attach to the root
+                    docking_uid             = self.parent_UID
                 else:
-                    tree_to_attach_to   = parent_entity_instance.breakdown_children[interval[0]]
+                    my_trace                = my_trace.doing("Validating we previously created a node for '" 
+                                                                    + parent_entity + "' to which to attach '" + interval[0] + "'.")
+                    if parent_entity not in self.last_path.keys():
+                        raise ApodeixiError(my_trace, "No prior node found for  '" + parent_entity + "'") 
+                    
+                    parent_entity_instance  = self.last_path[parent_entity]
+                    docking_uid             = parent_entity_instance.UID
 
-            full_uid, leaf_uid      = self.uid_store.generateUID(   acronym    = _acronym(interval[0]), 
-                                                                    parent_UID  = docking_uid)
-            new_node                = BreakdownTree._EntityInstance(    uid_store   = self.uid_store, 
-                                                                        name        = row[1][interval[0]],
-                                                                        uid         = full_uid,
-                                                                        leaf_uid    = leaf_uid)
-            for idx in range(1, len(interval)):
-                new_node.setProperty(interval[idx], row[1][interval[idx]])
-
-            tree_to_attach_to.children[full_uid]    = new_node
-            self.last_path[interval[0]]             = new_node
+            my_trace                        = parent_trace.doing("Docking a new '" + interval[0] 
+                                                                    + "' below docking_uid '" + str(docking_uid) + "'")
+            self.dockEntityData(    full_docking_uid    = docking_uid, 
+                                    #tree_to_attach_to   = tree_to_attach_to, 
+                                    entity_type         = interval[0], 
+                                    data_to_attach      = row[1][interval], 
+                                    parent_trace        = my_trace)
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
             return
         
+    def dockEntityData(self, full_docking_uid, entity_type, data_to_attach, parent_trace):
+        '''
+        Method to attach a descendent to the tree. When an entity A links 1:n with an entity B,
+        this method can be used to "attach" an instance 'bi' of B to an instance 'a' of A.
+        We call this "docking" because we look at the BreakdownTree as already having a node of 'a' with
+        UID given by the `full_docking_uid`. Below that a subtree exists (or will be created by this method)
+        for all the instances `b1, b2, ..., bn` of `B` that should link to that particular `a`.
+
+        This method creates a new _EntityInstance node for `bi` based on the `data_to_attach`, and then links 
+        that node to the subtree under `a` for `entity_type`, thereby increasing the size of this BreakdownTree. 
+
+        @param full_docking_uid A string like 'A23.BW2.C2' identifying uniquely an _EntityInstance node in this tree
+                                If null we assume we are docking at the top of this tree
+        @param entity_type      A string for the kind of entity to be added under the full_docking_uid
+        @param data_to_attach: A Pandas Series   
+        '''
+        acronym_for_attachment  = self.getAcronym(entity_type)
+        my_trace                = parent_trace.doing("Identifying sub tree to attach to")
+        if full_docking_uid==self.parent_UID: # We are attaching at the root
+            tree_to_attach_to   = self
+
+        else:
+            parent_entity_instance  = self.find(full_docking_uid, my_trace)
+            if parent_entity_instance == None:
+                raise ApodeixiError(my_trace, "No node exists for UID '" + full_docking_uid + "'")
+
+            tree_to_attach_to       = self._get_tree_to_attach_to(parent_entity_instance, entity_type, my_trace)
+
+            sub_trace           = my_trace.doing("Validating acronym is not used by another entity")
+            if tree_to_attach_to.entity_type != entity_type:
+                raise ApodeixiError(sub_trace, "Can't add entity '" + entity_type 
+                                    + "' because its acronym conflicts with acronym of previously used entity '"
+                                    + tree_to_attach_to.entity_type + "'")
+
+        
+        full_uid, leaf_uid      = self.uid_store.generateUID(   acronym         = acronym_for_attachment, 
+                                                                parent_UID      = full_docking_uid)
+        new_node                = BreakdownTree._EntityInstance(    uid_store   = self.uid_store, 
+                                                                    name        = data_to_attach[entity_type],
+                                                                    uid         = full_uid,
+                                                                    leaf_uid    = leaf_uid)
+
+        for idx in data_to_attach.index:
+            if idx != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
+                new_node.setProperty(idx, data_to_attach[idx])
+
+        tree_to_attach_to.children[leaf_uid]    = new_node
+        self.last_path[entity_type]             = new_node
+
+    def _get_tree_to_attach_to(self, containing_entity_instance, entity_type_to_attach, parent_trace):
+        acronym_for_attachment  = self.getAcronym(entity_type_to_attach)
+
+        tree_to_attach_to       = containing_entity_instance.find_subtree(acronym_for_attachment, self, parent_trace)
+
+        if tree_to_attach_to==None: # This is first time we attach for this acronym, so create tree
+            tree_to_attach_to   = BreakdownTree(self.uid_store, entity_type_to_attach, containing_entity_instance.UID)
+            containing_entity_instance.breakdown_children[entity_type_to_attach]      = tree_to_attach_to
+
+        return tree_to_attach_to
+
+
+    #def dock_subtree(self, full_docking_uid, entity_type, subtree_to_attach, parent_trace):
+    def dock_subtree(self, entity_type, subtree_to_attach, parent_trace):
+
+        my_trace                        = parent_trace.doing("Finding where to dock in containing tree")
+        containing_equity_instance      = self.find(subtree_to_attach.parent_UID, my_trace)
+
+        containing_equity_instance.breakdown_children[entity_type + 's']    = subtree_to_attach
+
+
+
+    def find(self, descendent_uid, parent_trace):
+        '''
+        Returns an _EntityInstance that descends from the root of this tree, and identified by `descendent_uid`
+        as the unique UID identifying this _EntityInstance in the global BreakdownTree we belong to.
+        '''
+        if descendent_uid == None:
+                raise ApodeixiError(parent_trace, "Can't find with a null descendent_uid")  
+
+        relative_uid                        = descendent_uid
+        my_trace                            = parent_trace.doing('Computing relative uid', data = {'parent_UID': self.parent_UID})
+        if self.parent_UID != None:
+            prefix                          = self.parent_UID + '.'
+            if not descendent_uid.startswith(prefix):
+                raise ApodeixiError(my_trace, "Bad  uid '" + descendent_uid + "': it should have started with '" + prefix + "'")  
+            relative_uid                    = descendent_uid.lstrip (prefix)   
+
+        my_trace                            = parent_trace.doing('Traversing uid path', data = {'relative_uid': relative_uid})
+        uid_path                            = relative_uid.split('.')
+
+        #previous_entity_instance            = None
+        entity_instance                     = None # At start of loop, the entity instance for parth of uid_path already processed
+        for idx in range(len(uid_path)):
+            leaf_uid                        = uid_path[idx]
+            loop_trace                      = my_trace.doing("Doing loop cycle for leaf_uid '" + leaf_uid + "'")
+
+            if entity_instance == None: # First cycle in loop, so search in root tree
+                next_tree                   = self
+            else:
+                uid_acronym, uid_nb         = _parse_leaf_uid(leaf_uid, loop_trace)
+                sub_trace                   = loop_trace.doing("Looking for a subtree for the '" + uid_acronym + "' acronym")
+                next_tree                   = entity_instance.find_subtree(uid_acronym, self, sub_trace) 
+                if next_tree == None:
+                    raise ApodeixiError(sub_trace, "Can't a subtree for acronym '" + uid_acronym + "'")
+
+            # Set for next cycle of loop, or final value if we are in the last cycle
+            entity_instance                 = next_tree.children[leaf_uid]
+
+        # Return the last entity instance we got into
+        return entity_instance
+        
+    def getAcronym(self, entity_type):
+        '''
+        Returns the entity's acronym. If none exists, it will generate a new one to ensure it does not conflict with
+        the previously used acronyms
+        '''
+        if entity_type not in self.acronyms.keys():
+            already_used        = [self.acronyms[e] for e in self.acronyms.keys()]
+            nb_letters          = 1
+            candidate           = _acronym(entity_type, nb_letters=nb_letters)
+            while candidate in already_used:
+                nb_letters      += 1
+                new_candidate   = _acronym(entity_type, nb_letters=nb_letters)
+
+                if len(candidate)==len(new_candidate):
+                    # We ran out of letters. Just keep adding letters. Ugly, but should happen very, very rarely
+                    new_candidate = new_candidate + new_candidate[0]
+                candidate = new_candidate
+
+            self.acronyms[entity_type]  = candidate 
+
+        acronym                 = self.acronyms[entity_type] 
+        return acronym
 
     class _EntityInstance():
         '''
@@ -887,28 +1006,26 @@ class BreakdownTree():
         def linkAnotherEntity(self, name, breakdown_tree):
             self.breakdown_children[name]     = breakdown_tree
 
+        def find_subtree(self, uid_acronym, containing_tree, parent_trace):
+            '''
+            Searches among this `entity_instance`'s breakout children, looking for a unique BreakdownTree for the given
+            uid_acronym, and returns it. If there are none, returns None. Raises an error if there are more than one. 
+            '''
+            all_subtrees                    = self.breakdown_children
+            all_subtree_roots               = list(all_subtrees.keys())
+            my_trace                        = parent_trace.doing("Searching a path for acronym '" + uid_acronym + "'",
+                                                            data = {'breakdown keys': all_subtree_roots}) 
+            potential_subtree_roots         = [root for root in all_subtree_roots if containing_tree.getAcronym(root)== uid_acronym]
+            if len(potential_subtree_roots) > 1:
+                raise ApodeixiError(my_trace, "Ambiguous paths for '" + uid_acronym + "': could be any of " + potential_subtree_roots)
 
+            elif len(potential_subtree_roots) == 0:
+                result_tree                 = None
+            else: 
+                found_root                  = potential_subtree_roots[0]
+                result_tree                 = all_subtrees[found_root]
+            return result_tree
 
-    class POSSIBLE_SCRAP_Interval():
-        '''
-        Represents information about a consecutive set of columns, all of which belown to the same level
-
-        @param columns   A list of the consecutive column names that comprise this _Interval. They are sorted from left to right.
-        @param parent    The _Interval immediately to the left of this _Interval, if there is any. None otherwise
-        @param has_title A boolean, determining whether the leftmost column can be considered a friendly, succinct title that
-                         should be visible at the UID level in the tree fragment to be built.
-        '''
-        def __init__(self, columns, parent, title_col):
-            if columns==None or len(columns) < 1:
-                raise ValueError("Invalid '_Interval' - no columns were provided for it")
-            self.columns     = columns
-            self.parent      = parent
-            self.has_title   = has_title
-
-        def not_blank(row):
-            # Return True if row[self.columns[0]] is blank
-            txt   = row[self.columns[0]]
-            return not BreakdownTree._is_blank(txt)
 
 def _is_blank(txt):
     '''
@@ -923,22 +1040,25 @@ def _is_blank(txt):
         return False
 
 
-def _acronym(txt):
+def _acronym(txt, nb_letters=1):
     '''
     Returns a string of initials for 'txt', in uppercase
     '''
     stripped_txt = BreakdownBuilder._strip(txt)
     tokens       = stripped_txt.split(' ')
-    acronym      = ''.join([token[0].upper() for token in tokens])
+    acronym      = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
     return acronym
 
-''' SCRAP
+def _parse_leaf_uid(leaf_uid, parent_trace):
+    '''
+    Parses a string like 'AC43' and returns two things: the acronym string 'AC' and the int 43
+    '''
+    REGEX               = '([a-zA-Z]+)([0-9])+'
+    m                   = _re.match(REGEX, leaf_uid)
+    my_trace            = parent_trace.doing("Parsing leaf_uid into acronym and number")
+    if m == None or len(m.groups()) != 2:
+        raise ApodeixiError(parent_trace, "Couldn't parse leaf_uid '" + leaf_uid + "'")
+    acronym             = m.group(1)
+    nb                  = int(m.group(2))
+    return acronym, nb
 
-    def _acronym(txt):
-      
-        stripped_txt = BreakdownBuilder._strip(txt)
-        tokens       = stripped_txt.split(' ')
-        acronym      = ''.join([token[0].upper() for token in tokens])
-        return acronym
-
-'''

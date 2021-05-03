@@ -79,7 +79,6 @@ class FunctionalTrace():
         
         return trace
 
-
 class ApodeixiError (Exception):
     '''
     Error class recommended in Apodeixi. It extends ValueError with a FunctionalTrace object to make troubleshooting
@@ -89,3 +88,8 @@ class ApodeixiError (Exception):
         super().__init__(self, msg)
         self.functional_trace           = functional_trace
         self.msg                        = msg
+
+    def trace_message(self):
+        trace_msg               = '\n\n*** Functional Trace ***\n\n' + self.msg + '\n'\
+                                    + '\n'.join([str(trace_level) for trace_level in self.functional_trace.examine()]) + '\n'       
+        return trace_msg
