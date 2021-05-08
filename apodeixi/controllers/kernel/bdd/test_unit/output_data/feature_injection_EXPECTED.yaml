@@ -7,7 +7,7 @@ metadata:
   name: Apodeixi BDD tests.scaffolding
   namespace: BDD Scaffolding.Production
 scaffolding:
-  jobs-to-be-done:
+  Jobs to be done:
     JTBD1:
       Capabilities:
         C1:
@@ -136,4 +136,4 @@ scaffolding:
       UID: JTBD2
       name: Transform the products
     JTBD2-name: Transform the products
-  recorded-by: alejandro@chateauclaudia-labs.com
+  recordedBy: alejandro@chateauclaudia-labs.com

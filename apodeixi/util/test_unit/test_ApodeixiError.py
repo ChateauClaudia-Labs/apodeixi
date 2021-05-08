@@ -1,6 +1,7 @@
-from apodeixi.util.ApodeixiUnitTest import *
-from apodeixi.util.ApodeixiError import *
-import sys as _sys
+import sys                              as _sys
+
+from apodeixi.util.a6i_unit_test        import ApodeixiUnitTest
+from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
 
 class Test_ApodeixiError(ApodeixiUnitTest):
 

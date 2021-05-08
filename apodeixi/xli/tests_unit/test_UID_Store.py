@@ -1,7 +1,7 @@
-from apodeixi.util.ApodeixiUnitTest import *
-import sys as _sys
+import sys                          as _sys
 
-from apodeixi.xli.breakdown_builder import *
+from apodeixi.util.a6i_unit_test import ApodeixiUnitTest
+from apodeixi.xli.breakdown_builder import UID_Store
 
 class Test_UIDStore(ApodeixiUnitTest):
 

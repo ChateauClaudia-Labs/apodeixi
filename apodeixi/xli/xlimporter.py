@@ -1,8 +1,3 @@
-# Use underscore prefixes for all objects that should not be exposed as part of this module's APIs.
-# Python's default behavior will then be not not expose them, because of the underscore
-# Alternatively, use the __all__ property in __init__.py to explicitly declare what to expose
-
-
 import pandas      as _pd
 import yaml        as _yaml
 import re          as _re
@@ -11,26 +6,10 @@ import os          as _os
 import math        as _math
 import datetime    as _datetime
 
-
-_PRODUCT              = 'product'
-_JOURNEY              = 'journey'
-_PLAN_TYPE            = 'planType'
-_SCENARIO             = 'scenario'
-_ENVIRONMENT          = 'environment'
-_SCORING_CYCLE        = 'scoringCycle'
-_SCORING_MATURITY     = 'scoringMaturity'
-_ESTIMATED_BY         = 'estimatedBy'
-_ESTIMATED_ON         = 'estimatedOn'
-_RECORDED_BY          = 'recordedBy'
-
-_CONTEXT_FIELDS = [_PRODUCT, _JOURNEY, _PLAN_TYPE, _SCENARIO, _ENVIRONMENT,
-                  _SCORING_CYCLE, _SCORING_MATURITY, 
-                  _ESTIMATED_BY, _ESTIMATED_ON, _RECORDED_BY]
-
+from apodeixi.util.a6i_error    import *
 
 class SchemaUtils:
 
-    
     def __remove_blanks(column):
         '''
         Utility that returns a filter (i.e., a boolean-valued function that acts on DataFrame rows).
@@ -242,170 +221,5 @@ class ExcelTableReader:
         
         return df2       
 
-class PostingContext():
 
-    def __init__(self, mandatory_fields, date_fields):
-        self.mandatory_fields       = mandatory_fields
-        self.date_fields            = date_fields
-        self.ctx                    = None
-
-    def read(self, url, excel_range):
-        excel_range    = excel_range.upper()
-        reader         = ExcelTableReader(url, excel_range, horizontally=False)
-        context_df     = reader.read()
-        
-        # Check context has the right number of rows (which are columns in Excel, since we transposed)
-        if len(context_df.index) != 1:
-            raise ValueError("Bad Excel range provided: " + excel_range
-                            + "\nShould contain exactly two columns: keys and values")
-        
-        missing_cols = set(self.mandatory_fields).difference(set(context_df.columns))
-        if len(missing_cols) > 0:
-            missing_txt = ", ".join(["'" + col + "'" for col in missing_cols])
-            raise ValueError("Range '" + excel_range + "' lacks these mandatory context fields: "
-                            + missing_txt)
-            
-        BAD_SCHEMA_MSG      = "Incorrect schema for field '" + _ESTIMATED_ON + "' when processing the context in range '" \
-                                + excel_range + "'."
-        M                   = SchemaUtils.ValidationMonad(BAD_SCHEMA_MSG)
-            
-        ctx = {}
-        for field in self.mandatory_fields:
-            ctx[field] = context_df.iloc[0][field]
-            
-        # Validations for some fields
-        for field in self.date_fields:
-            ctx[field]  = SchemaUtils.to_yaml_date(ctx[field], BAD_SCHEMA_MSG)
-        
-        self.ctx            = ctx 
-
-def applyMarathonJourneyPlan(ctx, url, excel_range, repo_root_dir):
-    product             = ctx[_PRODUCT]
-    scoring_cycle       = ctx[_SCORING_CYCLE]
-    plan_maturity       = ctx[_SCORING_MATURITY]
-    environment         = ctx[_ENVIRONMENT]
-    planning_scenario   = ctx[_SCENARIO]
-    estimating_mgr      = ctx[_ESTIMATED_BY]
-    user                = ctx[_RECORDED_BY]
-    plan_type           = ctx[_PLAN_TYPE]
-    journey             = ctx[_JOURNEY]
-    
-    BAD_SCHEMA_MSG      = "Bad estimation date provided in context"
-    estimation_date     = SchemaUtils.to_yaml_date(ctx[_ESTIMATED_ON], BAD_SCHEMA_MSG)
-    
-    reader              = ExcelTableReader(url, excel_range)
-    
-    plan_df             = reader.read()
-    if len(plan_df.columns) != 2:
-        raise ValueError ("Badly formatted Marathon Plan: should have exactly two columns, ideally called: 'Workstream' and "
-                         + "'Effort'. Error when processing range= '" + excel_range + "' and url=\n\t" + url)
-    plan_df.columns     = ['Workstream', 'Effort']
-    
-    # Drop workstreams that were not defined
-    plan_df             = SchemaUtils.drop_blanks(plan_df, 'Workstream')
-   
-    
-    manifest_dict       = {}
-    workstreams         = []
-    WORKSTREAM_ID       = 1
-    
-    BAD_SCHEMA_MSG      = "Incorrect schema for a Marathon Plan in range '" + excel_range + "'."
-    M                   = SchemaUtils.ValidationMonad(BAD_SCHEMA_MSG)
-    
-    for row in plan_df.iterrows():
-        workstream      = row[1]['Workstream']
-        effort          = row[1]['Effort']
-        effort          = M.validate(effort).is_of_type([float, int])
-        
-        workstreams.append({'workstream'   : workstream, 
-                            'effort'       : effort, 
-                            'workstream-id': 'ws-' + str(WORKSTREAM_ID)})
-        WORKSTREAM_ID += 1
-
-    # Namespae would typically be something like 'Development' or 'Production'
-    metadata      = {'namespace': environment + '.' + scoring_cycle, 
-                     'name': product + '.' + journey + '.' + planning_scenario,
-                     'labels': {'product': product, 'scoringCycle': scoring_cycle, 'scenario': planning_scenario,
-                                                  'journey': journey}}
-
-    manifest_dict['apiVersion']     = 'journeys.inbound.a6i.io/v1dev'
-    manifest_dict['kind']           = 'JourneyPlan'
-    manifest_dict['metadata']       = metadata
-    # Plan maturity can be one of: 'Not done', 'Drafted', 'Checked', 'Published'
-    manifest_dict['planMaturity']   = plan_maturity
-    manifest_dict['plan']           = {'type': plan_type, 
-                                       'estimated_by': estimating_mgr, 
-                                        'estimated_on': estimation_date,
-                                        'recorded_by': user,
-                                       'workstreams': workstreams}    
-    
-    _yaml.dump(manifest_dict, _sys.stdout)
-    
-    with open(repo_root_dir + '/' + product + '-marathon-plan.yaml', 'w') as file:
-        _yaml.dump(manifest_dict, file)
-
-
-def applyInvestmentCommittment(ctx, url, excel_range, repo_root_dir):
-    
-    product             = ctx[_PRODUCT]
-    scoring_cycle       = ctx[_SCORING_CYCLE]
-    plan_maturity       = ctx[_SCORING_MATURITY]
-    environment         = ctx[_ENVIRONMENT]
-    planning_scenario   = ctx[_SCENARIO]
-    committing_mgr      = ctx[_ESTIMATED_BY]
-    user                = ctx[_RECORDED_BY]
-    plan_type           = ctx[_PLAN_TYPE]
-    journey             = ctx[_JOURNEY]
-    
-    BAD_SCHEMA_MSG      = "Bad estimation date provided in context"
-    committing_date     = SchemaUtils.to_yaml_date(ctx[_ESTIMATED_ON], BAD_SCHEMA_MSG)
-    
-    # Load data and validate its geometric shape
-    reader        = ExcelTableReader(url, excel_range)
-    
-    plan_df       = reader.read()
-    if len(plan_df.columns) != 2:
-        raise ValueError ("Badly formatted Investment Plan: should have exactly two columns, "\
-                          + "ideally called: 'Period' and Investment'. "\
-                          + "Error when processing range= '" + excel_range + "' and url=\n\t" + url)
-    plan_df.columns = ['Period', 'Investment']
-    
-    # Drop workstreams that were not defined
-    plan_df             = SchemaUtils.drop_blanks(plan_df, 'Period')
-    
-    manifest_dict = {}
-    investment_ts   = []
-    BAD_SCHEMA_MSG      = "Incorrect schema for a Investment Plan in range '" + excel_range + "'."
-    M                   = SchemaUtils.ValidationMonad(BAD_SCHEMA_MSG)
-    
-    for row in plan_df.iterrows():
-        period          = row[1]['Period']
-        investment      = row[1]['Investment']
-        investment      = M.validate(investment).is_of_type([float, int])
-        investment_ts.append({'period'      : period, 
-                              'investment'  : investment,
-                              'units'       : 'person-days'})
-
-    # Namespace would typically be something like 'Development' or 'Production'
-    metadata      = {'namespace': environment + '.' + scoring_cycle, 
-                     'name'     : product + '.' + journey + '.' + planning_scenario,
-                     'labels'   : {'product': product, 
-                                   'scoringCycle': scoring_cycle, 
-                                   'scenario': planning_scenario,
-                                   'journey': journey}}
-
-    manifest_dict['apiVersion']     = 'journeys.inbound.a6i.io/v1dev'
-    manifest_dict['kind']           = 'JourneyInvestment'
-    manifest_dict['metadata']       = metadata
-    # Plan maturity can be one of: 'Not done', 'Drafted', 'Checked', 'Published'
-    manifest_dict['planMaturity']   = plan_maturity
-    manifest_dict['committment']           = {'committed_by': committing_mgr, 
-                                              'committed_on': committing_date,
-                                              'recorded_by': user,
-                                              'investment': investment_ts}    
-    
-    _yaml.dump(manifest_dict, _sys.stdout)
-    
-    with open(repo_root_dir + '/' + product + '-investment-committment.yaml', 'w') as file:
-        _yaml.dump(manifest_dict, file)
 
