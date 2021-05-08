@@ -196,7 +196,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         try:
             tree1                   = self._create_breakdown_tree()
             subtree_df              = self._create_df2()
-            subtree_intervals = [['Expectation', 'Description'], [ 'Acceptance Criteria', 'Artifact']]
+            subtree_intervals = [   Interval(None, ['Expectation', 'Description']), 
+                                    Interval(None, [ 'Acceptance Criteria', 'Artifact'])]
             self._attach_subtree(subtree_df, subtree_intervals, tree1, 'A2.B1.C1')
             result_dict             = tree1.as_dicts()
         except ApodeixiError as ex:
@@ -208,36 +209,38 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         store           = UID_Store()
         tree            = BreakdownTree(uid_store = store, entity_type='A', parent_UID=None)
         df              = self._create_df()
-        
-        interval_A      = ['A',     'color',    'size']
-        interval_B      = ['B',    'height',   'coolness']
-        interval_C      = ['C']
+
+        root_trace      = FunctionalTrace(None).doing("Creating intervals", data={'tree.entity_type'  : tree.entity_type,
+                                                                                    'columns'           : list(df.columns)})        
+        interval_A      = Interval(root_trace, ['A',     'color',    'size'])
+        interval_B      = Interval(root_trace, ['B',    'height',   'coolness'])
+        interval_C      = Interval(root_trace, ['C'])
 
         rows            = list(df.iterrows())
         intervals       = [interval_A, interval_B, interval_C]
         root_trace      = FunctionalTrace(None).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})
-        
+        update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
-                tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace)
+                tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace, update_policy=update_policy)
 
         return tree
 
     def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid):
         store           = tree_to_attach_to.uid_store
-        entity_type     = intervals[0][0]
+        entity_type     = intervals[0].entity_name
         subtree         = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=docking_uid)
          
         rows            = list(df_to_attach.iterrows())
         root_trace      = FunctionalTrace(None).doing("Populating subtree", data={'subtree.entity_type'  : entity_type,
                                                                                     'columns'           : list(df_to_attach.columns)})
-        
+        update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
-                subtree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace)
+                subtree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace, update_policy=update_policy)
 
         root_trace      = FunctionalTrace(None).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
                                                                                     "entity_type"  : "'" + entity_type + "'"})

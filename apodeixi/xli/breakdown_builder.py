@@ -277,15 +277,17 @@ class L1L2_Link:
         self.L2_excel_range     = L2_excel_range
         return
 
-_SCENARIO             = 'scenario'
-_ENVIRONMENT          = 'environment'
-_SCORING_CYCLE        = 'scoringCycle'
-_SCORING_MATURITY     = 'scoringMaturity'
-_ESTIMATED_BY         = 'estimatedBy'
-_ESTIMATED_ON         = 'estimatedOn'
-_RECORDED_BY          = 'recordedBy'
-_PURSUIT              = 'pursuit'
-_BREAKDOWN_TYPE       = 'breakdownType'
+_SCENARIO               = 'scenario'
+_ENVIRONMENT            = 'environment'
+_SCORING_CYCLE          = 'scoringCycle'
+_SCORING_MATURITY       = 'scoringMaturity'
+_ESTIMATED_BY           = 'estimatedBy'
+_ESTIMATED_ON           = 'estimatedOn'
+_RECORDED_BY            = 'recordedBy'
+_PURSUIT                = 'pursuit'
+_BREAKDOWN_TYPE         = 'breakdownType'
+
+_UID                    = 'UID'  # Field name for anything that is a UID
 
 class BreakdownBuilder:
     '''
@@ -652,6 +654,85 @@ class BreakdownBuilder:
                 break # By convention, if an interval is blank for a row, all other intervals to the left of it are also blank
     '''
 
+class Interval():
+    '''
+    Helper class used as part of the configuration for parsing a table in an Excel spreadsheet. It represents
+    a list of string-valued column names in Excel, ordered from left to right, all for a given entity.
+    Additionally, it indicates which of those column names is the name of the entity (as opposed to a property of)
+    the entity. 
+    '''
+    def __init__(self, parent_trace, columns, entity_name = None):
+        if type(columns) != list or len(columns) == 0:
+            raise ApodeixiError(parent_trace, "Unable to instantiate an Interval from a null or empty list")
+        self.columns                = columns
+        if entity_name == None:
+            self.entity_name        = columns[0]
+        else:
+            self.entity_name        = entity_name
+
+    def is_subset(self, columns):
+        '''
+        UID-aware method to test if this Interval is a subset of the given columns. By "UID-aware" we mean
+        that the method ignores any UID column when determining subset condition.
+        For example, ['UID', 'Car', 'Make'] would be considered a subset of ['Car', 'Make', 'Driver']
+        '''
+        me                          = set(self.columns).difference(set([_UID]))
+        them                        = set(columns)
+        return me.issubset(them)
+
+    def non_entity_cols(self):
+        '''
+        Returns a list of strings, corresponding to the Interval's columns that are not the entity type
+        '''
+        return list(set(self.columns).difference(set([self.entity_name])))
+
+class PostingConfig():
+    '''
+    Helper class serving as a container for various configurations settings impacting how a BreakdownTree is to be
+    built from an Excel file
+
+    @param update_policy    An UpdatePolicy object used to determine how to resolve conflicts between what is read
+                            from Excel and what might be pre-existing in the BreakdownTree, as might happen if the BreakdownTree
+                            was created by loading a pre-existing manifest.
+    @param intervals        A list of lists of Interval objects, enumerated in the order in which they are expected to appear in the
+                            Excel to be read. This enforces that the Excel is formatted as was expected.
+
+    '''
+    def __init__(self):
+        self.update_policy          = None
+        self.intervals              = []
+
+class UpdatePolicy():
+    '''
+    Helper configuration used by the BreakdownTree when reading fragments and applying them to the BreakdownTree.
+
+    It addresses the question of how to treat updates when processing fragments that already come with UIDs. For example,
+    suppose the tree's parent_UID is S1.W4, and we are processing a row that has a column called "UID" with a value
+    of E2.AC1, and two entity intervals keyed on "Expectations" and "Acceptance Criteria". In that case, it would seem that
+    the data in question had been read in the past, and the user's posting is an update, not a create.
+    So one would like to mantain those pre-exising UIDs, which in full would be: S1.W4.E2 for the "Expectations" interval
+    and S1.W4.E2.AC1 for the 'Acceptance Criteria" interval.
+
+    A related question is how to handle *missing* rows in what the user submitted. For example, if the tree was
+    created by loading a previous posting an entry like S1.W4.E5.AC12 but there is no such entry being posted now, does it
+    mean that we should remove the previous posting, or do we leave it as is?
+
+    Those are the questions that this configuration object determines.
+    @param reuse_uids: a boolean that if true means that we aim to re-use any UIDs that were included in the posting, as long
+                        as they are topologically consistent with the posting, i.e.:
+                        * If the posting is for two entities ("Expectation" and "Acceptance Criteria") then we expect a UID
+                          of depth 2 (e.g., E2.AC1). Posting E2 or E2.AC1.V7 would be "illegal" and trigger an error if
+                          reuse_uids = True
+                        * The acronyms in the UIDs coincide with previously chosen acronyms for the entities in question.
+    @param merge: a boolean that determines whether we delete all prior paths under self.parent_UID and replace them by 
+                    the current posting, or whether we keep previous postings that have URIs different from the ones being
+                    posted. This is useful if the user is just "patching" a bit of information, with no intention to replace
+                    most of what the user previously posted.
+    '''
+    def __init__(self, reuse_uids, merge):
+        self.reuse_uids         = reuse_uids
+        self.merge              = merge
+
 class BreakdownTree():
     '''
     The intuition behind this class is that it represents `1:N` entity relationships. Consider an `entity A` with a `1:N` relationship
@@ -708,14 +789,20 @@ class BreakdownTree():
                 entity_instance_dict[prop_k]    = entity_instance.scalar_children[prop_k]
 
             for tree_k in entity_instance.breakdown_children.keys():
-                entity_instance_dict[tree_k + "s"]    = entity_instance.breakdown_children[tree_k].as_dicts()
+                #entity_instance_dict[tree_k + "s"]    = entity_instance.breakdown_children[tree_k].as_dicts()
+                entity_instance_dict[tree_k]    = entity_instance.breakdown_children[tree_k].as_dicts()
 
             result[entity_instance.leaf_UID]         = entity_instance_dict
-            #result.append(entity_instance_dict)
+            # For YAML readibility purposes, we also make the names of the data be visible at the same level as the nodes,
+            # side by side. This helps humans know which child is what, without having to repeatedly expand the UID-keyed
+            # groupings. This done via the children, and as a convention it is keyed with lowercase
+            # versions of otherwise capitalized-only UIDs. That is a trick so that they appear side by side with the
+            # rich nodes in the YAML.
+            result[entity_instance.leaf_UID + '-name']  = entity_instance_dict['name']
+
         return result
         
-
-    def readDataframeFragment(self, interval, row, parent_trace): 
+    def readDataframeFragment(self, interval, row, parent_trace, update_policy): 
         '''
         Used to attach or enrich an immediate child to the root of this BreakdownTree based on information in a row
         in a Pandas DataFrame.
@@ -761,11 +848,13 @@ class BreakdownTree():
         attach `b1, ..., bn` to `a`'s _EntityInstance as a breakdown child (i.e., a sub-BreakdownTree)
         
 
-        @param interval     List of strings, corresponding to the columns in `row` that pertain to an entity being processed
+        @param interval     An Interval object, corresponding to the columns in `row` that pertain to an entity being processed
         @param row          A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
                             the Dataframe `iterrows()` iterator.
         @param parent_trace A apodeixi.util.ApodeixiError.FunctionalTrace object. It contains human-friendly information 
                             for humans to troubleshoot problems when error are raised.
+        @param update_policy An UpdatePolicy configuration object to determine how to handle the eventuality that the
+                            user's postings includes UIDs already (e.g., as when the user updates instead of create)
         '''
         encountered_new_entity              = False
         entity_column_idx                   = None
@@ -774,8 +863,8 @@ class BreakdownTree():
                                                     data = {'known_entity_types': known_entity_types})
         if True:
             # Check against nulls
-            if interval==None or len(interval)==0:
-                raise ApodeixiError(my_trace, "Empty interval of columns was given.")
+            #if interval==None or len(interval)==0:
+            #    raise ApodeixiError(my_trace, "Empty interval of columns was given.")
 
             # Check it's the right entity type  ### LOOKS LIKE AN INCORRECT CHECK - Level 2 intervals WON'T MATCH ROOT TREE ENTITY
             #if interval[0] != self.entity_type:
@@ -787,26 +876,27 @@ class BreakdownTree():
 
             # Check interval and row are consistent
             columns                     = list(row[1].index)
-            if not set(interval).issubset(set(columns)):
+            if not interval.is_subset(set(columns)):
                 raise ApodeixiError(my_trace, "Interval is not a subset of the row's columns.")
 
-            # Check entity appears in exactly one column. From above know it appears at least once. 
-            idxs                        = [idx for idx in range(len(columns)) if columns[idx]==interval[0]]
+            # Check entity appears in exactly one column. 
+            idxs                        = [idx for idx in range(len(columns)) if columns[idx]==interval.entity_name]
             if len(idxs)>1:
-                raise ApodeixiError(my_trace, "Entity '" + interval[0] + "' appears in multiple columns. Should appear only once.")
+                raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
+            elif len(idxs)==0:
+                raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' missing in given row. Should appear exactly once.")
             entity_column_idx           = idxs[0]
 
             # Check that if interval's entity is blank, all of interval is bank
-            blank_cols                  = [col for col in interval if _is_blank(row[1][col])]
-            encountered_new_entity      = not interval[0] in blank_cols
-            if not encountered_new_entity and len(blank_cols) < len(interval):
-                raise ApodeixiError(my_trace, "Row has a blank '" + interval[0] 
+            blank_cols                  = [col for col in interval.columns if _is_blank(row[1][col])]
+            encountered_new_entity      = not interval.entity_name in blank_cols
+            if not encountered_new_entity and len(blank_cols) < len(interval.columns):
+                raise ApodeixiError(my_trace, "Row has a blank '" + interval.entity_name 
                                     + "' so rest of row's interval should be blank, but isn't")
 
             # Check that interval itself has no subentities (as any subentity should be *after* the interval)
-            # Remember to not count interval[0] as "illegal", since it is clearly an entity and not a sub-entity/
-            # That's why we intersect the known_entity_types with interval[1:] (as opposed to intersecting with interval)
-            illegal_sub_entities        = set(known_entity_types).intersection(set(interval[1:])) 
+            # Remember to not count interval.entity_name as "illegal", since it is clearly an entity and not a sub-entity/
+            illegal_sub_entities        = set(known_entity_types).intersection(interval.non_entity_cols())    #set(interval[1:])) 
             if len(illegal_sub_entities) > 0:
                 raise ApodeixiError(my_trace, "There shouldn't be subentities inside the interval, but found some: " 
                                                 + str(illegal_sub_entities))
@@ -821,31 +911,31 @@ class BreakdownTree():
                 my_trace                = my_trace.doing("Validating we are the root entity", 
                                                 data={'self.entity_type': self.entity_type,
                                                         'entity_column_idx': entity_column_idx})
-                if interval[0] != self.entity_type:
-                    raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval[0] + "'") 
+                if interval.entity_name != self.entity_type:
+                    raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'") 
             else:
                 parent_entity           = columns[max(ancestor_entities_idxs)]
 
         if encountered_new_entity: 
-            my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval[0] + "'.")
+            my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval.entity_name + "'.")
             if True:
                 if parent_entity == None: # Attach to the root
                     docking_uid             = self.parent_UID
                 else:
                     my_trace                = my_trace.doing("Validating we previously created a node for '" 
-                                                                    + parent_entity + "' to which to attach '" + interval[0] + "'.")
+                                                                    + parent_entity + "' to which to attach '" + interval.entity_name + "'.")
                     if parent_entity not in self.last_path.keys():
                         raise ApodeixiError(my_trace, "No prior node found for  '" + parent_entity + "'") 
                     
                     parent_entity_instance  = self.last_path[parent_entity]
                     docking_uid             = parent_entity_instance.UID
 
-            my_trace                        = parent_trace.doing("Docking a new '" + interval[0] 
+            my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
                                                                     + "' below docking_uid '" + str(docking_uid) + "'")
             self.dockEntityData(    full_docking_uid    = docking_uid, 
                                     #tree_to_attach_to   = tree_to_attach_to, 
-                                    entity_type         = interval[0], 
-                                    data_to_attach      = row[1][interval], 
+                                    entity_type         = interval.entity_name, 
+                                    data_to_attach      = row[1][interval.columns], 
                                     parent_trace        = my_trace)
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
@@ -898,6 +988,7 @@ class BreakdownTree():
                 new_node.setProperty(idx, data_to_attach[idx])
 
         tree_to_attach_to.children[leaf_uid]    = new_node
+
         self.last_path[entity_type]             = new_node
 
     def _get_tree_to_attach_to(self, containing_entity_instance, entity_type_to_attach, parent_trace):
@@ -918,7 +1009,7 @@ class BreakdownTree():
         my_trace                        = parent_trace.doing("Finding where to dock in containing tree")
         containing_equity_instance      = self.find(subtree_to_attach.parent_UID, my_trace)
 
-        containing_equity_instance.breakdown_children[entity_type + 's']    = subtree_to_attach
+        containing_equity_instance.breakdown_children[entity_type]    = subtree_to_attach
 
 
 
@@ -967,6 +1058,7 @@ class BreakdownTree():
         Returns the entity's acronym. If none exists, it will generate a new one to ensure it does not conflict with
         the previously used acronyms
         '''
+        # By convention, we only use upper case for acronyms
         if entity_type not in self.acronyms.keys():
             already_used        = [self.acronyms[e] for e in self.acronyms.keys()]
             nb_letters          = 1

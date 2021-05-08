@@ -242,34 +242,42 @@ class ExcelTableReader:
         
         return df2       
 
-def readContext(url, excel_range):
-    excel_range    = excel_range.upper()
-    reader         = ExcelTableReader(url, excel_range, horizontally=False)
-    context_df     = reader.read()
-    
-    # Check context has the right number of rows (which are columns in Excel, since we transposed)
-    if len(context_df.index) != 1:
-        raise ValueError("Bad Excel range provided: " + excel_range
-                        + "\nShould contain exactly two columns: keys and values")
-    
-    missing_cols = set(_CONTEXT_FIELDS).difference(set(context_df.columns))
-    if len(missing_cols) > 0:
-        missing_txt = ", ".join(["'" + col + "'" for col in missing_cols])
-        raise ValueError("Range '" + excel_range + "' lacks these mandatory context fields: "
-                        + missing_txt)
+class PostingContext():
+
+    def __init__(self, mandatory_fields, date_fields):
+        self.mandatory_fields       = mandatory_fields
+        self.date_fields            = date_fields
+        self.ctx                    = None
+
+    def read(self, url, excel_range):
+        excel_range    = excel_range.upper()
+        reader         = ExcelTableReader(url, excel_range, horizontally=False)
+        context_df     = reader.read()
         
-    BAD_SCHEMA_MSG      = "Incorrect schema for field '" + _ESTIMATED_ON + "' when processing the context in range '" \
-                            + excel_range + "'."
-    M                   = SchemaUtils.ValidationMonad(BAD_SCHEMA_MSG)
+        # Check context has the right number of rows (which are columns in Excel, since we transposed)
+        if len(context_df.index) != 1:
+            raise ValueError("Bad Excel range provided: " + excel_range
+                            + "\nShould contain exactly two columns: keys and values")
         
-    ctx = {}
-    for field in _CONTEXT_FIELDS:
-        ctx[field] = context_df.iloc[0][field]
+        missing_cols = set(self.mandatory_fields).difference(set(context_df.columns))
+        if len(missing_cols) > 0:
+            missing_txt = ", ".join(["'" + col + "'" for col in missing_cols])
+            raise ValueError("Range '" + excel_range + "' lacks these mandatory context fields: "
+                            + missing_txt)
+            
+        BAD_SCHEMA_MSG      = "Incorrect schema for field '" + _ESTIMATED_ON + "' when processing the context in range '" \
+                                + excel_range + "'."
+        M                   = SchemaUtils.ValidationMonad(BAD_SCHEMA_MSG)
+            
+        ctx = {}
+        for field in self.mandatory_fields:
+            ctx[field] = context_df.iloc[0][field]
+            
+        # Validations for some fields
+        for field in self.date_fields:
+            ctx[field]  = SchemaUtils.to_yaml_date(ctx[field], BAD_SCHEMA_MSG)
         
-    # Validations for some fields
-    ctx[_ESTIMATED_ON]  = SchemaUtils.to_yaml_date(ctx[_ESTIMATED_ON], BAD_SCHEMA_MSG)
-    
-    return ctx 
+        self.ctx            = ctx 
 
 def applyMarathonJourneyPlan(ctx, url, excel_range, repo_root_dir):
     product             = ctx[_PRODUCT]

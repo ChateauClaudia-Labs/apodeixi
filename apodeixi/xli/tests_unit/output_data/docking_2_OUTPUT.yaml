@@ -1,46 +1,56 @@
 A1:
-  Bs:
+  B:
     B1:
-      Cs:
+      C:
         C1:
           UID: A1.B1.C1
           name: c1
+        C1-name: c1
       UID: A1.B1
       coolness: so-so
       height: 5' 8''
       name: b1
+    B1-name: b1
     B2:
-      Cs:
+      C:
         C1:
           UID: A1.B2.C1
           name: c2
+        C1-name: c2
         C2:
           UID: A1.B2.C2
           name: c3
+        C2-name: c3
       UID: A1.B2
       coolness: awesome
       height: 6' 1''
       name: b2
+    B2-name: b2
   UID: A1
   color: brown
   name: a1
   size: 32in
+A1-name: a1
 A2:
-  Bs:
+  B:
     B1:
-      Cs:
+      C:
         C1:
           UID: A2.B1.C1
           name: c4
+        C1-name: c4
         C2:
           Typo: Residencial
           UID: A2.B1.C2
           name: Immueble rojo
+        C2-name: Immueble rojo
       UID: A2.B1
       coolness: cool cat
       height: 165cm
       name: b3
+    B1-name: b3
   UID: A2
   color: red hair
   name: a2
   size: 29in
+A2-name: a2
