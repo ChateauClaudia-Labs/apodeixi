@@ -1,4 +1,4 @@
-import sys as _sys
+import sys                              as _sys
 
 from apodeixi.util.a6i_unit_test        import ApodeixiUnitTest
 from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
@@ -21,6 +21,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
         MANIFEST_FILE       = 'feature_injection_OUTPUT.yaml'
         #manifest_file       = EXCEL_FILE.replace('xlsx', 'yaml')
         MANIFESTS_DIR       = self.output_data
+        result_dict         = {}
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding", data={'url'  : url})
 

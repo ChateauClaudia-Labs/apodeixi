@@ -33,19 +33,22 @@ class CapabilityHierarchy_Controller(PostingController):
         ME                              = CapabilityHierarchy_Controller
         _DOMAIN                     = "kernel"
         my_trace                        = parent_trace.doing("Parsing posting label", 
-                                                                data = {'url': url, 'ctx_range': ctx_range})
+                                                                data = {'url': url, 'ctx_range': ctx_range, 
+                                                                        'signaled_from': __file__})
         if True:            
             label                       = ME._MyPostingLabel()
             label.read(my_trace, url, ctx_range)    
 
-            environment                 = label.environment(my_trace)  
-            project_type                = label.projectType(my_trace)
-            project_name                = label.projectName(my_trace)
-            user                        = label.recordedBy(my_trace)
-            excel_range                 = label.dataRange(my_trace)  
+            environment                 = label.environment         (my_trace)  
+            scaffolding_purpose         = label.scaffoldingPurpose  (my_trace)
+            project                     = label.project             (my_trace)
+            organization                = label.organization        (my_trace)
+            recorded_by                 = label.recordedBy          (my_trace)
+            excel_range                 = label.dataRange           (my_trace)  
 
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
-                                                                data = {'url': url, 'excel_range': excel_range})
+                                                                data = {'url': url, 'excel_range': excel_range, 
+                                                                        'signaled_from': __file__})
         if True:
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._MyPostingConfig(update_policy)
@@ -53,18 +56,21 @@ class CapabilityHierarchy_Controller(PostingController):
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
-                                                                data = {'project_name': project_name, 'project_type': project_type})
+                                                                data = {'project': project, 'organization': organization, 
+                                                                        'signaled_from': __file__})
         if True:
+            FMT                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
             manifest_dict               = {}
-            metadata                    = { 'namespace':    project_type + '.' + environment, 
-                                            'name':         project_name + '.scaffolding',
-                                            'labels':       {'project': project_name, 'project-type': project_type}}
+            metadata                    = { 'namespace':    FMT(organization + '.' + environment), 
+                                            'name':         FMT(scaffolding_purpose + '.' + project),
+                                            'labels':       {'project': project, 'organization': organization}}
 
             manifest_dict['apiVersion'] = _DOMAIN + '.a6i.io/v1dev'
             manifest_dict['kind']       = 'ProjectScaffolding'
             manifest_dict['metadata']   = metadata
 
-            manifest_dict['scaffolding'] = {label._RECORDED_BY: user , tree.entity_type: tree_dict}
+            manifest_dict['scaffolding'] = {label._RECORDED_BY: recorded_by , 'entity_type': tree.entity_type,
+                                            FMT(tree.entity_type): tree_dict}
         
         my_trace                        = parent_trace.doing("Persisting manifest", 
                                                                 data = {'manifests_dir': manifests_dir, 'manifest_file': manifest_file})
@@ -74,6 +80,14 @@ class CapabilityHierarchy_Controller(PostingController):
         
         return manifest_dict
 
+    def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
+        '''
+        Helper function that is amenable to unit testing (i.e., does not require a KnowledgeBase structure for I/O).
+
+        Used to generate an Excel spreadsheet that represents the current state of the manifest, inclusive of UIDs.
+        Such Excel spreadsheet is what the user would need to post in order to make changes to the manifest, since pre-existing
+        UIDs must be repected.
+        '''
 
     class _MyPostingConfig(PostingConfig):
         '''
@@ -103,8 +117,9 @@ class CapabilityHierarchy_Controller(PostingController):
         Codifies the schema expectations for the posting label when posting BDD capability hierarchy content. 
         '''
         _EXCEL_API                  = "excelAPI"
-        _PROJECT_TYPE               = "projectType"
-        _PROJECT_NAME               = "projectName"
+        _SCAFFOLDING_PURPOSE        = "scaffoldingPurpose"
+        _PROJECT                    = "project"
+        _ORGANIZATION               = 'organization'
         _DATA_RANGE                 = "dataRange"
         _ENVIRONMENT                = 'environment'
         _RECORDED_BY                = 'recordedBy'
@@ -115,7 +130,8 @@ class CapabilityHierarchy_Controller(PostingController):
             # Shortcut to reference class static variables
             ME = CapabilityHierarchy_Controller._MyPostingLabel
 
-            super().__init__(   mandatory_fields    = [ ME._EXCEL_API,          ME._PROJECT_TYPE,       ME._PROJECT_NAME, 
+            super().__init__(   mandatory_fields    = [ ME._EXCEL_API,          ME._ORGANIZATION,       ME._PROJECT, 
+                                                        ME._SCAFFOLDING_PURPOSE,
                                                         ME._ENVIRONMENT,        ME._RECORDED_BY,        ME._DATA_RANGE],
                                 date_fields         = [])
 
@@ -136,17 +152,23 @@ class CapabilityHierarchy_Controller(PostingController):
 
             return self._getField(parent_trace, ME._ENVIRONMENT)
 
-        def projectType(self, parent_trace):
+        def organization(self, parent_trace):
             # Shortcut to reference class static variables
             ME = CapabilityHierarchy_Controller._MyPostingLabel
 
-            return self._getField(parent_trace, ME._PROJECT_TYPE)
-
-        def projectName(self, parent_trace):
+            return self._getField(parent_trace, ME._ORGANIZATION
+            )
+        def project(self, parent_trace):
             # Shortcut to reference class static variables
             ME = CapabilityHierarchy_Controller._MyPostingLabel
 
-            return self._getField(parent_trace, ME._PROJECT_NAME)
+            return self._getField(parent_trace, ME._PROJECT)
+
+        def scaffoldingPurpose(self, parent_trace):
+            # Shortcut to reference class static variables
+            ME = CapabilityHierarchy_Controller._MyPostingLabel
+
+            return self._getField(parent_trace, ME._SCAFFOLDING_PURPOSE)
 
         def recordedBy(self, parent_trace):
             # Shortcut to reference class static variables

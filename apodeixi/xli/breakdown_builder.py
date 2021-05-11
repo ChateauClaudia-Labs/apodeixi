@@ -472,16 +472,12 @@ class BreakdownTree():
 
         return tree_to_attach_to
 
-
-    #def dock_subtree(self, full_docking_uid, entity_type, subtree_to_attach, parent_trace):
     def dock_subtree(self, entity_type, subtree_to_attach, parent_trace):
 
         my_trace                        = parent_trace.doing("Finding where to dock in containing tree")
         containing_equity_instance      = self.find(subtree_to_attach.parent_UID, my_trace)
 
         containing_equity_instance.breakdown_children[entity_type]    = subtree_to_attach
-
-
 
     def find(self, descendent_uid, parent_trace):
         '''

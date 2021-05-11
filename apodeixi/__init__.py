@@ -1,1 +1,1 @@
-__all__ = ['xli', 'util', 'controllers']
+__all__ = ['xli', 'util', 'controllers', 'text_layout']

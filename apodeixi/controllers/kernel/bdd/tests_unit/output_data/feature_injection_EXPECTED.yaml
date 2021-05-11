@@ -2,12 +2,13 @@ apiVersion: kernel.a6i.io/v1dev
 kind: ProjectScaffolding
 metadata:
   labels:
-    project: Apodeixi BDD tests
-    project-type: BDD Scaffolding
-  name: Apodeixi BDD tests.scaffolding
-  namespace: BDD Scaffolding.Production
+    organization: ChateauClaudia Labs
+    project: Apodeixi
+  name: bdd-tests.apodeixi
+  namespace: chateauclaudia-labs.production
 scaffolding:
-  Jobs to be done:
+  entity_type: Jobs to be done
+  jobs-to-be-done:
     JTBD1:
       Capabilities:
         C1:

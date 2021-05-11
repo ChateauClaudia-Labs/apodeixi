@@ -1,0 +1,20 @@
+,UID,jobs-to-be-done,Stakeholders,UID-1,Capabilities,UID-2,Feature,UID-3,Story
+0,JTBD1,Quickly add features to Apodeixi,Apodeixi developers,JTBD1.C1,Scaffolding for BDD tests,JTBD1.C1.F1,Drive scaffolding from Apodeixi capability documentation,JTBD1.C1.F1.S1,Create
+1,,,,,,,,JTBD1.C1.F1.S2,Update
+2,JTBD2,Transform the products,"Product teams, architects",JTBD2.C1,Create roadmap,JTBD2.C1.F1,Define big rocks,JTBD2.C1.F1.S1,Create
+3,,,,,,,,JTBD2.C1.F1.S2,Update
+4,,,,,,,,JTBD2.C1.F1.S3,Baseline
+5,,,,,,JTBD2.C1.F2,Define milestones,JTBD2.C1.F2.S1,Create
+6,,,,,,,,JTBD2.C1.F2.S2,Update
+7,,,,,,,,JTBD2.C1.F2.S3,Baseline
+8,,,,,,JTBD2.C1.F3,Import epics,JTBD2.C1.F3.S1,First import
+9,,,,,,,,JTBD2.C1.F3.S2,Refresh imports
+10,,,,,,,,JTBD2.C1.F3.S3,Baseline
+11,,,,,,JTBD2.C1.F4,Epics mapping,JTBD2.C1.F4.S1,Create
+12,,,,,,,,JTBD2.C1.F4.S2,Update
+13,,,,,,,,JTBD2.C1.F4.S3,Baseline
+14,,,,,,JTBD2.C1.F5,Compute roadmap,JTBD2.C1.F5.S1,Create
+15,,,,,,,,JTBD2.C1.F5.S2,Baseline
+16,,,,,,,,JTBD2.C1.F5.S3,Baseline
+17,,,,JTBD2.C2,Stress-test roadmap,,,,
+18,,,,JTBD2.C3,Back-test roadmap,,,,

@@ -58,11 +58,11 @@ class FunctionalTrace():
                                                 'data'      : data}
         return subroutine_ctx
 
-    def examine(self):
+    def examine(self, as_string=False):
         '''
         Can be thought of as analogous to a (technical) stack trace, but expressed in functional terms.
 
-        Specifically, this method returns a top-down list of runtime "functional intentions and context" that lead to the point in the
+        Specifically, this method produces a top-down list of runtime "functional intentions and context" that lead to the point in the
         code when this is invoked. The index nth of the list can be considered "Level n" for nexted functional contexts, where
         "Level 0" is the most general, root level.
 
@@ -70,14 +70,49 @@ class FunctionalTrace():
         * 'activity':   a string describing the functional intention at the current level
         * 'flow_stage': a string describing where in the current level's functional flow we are
         * 'data':       a dictionary of potentially other useful information.
+
+        Dependingon the `as_string` flag, this method either returns such list of dictionaries or a string that formats
+        them nicely for display on a termina.
         '''
         trace                   = []
-        trace.append(self.functional_purpose)
+        if as_string:
+            trace.append(self._format_functional_trace())
+        else:
+            trace.append(self.functional_purpose)
 
         if self.parent_trace != None and self.parent_trace.functional_purpose != None:
-            trace               = self.parent_trace.examine() + trace
+            trace               = self.parent_trace.examine(as_string=as_string) + trace
         
         return trace
+
+    def _format_functional_trace(self):
+        '''
+        Returns a human-readable string with the content of the functional trace
+        '''
+        if self.functional_purpose == None:
+            return ''
+        result          = ''
+        result          += '---->\tactivity\t'  + self.functional_purpose['activity'] + '\n'
+        
+        flow_stage      = self.functional_purpose['flow_stage']
+        if flow_stage != None and len(flow_stage.strip()) > 0:
+            result          += '\n' + self._ins('flow_stage:')    + self.functional_purpose['flow_stage']
+        data            = self.functional_purpose['data']
+        for k in data.keys():
+            result          += '\n' + self._ins(k + ':') + str(data[k])
+        return result
+
+    def _ins(self, txt):
+        '''
+        Helper method that returns a string of 32 characters, starting with 12 spaces and then txt followed by padding
+        '''
+        allowed_txt_length  = min (20, len(txt))
+        allowed_txt         = txt[0:allowed_txt_length]
+        padding_length      = 20 - allowed_txt_length
+        padding             = ' ' * padding_length
+        indentation         = ' ' * 12
+
+        return indentation + allowed_txt + padding
 
 class ApodeixiError (Exception):
     '''
@@ -90,6 +125,7 @@ class ApodeixiError (Exception):
         self.msg                        = msg
 
     def trace_message(self):
-        trace_msg               = '\n\n*** Functional Trace ***\n\n' + self.msg + '\n'\
-                                    + '\n'.join([str(trace_level) for trace_level in self.functional_trace.examine()]) + '\n'       
+        trace_msg               = '\n\n*** Functional Trace ***\n\n' + self.msg + '\n\n' \
+                                    + '\n\n'.join([str(trace_level) for trace_level in self.functional_trace.examine(as_string=True)]) \
+                                    + '\n'       
         return trace_msg

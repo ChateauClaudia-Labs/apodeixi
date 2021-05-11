@@ -30,6 +30,13 @@ class PostingController():
         
         return tree
 
+    def format_as_yaml_fieldname(txt):
+        '''
+        Returns a re-formatting of the string `txt` to adhere to the standards controller apply to field names.
+        Specifically, no spaces and all lower case. Internal spaces are replaced by a hyphen
+        '''
+        return txt.strip().lower().replace(' ', '-')
+
 class PostingLabel():
     '''
     When posting data via the Excel API, each Excel spreadsheet must contain some meta-information to describe what the 
@@ -69,7 +76,7 @@ class PostingLabel():
         missing_cols = set(self.mandatory_fields).difference(set(context_df.columns))
         if len(missing_cols) > 0:
             missing_txt = ", ".join(["'" + col + "'" for col in missing_cols])
-            raise ApodeixiError(parent_trace, "Range '" + excel_range + "' lacks these mandatory context fields: "
+            raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' lacks these mandatory fields: "
                             + missing_txt)
                        
         ctx = {}
@@ -83,6 +90,7 @@ class PostingLabel():
             ctx[field]  = SchemaUtils.to_yaml_date(ctx[field], BAD_SCHEMA_MSG)
         
         self.ctx            = ctx 
+
 
 class PostingConfig():
     '''
