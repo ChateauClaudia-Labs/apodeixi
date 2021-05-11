@@ -1,0 +1,76 @@
+,Platform,Sub domain,Mission = Set of capabilities,"Features for a given capability
+",K8s domain objects used
+0,Operating Platform,"App Packaging (Containers, VMs)"," - Container security: policies and enforcement mechanisms to guarantee that only approved containers are run on the platform.
+- Container image build: (e.g., from Docker, Kaniko or such) and distribution (image registry)
+- Container security and provenance (traceability; chain-of-custody)
+- Discoverability and dependence management of parent images (& integrated with container security)",,
+1,Operating Platform,Network,"- Service in this domain means: network address (URL)
+- Local traffic management (a variety of load balancing policies between app instances), i.e., in-cluster
+- Global traffic management policy (cross-zone load balancing and routing), i.e., cross-cluster
+- Network performance and profiling (tracing and monitoring)
+- Support for 0-downtime deployment (ZDD) for the network domain service (blue/green, canary) in particular so that upper layers of FO can support ZDD via APIs to proxys
+- Devtime service discovery (can a developer find a service against which to build an app)
+- Runtime service discovery (can a client with a service name discover the network address of that service)
+- Security: confidentiality (encryption of traffic) and access control (can a client talk to a service) with segmentation support
+- Certification management: provisioning, rotation for TLS and mTLS
+- Caching (CDN caching, HTTP caching) at reverse proxy level","Capability being detailed: local traffic management category 
+1) scenario 1: enable load balancing for clients to multiple instances of my ap
+",-Service (k8s native)
+2,,,,2) scenario 2: pods within my namespace need to reach an instance of my app through the load balancer,"k8s native approach [reverse proxy approach]
+-Service (k8s native)
+-Network Policy (k8s native)
+
+Alternative approach [client proxy approach - more powerful:
+-Service (k8s native + mesh annotations)
+-Traffic permission (Kuma mesh)
+-Traffic route (Kuma mesh)"
+3,Operating Platform,Service Provisioning & Binding,"- Maintenance and evolution of a catalogue of backing services
+- Provisioning, connectivity and a access (credentials) to a backing Service instance",,
+4,Operating Platform,Cost Attribution,Measure the usage of Operationg Platform's services by a product/tenant and compute the charge back to them,,
+5,Operating Platform,Storage,,,
+6,Operating Platform,Environment Management,"-Discovery of FO zones. NB: strategy is to model this with ACM
+- Discovery of my product's specific deployment environment in each zone
+- Definition and discovery of all assets that make up my application deployment environment, including backing services (via labels e.g for zones, ...)",,
+7,Operating Platform,Quality of Service,"- Honoring application SLAs (e.g., what redundancy is needed for four 9's; what scaling out to support responsiveness SLAs in light of volume fluctuations, etc.)",,
+8,Operating Platform,App Lifecycle Management,"Services to Helm-based release and upgrade Finastra products running on FO:
+'- Helm registry
+- Helm build
+- GitOps operator
+- ZDD orchestration process (See e.g. Flagger app)",,
+9,Monitoring Platform,Tagging,"Defines labels for filtering & identifiability for any  observable (log, metric, traces) across: * Network segment (geo, environment, product, tenant) * Resource emitter (node, K8s resource e.g. pod, ...) *Tier (infrastructure, application, backing service) * Load origination (real-life production, synthetic)",,
+10,Monitoring Platform,Logs,"- Schema definition, including extensibility (e.g., OpenTelemetry)
+- Extraction mechanisms (e.g., what application code emits and how it is sent to FO control plane)
+- Log sink: aggregation mechanisms and retention policy
+- Retrieval mechanisms (persona-based dashboard, Python, CLI, ...)",,
+11,Monitoring Platform,Metrics,"- Metric definitions across: * Infrastructure (CPU, memory, disk, ...) *Backing service usage (database utilization, ...) * Load origination (real-life production, synthetic, ...) * Application-defined
+- Computation mechanisms: * Primitives per source type (Linux node, application pod, backing service, ....) * Definitional grammar (e.g. Prometheus Promql) * Extraction mechanisms (pod end points definition; granularity of extract (primitive or metric)) *For Synthetic Monitoring, test program/script design and deployment
+- Time series parametrization (frequency, storage, ...)
+- Metrics sink: aggregation mechanisms & retention policy
+- Consumption of metrics * Retrieval mechanisms & analysis capabilities (persona-based dashboard, Python, CLI, ...) * Alert configuration (persona-based; schema of severity levels; ) * Error budgets (baseline KPIs; response SLAs contextualized to product, legal agreements, ...)",,
+12,Monitoring Platform,Tracing,"- Tracing constructs and their lifetime * End-to-end constructs across distributed boundaries (e.g., traceIds) * Local constructs (e.g., spanIds)
+- Incorporation in logs and metrics
+- Traces sink: aggregation mechanisms and retention policy
+- Retrieval and analysis mechanisms (persona-based dashboard, Python, CLI, ...)",,
+13,Testing Platform,Test Design,"- Definition of artifacts to be used across functional, non-functional tests for: * Scenario definition * Representation of test dependencies, and the required test data in particular * Packaging of test runnables (e.g., Docker) and mapping to Applications /Services they apply to *Test deployment and execution (e.g., Helm)
+- Library of re-usable artifacts product teams might use to implement test scenarios * E.g., load test standard contract (w Taurus), Chaos patterns/contracts, ...",,
+14,Testing Platform,Test Execution,"- Configurability of phase of applicability for specific test scenarios: * In specific stages of build pipeline (as part of CI) * In specific stages of delivery pipeline (as part of CD) * In specific environments (e.g., some time consuming tests may be excluded in a developer's feature branch) * Manually (e.g., in a developer's local environment prior to a committing code)
+- Definition of execution scope and constraints * Scenarios to run as a group, sequencing constraints, ... * Time budget constraints for run
+- Provisioning of necessary infrastructure and configurability to run test scenarios * Sizing of compute (e.g, # of nodes in K8s cluster) based on type of scenario (e.g., load tests need more) *  Mechanisms for injecting runtime configuration (e.g., environment variables, connections strings)
+     ",,
+15,Testing Platform,Test Monitoring,"- logs from test runs: leverages MonitoringPlatform.logs capabilities
+- Results from test runs",,
+16,Software Factory,,,,
+17,Software Factory,,,,
+18,Software Factory,,,,
+19,Software Factory,,,,
+20,Software Factory,,,,
+21,API Platform,,,,
+22,API Platform,,,,
+23,API Platform,,,,
+24,API Platform,,,,
+25,API Platform,,,,
+26,Governance Platform,,,,
+27,Governance Platform,,,,
+28,Governance Platform,,,,
+29,Governance Platform,,,,
+30,Governance Platform,,,,

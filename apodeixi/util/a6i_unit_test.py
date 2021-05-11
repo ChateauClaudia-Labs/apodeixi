@@ -1,9 +1,10 @@
 import unittest
-import sys as _sys
-import os as _os
-import yaml as _yaml
+import sys                  as _sys
+import os                   as _os
+import yaml                 as _yaml
+import pandas               as _pd
 import inspect
-from io import StringIO
+from io                     import StringIO
 
 class ApodeixiUnitTest(unittest.TestCase):
     '''
@@ -22,6 +23,15 @@ class ApodeixiUnitTest(unittest.TestCase):
         # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
         self.output_data            = _os.path.join(_os.path.dirname(me__file__), 'output_data') # Works ! :-) Thanks inspect!
 
+    def load_csv(self, path):
+        '''
+        Helper method to load a "clean DataFrame" from a CSV file, correcting for spurious columns and NAs
+        '''
+        data_df             = _pd.read_csv(path)
+        data_df             = data_df.fillna('')
+        data_df             = data_df.drop(['Unnamed: 0'], axis=1)
+
+        return data_df
 
     def _save_output(self, output):
         '''

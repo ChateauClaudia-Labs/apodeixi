@@ -12,23 +12,30 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         super().setUp()
 
     def test_sparse_layout(self):
+        self._shell_test_case('test_sparse_layout', viewport_width=50, viewport_height=40, max_word_length=20)
+
+    def test_thick_layout(self):
+        self._shell_test_case('test_thick_layout', viewport_width=100, viewport_height=40, max_word_length=20)
+
+    def _shell_test_case(self, name, viewport_width, viewport_height, max_word_length):
 
         INPUT_FOLDER            = self.input_data
-        INPUT_FILE              = 'test_sparse_layout_INPUT.csv'
+        INPUT_FILE              = name + '_INPUT.csv'
         OUTPUT_FOLDER           = self.output_data
-        OUTPUT_FILE             = 'test_sparse_layout_OUTPUT.csv'
-        EXPECTED_FILE           = 'test_sparse_layout_EXPECTED.csv'
+        OUTPUT_FILE             = name + '_OUTPUT.csv'
+        EXPECTED_FILE           = name + '_EXPECTED.csv'
 
-        OUTPUT_EXPLAIN_FILE     = 'test_sparse_layout_explain_OUTPUT.txt'
-        EXPECTED_EXPLAIN_FILE   = 'test_sparse_layout_explain_EXPECTED.txt'
+        OUTPUT_EXPLAIN_FILE     = name + '_explain_OUTPUT.txt'
+        EXPECTED_EXPLAIN_FILE   = name + '_explain_EXPECTED.txt'
 
         try:
 
-            data_df             = _pd.read_csv(INPUT_FOLDER + '/' + INPUT_FILE)
-            data_df             = data_df.fillna('')
-            data_df             = data_df.drop(['Unnamed: 0'], axis=1)
+            data_df             = self.load_csv(INPUT_FOLDER + '/' + INPUT_FILE)
 
-            calc                = ColumnWidthCalculator(data_df=data_df, viewport_width=50, viewport_height=40, max_word_length=20)
+            calc                = ColumnWidthCalculator(    data_df             = data_df, 
+                                                            viewport_width      = viewport_width, 
+                                                            viewport_height     = viewport_height, 
+                                                            max_word_length     = max_word_length)
             output_df           = calc.calc()
             output_explain      = '\n'.join(calc.explanations)
             # Save DataFrame and explain in case the assertion below fails, so that we can do 
@@ -40,17 +47,12 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             # Load the output we just saved, which we'll use for regression comparison since in Pandas the act of loading will
             # slightly change formats and we want to apply the same such changes as were applied to the expected output,
             # to avoid frivolous differences that don't deserve to cause this test to fail
-            loaded_output_df    = _pd.read_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
-            loaded_output_df    = loaded_output_df.fillna('')
-            loaded_output_df    = loaded_output_df.drop(['Unnamed: 0'], axis=1)
+            loaded_output_df    = self.load_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
+
 
             # Now load the expected output
-            expected_df         = _pd.read_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
-            expected_df         = expected_df.fillna('')
-            expected_df         = expected_df.drop(['Unnamed: 0'], axis=1)
-
-            
-
+            expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
+           
             with open(OUTPUT_FOLDER + '/'  + EXPECTED_EXPLAIN_FILE, 'r') as file:
                 expected_explain     = file.read()
 
