@@ -1,4 +1,4 @@
-,Column,Max 1-line width,Longest word,Longest word length,All words,Words per row,S0 width,S0 Nb of lines,S1 width,S1 Nb of lines,S2 width,S2 Nb of lines,S3 width,S3 Nb of lines,S4 width,S4 Nb of lines,S5 width,S5 Nb of lines,S6 width,S6 Nb of lines,S7 width,S7 Nb of lines,S8 width,S8 Nb of lines,S9 width,S9 Nb of lines,S10 width,S10 Nb of lines,S11 width,S11 Nb of lines
+,Column,Max 1-line width,Longest word,Longest word length,All words,Words per row,S0 width,S0 Nb of lines,S1 width,S1 Nb of lines,S2 width,S2 Nb of lines,S3 width,S3 Nb of lines,S4 width,S4 Nb of lines,S5 width,S5 Nb of lines,S6 width,S6 Nb of lines,S7 width,S7 Nb of lines,S8 width,S8 Nb of lines,S9 width,S9 Nb of lines,S10 width,S10 Nb of lines
 0,UID,5,JTBD1,5,"['JTBD1', '', 'JTBD2', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']","0     [JTBD1]
 1          []
 2     [JTBD2]
@@ -18,8 +18,8 @@
 16         []
 17         []
 18         []
-Name: UID, dtype: object",5,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1
-1,jobs-to-be-done,32,Transform,9,"['Quickly', 'add', 'features', 'to', 'Apodeixi', '', 'Transform', 'the', 'products', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']","0     [Quickly, add, features, to, Apodeixi]
+Name: UID, dtype: object",5,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1
+1,jobs-to-be-done,32,jobs-to-be-done,15,"['Quickly', 'add', 'features', 'to', 'Apodeixi', '', 'Transform', 'the', 'products', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']","0     [Quickly, add, features, to, Apodeixi]
 1                                         []
 2                 [Transform, the, products]
 3                                         []
@@ -38,8 +38,8 @@ Name: UID, dtype: object",5,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.0,1,5.
 16                                        []
 17                                        []
 18                                        []
-Name: jobs-to-be-done, dtype: object",32,1,25.0,2,25.0,2,25.0,2,25.0,2,25.0,2,25.0,2,12.0,3,11.0,3,11.0,3,11.0,3,11.0,3
-2,Stakeholders,25,developers,10,"['Apodeixi', 'developers', '', 'Product', 'teams,', 'architects', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']","0            [Apodeixi, developers]
+Name: jobs-to-be-done, dtype: object",32,1,25.0,2,25.0,2,25.0,2,15.0,3,15.0,3,15.0,3,15.0,3,15.0,3,15.0,3,15.0,3
+2,Stakeholders,25,Stakeholders,12,"['Apodeixi', 'developers', '', 'Product', 'teams,', 'architects', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']","0            [Apodeixi, developers]
 1                                []
 2     [Product, teams,, architects]
 3                                []
@@ -58,7 +58,7 @@ Name: jobs-to-be-done, dtype: object",32,1,25.0,2,25.0,2,25.0,2,25.0,2,25.0,2,25
 16                               []
 17                               []
 18                               []
-Name: Stakeholders, dtype: object",25,1,25.0,1,25.0,1,25.0,1,14.0,2,14.0,2,14.0,2,14.0,2,14.0,2,14.0,2,10.0,3,10.0,3
+Name: Stakeholders, dtype: object",25,1,25.0,1,25.0,1,25.0,1,25.0,1,14.0,2,14.0,2,14.0,2,12.0,3,12.0,3,12.0,3
 3,UID-1,8,JTBD1.C1,8,"['JTBD1.C1', '', 'JTBD2.C1', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'JTBD2.C2', 'JTBD2.C3']","0     [JTBD1.C1]
 1             []
 2     [JTBD2.C1]
@@ -78,8 +78,8 @@ Name: Stakeholders, dtype: object",25,1,25.0,1,25.0,1,25.0,1,14.0,2,14.0,2,14.0,
 16            []
 17    [JTBD2.C2]
 18    [JTBD2.C3]
-Name: UID-1, dtype: object",8,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1
-4,Capabilities,25,Scaffolding,11,"['Scaffolding', 'for', 'BDD', 'tests', '', 'Create', 'roadmap', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Stress-test', 'roadmap', 'Back-test', 'roadmap']","0     [Scaffolding, for, BDD, tests]
+Name: UID-1, dtype: object",8,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1
+4,Capabilities,25,Capabilities,12,"['Scaffolding', 'for', 'BDD', 'tests', '', 'Create', 'roadmap', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Stress-test', 'roadmap', 'Back-test', 'roadmap']","0     [Scaffolding, for, BDD, tests]
 1                                 []
 2                  [Create, roadmap]
 3                                 []
@@ -98,7 +98,7 @@ Name: UID-1, dtype: object",8,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,8.0,1,
 16                                []
 17            [Stress-test, roadmap]
 18              [Back-test, roadmap]
-Name: Capabilities, dtype: object",25,1,25.0,1,25.0,1,25.0,1,25.0,1,13.0,2,13.0,2,13.0,2,13.0,2,11.0,3,11.0,3,11.0,3
+Name: Capabilities, dtype: object",25,1,25.0,1,25.0,1,25.0,1,25.0,1,25.0,1,13.0,2,13.0,2,13.0,2,12.0,3,12.0,3
 5,UID-2,11,JTBD1.C1.F1,11,"['JTBD1.C1.F1', '', 'JTBD2.C1.F1', '', '', 'JTBD2.C1.F2', '', '', 'JTBD2.C1.F3', '', '', 'JTBD2.C1.F4', '', '', 'JTBD2.C1.F5', '', '', '', '']","0     [JTBD1.C1.F1]
 1                []
 2     [JTBD2.C1.F1]
@@ -118,7 +118,7 @@ Name: Capabilities, dtype: object",25,1,25.0,1,25.0,1,25.0,1,25.0,1,13.0,2,13.0,
 16               []
 17               []
 18               []
-Name: UID-2, dtype: object",11,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1
+Name: UID-2, dtype: object",11,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1
 6,Feature,56,documentation,13,"['Drive', 'scaffolding', 'from', 'Apodeixi', 'capability', 'documentation', '', 'Define', 'big', 'rocks', '', '', 'Define', 'milestones', '', '', 'Import', 'epics', '', '', 'Epics', 'mapping', '', '', 'Compute', 'roadmap', '', '', '', '']","0     [Drive, scaffolding, from, Apodeixi, capabilit...
 1                                                    []
 2                                  [Define, big, rocks]
@@ -138,7 +138,7 @@ Name: UID-2, dtype: object",11,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,1,11.0,
 16                                                   []
 17                                                   []
 18                                                   []
-Name: Feature, dtype: object",56,1,56.0,1,25.0,3,17.0,4,17.0,4,17.0,4,13.0,5,13.0,5,13.0,5,13.0,5,13.0,5,13.0,5
+Name: Feature, dtype: object",56,1,56.0,1,25.0,3,17.0,4,17.0,4,17.0,4,17.0,4,13.0,5,13.0,5,13.0,5,13.0,5
 7,UID-3,14,JTBD1.C1.F1.S1,14,"['JTBD1.C1.F1.S1', 'JTBD1.C1.F1.S2', 'JTBD2.C1.F1.S1', 'JTBD2.C1.F1.S2', 'JTBD2.C1.F1.S3', 'JTBD2.C1.F2.S1', 'JTBD2.C1.F2.S2', 'JTBD2.C1.F2.S3', 'JTBD2.C1.F3.S1', 'JTBD2.C1.F3.S2', 'JTBD2.C1.F3.S3', 'JTBD2.C1.F4.S1', 'JTBD2.C1.F4.S2', 'JTBD2.C1.F4.S3', 'JTBD2.C1.F5.S1', 'JTBD2.C1.F5.S2', 'JTBD2.C1.F5.S3', '', '']","0     [JTBD1.C1.F1.S1]
 1     [JTBD1.C1.F1.S2]
 2     [JTBD2.C1.F1.S1]
@@ -158,7 +158,7 @@ Name: Feature, dtype: object",56,1,56.0,1,25.0,3,17.0,4,17.0,4,17.0,4,13.0,5,13.
 16    [JTBD2.C1.F5.S3]
 17                  []
 18                  []
-Name: UID-3, dtype: object",14,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1
+Name: UID-3, dtype: object",14,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1
 8,Story,15,Baseline,8,"['Create', 'Update', 'Create', 'Update', 'Baseline', 'Create', 'Update', 'Baseline', 'First', 'import', 'Refresh', 'imports', 'Baseline', 'Create', 'Update', 'Baseline', 'Create', 'Baseline', 'Baseline', '', '']","0               [Create]
 1               [Update]
 2               [Create]
@@ -178,4 +178,4 @@ Name: UID-3, dtype: object",14,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,1,14.0,
 16            [Baseline]
 17                    []
 18                    []
-Name: Story, dtype: object",15,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,8.0,2
+Name: Story, dtype: object",15,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,15.0,1,8.0,2

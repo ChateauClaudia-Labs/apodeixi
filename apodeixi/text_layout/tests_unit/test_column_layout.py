@@ -12,9 +12,11 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         super().setUp()
 
     def test_sparse_layout(self):
+
         self._shell_test_case('test_sparse_layout', viewport_width=50, viewport_height=40, max_word_length=20)
 
     def test_thick_layout(self):
+
         self._shell_test_case('test_thick_layout', viewport_width=100, viewport_height=40, max_word_length=20)
 
     def _shell_test_case(self, name, viewport_width, viewport_height, max_word_length):
@@ -28,7 +30,11 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         OUTPUT_EXPLAIN_FILE     = name + '_explain_OUTPUT.txt'
         EXPECTED_EXPLAIN_FILE   = name + '_explain_EXPECTED.txt'
 
+        OUTPUT_RESULTS_FILE     = name + '_results_OUTPUT.txt'
+        EXPECTED_RESULTS_FILE   = name + '_results_EXPECTED.txt'
+
         try:
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Testing computation of column widths")
 
             data_df             = self.load_csv(INPUT_FOLDER + '/' + INPUT_FILE)
 
@@ -36,13 +42,18 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
                                                             viewport_width      = viewport_width, 
                                                             viewport_height     = viewport_height, 
                                                             max_word_length     = max_word_length)
-            output_df           = calc.calc()
+            result_dict         = calc.calc(root_trace)
+            output_df           = calc.analysis_df
             output_explain      = '\n'.join(calc.explanations)
-            # Save DataFrame and explain in case the assertion below fails, so that we can do 
+            # Save DataFrame, explain and results in case the assertion below fails, so that we can do 
             # a visual comparison of OUTPUT vs EXPECTED csv files
             output_df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
             with open(OUTPUT_FOLDER + '/'  + OUTPUT_EXPLAIN_FILE, 'w') as file:
                 file            .write(output_explain)
+            # Make results readable by creating a pretty 
+            result_nice         = self.dict_2_nice(result_dict)
+            with open(OUTPUT_FOLDER + '/'  + OUTPUT_RESULTS_FILE, 'w') as file:
+                file            .write(result_nice)
 
             # Load the output we just saved, which we'll use for regression comparison since in Pandas the act of loading will
             # slightly change formats and we want to apply the same such changes as were applied to the expected output,
@@ -54,13 +65,16 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
            
             with open(OUTPUT_FOLDER + '/'  + EXPECTED_EXPLAIN_FILE, 'r') as file:
-                expected_explain     = file.read()
+                expected_explain        = file.read()
+            with open(OUTPUT_FOLDER + '/'  + EXPECTED_RESULTS_FILE, 'r') as file:
+                expected_result     = file.read()
 
         except ApodeixiError as ex:
             print(ex.trace_message()) 
 
         self.assertTrue(loaded_output_df.equals(expected_df))
-        self.assertEqual(output_explain, expected_explain)
+        self.assertEqual(output_explain,    expected_explain)
+        self.assertEqual(result_nice,       expected_result)
         
 
 if __name__ == "__main__":

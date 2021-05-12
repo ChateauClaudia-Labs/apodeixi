@@ -1,0 +1,6 @@
+Platform		{'width': 10.0, 'nb_lines': 2}
+Sub domain		{'width': 12.0, 'nb_lines': 4}
+Mission = Set of capabilities		{'width': 50.0, 'nb_lines': 20}
+Features for a given capability
+		{'width': 20.0, 'nb_lines': 8}
+K8s domain objects used		{'width': 25.0, 'nb_lines': 12}

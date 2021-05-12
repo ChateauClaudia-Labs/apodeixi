@@ -129,3 +129,5 @@ class ApodeixiError (Exception):
                                     + '\n\n'.join([str(trace_level) for trace_level in self.functional_trace.examine(as_string=True)]) \
                                     + '\n'       
         return trace_msg
+
+    

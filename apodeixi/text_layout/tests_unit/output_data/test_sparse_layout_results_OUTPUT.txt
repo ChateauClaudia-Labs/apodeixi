@@ -1,0 +1,9 @@
+UID		{'width': 5.0, 'nb_lines': 1}
+jobs-to-be-done		{'width': 15.0, 'nb_lines': 3}
+Stakeholders		{'width': 12.0, 'nb_lines': 3}
+UID-1		{'width': 8.0, 'nb_lines': 1}
+Capabilities		{'width': 12.0, 'nb_lines': 3}
+UID-2		{'width': 11.0, 'nb_lines': 1}
+Feature		{'width': 13.0, 'nb_lines': 5}
+UID-3		{'width': 14.0, 'nb_lines': 1}
+Story		{'width': 8.0, 'nb_lines': 2}

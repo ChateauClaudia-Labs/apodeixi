@@ -33,6 +33,17 @@ class ApodeixiUnitTest(unittest.TestCase):
 
         return data_df
 
+    def dict_2_nice(self, a_dict):
+        '''
+        Helper method to return a "nice" string where each entry in the dictionary is placed on a separate line.
+        Useful when saving a dictionary as text output, to make it more readable
+    '''
+        # Make results readable by creating a pretty 
+        result_nice         = ''
+        for k in a_dict.keys():
+            result_nice     += str(k) + '\t\t' + str(a_dict[k]) + '\n'
+        return result_nice
+
     def _save_output(self, output):
         '''
         Helper class used while developing test cases. Test cases will produce some output that needs to be compared

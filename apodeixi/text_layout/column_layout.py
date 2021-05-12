@@ -44,42 +44,63 @@ class ColumnWidthCalculator:
                            in more than 1 line.
     '''
     def __init__(self, data_df, viewport_width=200, viewport_height=40, max_word_length=20):
-        self.data_df                 = data_df
-        self.viewport_width          = viewport_width
-        self.viewport_height         = viewport_height
+        self.data_df                = data_df
+        self.viewport_width         = viewport_width
+        self.viewport_height        = viewport_height
         
         # During our calculations we will be building a dataframe of information
         # Columns will be 'worst_case_width'
         #self.analysis_df             = None    
         
-        self.MAX_WORD_LENGTH         = max_word_length
-        self.MAX_COL_WIDTH           = self.viewport_width * 0.50
-        self.MAX_ROW_HEIGHT          = self.viewport_height * 0.30
-        self.explanations            = None
+        self.MAX_WORD_LENGTH        = max_word_length
+        self.MAX_COL_WIDTH          = self.viewport_width * 0.50
+        self.MAX_ROW_HEIGHT         = self.viewport_height * 0.30
+        self.explanations           = None # Computed by self.calc()
+        self.analysis_df            = None # Computed by self.calc()
         return
     
-    def calc(self):
+    def calc(self, parent_trace):
         # Initialize our helper DataFrame to guide our decisions
-        df      = self._analyze_widths()
+        df                      = self._analyze_widths(parent_trace)
         
-        gen                    = _ScenarioGenerator(working_df      = df, 
-                                                                           viewport_width    = self.viewport_width,
-                                                                           col_width_limit   = self.MAX_COL_WIDTH,
-                                                                           row_height_limit  = self.MAX_ROW_HEIGHT,
-                                                                           word_size_limit   = self.MAX_WORD_LENGTH,
-                                                                  )
-        #'''
+        gen                    = _ScenarioGenerator(parent_trace        = parent_trace,
+                                                    working_df          = df, 
+                                                    viewport_width      = self.viewport_width,
+                                                    col_width_limit     = self.MAX_COL_WIDTH,
+                                                    row_height_limit    = self.MAX_ROW_HEIGHT,
+                                                    word_size_limit     = self.MAX_WORD_LENGTH,
+                                            )
+        # Now run the iterative algorithm that "guesses" column widths and systematically searches for an optimium
         for candidate, width, PRIOR, NEXT, explanations in gen:
-            self._applyScenario(analysis_df      = df,
-                                column_to_resize = candidate,
-                                width_val        = width,
-                                prior_scenario   = PRIOR,
-                                next_scenario    = NEXT)
-        self.explanations = gen.explanations
-        #'''
-        return df     
+            self._applyScenario(parent_trace        = parent_trace,
+                                analysis_df         = df,
+                                column_to_resize    = candidate,
+                                width_val           = width,
+                                prior_scenario      = PRIOR,
+                                next_scenario       = NEXT)
+
+        # Persist intermediate values from calculation in case we need to inspect how we got to the answer 
+        self.explanations       = gen.explanations
+        self.analysis_df        = df
+
+        # Now assemble the results, which are held in the columns of self.analysis_df corresponding to last scenario
+        W_COL                   = ColumnWidthCalculator._scenarioWidthColumn
+        NB_COL                  = ColumnWidthCalculator._scenarioNbLinesColumn
         
-    def _applyScenario(self, analysis_df, column_to_resize, width_val, prior_scenario, next_scenario):
+        FINAL_WIDTH             = W_COL(NEXT)
+        FINAL_NB_LINES          = NB_COL(NEXT)
+
+        # Keys will be columns of self.data_df, and values will be a dictonary with two entries: width and nb_lines
+        final_result                = {} 
+        for row in self.analysis_df.iterrows():
+            col                 = row[1]['Column']
+            width               = row[1][FINAL_WIDTH]
+            nb_lines            = row[1][FINAL_NB_LINES]
+            final_result[col]   = {'width': width, 'nb_lines': nb_lines}
+
+        return final_result    
+        
+    def _applyScenario(self, parent_trace, analysis_df, column_to_resize, width_val, prior_scenario, next_scenario):
         def _new_val(row_label, prior_column, new_val):
             def inner_function(row):
                 if row['Column'] == row_label:
@@ -183,11 +204,20 @@ class ColumnWidthCalculator:
 
     def _longest_word(self, column):
         all_words           = self._all_words(column)
+        # The column header will the "the longest word by default", unless we find a longer word in the rows below the header
+        default_answer      = column 
+        
         if len(all_words)==0:
-            return ''
+            return default_answer
         max_length          = max([len(str(x)) for x in all_words])
         longests            = [x for x in all_words if len(x)==max_length]
-        return longests[0] # Guaranteed to exist since all_words is non-empty (we checked)
+        possible_answer     = longests[0] # Guaranteed to exist since all_words is non-empty (we checked)
+        
+        # Return the longest: either the header, or the longest word in the body
+        if len(possible_answer) > len(default_answer):
+            return possible_answer
+        else:
+            return default_answer
     
     def _1l_widths_per_row(self, column):
         '''
@@ -203,7 +233,7 @@ class ColumnWidthCalculator:
         header_width      = len(str(column))
         return max(header_width, max(self._1l_widths_per_row(column)))
         
-    def _analyze_widths(self):
+    def _analyze_widths(self, parent_trace):
         
         columns       = self.data_df.columns
         
@@ -231,17 +261,18 @@ class _ScenarioGenerator():
     column width reduction stops (i.e., what invariant or rule would be broken if a column shrinks further)
     These explanations are useful for debugging and regression tests.
     '''
-    def __init__(self, working_df, viewport_width, col_width_limit, row_height_limit, word_size_limit):
+    def __init__(self, parent_trace, working_df, viewport_width, col_width_limit, row_height_limit, word_size_limit):
         
-        self.working_df          = working_df
-        self.viewport_width      = viewport_width
-        self.col_width_limit     = col_width_limit
-        self.row_height_limit    = row_height_limit
-        self.word_size_limit     = word_size_limit
+        self.parent_trace           = parent_trace
+        self.working_df             = working_df
+        self.viewport_width         = viewport_width
+        self.col_width_limit        = col_width_limit
+        self.row_height_limit       = row_height_limit
+        self.word_size_limit        = word_size_limit
 
-        self.scenario_nb         = 0
+        self.scenario_nb            = 0
                     
-        self.explanations        = [] # Explanatinos for last iteration only
+        self.explanations           = [] # Explanatinos for last iteration only
         
     def __iter__(self):
         
