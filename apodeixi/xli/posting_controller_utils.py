@@ -192,7 +192,7 @@ class PostingLabel():
 
         '''
         appearances_in_label                = []  # Will grow in loop. Subset of label_df.columns
-        sightings                           = {} # Keys are from label_df.columns, and values are a (possibly empty) list of integers
+        sightings                           = {} # Keys are from expected_fields, and values are a (possibly empty) list of integers
 
         REGEX                               = "^(.+)\.([0-9]+)$"  # Matches things like 'data.kind.5', with groups 'data.kind' and '5'
         pattern                             = _re.compile(REGEX)
@@ -207,16 +207,16 @@ class PostingLabel():
             else:
                 # The complex case. If col='data.kind.5', then g.group(1)='data.kind' and g.group(2)='5'
                 field                       = g.group(1)
-                occurrence_nb               = g.group(2)
+                appearance_nb               = g.group(2)
 
             if field != None and field in expected_fields:
                 appearances_in_label            .append(col)
 
                 # Now add to the list of integers associated with this field
-                if not col in sightings.keys():
-                    sightings[col] = []
+                if not field in sightings.keys():
+                    sightings[field] = []
                 if appearance_nb != None:
-                    sightings[col].append(apperance_nb)
+                    sightings[field].append(appearance_nb)
 
         
 

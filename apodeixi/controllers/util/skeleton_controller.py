@@ -30,7 +30,7 @@ class SkeletonController(PostingController):
         for manifest_dict in all_manifests_dicts:
             self._saveManifest(root_trace, manifest_dict, manifests_dir, manifest_file)
 
-    def getPostingConfig(self):
+    def getPostingConfig(self, parent_trace, kind):
         '''
         Implemented by concrete controller classes.
         Must return a PostingConfig, corresponding to the configuration that the concrete controller supports.
@@ -84,7 +84,7 @@ class SkeletonController(PostingController):
                                                                 data = {'url': url, 'excel_range': excel_range, 
                                                                         'signaled_from': __file__})
         if True:
-            config                      = self.getPostingConfig()
+            config                      = self.getPostingConfig(my_trace, kind)
             tree                        = self._xl_2_tree(my_trace, url, excel_range, config)
             tree_dict                   = tree.as_dicts()
         
@@ -172,18 +172,13 @@ class SkeletonController(PostingController):
                 raise ApodeixiError(parent_trace, "Non supported Excel API '" + posted_xl_api_version + "'"
                                                 + "\nShould be one of: " + str(supported_xl_api_versions))
 
-            # Validate that kind of domain object in posting is one we know how to handle
-            kind                        = self._getField(parent_trace, ME._DATA_KIND)
-            supported_DATA_KINDs             = self.controller.getSupportedKinds()
-            if not kind in supported_DATA_KINDs:
-                raise ApodeixiError(parent_trace, "Non supported domain object kind '" + kind + "'"
-                                                + "\nShould be one of: " + str(supported_DATA_KINDs))
-
-        def kind(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = SkeletonController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._DATA_KIND)
+            # Validate that kind of domain object(s) in posting is(are) one that we know how to handle
+            for kind_range_dict in self._kinds_and_ranges(parent_trace): # One per manifest to build
+                kind                        = kind_range_dict[ME._DATA_KIND]
+                supported_data_kinds             = self.controller.getSupportedKinds()
+                if not kind in supported_data_kinds:
+                    raise ApodeixiError(parent_trace, "Non supported domain object kind '" + kind + "'"
+                                                    + "\nShould be one of: " + str(supported_data_kinds))
 
         def environment(self, parent_trace):
             # Shortcut to reference class static variables
@@ -203,12 +198,6 @@ class SkeletonController(PostingController):
             ME = SkeletonController._MyPostingLabel
 
             return self._getField(parent_trace, ME._RECORDED_BY)
-
-        def dataRange(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = SkeletonController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._DATA_RANGE)
         
         def _getField(self, parent_trace, fieldname):
             if self.ctx==None:
@@ -253,10 +242,15 @@ class SkeletonController(PostingController):
                                 ME._DATA_RANGE: self.ctx[ME._DATA_RANGE]})
                 
             else:                   # There are multiple manifests to build in this case
-                for idx in range(kind_list):
+                FMT                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
+                for idx in range(len(kind_list)):
                     kind_field      = ME._DATA_KIND    + '.' + str(kind_list[idx])      # The field in the PostingLabel, like 'data.kind.2'
+                    kind_val        = FMT(self.ctx[kind_field])
+
                     range_field     = ME._DATA_RANGE   + '.' + str(range_list[idx])
-                    result.append({ ME._DATA_KIND:  self.ctx[kind_field], 
-                                    ME._DATA_RANGE: self.ctx[range_field]})
+                    range_val       = self.ctx[range_field]
+
+                    result.append({ ME._DATA_KIND:  kind_val, 
+                                    ME._DATA_RANGE: range_val})
 
             return result

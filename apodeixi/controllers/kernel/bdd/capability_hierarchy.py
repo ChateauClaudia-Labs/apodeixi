@@ -30,7 +30,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
     def getSupportedKinds(self):
         return self.SUPPORTED_KINDS
 
-    def getPostingConfig(self):
+    def getPostingConfig(self, parent_trace, kind):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
