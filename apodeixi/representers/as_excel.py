@@ -122,7 +122,6 @@ class Manifest_Representer:
                     fmt             = workbook.add_format(fmt_dict)
                     worksheet.write(y, x, row_content[col], fmt)
 
-       
     def _unprotect_free_space(self, my_trace, worksheet):
         '''
         Scans a large range of cells (limit is hard coded) and unprotects any cell that is not in any layout

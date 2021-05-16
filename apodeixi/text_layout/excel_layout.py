@@ -122,19 +122,12 @@ class ManifestLayout(Excel_Layout):
     R_CONTRIB               = {'locked': True}
     W_CONTRIB               = {'locked': False}
                 
-    # The "|" operator to merge dictionaries is only available in Python 3.9. As of this writing I use Python 3.7 so 
-    # must use the {** dict1, **dict2} syntax instead
-    #HEADER_R_FMT         = ROOT_FMT | HEADER_CONTRIB| R_CONTRIB |{'bg_color': DARK_GREY}
-    #HEADER_W_FMT         = ROOT_FMT | HEADER_CONTRIB| W_CONTRIB |{'bg_color': DARK_GREEN}
+    # NOTE: this "|" operator to merge dictionaries is only available in Python 3.9+. If this fails, check your Python version
+    HEADER_R_FMT         = ROOT_FMT | HEADER_CONTRIB| R_CONTRIB |{'bg_color': DARK_GREY}
+    HEADER_W_FMT         = ROOT_FMT | HEADER_CONTRIB| W_CONTRIB |{'bg_color': DARK_GREEN}
 
-    #BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': LIGHT_GREY}
-    #BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': LIGHT_GREEN}
-
-    HEADER_R_FMT            = {**ROOT_FMT, **HEADER_CONTRIB, **R_CONTRIB , **{'bg_color': DARK_GREY}}
-    HEADER_W_FMT            = {**ROOT_FMT, **HEADER_CONTRIB, **W_CONTRIB , **{'bg_color': DARK_GREEN}}
-
-    BODY_R_FMT              = {**ROOT_FMT, **R_CONTRIB, **{'bg_color': LIGHT_GREY}}
-    BODY_W_FMT              = {**ROOT_FMT, **W_CONTRIB, **{'bg_color': LIGHT_GREEN}}
+    BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': LIGHT_GREY}
+    BODY_W_FMT           = ROOT_FMT | W_CONTRIB | {'bg_color': LIGHT_GREEN}
 
     def addHeader(self, parent_trace, xInterval, y, mode):
         '''
@@ -200,7 +193,6 @@ class ManifestLayout(Excel_Layout):
                                             yInterval   = [1 + y_offset, nb_rows, + y_offset], 
                                             mode        = body_mode)
 
-    
 class AsExcel_Config():
     def __init__(self, viewport_width=100, viewport_height=40, max_word_length=20):
         '''
@@ -220,8 +212,6 @@ class AsExcel_Config():
         
         self.layouts_dict           = {} # To be set by derived classes. Key is a name for a manifest, value is its Excel_Layout object
        
-
-        
 class Manifest_Config(AsExcel_Config):
     '''
     @param name_list A list of strings, each of them the name of a manifest that will be pasted on the same Excel worksheet.

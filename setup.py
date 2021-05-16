@@ -14,7 +14,10 @@ setup(name='apodeixi',
       author='Alejandro Hernandez',
       author_email='alejandro@chateauclaudia-labs.com',
       license='MIT',
-      packages=['apodeixi', 'apodeixi.xli'], 'apodeixi.util',
+      packages=['apodeixi', 'apodeixi.xli', 'apodeixi.util'],
+      install_requires=[
+          'pandas', 'openpyxl', 'pyyaml', 'xlsxwriter',
+      ],    
       zip_safe=False)
 
 

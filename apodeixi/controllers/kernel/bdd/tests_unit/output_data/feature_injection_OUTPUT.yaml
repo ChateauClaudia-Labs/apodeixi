@@ -1,12 +1,5 @@
-apiVersion: kernel.a6i.io/v1dev
-kind: ProjectScaffolding
-metadata:
-  labels:
-    organization: ChateauClaudia Labs
-    project: Apodeixi
-  name: bdd-tests.apodeixi
-  namespace: chateauclaudia-labs.production
-scaffolding:
+apiVersion: bdd.kernel.a6i.io/v1a
+assertion:
   entity_type: Jobs to be done
   jobs-to-be-done:
     JTBD1:
@@ -138,3 +131,11 @@ scaffolding:
       name: Transform the products
     JTBD2-name: Transform the products
   recordedBy: alejandro@chateauclaudia-labs.com
+  scaffoldingPurpose: BDD tests
+kind: capability-hierarchy
+metadata:
+  labels:
+    organization: ChateauClaudia Labs
+    project: Apodeixi
+  name: bdd-tests.apodeixi
+  namespace: chateauclaudia-labs.production

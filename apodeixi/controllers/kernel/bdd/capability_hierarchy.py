@@ -1,84 +1,79 @@
-import yaml                             as _yaml
-from io                                 import StringIO
+from apodeixi.controllers.util.manifest_api         import ManifestAPI
+from apodeixi.util.a6i_error                        import ApodeixiError
 
-from apodeixi.util.a6i_error        import ApodeixiError
+from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 
-from apodeixi.xli                       import ExcelTableReader, \
-                                                BreakdownTree, Interval, UID_Store, \
-                                                PostingController, PostingLabel, PostingConfig, UpdatePolicy
+from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, Interval
 
-class CapabilityHierarchy_Controller(PostingController):
+class CapabilityHierarchy_Controller(SkeletonController):
     '''
     Class to process an Excel posting for a BDD feature injection tree. It produces the YAML manifest for it
     and also creates the dolfer structure associated with the injection tree
     '''
-    def __init__(self):
-        return
+    def __init__(self, parent_trace):
+        super().__init__(parent_trace)
 
-    def apply(self, parent_trace, knowledge_base_dir, relative_path, excel_filename, excel_sheet, ctx_range):
-        '''
-        Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
-        '''
-        url                 = knowledge_base_dir + '/excel-postings/' + relative_path + '/' + excel_filename + ':' + excel_sheet
-        root_trace          = parent_trace.doing("Applying Excel posting", data={'url'  : url})
-        manifest_file       = excel_filename.replace('xlsx', 'yaml')
-        manifests_dir       = knowledge_base_dir + '/manifests/' + relative_path
-        self._genScaffoldingManifest(url, root_trace, ctx_range, manifests_dir, manifest_file)
+        self.MANIFEST_API = ManifestAPI(    parent_trace    = parent_trace,
+                                            domain          = 'kernel', 
+                                            subdomain       = 'bdd', 
+                                            api_publisher   = 'a6i',
+                                            extension       = 'io')
+        self.SUPPORTED_VERSIONS         = ['v1a']
+        self.SUPPORTED_KINDS            = ['capability-hierarchy']
 
-    def _genScaffoldingManifest(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
+    def getManifestAPI(self):
+        return self.MANIFEST_API
+
+    def getSupportedVersions(self):
+        return self.SUPPORTED_VERSIONS 
+
+    def getSupportedKinds(self):
+        return self.SUPPORTED_KINDS
+
+    def getPostingConfig(self):
+        '''
+        Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
+        '''
+        ME                          = CapabilityHierarchy_Controller
+        update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+        config                      = ME._MyPostingConfig(update_policy)
+
+        return config 
+
+    def getPostingLabel(self, parent_trace):
+        '''
+        Returns a PostingLabel, corresponding to the what is expected by this concrete controller class.
+        '''
+        ME                              = CapabilityHierarchy_Controller
+        return ME._MyPostingLabel(parent_trace, controller = self)
+
+    def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        ME                              = CapabilityHierarchy_Controller
-        _DOMAIN                     = "kernel"
-        my_trace                        = parent_trace.doing("Parsing posting label", 
-                                                                data = {'url': url, 'ctx_range': ctx_range, 
-                                                                        'signaled_from': __file__})
-        if True:            
-            label                       = ME._MyPostingLabel()
-            label.read(my_trace, url, ctx_range)    
-
-            environment                 = label.environment         (my_trace)  
-            scaffolding_purpose         = label.scaffoldingPurpose  (my_trace)
-            project                     = label.project             (my_trace)
-            organization                = label.organization        (my_trace)
-            recorded_by                 = label.recordedBy          (my_trace)
-            excel_range                 = label.dataRange           (my_trace)  
-
-        my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
-                                                                data = {'url': url, 'excel_range': excel_range, 
-                                                                        'signaled_from': __file__})
-        if True:
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._MyPostingConfig(update_policy)
-            tree                        = self._xl_2_tree(my_trace, url, excel_range, config)
-            tree_dict                   = tree.as_dicts()
+        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+           
+        my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to CapabilityHierarchy_Controller") 
+        scaffolding_purpose             = label.scaffoldingPurpose  (my_trace)
+        project                         = label.project             (my_trace) 
         
-        my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
-                                                                data = {'project': project, 'organization': organization, 
-                                                                        'signaled_from': __file__})
-        if True:
-            FMT                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
-            manifest_dict               = {}
-            metadata                    = { 'namespace':    FMT(organization + '.' + environment), 
-                                            'name':         FMT(scaffolding_purpose + '.' + project),
-                                            'labels':       {'project': project, 'organization': organization}}
-
-            manifest_dict['apiVersion'] = _DOMAIN + '.a6i.io/v1dev'
-            manifest_dict['kind']       = 'ProjectScaffolding'
-            manifest_dict['metadata']   = metadata
-
-            manifest_dict['scaffolding'] = {label._RECORDED_BY: recorded_by , 'entity_type': tree.entity_type,
-                                            FMT(tree.entity_type): tree_dict}
+        my_trace                        = parent_trace.doing("Enriching generic manifest fields with additional fields "
+                                                                + "specific to CapabilityHierarchy_Controller")
         
-        my_trace                        = parent_trace.doing("Persisting manifest", 
-                                                                data = {'manifests_dir': manifests_dir, 'manifest_file': manifest_file})
         if True:
-            with open(manifests_dir + '/' + manifest_file, 'w') as file:
-                _yaml.dump(manifest_dict, file)
+            FMT                                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
+            metadata                                    = manifest_dict['metadata']
+            metadata['name']                            = FMT(scaffolding_purpose + '.' + project)
+
+            MY_PL                                       = CapabilityHierarchy_Controller._MyPostingLabel # Abbreviation for readability
+            labels                                      = metadata['labels']
+            labels[MY_PL._PROJECT]                      = project
+            assertion                                   = manifest_dict['assertion']
+
+            assertion[MY_PL._SCAFFOLDING_PURPOSE]       = scaffolding_purpose
         
-        return manifest_dict
+        return manifest_dict #, label
 
     def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
         '''
@@ -112,52 +107,23 @@ class CapabilityHierarchy_Controller(PostingController):
             ME                      = CapabilityHierarchy_Controller._MyPostingConfig
             return ME._ENTITY_NAME
 
-    class _MyPostingLabel(PostingLabel):
+    class _MyPostingLabel(SkeletonController._MyPostingLabel):
         '''
         Codifies the schema expectations for the posting label when posting BDD capability hierarchy content. 
         '''
-        _EXCEL_API                  = "excelAPI"
         _SCAFFOLDING_PURPOSE        = "scaffoldingPurpose"
         _PROJECT                    = "project"
-        _ORGANIZATION               = 'organization'
-        _DATA_RANGE                 = "dataRange"
-        _ENVIRONMENT                = 'environment'
-        _RECORDED_BY                = 'recordedBy'
-
-        SUPPORTED_APIS              = ['capability-hierarchy.kernel.a6i.xlsx/v1a']
-
-        def __init__(self):
+        def __init__(self, parent_trace, controller):
             # Shortcut to reference class static variables
             ME = CapabilityHierarchy_Controller._MyPostingLabel
 
-            super().__init__(   mandatory_fields    = [ ME._EXCEL_API,          ME._ORGANIZATION,       ME._PROJECT, 
-                                                        ME._SCAFFOLDING_PURPOSE,
-                                                        ME._ENVIRONMENT,        ME._RECORDED_BY,        ME._DATA_RANGE],
+            super().__init__(   parent_trace        = parent_trace,
+                                controller          = controller,
+
+                                mandatory_fields    = [ ME._PROJECT,            ME._SCAFFOLDING_PURPOSE,    # Determine name
+                                                        ],
                                 date_fields         = [])
 
-        def read(self, parent_trace, url, excel_range):
-            # Shortcut to reference class static variables
-            ME = CapabilityHierarchy_Controller._MyPostingLabel
-
-            super().read(parent_trace, url, excel_range)
-
-            excel_api = self._getField(parent_trace, ME._EXCEL_API)
-            if not excel_api in ME.SUPPORTED_APIS:
-                raise ApodeixiError(parent_trace, "Non supported Excel API '" + excel_api + "'"
-                                                + "\nShould be one of: " + ME.SUPPORTED_APIS)
-
-        def environment(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = CapabilityHierarchy_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._ENVIRONMENT)
-
-        def organization(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = CapabilityHierarchy_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._ORGANIZATION
-            )
         def project(self, parent_trace):
             # Shortcut to reference class static variables
             ME = CapabilityHierarchy_Controller._MyPostingLabel
@@ -169,24 +135,3 @@ class CapabilityHierarchy_Controller(PostingController):
             ME = CapabilityHierarchy_Controller._MyPostingLabel
 
             return self._getField(parent_trace, ME._SCAFFOLDING_PURPOSE)
-
-        def recordedBy(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = CapabilityHierarchy_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._RECORDED_BY)
-
-        def dataRange(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = CapabilityHierarchy_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._DATA_RANGE)
-        
-        def _getField(self, parent_trace, fieldname):
-            if self.ctx==None:
-                raise ApodeixiError(parent_trace, "PostingLabel's context is not yet initialized, so can't read '" + fieldname + "'")
-            
-            if not fieldname in self.ctx.keys():
-                raise ApodeixiError(parent_trace, "PostingLabel's context does not contain '" + fieldname + "'")
-            
-            return self.ctx[fieldname]
