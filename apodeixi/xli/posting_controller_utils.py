@@ -21,15 +21,20 @@ class PostingController():
         r                       = ExcelTableReader(url = url,excel_range = excel_range)
         df                      = r.read()
         
-        store                   = UID_Store()
+        store                   = UID_Store(parent_trace)
         tree                    = BreakdownTree(uid_store = store, entity_type=config.entity_name(), parent_UID=None)
         
         rows                    = list(df.iterrows())
-        my_trace                = parent_trace.doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
-                                                                                            'columns'           : list(df.columns)})
+        my_trace                = parent_trace.doing("Processing DataFrame", data={ 'tree.entity_type'  : tree.entity_type,
+                                                                                    'columns'           : list(df.columns),                   
+                                                                                    'signaled_from': __file__,
+                                                                                    })
         for idx in range(len(rows)):
             for interval in config.intervals:
-                loop_trace        = my_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
+                loop_trace        = my_trace.doing(activity="Processing fragment", data={   'row': idx, 
+                                                                                            'interval': interval.columns,
+                                                                                            'signaled_from': __file__,
+                                                                                            })
                 tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, update_policy=config.update_policy)
         
         return tree

@@ -44,7 +44,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
                 bad_layout.validate(root_trace)
                 outputs.append("Test failure: should have thrown exception for '" + bad_layout.name + "', but didn't")
             except ApodeixiError as ex:
-                outputs.append(ex.trace_message())
+                outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             # Check an incomplete layout validates NOT OK
             try:
                 bad_layout = ManifestLayout("with gaps")
@@ -54,7 +54,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
                 bad_layout.validate(root_trace)
                 outputs.append("Test failure: should have thrown exception for '" + bad_layout.name + "', but didn't")            
             except ApodeixiError as ex:
-                outputs.append(ex.trace_message())
+                outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             # Check an layout with overlapping blocks validates NOT OK
             try:
                 bad_layout = ManifestLayout("with overlaps")
@@ -64,14 +64,14 @@ class Test_ManifestLayout(ApodeixiUnitTest):
                 bad_layout.validate(root_trace)
                 outputs.append("Test failure: should have thrown exception for '" + bad_layout.name + "', but didn't")
             except ApodeixiError as ex:
-                outputs.append(ex.trace_message())
+                outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             output_as_str = '\n'.join(outputs)
             with open(self.output_data + '/'  'test_validate_layout_OUTPUT.txt', 'w') as file:
                 file            .write(output_as_str)
             with open(self.output_data + '/'  'test_validate_layout_EXPECTED.txt', 'r') as file:
                 expected     = file.read()
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            print(ex.trace_message())                                                                                       
 
         self.assertEqual(output_as_str, expected)
 

@@ -1,5 +1,4 @@
 import yaml                                     as _yaml
-from io                                         import StringIO
 
 from apodeixi.util.a6i_error                    import ApodeixiError
 

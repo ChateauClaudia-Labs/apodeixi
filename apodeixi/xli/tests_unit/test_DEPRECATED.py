@@ -59,8 +59,11 @@ class Test_MultiSheet(ApodeixiUnitTest):
         level1                 = ['W' + str(idx) for idx in range(len(SHEETS))]    
         
         L1_ids                 = ['W' + str(idx) for idx in range(len(SHEETS))]
-        store                  = UID_Store()
-        store.initialize(L1_ids)
+
+        root_trace      = FunctionalTrace(None).doing("Creating UID Store")
+        store                  = UID_Store(root_trace)
+        root_trace      = FunctionalTrace(None).doing("Initializeing UID Store", data = {'tokens': L1_ids})
+        store.initialize(parent_trace = root_trace, tokens = L1_ids)
         LINKS                  = []
         for idx in range(len(SHEETS)):
             #uid      = store.generateUID(acronym='W', parent_UID=None)

@@ -37,10 +37,12 @@ class Excel_Layout():
         Validates that the blocks do partition the entire layout
         '''
         if len(self.blocks) == 0:
-            raise ApodeixiError(parent_trace, "No blocks given")
+            raise ApodeixiError(parent_trace, "No blocks given",
+                                                data={'signaled_from': __file__,})
         bad_types       = [str(type(b)) for b in self.blocks if type(b) != Excel_Block]
         if len(bad_types) > 0:
-            raise ApodeixiError(parent_trace, "Expected only Excel_Blocks, but received " + ", ".join(bad_types))
+            raise ApodeixiError(parent_trace, "Expected only Excel_Blocks, but received " + ", ".join(bad_types),
+                                                data={'signaled_from': __file__,})
         xmin            = min([block.x0 for block in self.blocks])
         xmax            = max([block.x1 for block in self.blocks])
         ymin            = min([block.y0 for block in self.blocks])
@@ -57,9 +59,11 @@ class Excel_Layout():
                 if len(hits) > 1:
                     multiple.append('[' + str(x) + ', '+ str(y) + ']')
         if len(missed) > 0:
-            raise ApodeixiError(parent_trace, "Cells not present in any block: " + ", ".join(missed))
+            raise ApodeixiError(parent_trace, "Cells not present in any block: " + ", ".join(missed),
+                                                data={'signaled_from': __file__,})
         if len(multiple) > 0:
-            raise ApodeixiError(parent_trace, "Cells present multiple blocks: " + ", ".join(multiple))  
+            raise ApodeixiError(parent_trace, "Cells present multiple blocks: " + ", ".join(multiple),
+                                                data={'signaled_from': __file__,})  
 
     def _locate_block(self, parent_trace, x, y):
         '''
@@ -79,7 +83,8 @@ class Excel_Layout():
         hits = self._locate_block(parent_trace, x, y)
         if len(hits) == 0:
             raise ApodeixiError(parent_trace, "Can't retrieve format because layout '" + self.name 
-                                                + "' does not contain [" + str(x) + ", " + str(y) + "]")
+                                                + "' does not contain [" + str(x) + ", " + str(y) + "]",
+                                                data={'signaled_from': __file__,})
         if len(hits) > 1:
             multiple.append('[' + str(x) + ', '+ str(y) + ']')  
 
@@ -92,7 +97,8 @@ class Excel_Layout():
         layout (i.e., the upper left corner and the lower right corner)
         '''
         if self.blocks == None or len(self.blocks) == 0:
-            raise ApodeixiError(parent_trace, "Layout '" + self.name + "' has no blocks, so can't compute its span")
+            raise ApodeixiError(parent_trace, "Layout '" + self.name + "' has no blocks, so can't compute its span",
+                                                data={'signaled_from': __file__,})
         xmin            = min([block.x0 for block in self.blocks])
         xmax            = max([block.x1 for block in self.blocks])
         ymin            = min([block.y0 for block in self.blocks])
@@ -142,7 +148,9 @@ class ManifestLayout(Excel_Layout):
         elif mode=='w':
             self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = ManifestLayout.HEADER_W_FMT))
         else:
-            raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'")
+            raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
+                                                data={'signaled_from': __file__,})
+
 
     def addBody(self, parent_trace, xInterval, yInterval, mode):
         '''
@@ -157,7 +165,8 @@ class ManifestLayout(Excel_Layout):
         elif mode=='w':
             self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = ManifestLayout.BODY_W_FMT))
         else:
-            raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'")
+            raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
+                                                data={'signaled_from': __file__,})
 
     def build(self, parent_trace, content_df, editable_cols=[], editable_headers=[], x_offset=0, y_offset=0):
         '''

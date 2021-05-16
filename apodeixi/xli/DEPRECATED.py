@@ -8,6 +8,8 @@ import datetime    as _datetime
 
 from io import StringIO
 
+from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
+
 from apodeixi.xli.xlimporter import SchemaUtils, ExcelTableReader
 
 def _is_blank(txt):
@@ -313,7 +315,7 @@ class BreakdownBuilder:
         reader              = ExcelTableReader(url, excel_range)
 
         l2l3_df             = reader.read()
-
+        root_trace          = FunctionalTrace(None).doing("Building level 2 breakdown")
 
         if len(l2l3_df.columns) != 5:
             raise ValueError ("Badly formatted breakdown: should have exactly five columns, corresponding to: " \
@@ -355,14 +357,18 @@ class BreakdownBuilder:
             l3_desc_i                           = BreakdownBuilder._strip(data_i[L3_DESC])
             
             if _is_blank(l2_i): # We are within the same Level 2 as in prior cycle of the loop
-                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym=L3[0], parent_UID=l2_full_UID_n)
+                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(   parent_trace = root_trace,
+                                                                                acronym=L3[0], 
+                                                                                parent_UID=l2_full_UID_n)
                 l3_children_n[l3_leaf_UID_i]    = {'description': l3_i, 'UID': l3_full_UID_i}
 
             elif (type(l2_i)==str and len(l2_i)>0): # We just entered a new Level 2
-                l2_full_UID_n, l2_leaf_UID_n    = self.uid_store.generateUID(acronym    = _acronym(L2[0]), 
-                                                             parent_UID = link.L1_UID)
-                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(acronym    = _acronym(L3[0]), 
-                                                             parent_UID = l2_full_UID_n)
+                l2_full_UID_n, l2_leaf_UID_n    = self.uid_store.generateUID(   parent_trace = root_trace,
+                                                                                acronym    = _acronym(L2[0]), 
+                                                                                parent_UID = link.L1_UID)
+                l3_full_UID_i, l3_leaf_UID_i    = self.uid_store.generateUID(   parent_trace = root_trace,
+                                                                                acronym    = _acronym(L3[0]), 
+                                                                                parent_UID = l2_full_UID_n)
                 # Dock level 3                                             
                 l3_children_n                     = {}
                 self._dock( parent                = l3_children_n,

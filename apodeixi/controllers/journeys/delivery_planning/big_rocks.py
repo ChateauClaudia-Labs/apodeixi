@@ -122,7 +122,7 @@ class BigRocksEstimate_Controller(SkeletonController):
             self.update_policy      = update_policy
 
             interval_big_rocks      = Interval(None, [ME._ENTITY_NAME]) 
-            interval_effort         = Interval(None, ['Effort'])
+            interval_effort         = Interval(None, ['Effort (md)'])
 
             self.intervals               = [interval_big_rocks, interval_effort]
 

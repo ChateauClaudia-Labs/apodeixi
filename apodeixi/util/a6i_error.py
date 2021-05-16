@@ -1,3 +1,6 @@
+import sys                                              as _sys
+import traceback                                        as _traceback
+from io                                                 import StringIO
 
 class FunctionalTrace():
     '''
@@ -96,13 +99,13 @@ class FunctionalTrace():
         
         flow_stage      = self.functional_purpose['flow_stage']
         if flow_stage != None and len(flow_stage.strip()) > 0:
-            result          += '\n' + self._ins('flow_stage:')    + self.functional_purpose['flow_stage']
+            result          += '\n' + FunctionalTrace._ins('flow_stage') + ': '   + self.functional_purpose['flow_stage']
         data            = self.functional_purpose['data']
         for k in data.keys():
-            result          += '\n' + self._ins(k + ':') + str(data[k])
+            result          += '\n' + FunctionalTrace._ins(k) + ': ' + str(data[k])
         return result
 
-    def _ins(self, txt):
+    def _ins(txt):
         '''
         Helper method that returns a string of 32 characters, starting with 12 spaces and then txt followed by padding
         '''
@@ -119,15 +122,37 @@ class ApodeixiError (Exception):
     Error class recommended in Apodeixi. It extends ValueError with a FunctionalTrace object to make troubleshooting
     easier.
     '''
-    def __init__(self, functional_trace, msg):
+    def __init__(self, functional_trace, msg, data={}):
         super().__init__(self, msg)
         self.functional_trace           = functional_trace
         self.msg                        = msg
+        self.data                       = data
 
-    def trace_message(self):
-        trace_msg               = '\n\n*** Functional Trace ***\n\n' + self.msg + '\n\n' \
+    def trace_message(self, exclude_stack_trace=False):
+
+        data_msg                    = ''
+        for k in self.data.keys():
+            data_msg          += '\n' + FunctionalTrace._ins(k) + ': ' + str(self.data[k])
+        if len(data_msg) > 0:
+            data_msg                = '\n' + data_msg + '\n'
+
+        advertisement_for_stack_trace = ''
+        if not exclude_stack_trace:
+            advertisement_for_stack_trace = ' (stack trace at the bottom)'
+
+        trace_msg               = '\n\n******** Functional Trace ********\n\n' + 'Problem:\t' + self.msg + data_msg \
+                                    + '\nHere are the functional activities that led to the problem' \
+                                    +  advertisement_for_stack_trace + ':' \
+                                    + '\n\n' \
                                     + '\n\n'.join([str(trace_level) for trace_level in self.functional_trace.examine(as_string=True)]) \
-                                    + '\n'       
+                                    + '\n'   
+        if not exclude_stack_trace:
+            traceback_stream        = StringIO()
+            trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace\n\n'
+            _traceback.print_exc(file = traceback_stream)
+            trace_msg           += traceback_stream.getvalue()
+            trace_msg           += "\n" + "-"*60  
+
         return trace_msg
 
     

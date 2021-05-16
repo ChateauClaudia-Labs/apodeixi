@@ -4,8 +4,8 @@ import sys                          as _sys
 import os                           as _os
 import math                         as _math
 import datetime                     as _datetime
-from io                             import StringIO
 import pandas
+from nltk.tokenize                  import SExprTokenizer 
 
 from apodeixi.xli.xlimporter        import ExcelTableReader
 from apodeixi.util.a6i_error        import ApodeixiError
@@ -28,10 +28,10 @@ class UID_Store:
 
         To avoid accidental infinite loops, a _TokenTree has a maximum height of 100 levels.
         '''
-        def __init__(self, level):
+        def __init__(self, parent_trace, level):
             
             if level > UID_Store._TokenTree.MAX_LEVELS:
-                raise ValueError('Illegal attempt to create a _TokenTree at a level exceeding ' 
+                raise ApodeixiError(parent_trace, 'Illegal attempt to create a _TokenTree at a level exceeding ' 
                                  + str( UID_Store._TokenTree.MAX_LEVELS))
             self.level     = level
             
@@ -46,18 +46,18 @@ class UID_Store:
             
         MAX_LEVELS = 100
         
-        def initialize(self, tokens):
+        def initialize(self, parent_trace, tokens):
             '''
             Used in cases where the top level is determined externally
             '''
             for t in tokens:
-                acronym, val           = self.parseToken(t)
+                acronym, val           = self.parseToken(parent_trace, t)
                 if acronym not in self.vals.keys():
                     self.vals[acronym] = []
                 self.vals[acronym].append(val)
-                self.children[t]       = UID_Store._TokenTree(self.level + 1)             
+                self.children[t]       = UID_Store._TokenTree(parent_trace, self.level + 1)             
         
-        def _generateHere(self, acronym):
+        def _generateHere(self, parent_trace, acronym):
             if acronym not in self.vals.keys():
                 self.vals[acronym] = []
             
@@ -70,10 +70,10 @@ class UID_Store:
                 
             used_numbers.append(nextVal)
             uid                    = acronym + str(nextVal)
-            self.children[uid]     = UID_Store._TokenTree(self.level + 1)
+            self.children[uid]     = UID_Store._TokenTree(parent_trace = parent_trace, level = self.level + 1)
             return uid
     
-        def generateNextUID(self, branch, acronym):
+        def generateNextUID(self, parent_trace, branch, acronym):
             '''
             @param branch A list of pairs that specify a branch in the _TokenTree. For example:
                           [['P', 12], ['AC', 3], ['E', 45]]. If the acronym is 'W', it will add a node
@@ -84,47 +84,49 @@ class UID_Store:
             REGEX         = '^([a-zA-Z]+)$'
             m             = _re.match(REGEX, acronym)
             if m == None or len(m.groups()) != 1:
-                raise ValueError("Invalid acronym='" + acronym + "': expected something like 'P' or 'AV'.  "
+                raise ApodeixiError(parent_trace, "Invalid acronym='" + acronym + "': expected something like 'P' or 'AV'.  "
                                 + "Level=" + str(self.level))                
             
             if len(branch)==0:
                 # We hit bottom
-                leaf_uid           = self._generateHere(acronym)
+                leaf_uid           = self._generateHere(parent_trace, acronym)
                 full_uid           = leaf_uid
                 
             else:
                 head               = branch[0]
                 tail               = branch[1:]
-                child              = self._findChild(head)
-                tail_uid, leaf_uid = child.generateNextUID(tail, acronym)
+                child              = self._findChild(parent_trace, head)
+                tail_uid, leaf_uid = child.generateNextUID(parent_trace, tail, acronym)
                 full_uid           = head + '.' + tail_uid
                 
             return full_uid, leaf_uid
                 
-        def _findChild(self, head):
+        def _findChild(self, parent_trace, head):
             '''
             @param head A string like 'PR56'. If it exists in this _TokenTree as a top node return it.
                         Else raises an error.
             '''
-            acronym, val  = self.parseToken(head)
+            acronym, val  = self.parseToken(parent_trace, head)
 
             # Some of these checks are theoretically duplicate if the inner state of this object
             # is consistent as in theory it should be. But being paranoid, we do duplicate
             # checks since that might also catch bugs with inconsistent state
             if acronym not in self.vals.keys():
-                raise ValueError('Acronym ' + acronym + ' corresponds to no valid child. Level=' 
+                raise ApodeixiError(parent_trace, 'Acronym ' + acronym + ' corresponds to no valid child. Level=' 
                                  + str(self.level) + ". Happened while doing _findChild(" + head + ')')
             if val not in self.vals[acronym]:
-                raise ValueError('Value ' + str(val) + ' corresponds to no valid child. Level=' 
-                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')')
+                raise ApodeixiError(parent_trace, 'Value ' + str(val) + ' corresponds to no valid child. Level=' 
+                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')',
+                                 data = {'acronym': acronym, 'level': str(self.level),
+                                            'self.vals[' + acronym + ']': self.vals[acronym]})
             if head not in self.children.keys():
-                raise ValueError('Token ' + head + ' corresponds to no valid child. Level=' 
+                raise ApodeixiError(parent_trace, 'Token ' + head + ' corresponds to no valid child. Level=' 
                                  + str(self.level) + ". Happened while doing _findChild(" + head + ')')
 
             # We got past the checks, so this should not crash
             return self.children[head]
             
-        def display(self):
+        def display(self, parent_trace):
             '''
             Used for debugging, to return a dictionary representation of the tree
             '''
@@ -134,40 +136,41 @@ class UID_Store:
                 result_dict[uid] = child.display()
             return result_dict
         
-        def parseToken(self, token):
+        def parseToken(self, parent_trace, token):
             '''
             Given a token like 'PR34', it returns the acronym 'PR' and the value 34
             '''
             REGEX         = '^([a-zA-Z]+)([0-9]+)$'
             m             = _re.match(REGEX, token)
             if m == None or len(m.groups())!= 2:
-                raise ValueError("Invalid token='" + token + "': expected something like 'P3' or 'AV45'.  "
+                raise ApodeixiError(parent_trace, "Invalid token='" + token + "': expected something like 'P3' or 'AV45'.  "
                                 + "Level=" + str(self.level))
             acronym       = m.group(1)
             val           = int(m.group(2))
             return acronym, val
         
     
-    def __init__(self):
-        self.tree     = UID_Store._TokenTree(level=0)
+    def __init__(self, parent_trace):
+        self.tree     = UID_Store._TokenTree(parent_trace, level=0)
         return
     
-    def generateUID(self, parent_UID, acronym):
-        branch        = self._tokenize(parent_UID)
-        return self.tree.generateNextUID(branch, acronym)
+    def generateUID(self, parent_trace, parent_UID, acronym):
+        branch        = self._tokenize(parent_trace, parent_UID)
+        return self.tree.generateNextUID(parent_trace, branch, acronym)
     
-    def initialize(self, tokens):
-        self.tree.initialize(tokens)
+    def initialize(self, parent_trace, tokens):
+        self.tree.initialize(parent_trace, tokens)
     
-    def _tokenize(self, uid):
+    def _tokenize(self, parent_trace, uid):
         if uid==None:
             return []
         tokens        = uid.split('.')
-        REGEX         = '^[a-zA-Z]+[0-9]+$' # Something like P3 pr AV456
+        # Something like P3 pr AV456. 
+        REGEX         = '^[a-zA-Z]+[0-9]+$' 
         for t in tokens:
             m         = _re.match(REGEX, t)
             if m == None:
-                raise ValueError("Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
+                raise ApodeixiError(parent_trace, "Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
         return tokens
 
 class Interval():
@@ -330,7 +333,8 @@ class BreakdownTree():
         entity_column_idx                   = None
         known_entity_types                  = list(self.last_path.keys())
         my_trace                            = parent_trace.doing("Validating inputs are well-formed",
-                                                    data = {'known_entity_types': known_entity_types})
+                                                    data = {    'known_entity_types': known_entity_types,
+                                                                'signaled_from': __file__})
         if True:
             # Check against nulls
             #if interval==None or len(interval)==0:
@@ -346,8 +350,10 @@ class BreakdownTree():
 
             # Check interval and row are consistent
             columns                     = list(row[1].index)
+            
             if not interval.is_subset(set(columns)):
-                raise ApodeixiError(my_trace, "Interval is not a subset of the row's columns.")
+                raise ApodeixiError(my_trace, "Interval's non-UID columns are not a subset of the row's columns.",
+                                            data = {'interval': interval.columns, 'columns': columns})
 
             # Check entity appears in exactly one column. 
             idxs                        = [idx for idx in range(len(columns)) if columns[idx]==interval.entity_name]
@@ -373,7 +379,8 @@ class BreakdownTree():
 
         columns                             = list(row[1].index)            
         parent_entity                       = None
-        my_trace                            = parent_trace.doing("Discovering parent entity")
+        my_trace                            = parent_trace.doing("Discovering parent entity",
+                                                                    data = {'signaled_from': __file__})
         if True:
             ancestor_entities_idxs      = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
                                                                                     and idx < entity_column_idx]
@@ -387,13 +394,16 @@ class BreakdownTree():
                 parent_entity           = columns[max(ancestor_entities_idxs)]
 
         if encountered_new_entity: 
-            my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval.entity_name + "'.")
+            my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval.entity_name + "'.",
+                                                                    data = {'signaled_from': __file__})
             if True:
                 if parent_entity == None: # Attach to the root
                     docking_uid             = self.parent_UID
                 else:
                     my_trace                = my_trace.doing("Validating we previously created a node for '" 
-                                                                    + parent_entity + "' to which to attach '" + interval.entity_name + "'.")
+                                                                    + parent_entity + "' to which to attach '" 
+                                                                    + interval.entity_name + "'.",
+                                                                    data = {'signaled_from': __file__})
                     if parent_entity not in self.last_path.keys():
                         raise ApodeixiError(my_trace, "No prior node found for  '" + parent_entity + "'") 
                     
@@ -401,7 +411,8 @@ class BreakdownTree():
                     docking_uid             = parent_entity_instance.UID
 
             my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
-                                                                    + "' below docking_uid '" + str(docking_uid) + "'")
+                                                                    + "' below docking_uid '" + str(docking_uid) + "'",
+                                                                    data = {'signaled_from': __file__})
             self.dockEntityData(    full_docking_uid    = docking_uid, 
                                     #tree_to_attach_to   = tree_to_attach_to, 
                                     entity_type         = interval.entity_name, 
@@ -427,26 +438,37 @@ class BreakdownTree():
         @param entity_type      A string for the kind of entity to be added under the full_docking_uid
         @param data_to_attach: A Pandas Series   
         '''
-        acronym_for_attachment  = self.getAcronym(entity_type)
-        my_trace                = parent_trace.doing("Identifying sub tree to attach to")
+        my_trace                = parent_trace.doing("Looking for an acronym for '" + entity_type + "'",
+                                                        data = {'entity_type': entity_type,
+                                                                'signaled_from': __file__})
+        acronym_for_attachment  = self.getAcronym(my_trace, entity_type)
+        my_trace                = parent_trace.doing("Identifying sub tree to attach to",
+                                                        data = {'signaled_from': __file__})
         if full_docking_uid==self.parent_UID: # We are attaching at the root
             tree_to_attach_to   = self
 
         else:
             parent_entity_instance  = self.find(full_docking_uid, my_trace)
             if parent_entity_instance == None:
-                raise ApodeixiError(my_trace, "No node exists for UID '" + full_docking_uid + "'")
+                raise ApodeixiError(my_trace, "No node exists for UID '" + full_docking_uid + "'",
+                                                data = {'signaled_from': __file__})
 
             tree_to_attach_to       = self._get_tree_to_attach_to(parent_entity_instance, entity_type, my_trace)
 
-            sub_trace           = my_trace.doing("Validating acronym is not used by another entity")
+            sub_trace           = my_trace.doing("Validating acronym is not used by another entity",
+                                                    data = {'signaled_from': __file__})
             if tree_to_attach_to.entity_type != entity_type:
                 raise ApodeixiError(sub_trace, "Can't add entity '" + entity_type 
                                     + "' because its acronym conflicts with acronym of previously used entity '"
                                     + tree_to_attach_to.entity_type + "'")
 
-        
-        full_uid, leaf_uid      = self.uid_store.generateUID(   acronym         = acronym_for_attachment, 
+        my_trace                = parent_trace.doing("Generating UID for new node to attach ",
+                                                        data = {    'acronym_for_attachment': acronym_for_attachment,
+                                                                    'acronym is for'        : entity_type,
+                                                                    'full_docking_uid'      : full_docking_uid,
+                                                                    'signaled_from'         : __file__})        
+        full_uid, leaf_uid      = self.uid_store.generateUID(   parent_trace    = my_trace,
+                                                                acronym         = acronym_for_attachment, 
                                                                 parent_UID      = full_docking_uid)
         new_node                = BreakdownTree._EntityInstance(    uid_store   = self.uid_store, 
                                                                     name        = data_to_attach[entity_type],
@@ -462,9 +484,16 @@ class BreakdownTree():
         self.last_path[entity_type]             = new_node
 
     def _get_tree_to_attach_to(self, containing_entity_instance, entity_type_to_attach, parent_trace):
-        acronym_for_attachment  = self.getAcronym(entity_type_to_attach)
 
-        tree_to_attach_to       = containing_entity_instance.find_subtree(acronym_for_attachment, self, parent_trace)
+        my_trace                = parent_trace.doing("Looking for an acronym for '" + entity_type_to_attach + "'",
+                                                        data = {'entity_type_to_attach': entity_type_to_attach,
+                                                                'signaled_from': __file__})
+        acronym_for_attachment  = self.getAcronym(my_trace, entity_type_to_attach)
+
+        my_trace                = parent_trace.doing("Finding subtree to attach to",
+                                                        data = {'acronym_for_attachment': acronym_for_attachment,
+                                                                'signaled_from': __file__})
+        tree_to_attach_to       = containing_entity_instance.find_subtree(acronym_for_attachment, self, my_trace)
 
         if tree_to_attach_to==None: # This is first time we attach for this acronym, so create tree
             tree_to_attach_to   = BreakdownTree(self.uid_store, entity_type_to_attach, containing_entity_instance.UID)
@@ -474,7 +503,8 @@ class BreakdownTree():
 
     def dock_subtree(self, entity_type, subtree_to_attach, parent_trace):
 
-        my_trace                        = parent_trace.doing("Finding where to dock in containing tree")
+        my_trace                        = parent_trace.doing("Finding where to dock in containing tree",
+                                                                data = {'signaled_from': __file__})
         containing_equity_instance      = self.find(subtree_to_attach.parent_UID, my_trace)
 
         containing_equity_instance.breakdown_children[entity_type]    = subtree_to_attach
@@ -488,27 +518,33 @@ class BreakdownTree():
                 raise ApodeixiError(parent_trace, "Can't find with a null descendent_uid")  
 
         relative_uid                        = descendent_uid
-        my_trace                            = parent_trace.doing('Computing relative uid', data = {'parent_UID': self.parent_UID})
+        my_trace                            = parent_trace.doing('Computing relative uid', data = { 'parent_UID': self.parent_UID,
+                                                                                                    'signaled_from': __file__})
+
+        
         if self.parent_UID != None:
             prefix                          = self.parent_UID + '.'
             if not descendent_uid.startswith(prefix):
                 raise ApodeixiError(my_trace, "Bad  uid '" + descendent_uid + "': it should have started with '" + prefix + "'")  
             relative_uid                    = descendent_uid.lstrip (prefix)   
 
-        my_trace                            = parent_trace.doing('Traversing uid path', data = {'relative_uid': relative_uid})
+        my_trace                            = parent_trace.doing('Traversing uid path', data = {'relative_uid': relative_uid,
+                                                                                                'signaled_from': __file__})
         uid_path                            = relative_uid.split('.')
 
         #previous_entity_instance            = None
         entity_instance                     = None # At start of loop, the entity instance for parth of uid_path already processed
         for idx in range(len(uid_path)):
             leaf_uid                        = uid_path[idx]
-            loop_trace                      = my_trace.doing("Doing loop cycle for leaf_uid '" + leaf_uid + "'")
+            loop_trace                      = my_trace.doing("Doing loop cycle for leaf_uid '" + leaf_uid + "'",
+                                                                data = {'signaled_from': __file__})
 
             if entity_instance == None: # First cycle in loop, so search in root tree
                 next_tree                   = self
             else:
                 uid_acronym, uid_nb         = _parse_leaf_uid(leaf_uid, loop_trace)
-                sub_trace                   = loop_trace.doing("Looking for a subtree for the '" + uid_acronym + "' acronym")
+                sub_trace                   = loop_trace.doing("Looking for a subtree for the '" + uid_acronym + "' acronym",
+                                                                data = {'signaled_from': __file__})
                 next_tree                   = entity_instance.find_subtree(uid_acronym, self, sub_trace) 
                 if next_tree == None:
                     raise ApodeixiError(sub_trace, "Can't a subtree for acronym '" + uid_acronym + "'")
@@ -519,7 +555,7 @@ class BreakdownTree():
         # Return the last entity instance we got into
         return entity_instance
         
-    def getAcronym(self, entity_type):
+    def getAcronym(self, parent_trace, entity_type):
         '''
         Returns the entity's acronym. If none exists, it will generate a new one to ensure it does not conflict with
         the previously used acronyms
@@ -572,8 +608,10 @@ class BreakdownTree():
             all_subtrees                    = self.breakdown_children
             all_subtree_roots               = list(all_subtrees.keys())
             my_trace                        = parent_trace.doing("Searching a path for acronym '" + uid_acronym + "'",
-                                                            data = {'breakdown keys': all_subtree_roots}) 
-            potential_subtree_roots         = [root for root in all_subtree_roots if containing_tree.getAcronym(root)== uid_acronym]
+                                                            data = {'breakdown keys': all_subtree_roots,
+                                                                    'signaled_from': __file__}) 
+            potential_subtree_roots         = [root for root in all_subtree_roots 
+                                                if containing_tree.getAcronym(my_trace, root)== uid_acronym]
             if len(potential_subtree_roots) > 1:
                 raise ApodeixiError(my_trace, "Ambiguous paths for '" + uid_acronym + "': could be any of " + potential_subtree_roots)
 
@@ -607,14 +645,31 @@ def _strip(txt):
 
 def _acronym(txt, nb_letters=1):
     '''
-    Returns a string of initials for 'txt', in uppercase
+    Returns a string of initials for 'txt', in uppercase, where each 'initial' consists of 1 or
+    more letters, depending on the `nb_letters` parameter.
+
+    Also, it ignores any sub-text within `txt` that is in parenthesis. 
+    
+    For example, if txt is 'Effort (man days) to deliver', this is treated the same as 'Effort to deliver', which results
+    in a returned value of 'ETD' if nb_letters=1
     '''
-
-
     stripped_txt = _strip(txt)
+
+    # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
+    sexpr                       =SExprTokenizer(strict=False)
+    sexpr_tokens                = sexpr.tokenize(stripped_txt)
+    parenthesis_free_tokens     = [t for t in sexpr_tokens if not ')' in t and not '(' in t]
+    parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
+
+    # Now we got parenthesized text removed. So now we can go for the initials that compose the acronym
+    tokens                      = parentheis_free_txt.split(' ')
+    acronym                     = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
+    return acronym
+    '''
     tokens       = stripped_txt.split(' ')
     acronym      = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
     return acronym
+    '''
 
 def _parse_leaf_uid(leaf_uid, parent_trace):
     '''
@@ -622,7 +677,8 @@ def _parse_leaf_uid(leaf_uid, parent_trace):
     '''
     REGEX               = '([a-zA-Z]+)([0-9])+'
     m                   = _re.match(REGEX, leaf_uid)
-    my_trace            = parent_trace.doing("Parsing leaf_uid into acronym and number")
+    my_trace            = parent_trace.doing("Parsing leaf_uid into acronym and number",
+                                                data = {'signaled_from': __file__})
     if m == None or len(m.groups()) != 2:
         raise ApodeixiError(parent_trace, "Couldn't parse leaf_uid '" + leaf_uid + "'")
     acronym             = m.group(1)

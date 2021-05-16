@@ -16,7 +16,7 @@ setup(name='apodeixi',
       license='MIT',
       packages=['apodeixi', 'apodeixi.xli', 'apodeixi.util'],
       install_requires=[
-          'pandas', 'openpyxl', 'pyyaml', 'xlsxwriter',
+          'pandas', 'openpyxl', 'pyyaml', 'xlsxwriter', 'nltk',
       ],    
       zip_safe=False)
 

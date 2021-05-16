@@ -114,7 +114,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result                  = []
             my_trace                = FunctionalTrace(None).doing("Testing acronym generation")
             for e in entities:
-                result.append(tree.getAcronym(e))
+                result.append(tree.getAcronym(my_trace, e))
 
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -135,8 +135,13 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         self._compare_to_expected_yaml(result_dict, 'attach_subtree')
 
     def _create_breakdown_tree(self):
-        store           = UID_Store()
-        tree            = BreakdownTree(uid_store = store, entity_type='A', parent_UID=None)
+        root_trace      = FunctionalTrace(None).doing("Creating UID Store")
+        store           = UID_Store(root_trace)
+        entity_type     = 'A'
+        parent_UID      = None
+        root_trace      = FunctionalTrace(None).doing("Creating BreakdownTree", data={  'entity_type'   : entity_type,
+                                                                                        'parent_UID'    : parent_UID})        
+        tree            = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=parent_UID)
         df              = self._create_df()
 
         root_trace      = FunctionalTrace(None).doing("Creating intervals", data={'tree.entity_type'  : tree.entity_type,

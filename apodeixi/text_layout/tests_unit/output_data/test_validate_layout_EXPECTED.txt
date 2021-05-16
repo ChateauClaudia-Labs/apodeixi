@@ -3,9 +3,13 @@ Successfully validated good-layout
 ====================== Validating empty blocks list
 
 
-*** Functional Trace ***
+******** Functional Trace ********
 
-No blocks given
+Problem:	No blocks given
+
+            signaled_from       : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\apodeixi\text_layout\excel_layout.py
+
+Here are the functional activities that led to the problem:
 
 ---->	activity	Testing layout validation
 
@@ -13,9 +17,13 @@ No blocks given
 ====================== Validating with gaps
 
 
-*** Functional Trace ***
+******** Functional Trace ********
 
-Cells not present in any block: [2, 2], [2, 3], [3, 2], [3, 3]
+Problem:	Cells not present in any block: [2, 2], [2, 3], [3, 2], [3, 3]
+
+            signaled_from       : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\apodeixi\text_layout\excel_layout.py
+
+Here are the functional activities that led to the problem:
 
 ---->	activity	Testing layout validation
 
@@ -23,9 +31,13 @@ Cells not present in any block: [2, 2], [2, 3], [3, 2], [3, 3]
 ====================== Validating with overlaps
 
 
-*** Functional Trace ***
+******** Functional Trace ********
 
-Cells present multiple blocks: [3, 1], [4, 1]
+Problem:	Cells present multiple blocks: [3, 1], [4, 1]
+
+            signaled_from       : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\apodeixi\text_layout\excel_layout.py
+
+Here are the functional activities that led to the problem:
 
 ---->	activity	Testing layout validation
 
