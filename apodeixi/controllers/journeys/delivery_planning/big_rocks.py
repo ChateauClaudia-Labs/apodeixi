@@ -3,7 +3,7 @@ from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 
-from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, Interval
+from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, FixedIntervalSpec
 
 class BigRocksEstimate_Controller(SkeletonController):
     '''
@@ -114,17 +114,17 @@ class BigRocksEstimate_Controller(SkeletonController):
         Codifies the schema and integrity expectations for big rock estimates and investment manifests
         '''
 
-        _ENTITY_NAME                = 'Big Rock'
+        _ENTITY_NAME                    = 'Big Rock'
 
         def __init__(self, update_policy):
-            ME                      = BigRocksEstimate_Controller._BigRocksConfig
+            ME                          = BigRocksEstimate_Controller._BigRocksConfig
             super().__init__()
-            self.update_policy      = update_policy
+            self.update_policy          = update_policy
 
-            interval_big_rocks      = Interval(None, [ME._ENTITY_NAME]) 
-            interval_effort         = Interval(None, ['Effort (md)'])
+            interval_spec_big_rocks      = FixedIntervalSpec(None, [ME._ENTITY_NAME]) 
+            interval_spec_effort         = FixedIntervalSpec(None, ['Effort (md)'])
 
-            self.intervals               = [interval_big_rocks, interval_effort]
+            self.interval_specs          = [interval_spec_big_rocks, interval_spec_effort]
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksConfig
@@ -142,9 +142,9 @@ class BigRocksEstimate_Controller(SkeletonController):
             super().__init__()
             self.update_policy      = update_policy
 
-            interval_period         = Interval(None, [ME._ENTITY_NAME, 'Incremental']) 
+            interval_spec_period    = FixedIntervalSpec(None, [ME._ENTITY_NAME, 'Incremental']) 
 
-            self.intervals          = [interval_period]
+            self.interval_specs     = [interval_spec_period]
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._InvestmentConfig

@@ -30,7 +30,7 @@ class PostingController():
                                                                                     'signaled_from': __file__,
                                                                                     })
         for idx in range(len(rows)):
-            for interval in config.intervals:
+            for interval in config.buildIntervals(my_trace, list(df.columns)):
                 loop_trace        = my_trace.doing(activity="Processing fragment", data={   'row': idx, 
                                                                                             'interval': interval.columns,
                                                                                             'signaled_from': __file__,
@@ -228,7 +228,6 @@ class PostingLabel():
         return appearances_in_label, sightings
 
 
-
 class PostingConfig():
     '''
     Helper class serving as a container for various configurations settings impacting how a BreakdownTree is to be
@@ -243,7 +242,20 @@ class PostingConfig():
     '''
     def __init__(self):
         self.update_policy          = None
-        self.intervals              = []
+        self.interval_specs         = []
+
+    def buildIntervals(self, parent_trace, linear_space):
+        '''
+        Returns a list of Interval objects, constructed from the self.interval_specs by applying those "interval specs"
+        to the specificity of the linear_space given.
+
+        Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
+        [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
+        '''
+        intervals                   = []
+        for spec in self.interval_specs:
+            intervals.append(spec.buildInterval(parent_trace, linear_space))
+        return intervals
 
 class UpdatePolicy():
     '''

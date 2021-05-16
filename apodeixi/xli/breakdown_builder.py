@@ -173,6 +173,107 @@ class UID_Store:
                 raise ApodeixiError(parent_trace, "Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
         return tokens
 
+class IntervalSpec():
+    '''
+    Abstract helper class used to construct Interval objects. This is needed because sometimes all columns in an Interval
+    are not known at configuration time, and are only known at runtime.
+    
+    For example, perhaps at configuration time we know where an interval starts, but not where it ends, since the
+    end user might add columns to an Excel spreadsheet that quality as part of the interval. Thus, only at runtime
+    in the context of a particular set of Excel columns (a "linear space") can it be determined which are the columns
+    that qualify as belonging to an interval.
+
+    Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
+    [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
+
+    Concrete classes implement different "spec" algorithms, so this particular class is just an abstract class.
+    '''
+    def _init__(self, entity_name = None):
+        self.entity_name            = entity_name
+
+    def buildInterval(self, parent_trace, linear_space):
+        '''
+        Implemented by concrete derived classes.
+        Must return an Interval object, constructed by applying the concrete class's semantics
+        to the specificity of the linear_space given.
+
+        Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
+        [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
+        '''
+        raise NotImplementedError("Class " + str(self.__class__) + " forgot to implement method buildInterval") 
+
+
+class ClosedOpenIntervalSpec(IntervalSpec):
+    '''
+    Concrete interval spec class which builds an interval from a pre-determined list of columns. I.e.,
+    the interval is "fixed", not dependent on the linear space.
+
+    Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
+    [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
+
+    @param start_column The column of at which the to-be-built Interval starts
+    @param following_column The first column in the (runtime-determined) linear space that lies after the to-be-build Interval
+    '''
+    def __init__(self, parent_trace, start_column, following_column, entity_name):
+        self.entity_name            = entity_name
+        if entity_name == None:
+            raise ApodeixiError(parent_trace, "Unable to instantiate an FixedIntervalSpec from a null or empty list")
+        self.start_column           = start_column
+        self.following_column        = following_column
+
+
+    def buildInterval(self, parent_trace, linear_space):
+        '''
+        '''
+        if self.start_column not in linear_space:
+            raise ApodeixiError(parent_trace, "Can't build interval starting at '" + self.start_column 
+                                                + "' because it does not appear in the linear space",
+                                                data = {    'linear space'      : str(linear_space),
+                                                            'start_column'      : self.start_column,
+                                                            'signaled_from'     : __file__})
+        if self.following_column not in linear_space:
+            raise ApodeixiError(parent_trace, "Can't build interval preceding '" + self.following_column 
+                                                + "' because it does not appear in the linear space",
+                                                data = {    'linear space'      : str(linear_space),
+                                                            'following_column'  : self.following_column,
+                                                            'signaled_from'     : __file__})
+        start_idx               = linear_space.index(self.start_column) 
+        following_idx           = linear_space.index(self.following_column)
+
+        if start_idx >= following_idx:
+            raise ApodeixiError(parent_trace, "Can't build interval because start_column is not before the following_column",
+                                                data = {    'linear space'      : str(linear_space),
+                                                            'start_column'      : self.start_column,
+                                                            'following_column'  : self.following_column,
+                                                            'signaled_from'     : __file__})   
+
+        interval_columns = []
+        for idx in range(start_idx, following_idx):
+            interval_columns.append(linear_space[idx])     
+        
+        return Interval(parent_trace, interval_columns, self.entity_name)
+
+class FixedIntervalSpec(IntervalSpec):
+    '''
+    Concrete interval spec class which builds an interval based on only knowing in advance two columns: the column
+    where the interval starts, and the first column *after* the interval.
+    '''
+    def __init__(self, parent_trace, columns, entity_name = None):
+        self.entity_name            = entity_name
+        if type(columns) != list or len(columns) == 0:
+            raise ApodeixiError(parent_trace, "Unable to instantiate an FixedIntervalSpec from a null or empty list")
+        self.columns                = columns
+        if entity_name == None:
+            self.entity_name        = columns[0]
+        else:
+            self.entity_name        = entity_name
+
+    def buildInterval(self, parent_trace, linear_space):
+        '''
+        '''
+        return Interval(parent_trace, self.columns, self.entity_name)
+
+
 class Interval():
     '''
     Helper class used as part of the configuration for parsing a table in an Excel spreadsheet. It represents
@@ -337,12 +438,10 @@ class BreakdownTree():
                                                                 'signaled_from': __file__})
         if True:
             # Check against nulls
-            #if interval==None or len(interval)==0:
-            #    raise ApodeixiError(my_trace, "Empty interval of columns was given.")
-
-            # Check it's the right entity type  ### LOOKS LIKE AN INCORRECT CHECK - Level 2 intervals WON'T MATCH ROOT TREE ENTITY
-            #if interval[0] != self.entity_type:
-            #    raise ApodeixiError(my_trace, "Wrong entity type '" + interval[0] + "'. Should be '" + self.entity_type  + "'.")
+            if interval         ==  None:
+                raise ApodeixiError(my_trace, "Null interval of columns was given.")
+            if type(interval)   !=  Interval:
+                raise ApodeixiError(my_trace, "Wrong type of input. Expected an Interval and instead got a " + str(type(interval)))
 
             # Check we got a real Dataframe row
             if row==None or type(row)!=tuple or len(row)!=2 or type(row[1])!=pandas.core.series.Series:
@@ -351,6 +450,9 @@ class BreakdownTree():
             # Check interval and row are consistent
             columns                     = list(row[1].index)
             
+            if len(interval.columns)==0:
+                raise ApodeixiError(my_trace, "Empty interval of columns was given.")
+
             if not interval.is_subset(set(columns)):
                 raise ApodeixiError(my_trace, "Interval's non-UID columns are not a subset of the row's columns.",
                                             data = {'interval': interval.columns, 'columns': columns})

@@ -3,7 +3,7 @@ from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 
-from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, Interval
+from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, FixedIntervalSpec
 
 class CapabilityHierarchy_Controller(SkeletonController):
     '''
@@ -96,12 +96,13 @@ class CapabilityHierarchy_Controller(SkeletonController):
             super().__init__()
             self.update_policy      = update_policy
 
-            interval_jobs           = Interval(None, [ME._ENTITY_NAME, 'Stakeholders']) 
-            interval_capabilities   = Interval(None, ['Capabilities'])
-            interval_features       = Interval(None, ['Feature'])
-            interval_stories        = Interval(None, ['Story'])
+            interval_spec_jobs           = FixedIntervalSpec(None, [ME._ENTITY_NAME, 'Stakeholders']) 
+            interval_spec_capabilities   = FixedIntervalSpec(None, ['Capabilities'])
+            interval_spec_features       = FixedIntervalSpec(None, ['Feature'])
+            interval_spec_stories        = FixedIntervalSpec(None, ['Story'])
 
-            self.intervals               = [interval_jobs, interval_capabilities, interval_features, interval_stories]
+            self.interval_specs          = [interval_spec_jobs,     interval_spec_capabilities, 
+                                            interval_spec_features, interval_spec_stories]
 
         def entity_name(self):
             ME                      = CapabilityHierarchy_Controller._MyPostingConfig
