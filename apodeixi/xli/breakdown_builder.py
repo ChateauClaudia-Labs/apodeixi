@@ -7,6 +7,8 @@ import datetime                     as _datetime
 import pandas
 from nltk.tokenize                  import SExprTokenizer 
 
+import numpy
+
 from apodeixi.xli.xlimporter        import ExcelTableReader
 from apodeixi.util.a6i_error        import ApodeixiError
 
@@ -205,8 +207,7 @@ class IntervalSpec():
 
 class ClosedOpenIntervalSpec(IntervalSpec):
     '''
-    Concrete interval spec class which builds an interval from a pre-determined list of columns. I.e.,
-    the interval is "fixed", not dependent on the linear space.
+    Concrete interval spec class which builds an interval based on knowing its endpoints.
 
     Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
     [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
@@ -253,6 +254,7 @@ class ClosedOpenIntervalSpec(IntervalSpec):
         
         return Interval(parent_trace, interval_columns, self.entity_name)
 
+
 class FixedIntervalSpec(IntervalSpec):
     '''
     Concrete interval spec class which builds an interval based on only knowing in advance two columns: the column
@@ -264,7 +266,7 @@ class FixedIntervalSpec(IntervalSpec):
             raise ApodeixiError(parent_trace, "Unable to instantiate an FixedIntervalSpec from a null or empty list")
         self.columns                = columns
         if entity_name == None:
-            self.entity_name        = columns[0]
+            self.entity_name        = _without_comments_in_parenthesis(columns[0])
         else:
             self.entity_name        = entity_name
 
@@ -286,7 +288,7 @@ class Interval():
             raise ApodeixiError(parent_trace, "Unable to instantiate an Interval from a null or empty list")
         self.columns                = columns
         if entity_name == None:
-            self.entity_name        = columns[0]
+            self.entity_name        = _without_comments_in_parenthesis(columns[0])
         else:
             self.entity_name        = entity_name
 
@@ -353,15 +355,15 @@ class BreakdownTree():
         _EntityInstance objects comprising this BreakdownTree
         '''
         result                                          = {}
-
+        CLEANED                                         = _numpy_2_float # Abbreviation to express intent
         for k in self.children.keys():
             entity_instance                             = self.children[k]
             entity_instance_dict                        = {}
             entity_instance_dict[BreakdownTree._UID]    = entity_instance.UID
-            entity_instance_dict['name']                = entity_instance.name
+            entity_instance_dict['name']                = CLEANED(entity_instance.name)
 
             for prop_k in entity_instance.scalar_children.keys():
-                entity_instance_dict[prop_k]            = entity_instance.scalar_children[prop_k]
+                entity_instance_dict[prop_k]            = CLEANED(entity_instance.scalar_children[prop_k])
 
             for tree_k in entity_instance.breakdown_children.keys():
                 entity_instance_dict[tree_k]            = entity_instance.breakdown_children[tree_k].as_dicts()
@@ -376,7 +378,7 @@ class BreakdownTree():
 
         return result
         
-    def readDataframeFragment(self, interval, row, parent_trace, update_policy): 
+    def readDataframeFragment(self, interval, row, parent_trace, config): 
         '''
         Used to attach or enrich an immediate child to the root of this BreakdownTree based on information in a row
         in a Pandas DataFrame.
@@ -427,9 +429,17 @@ class BreakdownTree():
                             the Dataframe `iterrows()` iterator.
         @param parent_trace A apodeixi.util.a6i_error.FunctionalTrace object. It contains human-friendly information 
                             for humans to troubleshoot problems when error are raised.
-        @param update_policy An UpdatePolicy configuration object to determine how to handle the eventuality that the
-                            user's postings includes UIDs already (e.g., as when the user updates instead of create)
+        @param config An PostingConfig object to help steer some of the stateful handling that sometimes is needed.
+                            For example, how to handle the eventuality that the
+                            user's postings includes UIDs already (e.g., as when the user updates instead of create). Or as
+                            another example, how to handle a situation where there is a need to put a referential link
+                            the UIDs in branches of another previously generated manifest.
+        @returns The full UID of the new _EntityInstance node that was added as a child to this tree, or None if no node was added.
         '''
+        update_policy                       = None
+        if config != None:
+            update_policy                   = config.update_policy
+            
         encountered_new_entity              = False
         entity_column_idx                   = None
         known_entity_types                  = list(self.last_path.keys())
@@ -458,7 +468,8 @@ class BreakdownTree():
                                             data = {'interval': interval.columns, 'columns': columns})
 
             # Check entity appears in exactly one column. 
-            idxs                        = [idx for idx in range(len(columns)) if columns[idx]==interval.entity_name]
+            GIST_OF                     = _without_comments_in_parenthesis # Abbreviation for readability
+            idxs                        = [idx for idx in range(len(columns)) if GIST_OF(columns[idx])==interval.entity_name]
             if len(idxs)>1:
                 raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
             elif len(idxs)==0:
@@ -515,14 +526,15 @@ class BreakdownTree():
             my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
                                                                     + "' below docking_uid '" + str(docking_uid) + "'",
                                                                     data = {'signaled_from': __file__})
-            self.dockEntityData(    full_docking_uid    = docking_uid, 
-                                    #tree_to_attach_to   = tree_to_attach_to, 
-                                    entity_type         = interval.entity_name, 
-                                    data_to_attach      = row[1][interval.columns], 
-                                    parent_trace        = my_trace)
+            subtree_full_uid                = self.dockEntityData(  full_docking_uid    = docking_uid, 
+                                                                    entity_type         = interval.entity_name, 
+                                                                    data_to_attach      = row[1][interval.columns], 
+                                                                    parent_trace        = my_trace)
+
+            return subtree_full_uid
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
-            return
+            return None
         
     def dockEntityData(self, full_docking_uid, entity_type, data_to_attach, parent_trace):
         '''
@@ -539,6 +551,7 @@ class BreakdownTree():
                                 If null we assume we are docking at the top of this tree
         @param entity_type      A string for the kind of entity to be added under the full_docking_uid
         @param data_to_attach: A Pandas Series   
+        @return the full UID of the _EntityInstance node that was created and attached to this BreakdownTree
         '''
         my_trace                = parent_trace.doing("Looking for an acronym for '" + entity_type + "'",
                                                         data = {'entity_type': entity_type,
@@ -584,6 +597,8 @@ class BreakdownTree():
         tree_to_attach_to.children[leaf_uid]    = new_node
 
         self.last_path[entity_type]             = new_node
+
+        return full_uid
 
     def _get_tree_to_attach_to(self, containing_entity_instance, entity_type_to_attach, parent_trace):
 
@@ -728,7 +743,8 @@ def _is_blank(txt):
     '''
     Returns True if 'txt' is NaN or just spaces
     '''
-    if type(txt)==float and _math.isnan(txt):
+    CLEAN           = _numpy_2_float # Avoid numpy problems by turning numpys (if any) to float
+    if type(CLEAN(txt))==float and _math.isnan(txt):
         return True
     elif type(txt)==str:
         stripped_txt = _strip(txt)
@@ -745,6 +761,21 @@ def _strip(txt):
     stripped_txt = str(txt).replace('\n', '').strip(' ')
     return stripped_txt
 
+def _without_comments_in_parenthesis(txt):
+    '''
+    Returns a substring of `txt` ignoring any sub-text within `txt` that is in parenthesis. It also strips
+    any leading or trailing spaces.
+    
+    For example, if txt is 'Effort (man days) to deliver', then this function return 'Effort to deliver'
+    '''
+    stripped_txt = _strip(txt)
+    # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
+    sexpr                       = SExprTokenizer(strict=False)
+    sexpr_tokens                = sexpr.tokenize(stripped_txt)
+    parenthesis_free_tokens     = [t for t in sexpr_tokens if not ')' in t and not '(' in t]
+    parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
+    return parentheis_free_txt
+
 def _acronym(txt, nb_letters=1):
     '''
     Returns a string of initials for 'txt', in uppercase, where each 'initial' consists of 1 or
@@ -755,14 +786,7 @@ def _acronym(txt, nb_letters=1):
     For example, if txt is 'Effort (man days) to deliver', this is treated the same as 'Effort to deliver', which results
     in a returned value of 'ETD' if nb_letters=1
     '''
-    stripped_txt = _strip(txt)
-
-    # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
-    sexpr                       =SExprTokenizer(strict=False)
-    sexpr_tokens                = sexpr.tokenize(stripped_txt)
-    parenthesis_free_tokens     = [t for t in sexpr_tokens if not ')' in t and not '(' in t]
-    parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
-
+    parentheis_free_txt         = _without_comments_in_parenthesis(txt)
     # Now we got parenthesized text removed. So now we can go for the initials that compose the acronym
     tokens                      = parentheis_free_txt.split(' ')
     acronym                     = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
@@ -787,3 +811,12 @@ def _parse_leaf_uid(leaf_uid, parent_trace):
     nb                  = int(m.group(2))
     return acronym, nb
 
+def _numpy_2_float(x):
+    '''
+    Cleans problems with numbers in the trees being built. Turns out that if they are numpy classes then the
+    YAML produced is unreadable and sometimes won't load. So move anything numpy to floats.
+    '''
+    if type(x)==numpy.int32 or type(x)==numpy.int64 or type(x)==numpy.float32 or type(x)==numpy.float64:
+        return float(x)
+    else:
+        return x

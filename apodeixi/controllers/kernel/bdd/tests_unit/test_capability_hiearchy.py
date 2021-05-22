@@ -12,31 +12,43 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
     def test_feature_injection(self):
 
-        EXCEL_FILE          = 'feature_injection_INPUT.xlsx' 
-        SHEET               = 'Feature Injection'
-        CTX_RANGE           = 'b2:c100'
+        EXCEL_FILE              = 'feature_injection_INPUT.xlsx' 
+        SHEET                   = 'Feature Injection'
+        CTX_RANGE               = 'b2:c100'
 
-        url                 = self.input_data  +  '/' + EXCEL_FILE + ':' + SHEET
+        url                     = self.input_data  +  '/' + EXCEL_FILE + ':' + SHEET
 
-        MANIFEST_FILE       = 'feature_injection_OUTPUT.yaml'
-        MANIFESTS_DIR       = self.output_data
-        result_dict         = {}
+        MANIFEST_FILE           = 'feature_injection_OUTPUT.yaml'
+        MANIFESTS_DIR           = self.output_data
+        EXPLANATIONS_OUTPUT     = 'feature_injection_explanations_OUTPUT.yaml'
+        EXPLANATIONS_EXPECTED   = 'feature_injection_explanations_EXPECTED.yaml'
+        result_dict             = {}
+
         try:
-            root_trace      = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding", data={'url'  : url})
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding", data={'url'  : url})
 
-            controller      = ctrl.CapabilityHierarchy_Controller(root_trace)
-            all_manifests_dicts, label  = controller._buildAllManifests(root_trace, url, CTX_RANGE) 
+            controller          = ctrl.CapabilityHierarchy_Controller(root_trace)
+            all_manifests_dicts, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
+            explanations        = controller.explanations 
 
             if len(all_manifests_dicts) != 1:
                 raise ApodeixiError(root_trace, 'Expected one manifest, but found ' + str(len(all_manifests_dicts)))
 
-            result_dict     = all_manifests_dicts[0]
+            result_dict         = all_manifests_dicts[0]
             controller._saveManifest(root_trace, result_dict, MANIFESTS_DIR, MANIFEST_FILE)
 
-        except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            # Make explanations readable by creating a pretty 
+            explanations_nice   = self.dict_2_nice(explanations, flatten=True)
+            with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
+                file            .write(explanations_nice)
 
+        except ApodeixiError as ex:
+            print(ex.trace_message())  
+
+        with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
+                expected_explain        = file.read()
         self._compare_to_expected_yaml(result_dict, 'feature_injection')
+        self.assertEqual(explanations_nice,    expected_explain)
 
 if __name__ == "__main__":
     # execute only if run as a script

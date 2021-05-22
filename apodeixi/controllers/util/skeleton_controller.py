@@ -14,6 +14,18 @@ class SkeletonController(PostingController):
     def __init__(self, parent_trace):
         super().__init__()
 
+
+        self.explanations   = {} 
+        '''
+        A triply-nested dictionary of `explanations`, built during processing. Helpful for some manifests whose layout
+        references implicitly the processing results for other manifests posted in the same Excel spreadsheet.
+
+        The three nested keys are: the kind, the row-index, and explanation name.
+
+        For example, `explanations['big-rocks'][3]['last_UID'] = 'W2.E12.AC3' says that manifest for kind 'big-rocks' has a
+        branch in the 3rd Excel row that ends in a leaf with a UID equal to 'W2.E12.AC3'.
+        '''
+
     def apply(self, parent_trace, knowledge_base_dir, relative_path, excel_filename, excel_sheet, ctx_range):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
@@ -24,7 +36,7 @@ class SkeletonController(PostingController):
         root_trace                  = parent_trace.doing("Applying Excel posting", data={'url'  : url})
         manifest_file               = excel_filename.replace('xlsx', 'yaml')
         manifests_dir               = knowledge_base_dir + '/manifests/' + relative_path
-        all_manifests_dicts, label  = self._buildAllManifests(root_trace, url, ctx_range)
+        all_manifests_dicts, label, explanations  = self._buildAllManifests(root_trace, url, ctx_range)
 
         for manifest_dict in all_manifests_dicts:
             self._saveManifest(root_trace, manifest_dict, manifests_dir, manifest_file)
@@ -48,32 +60,48 @@ class SkeletonController(PostingController):
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure.
 
-        Returns two things:
+        Returns 3 things:
 
         * a list of dictionaries, one per manifest, which can then be potentially enriched by parent classes, or persisted.
         * the PostingLabel that was parsed in the process
+
+        It also build out self.explanations as it goes along
+
         '''
-        my_trace                        = parent_trace.doing("Parsing posting label", 
+        my_trace                            = parent_trace.doing("Parsing posting label", 
                                                                 data = {'url': url, 'ctx_range': ctx_range, 
                                                                         'signaled_from': __file__})
         if True:            
-            label                       = self.getPostingLabel(my_trace)
+            label                           = self.getPostingLabel(my_trace)
             label.read(my_trace, url, ctx_range)    
 
-        MY_PL                           = SkeletonController._MyPostingLabel
+        MY_PL                               = SkeletonController._MyPostingLabel
 
-        all_manifests_dicts             = [] # Will be a list of dictionaries, one per manifest
+        all_manifests_dicts                 = [] # Will be a list of dictionaries, one per manifest
+        #all_explanations                    = {}
         for kind_range_dict in label._kinds_and_ranges(parent_trace): # One per manifest to build
-            kind                        = kind_range_dict[MY_PL._DATA_KIND]
-            excel_range                 = kind_range_dict[MY_PL._DATA_RANGE]
+            kind                            = kind_range_dict[MY_PL._DATA_KIND]
+            excel_range                     = kind_range_dict[MY_PL._DATA_RANGE]
             my_trace                        = parent_trace.doing("Parsing data for 1 manifest", 
                                                                     data = {'url': url, 'kind': kind, 'excel_range': excel_range,
                                                                             'signaled_from': __file__})
-            manifest_dict                   = self._buildOneManifest(my_trace, url, label, kind, excel_range)
+            manifest_dict, manifest_explanations    = self._buildOneManifest(my_trace, url, label, kind, excel_range)
             all_manifests_dicts.append(manifest_dict)
+            self.explanations[kind]          = manifest_explanations
+
+        
         return all_manifests_dicts, label
 
     def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
+        '''
+        Returns a pair:
+
+        * A dictionary corresponding to the manifest that was built in this method
+        * A dictionay of `explanations`: keys are integers corresponding to row numbers, and values are dictionaries of
+          "interesting" intermediate calculations produced while creating this manifest. In particular, the full UID of the
+          leaf for the tree branch corresponding to this manifest
+
+        '''
         organization                = label.organization        (parent_trace)
         environment                 = label.environment         (parent_trace)  
                     
@@ -84,7 +112,7 @@ class SkeletonController(PostingController):
                                                                         'signaled_from': __file__})
         if True:
             config                      = self.getPostingConfig(my_trace, kind)
-            tree                        = self._xl_2_tree(my_trace, url, excel_range, config)
+            tree, explanations          = self._xl_2_tree(my_trace, url, excel_range, config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
@@ -103,7 +131,7 @@ class SkeletonController(PostingController):
             manifest_dict['assertion']  = {label._RECORDED_BY:                 recorded_by , 
                                             'entity_type':                      tree.entity_type,
                                             FMT(tree.entity_type):              tree_dict}
-        return manifest_dict
+        return manifest_dict, explanations
 
 
     def _saveManifest(self, parent_trace, manifest_dict, manifests_dir, manifest_file):
@@ -217,7 +245,7 @@ class SkeletonController(PostingController):
             
             This method looks inside self.sightings['data.kind'] and self.sightings['data.range'], both of which should
             be arrays of the same size. For example, [] (if there is only one manifest) or [0, 1, 2] if there are three.
-            based on this the right lookups are made into self.ctx and a list of dictionaries is assembled. There is
+            Based on this the right lookups are made into self.ctx and a list of dictionaries is assembled. There is
             one dictionary in the list for each manifest to be built, and each manifest's dictionary
             has two entries, with keys 'data.kind' and 'data.range', and the values for those
             entries are the Excel ranges for the manifest in question.

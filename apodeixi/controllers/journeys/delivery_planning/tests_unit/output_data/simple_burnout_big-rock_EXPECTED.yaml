@@ -2,47 +2,22 @@ apiVersion: delivery-planning.journeys.a6i.io/v1a
 assertion:
   big-rock:
     BR1:
-      Effort (md):
-        E1:
-          UID: BR1.E1
-          name: 4050.0
-        E1-name: 4050.0
       UID: BR1
       name: B2C APIs
     BR1-name: B2C APIs
     BR2:
-      Effort (md):
-        E1:
-          UID: BR2.E1
-          name: 6600.0
-        E1-name: 6600.0
       UID: BR2
       name: "Cloudification \u2013 Remove Oracle Dependency"
     BR2-name: "Cloudification \u2013 Remove Oracle Dependency"
     BR3:
-      Effort (md):
-        E1:
-          UID: BR3.E1
-          name: 4500.0
-        E1-name: 4500.0
       UID: BR3
       name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
     BR3-name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
     BR4:
-      Effort (md):
-        E1:
-          UID: BR4.E1
-          name: 10351.0
-        E1-name: 10351.0
       UID: BR4
       name: Services
     BR4-name: Services
     BR5:
-      Effort (md):
-        E1:
-          UID: BR5.E1
-          name: 525.0
-        E1-name: 525.0
       UID: BR5
       name: Containerization
     BR5-name: Containerization
@@ -53,7 +28,7 @@ assertion:
   scoringCycle: Dec 2020
   scoringMaturity: Draft
   variant: simple; burnout
-kind: big-rock-estimates
+kind: big-rock
 metadata:
   labels:
     journey: Modernization

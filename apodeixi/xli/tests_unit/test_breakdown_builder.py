@@ -154,13 +154,13 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         intervals       = [interval_A, interval_B, interval_C]
         root_trace      = FunctionalTrace(None).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})
-        update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
+        #update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 
                                                                                             'interval': interval.columns,
                                                                                             'signaled_from': __file__})
-                tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace, update_policy=update_policy)
+                tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace, config = None) #update_policy=update_policy)
 
         return tree
 
@@ -173,11 +173,11 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         root_trace      = FunctionalTrace(None).doing("Populating subtree", data={'subtree.entity_type'  : entity_type,
                                                                                     'columns'           : list(df_to_attach.columns),
                                                                                     'signaled_from': __file__})
-        update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
+        #update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})
-                subtree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace, update_policy=update_policy)
+                subtree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=my_trace, config=None) #update_policy=update_policy)
 
         root_trace      = FunctionalTrace(None).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
                                                                                     "entity_type"  : "'" + entity_type + "'"})

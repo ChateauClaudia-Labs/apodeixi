@@ -1,7 +1,9 @@
 import re                                       as _re
+from collections                                import Counter
 
 from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader
-from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree
+from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree, _without_comments_in_parenthesis
+
 from apodeixi.controllers.util.manifest_api     import ManifestAPIVersion
 
 from apodeixi.util.a6i_error                    import ApodeixiError
@@ -15,11 +17,26 @@ class PostingController():
 
     def _xl_2_tree(self, parent_trace, url, excel_range, config):
         '''
-        Processes an Excel posting and creates a BreakoutTree out of it. It returns a tuple `(tree, ctx)` where 
-        `tree` is the BreakoutTree and `ctx` is the `PostingLabel` object from the Excel.
+        Processes an Excel posting and creates a BreakoutTree out of it. It returns a tuple `(tree, explanation)` where 
+        `tree` is the BreakoutTree and `explanations` is a dictionary that stores some of the intermediate calculations
+        that might be needed by other controllers. 
+
+        For example, we know each row of the Excel corresponds to a branch of the tree being built. The `explanations`
+        has keys given by the row integer indices (0, 1, 2, etc), and the values is a dictionary of "interesting"
+        things about the calculation done for that row:
+
+        * The full UID of the last node of the branch for that row. For example, for row 5 we may have 
+          `explanations[5]['last_UID'] = 'W2.E4.T12'. This might be used to "join" the branch to another tree
+          (for example, a second tree of float-value estimates which apply to each leaf of the first tree by
+          referencing the 'last_UID' each of those values applies to)
+
         '''
         r                       = ExcelTableReader(url = url,excel_range = excel_range)
         df                      = r.read()
+
+        # Clean up df's columns by removing anything in parenthesis
+        GIST_OF                 = _without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
+        df.columns              = [GIST_OF(col) for col in df.columns]
         
         store                   = UID_Store(parent_trace)
         tree                    = BreakdownTree(uid_store = store, entity_type=config.entity_name(), parent_UID=None)
@@ -29,15 +46,25 @@ class PostingController():
                                                                                     'columns'           : list(df.columns),                   
                                                                                     'signaled_from': __file__,
                                                                                     })
+        explanations            = {}
+
         for idx in range(len(rows)):
+            # Processing a row amounts to adding (or extending) a branch of the tree. The full_uid of the leaf
+            # for such a branch is recorded in the explanations for this row
+            explanations[idx]   = {}
+            last_uid            = None # Will represent the 
             for interval in config.buildIntervals(my_trace, list(df.columns)):
-                loop_trace        = my_trace.doing(activity="Processing fragment", data={   'row': idx, 
-                                                                                            'interval': interval.columns,
-                                                                                            'signaled_from': __file__,
-                                                                                            })
-                tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, update_policy=config.update_policy)
-        
-        return tree
+                loop_trace      = my_trace.doing(activity="Processing fragment", data={ 'row': idx, 
+                                                                                        'interval': interval.columns,
+                                                                                        'signaled_from': __file__,
+                                                                                        })
+                a_uid           = tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, 
+                                                                config=config)
+                if a_uid != None: # Improve our working hypothesis of last_uid
+                    last_uid = a_uid
+            # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
+            explanations[idx]['last_UID'] = last_uid
+        return tree, explanations
 
     def format_as_yaml_fieldname(txt):
         '''
@@ -152,6 +179,19 @@ class PostingLabel():
         if len(label_df.index) != 1:
             raise ApodeixiError(parent_trace, "Bad Excel range provided: " + excel_range
                             + "\nShould contain exactly two columns: keys and values")
+
+        # Check that that context has no column that appears more than once, as that would corrupt the logic below
+        # which assumes exactly 1 occurrence of each column (if not, logic will attribute that there is a "Pandas Series" value
+        # in the unique row for such columns, instead of a scalar, which will lead to obstruse failures downstream such
+        # as errors when we manipulate a string that is not really a string, but a Pandas Series).
+        count_dict = Counter(label_df.columns)
+        duplicates = [col for col in count_dict.keys() if count_dict[col] > 1]
+        if len(duplicates) > 0:
+            # Create a nice useful message like "data.kind.1 (appears 2 times)" if "data.kind.1" is in duplicates
+            duplicate_msgs = [col + " (appears " + str(count_dict[col]) + " times)" for col in duplicates]
+            raise ApodeixiError(parent_trace, "Bad Posting Label in Excel range: " + excel_range
+                            + "\nSome fields appear more than once",
+                            data = {'Duplicate fields': ', '.join(duplicate_msgs)})
         
         appearances, sightings = self._fields_found(self.mandatory_fields, label_df)
         missing_fields = [field for field in self.mandatory_fields if field not in sightings.keys()]

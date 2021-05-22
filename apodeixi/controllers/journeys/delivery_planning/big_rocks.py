@@ -2,8 +2,10 @@ from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
+from apodeixi.xli.breakdown_builder                 import _without_comments_in_parenthesis
 
-from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, FixedIntervalSpec
+from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, \
+                                                            FixedIntervalSpec, ClosedOpenIntervalSpec
 
 class BigRocksEstimate_Controller(SkeletonController):
     '''
@@ -19,7 +21,7 @@ class BigRocksEstimate_Controller(SkeletonController):
                                             api_publisher   = 'a6i',
                                             extension       = 'io')
         self.SUPPORTED_VERSIONS         = ['v1a']
-        self.SUPPORTED_KINDS            = ['big-rock-estimates', 'investment']
+        self.SUPPORTED_KINDS            = ['big-rock-estimate', 'investment', 'big-rock']
 
     def getManifestAPI(self):
         return self.MANIFEST_API
@@ -35,15 +37,19 @@ class BigRocksEstimate_Controller(SkeletonController):
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
         ME                          = BigRocksEstimate_Controller
-        if kind == 'big-rock-estimates':
+        if kind == 'big-rock':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._BigRocksConfig(update_policy)
+        elif kind == 'big-rock-estimate':
+            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            config                      = ME._BigRocksEstimatesConfig(update_policy = update_policy, controller = self)
         elif kind == 'investment':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._InvestmentConfig(update_policy)
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
-                                                + ", ".join(self.SUPPORTED_KINDS))
+                                                + ", ".join(self.SUPPORTED_KINDS),
+                                                data = {'signaled_from': __file__})
 
         return config 
 
@@ -54,12 +60,49 @@ class BigRocksEstimate_Controller(SkeletonController):
         ME                              = BigRocksEstimate_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
+    def _buildAllManifests(self, parent_trace, url, ctx_range):
+
+        all_manifests_dicts, label              = super()._buildAllManifests(parent_trace, url, ctx_range)
+
+        my_trace                        = parent_trace.doing("Linking big-rock-estimate manifest to UIDs from big-rock manifest "
+                                                                + "in BigRocksEstimate_Controller")
+
+        # We know that kind='big-rock-estimate' has the 2nd index (so 1, since indices start at 0) because it appears as 'data.kind.2'
+        # in the PostingLabel by convention. But perhaps this is precarious assumption, as it requires the PostingLabel to
+        # list the 'data.kind.n' in growing order, and they must be processed in that order by 
+        effort_dict                     = all_manifests_dicts[1]['assertion']['effort']
+
+        br_uids_to_link                 = self.explanations['big-rock']
+        # We rely on fact that UID Generator generated ordered UIDS, so if we loop through the key using alphabetical order
+        # that would align 1-1 with the row numbers in the estimate
+        effort_uids                     = list(effort_dict.keys())
+        # We need to filter the effort_uids, because they come in pairs: for a key "E2" there is the companion "E2-name"
+        # So we want to filter the "E2-name" out
+        effort_uids                     = [uid for uid in effort_uids if not uid.endswith("-name")]
+        effort_uids.sort() 
+        br_row_numbers                  = list(br_uids_to_link.keys())
+        # We need to filter the br_row_numbers because they might included some null rows
+        br_row_numbers                  = [row_nb for row_nb in br_row_numbers if not br_uids_to_link[row_nb]['last_UID'] == None]
+        br_row_numbers.sort()
+        if len(effort_uids) != len(br_row_numbers):
+            raise ApodeixiError(my_trace, "Different number of efforts (" + str(len(effort_uids)) + ") vs number of big rock rows ("
+                                            + str(len(br_row_numbers)) + "). They should match in order to link them.")
+        for idx in range(len(effort_uids)):
+            br_row_nb                   = br_row_numbers[idx]
+            br_uid                      = br_uids_to_link[br_row_nb]['last_UID']
+            effort_uid                  = effort_uids[idx]
+            effort_dict[effort_uid]['bigRock']  = br_uid
+
+        
+
+        return all_manifests_dicts, label
+
     def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict, explanations     = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to BigRocksEstimate_Controller") 
 
@@ -98,7 +141,7 @@ class BigRocksEstimate_Controller(SkeletonController):
             assertion[MY_PL._SCORING_CYCLE]             = scoring_cycle
             assertion[MY_PL._SCORING_MATURITY]          = scoring_maturity
         
-        return manifest_dict #, label
+        return manifest_dict, explanations
 
     def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
         '''
@@ -111,23 +154,52 @@ class BigRocksEstimate_Controller(SkeletonController):
 
     class _BigRocksConfig(PostingConfig):
         '''
-        Codifies the schema and integrity expectations for big rock estimates and investment manifests
+        Codifies the schema and integrity expectations for big rocks (potentially broken into subrocks, sub-subrocks, etc.)
         '''
 
         _ENTITY_NAME                    = 'Big Rock'
 
         def __init__(self, update_policy):
             ME                          = BigRocksEstimate_Controller._BigRocksConfig
+            GIST_OF                     = _without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
             super().__init__()
             self.update_policy          = update_policy
 
-            interval_spec_big_rocks      = FixedIntervalSpec(None, [ME._ENTITY_NAME]) 
-            interval_spec_effort         = FixedIntervalSpec(None, ['Effort (md)'])
+            interval_spec_big_rocks      = ClosedOpenIntervalSpec(  parent_trace        = None, 
+                                                                    start_column        = ME._ENTITY_NAME,
+                                                                    following_column    = GIST_OF('Effort (md)'),
+                                                                    entity_name         = ME._ENTITY_NAME
+                                                                    ) 
+            #interval_spec_effort         = FixedIntervalSpec(None, ['Effort (md)'])
 
-            self.interval_specs          = [interval_spec_big_rocks, interval_spec_effort]
+            self.interval_specs          = [interval_spec_big_rocks] #, interval_spec_effort]
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksConfig
+            return ME._ENTITY_NAME
+
+    class _BigRocksEstimatesConfig(PostingConfig):
+        '''
+        Codifies the schema and integrity expectations for big rock estimates
+        '''
+
+        _ENTITY_NAME                            = 'Effort'
+
+        def __init__(self, update_policy, controller):
+            ME                                  = BigRocksEstimate_Controller._BigRocksEstimatesConfig
+            GIST_OF                 = _without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
+
+            super().__init__()
+            self.update_policy                  = update_policy
+
+            interval_spec_big_rocks_estimates   = FixedIntervalSpec(    parent_trace        = None, 
+                                                                        columns             = [GIST_OF('Effort (md)')],
+                                                                    ) 
+
+            self.interval_specs                 = [interval_spec_big_rocks_estimates]
+
+        def entity_name(self):
+            ME                      = BigRocksEstimate_Controller._BigRocksEstimatesConfig
             return ME._ENTITY_NAME
 
     class _InvestmentConfig(PostingConfig):

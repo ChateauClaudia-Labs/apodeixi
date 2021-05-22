@@ -52,7 +52,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict, explanations     = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to CapabilityHierarchy_Controller") 
         scaffolding_purpose             = label.scaffoldingPurpose  (my_trace)
@@ -73,7 +73,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
 
             assertion[MY_PL._SCAFFOLDING_PURPOSE]       = scaffolding_purpose
         
-        return manifest_dict #, label
+        return manifest_dict, explanations
 
     def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
         '''
