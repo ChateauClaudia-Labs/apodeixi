@@ -22,23 +22,22 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = 'feature_injection_explanations_OUTPUT.yaml'
         EXPLANATIONS_EXPECTED   = 'feature_injection_explanations_EXPECTED.yaml'
-        result_dict             = {}
+        manifest_dict             = {}
 
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding", data={'url'  : url})
 
             controller          = ctrl.CapabilityHierarchy_Controller(root_trace)
-            all_manifests_dicts, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
-            explanations        = controller.explanations 
+            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
 
-            if len(all_manifests_dicts) != 1:
-                raise ApodeixiError(root_trace, 'Expected one manifest, but found ' + str(len(all_manifests_dicts)))
+            if len(all_manifests_dict) != 1:
+                raise ApodeixiError(root_trace, 'Expected one manifest, but found ' + str(len(all_manifests_dict)))
 
-            result_dict         = all_manifests_dicts[0]
-            controller._saveManifest(root_trace, result_dict, MANIFESTS_DIR, MANIFEST_FILE)
+            manifest_dict         = all_manifests_dict[0]
+            controller._saveManifest(root_trace, manifest_dict, MANIFESTS_DIR, MANIFEST_FILE)
 
             # Make explanations readable by creating a pretty 
-            explanations_nice   = self.dict_2_nice(explanations, flatten=True)
+            explanations_nice   = self.dict_2_nice(controller.show_your_work.worklog, flatten=True)
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 
@@ -47,7 +46,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
         with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
-        self._compare_to_expected_yaml(result_dict, 'feature_injection')
+        self._compare_to_expected_yaml(manifest_dict, 'feature_injection')
         self.assertEqual(explanations_nice,    expected_explain)
 
 if __name__ == "__main__":

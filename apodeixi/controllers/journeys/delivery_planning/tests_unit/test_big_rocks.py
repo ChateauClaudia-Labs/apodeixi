@@ -30,31 +30,33 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)", data={'url'  : url})
 
             controller          = big_rocks.BigRocksEstimate_Controller(root_trace)
-            all_manifests_dicts, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
-            explanations        = controller.explanations 
+            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
 
-            if len(all_manifests_dicts) != 3:
-                raise ApodeixiError(root_trace, 'Expected two manifests, but found ' + str(len(all_manifests_dicts)))
+            NB_MANIFESTS_EXPECTED   = 3
+            if len(all_manifests_dict.keys()) != NB_MANIFESTS_EXPECTED:
+                raise ApodeixiError(root_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
+                                    + str(len(all_manifests_dicts)))
 
             
-            for result_dict in all_manifests_dicts:
-                
-                kind            = result_dict['kind']
+            for manifest_nb in all_manifests_dict.keys():
+                manifest_dict     = all_manifests_dict[manifest_nb]
+                kind            = manifest_dict['kind']
                 manifest_file   = MANIFEST_FILE_PREFIX + "_" + kind + "_OUTPUT.yaml"
-                controller._saveManifest(root_trace, result_dict, MANIFESTS_DIR, manifest_file)
+                controller._saveManifest(root_trace, manifest_dict, MANIFESTS_DIR, manifest_file)
 
             # Make explanations readable by creating a pretty 
-            explanations_nice   = self.dict_2_nice(explanations, flatten=True)
+            explanations_nice   = self.dict_2_nice(controller.show_your_work.worklog, flatten=True)
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 
         except ApodeixiError as ex:
             print(ex.trace_message())                                                                                        
 
-        self.assertTrue(len(all_manifests_dicts) == 3)
-        for result_dict in all_manifests_dicts:
-            kind            = result_dict['kind']
-            self._compare_to_expected_yaml(result_dict, MANIFEST_FILE_PREFIX + "_" + kind)
+        self.assertTrue(len(all_manifests_dict) == 3)
+        for manifest_nb in all_manifests_dict.keys():
+            manifest_dict   = all_manifests_dict[manifest_nb]
+            kind            = manifest_dict['kind']
+            self._compare_to_expected_yaml(manifest_dict, MANIFEST_FILE_PREFIX + "_" + kind)
         with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
         self.assertEqual(explanations_nice,    expected_explain)

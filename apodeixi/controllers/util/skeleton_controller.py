@@ -14,18 +14,6 @@ class SkeletonController(PostingController):
     def __init__(self, parent_trace):
         super().__init__()
 
-
-        self.explanations   = {} 
-        '''
-        A triply-nested dictionary of `explanations`, built during processing. Helpful for some manifests whose layout
-        references implicitly the processing results for other manifests posted in the same Excel spreadsheet.
-
-        The three nested keys are: the kind, the row-index, and explanation name.
-
-        For example, `explanations['big-rocks'][3]['last_UID'] = 'W2.E12.AC3' says that manifest for kind 'big-rocks' has a
-        branch in the 3rd Excel row that ends in a leaf with a UID equal to 'W2.E12.AC3'.
-        '''
-
     def apply(self, parent_trace, knowledge_base_dir, relative_path, excel_filename, excel_sheet, ctx_range):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
@@ -36,7 +24,7 @@ class SkeletonController(PostingController):
         root_trace                  = parent_trace.doing("Applying Excel posting", data={'url'  : url})
         manifest_file               = excel_filename.replace('xlsx', 'yaml')
         manifests_dir               = knowledge_base_dir + '/manifests/' + relative_path
-        all_manifests_dicts, label, explanations  = self._buildAllManifests(root_trace, url, ctx_range)
+        all_manifests_dicts, label  = self._buildAllManifests(root_trace, url, ctx_range)
 
         for manifest_dict in all_manifests_dicts:
             self._saveManifest(root_trace, manifest_dict, manifests_dir, manifest_file)
@@ -60,12 +48,12 @@ class SkeletonController(PostingController):
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure.
 
-        Returns 3 things:
+        Returns 2 things:
 
-        * a list of dictionaries, one per manifest, which can then be potentially enriched by parent classes, or persisted.
+        * a dictionary of dictionaries. The keys are integer ids for each manifest, as maintained in 
+          the controller's show_your_work metadata for manifests. Values are the manifests themselves, as dictionaries.
+        
         * the PostingLabel that was parsed in the process
-
-        It also build out self.explanations as it goes along
 
         '''
         my_trace                            = parent_trace.doing("Parsing posting label", 
@@ -77,30 +65,21 @@ class SkeletonController(PostingController):
 
         MY_PL                               = SkeletonController._MyPostingLabel
 
-        all_manifests_dicts                 = [] # Will be a list of dictionaries, one per manifest
-        #all_explanations                    = {}
-        for kind_range_dict in label._kinds_and_ranges(parent_trace): # One per manifest to build
-            kind                            = kind_range_dict[MY_PL._DATA_KIND]
-            excel_range                     = kind_range_dict[MY_PL._DATA_RANGE]
+        # Keys will be the manifest unique integer identifiers assigned by _MyPostingLabel._initialize_show_your_work
+        all_manifests_dict                 = {} 
+        
+        for manifest_nb, kind, excel_range in self.show_your_work.manifest_metas():
             my_trace                        = parent_trace.doing("Parsing data for 1 manifest", 
                                                                     data = {'url': url, 'kind': kind, 'excel_range': excel_range,
                                                                             'signaled_from': __file__})
-            manifest_dict, manifest_explanations    = self._buildOneManifest(my_trace, url, label, kind, excel_range)
-            all_manifests_dicts.append(manifest_dict)
-            self.explanations[kind]          = manifest_explanations
+            manifest_dict                   = self._buildOneManifest(my_trace, url, label, kind, excel_range)
+            all_manifests_dict[manifest_nb] = manifest_dict
 
-        
-        return all_manifests_dicts, label
+        return all_manifests_dict, label
 
     def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
         '''
-        Returns a pair:
-
-        * A dictionary corresponding to the manifest that was built in this method
-        * A dictionay of `explanations`: keys are integers corresponding to row numbers, and values are dictionaries of
-          "interesting" intermediate calculations produced while creating this manifest. In particular, the full UID of the
-          leaf for the tree branch corresponding to this manifest
-
+        Returns a  dictionary corresponding to the manifest that was built in this method
         '''
         organization                = label.organization        (parent_trace)
         environment                 = label.environment         (parent_trace)  
@@ -112,7 +91,7 @@ class SkeletonController(PostingController):
                                                                         'signaled_from': __file__})
         if True:
             config                      = self.getPostingConfig(my_trace, kind)
-            tree, explanations          = self._xl_2_tree(my_trace, url, excel_range, config)
+            tree                        = self._xl_2_tree(my_trace, url, excel_range, config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
@@ -131,7 +110,7 @@ class SkeletonController(PostingController):
             manifest_dict['assertion']  = {label._RECORDED_BY:                 recorded_by , 
                                             'entity_type':                      tree.entity_type,
                                             FMT(tree.entity_type):              tree_dict}
-        return manifest_dict, explanations
+        return manifest_dict
 
 
     def _saveManifest(self, parent_trace, manifest_dict, manifests_dir, manifest_file):
@@ -199,9 +178,12 @@ class SkeletonController(PostingController):
                 raise ApodeixiError(parent_trace, "Non supported Excel API '" + posted_xl_api_version + "'"
                                                 + "\nShould be one of: " + str(supported_xl_api_versions))
 
-            # Validate that kind of domain object(s) in posting is(are) one that we know how to handle
-            for kind_range_dict in self._kinds_and_ranges(parent_trace): # One per manifest to build
-                kind                        = kind_range_dict[ME._DATA_KIND]
+            # Validate that kind of domain object(s) in posting is(are) one that we know how to handle, 
+            # and save the findings along the way in the controller's show_your_work for later use
+            self._initialize_show_your_work(parent_trace)
+
+            for manifest_nb, kind, excel_range in self.controller.show_your_work.manifest_metas():
+
                 supported_data_kinds             = self.controller.getSupportedKinds()
                 if not kind in supported_data_kinds:
                     raise ApodeixiError(parent_trace, "Non supported domain object kind '" + kind + "'"
@@ -235,23 +217,45 @@ class SkeletonController(PostingController):
             
             return self.ctx[fieldname]
 
-        def _kinds_and_ranges(self, parent_trace):
+        def _initialize_show_your_work(self, parent_trace):
             '''
             Used to prepare the information needed to retrieve the data for each of the manifests (1 or more) that
             are being posted within the same Excel spreadsheet using a common PostingLabel.
 
-            This method is expected to be called after self.read has been called, since self.read will cause self.sightings
+            This method is expected to be called after super().read has been called, since super().read will cause self.sightings
             to be populated. 
             
             This method looks inside self.sightings['data.kind'] and self.sightings['data.range'], both of which should
             be arrays of the same size. For example, [] (if there is only one manifest) or [0, 1, 2] if there are three.
-            Based on this the right lookups are made into self.ctx and a list of dictionaries is assembled. There is
-            one dictionary in the list for each manifest to be built, and each manifest's dictionary
-            has two entries, with keys 'data.kind' and 'data.range', and the values for those
-            entries are the Excel ranges for the manifest in question.
 
-            This list of dictionaries is returned.
+            Based on this it initializes self.controller.show_your_work:
+
+            * Initializes the manifest-specific subdictionaries that are retrieved using kind (e.g., 
+              self.controller.show_your_work[kind])
+
+            * Remembers a list of metadata for all manifests, assigning a number to each manifest that can also
+              be used as a numerical id of a manifest that is consistent throughout the lifetime of the controller
+              object.
+
             '''
+
+            def _keep_work(parent_trace, manifest_nb, kind_field, range_field): #, result):
+                '''
+                Helper function to avoid repetitive code in both branches of an if-else
+                '''
+                FMT                 = PostingController.format_as_yaml_fieldname # Abbreviation for readability
+                kind_val            = FMT(self.ctx[kind_field])
+                range_val           = self.ctx[range_field]
+                my_trace            = parent_trace.doing("Initializing show-my-work memory for manifest of kind '" + kind_val + "'")
+                self.controller.show_your_work.include(parent_trace=my_trace, manifest_kind=kind_val, posting_label_field=ME._DATA_KIND)
+
+                my_trace            = parent_trace.doing("Saving manifest kind, range in show_my_work")
+                self.controller.show_your_work.keep_manifest_meta(  parent_trace    = my_trace, 
+                                                                    manifest_nb     = manifest_nb, 
+                                                                    kind            = kind_val, 
+                                                                    excel_range     = range_val)
+
+
             ME = SkeletonController._MyPostingLabel
             if self.sightings == None:
                 raise ApodeixiError(parent_trace, "Can't determine data coordinates because self.sightings has not yet been computed")
@@ -262,22 +266,14 @@ class SkeletonController(PostingController):
             if kind_list==None or range_list==None or len(kind_list)!=len(range_list):
                 raise ApodeixiError(parent_trace, "PostingLabel has inconsistent " + _DATA_KIND + " and " + _DATA_RANGE 
                                                     + " entries: they should both exist and have the same cardinality")
-            result              = []
-
             if len(kind_list) == 0: # There is only one manifest to build in this case
-                result.append({ ME._DATA_KIND:  self.ctx[ME._DATA_KIND], 
-                                ME._DATA_RANGE: self.ctx[ME._DATA_RANGE]})
+                kind_field      = ME._DATA_KIND   # The field in the PostingLabel, like 'data.kind.2'
+                range_field     = ME._DATA_RANGE
+                _keep_work(parent_trace, 0, kind_field, range_field)
                 
             else:                   # There are multiple manifests to build in this case
-                FMT                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
+                
                 for idx in range(len(kind_list)):
-                    kind_field      = ME._DATA_KIND    + '.' + str(kind_list[idx])      # The field in the PostingLabel, like 'data.kind.2'
-                    kind_val        = FMT(self.ctx[kind_field])
-
-                    range_field     = ME._DATA_RANGE   + '.' + str(range_list[idx])
-                    range_val       = self.ctx[range_field]
-
-                    result.append({ ME._DATA_KIND:  kind_val, 
-                                    ME._DATA_RANGE: range_val})
-
-            return result
+                    kind_field  = ME._DATA_KIND    + '.' + str(kind_list[idx])   # The field in the PostingLabel, like 'data.kind.2'
+                    range_field = ME._DATA_RANGE   + '.' + str(range_list[idx])
+                    _keep_work(parent_trace, idx, kind_field, range_field) 

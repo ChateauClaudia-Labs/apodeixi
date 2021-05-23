@@ -13,23 +13,16 @@ class PostingController():
     Parent class for controllers that parse Excel spreadsheet to create manifests in the KnowledgeBase
     '''
     def __init__(self):
+        self.show_your_work     = PostingCtrl_ShowYourWork()
         return
 
     def _xl_2_tree(self, parent_trace, url, excel_range, config):
         '''
-        Processes an Excel posting and creates a BreakoutTree out of it. It returns a tuple `(tree, explanation)` where 
-        `tree` is the BreakoutTree and `explanations` is a dictionary that stores some of the intermediate calculations
-        that might be needed by other controllers. 
+        Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
-        For example, we know each row of the Excel corresponds to a branch of the tree being built. The `explanations`
-        has keys given by the row integer indices (0, 1, 2, etc), and the values is a dictionary of "interesting"
-        things about the calculation done for that row:
-
-        * The full UID of the last node of the branch for that row. For example, for row 5 we may have 
-          `explanations[5]['last_UID'] = 'W2.E4.T12'. This might be used to "join" the branch to another tree
-          (for example, a second tree of float-value estimates which apply to each leaf of the first tree by
-          referencing the 'last_UID' each of those values applies to)
-
+        It records some intermediate computations in self.show_your_work. In particular, it records the UID of
+        the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
+        the UID of the rightmost column in that Excel row that is for an entity)
         '''
         r                       = ExcelTableReader(url = url,excel_range = excel_range)
         df                      = r.read()
@@ -46,12 +39,8 @@ class PostingController():
                                                                                     'columns'           : list(df.columns),                   
                                                                                     'signaled_from': __file__,
                                                                                     })
-        explanations            = {}
 
         for idx in range(len(rows)):
-            # Processing a row amounts to adding (or extending) a branch of the tree. The full_uid of the leaf
-            # for such a branch is recorded in the explanations for this row
-            explanations[idx]   = {}
             last_uid            = None # Will represent the 
             for interval in config.buildIntervals(my_trace, list(df.columns)):
                 loop_trace      = my_trace.doing(activity="Processing fragment", data={ 'row': idx, 
@@ -63,8 +52,13 @@ class PostingController():
                 if a_uid != None: # Improve our working hypothesis of last_uid
                     last_uid = a_uid
             # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
-            explanations[idx]['last_UID'] = last_uid
-        return tree, explanations
+            self.show_your_work.keep_row_last_UID(  parent_trace        = my_trace, 
+                                                    kind                = config.kind, 
+                                                    row_nb              = idx, 
+                                                    uid                 = last_uid, 
+                                                    posting_label_field = None)
+
+        return tree
 
     def format_as_yaml_fieldname(txt):
         '''
@@ -111,6 +105,259 @@ class PostingController():
         api_version             = ManifestAPIVersion(parent_trace, self.getManifestAPI(), last_version)
         return api_version.apiVersion()
         
+class PostingCtrl_ShowYourWork():
+    '''
+    Helper class used by PostingControllers to record some intermediate calculations for later reference in
+    subsequent processing steps by a PostingController.
+    For example, a PostingController might create multiple manifests based on multiple Excel ranges, and they
+    may need to be joined. Typically the join is determined based on Excel: if branch B1 of manifest M1 lies in the
+    same Excel row as branch B2 of manifest M2, then it is possible and natural (for example) for B2 to be enriched with a
+    foreign key pointing to B1. In order to make this enrichment, given B2 one must find the B1 that lies in the same
+    row. This PostingCrl_ShowYourWork class supports that, by remembering the Excel row in which the UID of B1, B2 appeared, hence
+    they can be matched based on that Excel row number at a stage of the computation when Excel is no longer being 
+    processed, thanks to the PostingCrl_ShowYourWork object that remembered that information when it was available earlier
+    in the processing.
+    '''
+    def __init__(self):
+
+        '''
+        Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a manifest: it holds
+        all intermediate values that the controller chose to remember in the process of computing that particular
+        manifest.
+
+        That manifest-specific dictionary is 2 levels from the root. Either:
+
+        * or self.workloca[<kind>][<posting label field>] if the PostingLabel has multiple manifests of the same kind.
+
+        For example, if a PostingLabel has two 'big-rock' manifests with labels 'data.kind.1' and 'data.kind.2', then
+        the controller records intermediate values for the first manifest in self.worklog['big-rock]['data.kind.1']
+        and for the second manifest in self.worklog['big-rock]['data.kind.2']
+
+        A different PostingLabel that has only one 'big-rock' manifest would simply record intermediate
+        '''
+        self.worklog                        = {}
+
+        ME                                  = PostingCtrl_ShowYourWork
+        self.worklog[ME._MANIFEST_META]     = {}
+
+        return
+
+    _ROW_WORK               = '_ROW_WORK'
+    _LAST_UID               = '_LAST_UID'
+    _DATA_KIND              = '_DATA_KIND'
+    _DATA_RANGE             = '_DATA_RANGE'
+    _MANIFEST_META          = '_MANIFEST_META'
+
+    def include(self, parent_trace, manifest_kind, posting_label_field):
+        '''
+        Causes this to dictionary to exist: self.worklog[manifest_kind][posting_label_field]
+
+        More in detail:
+
+        Used to include the intermediate data items that the associated controller computes in the process of creating
+        the manifest in question. Usually the kind of a manifest is enough to uniquely identify it among all other manifests
+        covered in the same posting. But to anticipate the possibility that a posting includes multiple postings of the
+        same kind, optionally a posting label field can serve as identifier as well (such as "data.kind.2", i.e., the field in 
+        the Posting Label whose value is the manifest kind).
+        '''
+        if manifest_kind == None:
+            raise ApodeixiError(parent_trace, "Can't initialize the show-your-work area because kind is null")
+        if posting_label_field == None:
+            raise ApodeixiError(parent_trace, "Can't initialize the show-your-work area because the posting label field is null")
+
+        if not manifest_kind in self.worklog.keys():
+            self.worklog[manifest_kind]     = {}
+
+        kind_dict = self.worklog[manifest_kind]
+        if not posting_label_field in kind_dict.keys():
+            kind_dict[posting_label_field]  = {}        
+        return
+
+    def find_referenced_uid(self, parent_trace, kind1, kind2, uid1, posting_label_field1=None, posting_label_field2=None):
+        '''
+        Finds a uid2 such that the following is true:
+
+        Define row_nb as the unique integer where uid1 appears for <kind1, posting_label_field1>:
+        
+        * self.worklog[kind1][posting_label_field1][row_nb][_LAST_UID] = uid1
+
+        Then use the same row_nb but for <kind2, posting_label_field2>, and get uid2 as
+
+        * self.worklog[kind2][posting_label_field2][row_nb][_LAST_UID] = uid2
+        '''
+        my_trace                    = parent_trace.doing("Retrieving show-my-work for referencing manifest",
+                                                        data = {'kind1': kind1, 'posting_label_field1': posting_label_field1})
+        all_rows_dict1              = self._getAllRowsDict( parent_trace        = my_trace, 
+                                                            kind                = kind1, 
+                                                            posting_label_field = posting_label_field1)
+
+        ME                          = PostingCtrl_ShowYourWork
+
+        my_trace                    = parent_trace.doing("Searching for Excel row for referencing manifests's branch",
+                                                        data = {'kind1' : kind1, 'posting_label_field1': posting_label_field1,
+                                                                'uid1'  : uid1})
+        matches1                    = [row_nb for row_nb in all_rows_dict1.keys() if all_rows_dict1[row_nb][ME._LAST_UID] == uid1]
+        if len(matches1) == 0:
+            raise ApodeixiError(my_trace, "Found no Excel rows for referencing manifest's branch - there should have been exactly 1",
+                                            data = {'kind1' : kind1, 'posting_label_field1': posting_label_field1,
+                                                    'uid1'  : uid1})
+        if len(matches1) > 1:
+            raise ApodeixiError(my_trace, "Found multiple Excel rows for referencing manifest's branch - there should have been exactly 1",
+                                            data = {'kind1' : kind1,    'posting_label_field1'  : posting_label_field1,
+                                                    'uid1'  : uid1,     'matches1'              : str(matches1)})
+
+        joining_row                 = matches1[0]
+        my_trace                    = parent_trace.doing("Retrieving joining row for referenced manifest",
+                                                        data = {'kind2': kind2, 'posting_label_field2': posting_label_field2})
+        row_dict2                   = self._getRowDict( parent_trace        = my_trace,
+                                                        row_nb              = joining_row,
+                                                        kind                = kind2, 
+                                                        posting_label_field = posting_label_field2)
+
+        if not ME._LAST_UID in row_dict2.keys():
+            raise ApodeixiError(my_trace, "Reference manifest has no UID in show-your-work for joining row",
+                                            data = {    'kind2'                 : kind2, 
+                                                        'posting_label_field2'  : posting_label_field2,
+                                                        'joining_row'           : joining_row})
+            
+
+        return row_dict2[ME._LAST_UID]
+
+
+    def manifest_metas(self):
+        '''
+        Returns a list of triples [manifest_nb, kind, excel_range]
+
+        Each of them is extracted from the internal representation whereby 
+
+            * self.worklog[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
+            * self.worklog[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
+        '''
+        ME                              = PostingCtrl_ShowYourWork
+        result                          = []
+        meta_dict                       = self.worklog[ME._MANIFEST_META]
+        for manifest_nb in meta_dict.keys():
+            kind                        = meta_dict[manifest_nb][ME._DATA_KIND]
+            excel_range                 = meta_dict[manifest_nb][ME._DATA_RANGE]
+            result.append ([manifest_nb, kind, excel_range])
+        return result
+
+    def keep_manifest_meta(self, parent_trace, manifest_nb, kind, excel_range):
+        '''
+        Causes this to happen: 
+        
+        * self.worklog[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
+        * self.worklog[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
+
+        More details:
+
+        Intention is to keep an enumeration of manifest identification information. This supports then looking up
+        information about a manifest during processing, especially when one does not know a priory the kinds or ranges.
+        '''
+        ME                                          = PostingCtrl_ShowYourWork
+        meta_dict                                   = self.worklog[ME._MANIFEST_META]
+        if not manifest_nb in meta_dict.keys():
+            meta_dict[manifest_nb]                  = {}
+
+        meta_dict[manifest_nb][ME._DATA_KIND]       = kind
+        meta_dict[manifest_nb][ME._DATA_RANGE]      = excel_range
+
+    def keep_row_last_UID(self, parent_trace, kind, row_nb, uid, posting_label_field=None):
+        '''
+        Causes this to happen: self.worklog[kind][posting_label_field][row_nb][_LAST_UID] = uid
+        '''
+        ME                  = PostingCtrl_ShowYourWork
+        self.keep_row_work(parent_trace, kind, row_nb, ME._LAST_UID, uid, posting_label_field=None)
+
+    def keep_row_work(self, parent_trace, kind, row_nb, thing_to_remember, value, posting_label_field=None):
+        '''
+        Causes this to happen: self.worklog[kind][posting_label_field][row_nb][thing_to_remember] = value
+        '''
+        row_dict                        = self._getRowDict(parent_trace, row_nb, kind, posting_label_field)
+        row_dict[thing_to_remember]     = value
+
+    def keep(self, parent_trace, kind, thing_to_remember, value, posting_label_field=None):
+        '''
+        Causes this to happen: self.worklog[kind][posting_label_field][thing_to_remember] = value
+
+        More in detail:
+        Remembers the value for the given thing_to_remember for the manifest identified by the kind and posting_field_label.
+        If posting_field_label is None, and if self.worklog[kind] has only one child, then that child is assumed to
+        be the posting_field_label that was intended.
+        This defaulting behavior is added for usability, so that callers only have to remember the kind of manifest
+        in situations where the PostingLabel does not include multiple manifests of the same kind, which is the most
+        frequent situation.
+        '''
+        my_trace                            = parent_trade.doing("Retrieving show-your-work area previously set up "
+                                                                    +" to remember work for this manifest",
+                                                                    data = {'kind': kind, 'posting_label_field': posting_label_field})
+        work_dict                           = self._getWorkDict(my_trace, kind, posting_label_field)
+        
+        if work_dict == None:
+            raise ApodeixiError(parent_trace, "Incorrectly set show-your-work area for manifest: it is null",
+                                                data = {'kind': kind, 'posting_label_field': posting_label_field})
+        # Now for the real work
+        work_dict[thing_to_remember] = value
+
+    def _getAllRowsDict(self, parent_trace, kind, posting_label_field):
+        '''
+        Helper function to return the dictionary under
+
+            self.worklog[kind][posting_label_field]
+        '''
+        work_dict                   = self._getWorkDict(parent_trace, kind, posting_label_field)
+        ME                          = PostingCtrl_ShowYourWork
+        if not ME._ROW_WORK in work_dict.keys():
+            work_dict[ME._ROW_WORK] = {} # Keys will be integer row numbers, and values will be dictionaries for thing_to_remember/value
+        
+        all_rows_dict               = work_dict[ME._ROW_WORK]
+        return all_rows_dict
+
+    def _getRowDict(self, parent_trace, row_nb, kind, posting_label_field):
+        '''
+        Helper function to return the dictionary under
+
+            self.worklog[kind][posting_label_field][row_nb]
+        '''
+        all_rows_dict               = self._getAllRowsDict(parent_trace, kind, posting_label_field)
+        if not row_nb in all_rows_dict.keys():
+            all_rows_dict[row_nb]   = {} # Keys will be properties, values their value
+        
+        row_dict                    = all_rows_dict[row_nb]
+        return row_dict
+
+    def _getWorkDict(self, parent_trace, kind, posting_label_field):
+        if not kind in self.worklog.keys():
+            raise ApodeixiError(parent_trace, "Can't retrieve show-your-work area because the requested kind was not "\
+                                            + "previously initialized. Sounds like include(-) was not called in advance",
+                                            data = {'kind': kind})
+                                            
+        kind_dict                           = self.worklog[kind]
+        label_fields                        = list(kind_dict.keys())
+        if len(label_fields) == 0:
+            raise ApodeixiError(parent_trace, "Can't retrieve show-your-work area because no labels were "
+                                            + "previously initialized for the given kind. "
+                                            + "Sounds like include(-) was not called in advance",
+                                            data = {'kind': kind})
+
+        if posting_label_field == None:
+            # Check if there is only one child, and so return it
+            if len(label_fields) == 1:
+                return kind_dict[label_fields[0]]
+            # 
+            raise ApodeixiError(parent_trace, "Can't retrieve show-your-work area since a null posting label field was given, "
+                                                + " and there are multiple fields to previously included, so can't failover to a unique "
+                                                + " default",
+                                                data = {'kind': kind, 'previously included labels': str(label_fields)})
+                
+        if not posting_label_field in kind_dict.keys():
+            raise ApodeixiError(parent_trace, "Can't retrieve show-your-work area because the requested label was not "
+                                            + "previously initialized under the requested kind. "
+                                            + "Sounds like include(-) was not called in advance",
+                                            data = {'kind': kind, 'posting_label_field': posting_label_field})
+            
+        # All is good, so finally retrieve the work in question
+        return kind_dict[posting_label_field]
 
 class PostingLabel():
     '''
@@ -278,11 +525,12 @@ class PostingConfig():
                             was created by loading a pre-existing manifest.
     @param intervals        A list of lists of Interval objects, enumerated in the order in which they are expected to appear in the
                             Excel to be read. This enforces that the Excel is formatted as was expected.
-
+    @param kind             A string identifying the manifest kind being posted
     '''
-    def __init__(self):
+    def __init__(self, kind):
         self.update_policy          = None
         self.interval_specs         = []
+        self.kind                   = kind
 
     def buildIntervals(self, parent_trace, linear_space):
         '''

@@ -35,8 +35,8 @@ class CapabilityHierarchy_Controller(SkeletonController):
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
         ME                          = CapabilityHierarchy_Controller
-        update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-        config                      = ME._MyPostingConfig(update_policy)
+        update_policy               = UpdatePolicy(         reuse_uids      = False,            merge   = False)
+        config                      = ME._MyPostingConfig(  update_policy   = update_policy,    kind    = kind)
 
         return config 
 
@@ -52,7 +52,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict, explanations     = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to CapabilityHierarchy_Controller") 
         scaffolding_purpose             = label.scaffoldingPurpose  (my_trace)
@@ -73,7 +73,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
 
             assertion[MY_PL._SCAFFOLDING_PURPOSE]       = scaffolding_purpose
         
-        return manifest_dict, explanations
+        return manifest_dict
 
     def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
         '''
@@ -91,9 +91,9 @@ class CapabilityHierarchy_Controller(SkeletonController):
 
         _ENTITY_NAME                = 'Jobs to be done'
 
-        def __init__(self, update_policy):
+        def __init__(self, kind, update_policy):
             ME                      = CapabilityHierarchy_Controller._MyPostingConfig
-            super().__init__()
+            super().__init__(kind)
             self.update_policy      = update_policy
 
             interval_spec_jobs           = FixedIntervalSpec(None, [ME._ENTITY_NAME, 'Stakeholders']) 
