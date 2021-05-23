@@ -1,10 +1,10 @@
-import sys                                  as _sys
-import pandas                               as _pd
+import sys                                      as _sys
+import pandas                                   as _pd
 
-from apodeixi.util.a6i_unit_test            import ApodeixiUnitTest
-from apodeixi.util.a6i_error                import ApodeixiError, FunctionalTrace
+from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
+from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.text_layout.excel_layout      import ManifestLayout
+from apodeixi.text_layout.excel_layout          import ManifestLayout
 
 class Test_ManifestLayout(ApodeixiUnitTest):
 

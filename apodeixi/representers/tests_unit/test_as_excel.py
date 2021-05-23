@@ -1,11 +1,12 @@
 import sys                                  as _sys
 import pandas                               as _pd
 
-from apodeixi.util.a6i_unit_test            import ApodeixiUnitTest
-from apodeixi.util.a6i_error                import ApodeixiError, FunctionalTrace
+from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
+from apodeixi.util.formatting_utils             import DictionaryFormatter
+from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.representers.as_excel         import Manifest_Representer
-from apodeixi.text_layout.excel_layout      import Manifest_Config #, ManifestLayout
+from apodeixi.representers.as_excel             import Manifest_Representer
+from apodeixi.text_layout.excel_layout          import Manifest_Config #, ManifestLayout
 
 
 class Test_Manifest_Representer(ApodeixiUnitTest):
@@ -59,19 +60,13 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                         sheet           = SHEET)
 
             worksheet_info                      = rep.worksheet_info
-            #worksheet_info_dict['Column info']  = worksheet_info.colinfo
 
-            
-            #worksheet_info_dict['Format info']  = self.dict_2_nice(worksheet_info.format_dict)
-
-            #span                            = rep.config.layout.getSpan(root_trace)
             output_dict['status']           = status
             output_dict['layout span']      = rep.span
-            output_dict['column widths']    = self.dict_2_nice(rep.widths_dict)
+            output_dict['column widths']    = DictionaryFormatter().dict_2_nice(rep.widths_dict)
             output_dict['total width']      = sum([rep.widths_dict[k]['width'] for k in rep.widths_dict.keys()])
-            #output_dict['max row height']   = max([widths_dict[k]['nb_lines'] for k in widths_dict.keys()])
-            # Save output in case we want to do a diff to expected output during a failure/debugging
-            output_nice         = self.dict_2_nice(output_dict)
+
+            output_nice         = DictionaryFormatter().dict_2_nice(output_dict)
             with open(OUTPUT_FOLDER + '/' + OUTPUT_FILE, 'w') as file:
                 file            .write(output_nice)
             ws_info_nice         = self._nice_ws_info(worksheet_info)
@@ -93,7 +88,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
     def _nice_ws_info(self, worksheet_info):
         nice_format                     = ''
         nice_format += "\n======================== Column information =========================="
-        nice_format += self.dict_2_nice(worksheet_info.colinfo)
+        nice_format += DictionaryFormatter().dict_2_nice(worksheet_info.colinfo)
 
         fmt_dict                        = worksheet_info.format_dict
         for row_nb in fmt_dict.keys():
@@ -101,7 +96,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             for col_nb in row_dict.keys():
                 nice_format += "\n\n================ Formats row = " + str(row_nb) + ", col = " + str(col_nb) + " ============"
                 cell_fmt_dict           = row_dict[col_nb]
-                nice                    = self.dict_2_nice(cell_fmt_dict)
+                nice                    = DictionaryFormatter().dict_2_nice(cell_fmt_dict)
                 nice_format += "\n" + nice
         return nice_format
 

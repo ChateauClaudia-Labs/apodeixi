@@ -1,9 +1,11 @@
-import sys                              as _sys
+import sys                                              as _sys
 
-from apodeixi.util.a6i_unit_test        import ApodeixiUnitTest
-from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
+from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
+from apodeixi.testing_framework.test_kb_store           import UnitTest_KnowledgeBaseStore
+from apodeixi.util.formatting_utils                     import DictionaryFormatter
+from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
-from apodeixi.controllers.kernel.bdd    import capability_hierarchy             as ctrl
+from apodeixi.controllers.kernel.bdd                    import capability_hierarchy             as ctrl
 
 class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
@@ -16,9 +18,18 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
         SHEET                   = 'Feature Injection'
         CTX_RANGE               = 'b2:c100'
 
-        url                     = self.input_data  +  '/' + EXCEL_FILE + ':' + SHEET
+        MANIFEST_FILE_PREFIX    = 'feature_injection'
 
-        MANIFEST_FILE           = 'feature_injection_OUTPUT.yaml'
+        STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
+                                                                input_manifests_dir     = self.input_data, 
+                                                                input_postings_dir      = self.input_data, 
+                                                                output_manifests_dir    = self.output_data, 
+                                                                output_postings_dir     = self.output_data)
+
+        root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+                                                                                                    'sheet' : SHEET})
+        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE, sheet=SHEET)
+
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = 'feature_injection_explanations_OUTPUT.yaml'
         EXPLANATIONS_EXPECTED   = 'feature_injection_explanations_EXPECTED.yaml'
@@ -27,17 +38,17 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding", data={'url'  : url})
 
-            controller          = ctrl.CapabilityHierarchy_Controller(root_trace)
+            controller          = ctrl.CapabilityHierarchy_Controller(root_trace, STORE)
             all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
 
             if len(all_manifests_dict) != 1:
                 raise ApodeixiError(root_trace, 'Expected one manifest, but found ' + str(len(all_manifests_dict)))
 
             manifest_dict         = all_manifests_dict[0]
-            controller._saveManifest(root_trace, manifest_dict, MANIFESTS_DIR, MANIFEST_FILE)
+            STORE.persistManifest(root_trace, manifest_dict, version="OUTPUT")
 
             # Make explanations readable by creating a pretty 
-            explanations_nice   = self.dict_2_nice(controller.show_your_work.worklog, flatten=True)
+            explanations_nice   = DictionaryFormatter().dict_2_nice(controller.show_your_work.worklog, flatten=True, delimeter="::")
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 

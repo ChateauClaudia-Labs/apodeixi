@@ -1,6 +1,8 @@
 import sys                                              as _sys
 
-from apodeixi.util.a6i_unit_test                        import ApodeixiUnitTest
+from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
+from apodeixi.testing_framework.test_kb_store           import UnitTest_KnowledgeBaseStore
+from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.journeys.delivery_planning    import big_rocks 
@@ -16,9 +18,18 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
         SHEET                   = 'simple burnout'
         CTX_RANGE               = 'b2:c20'
 
-        url                     = self.input_data  +  '/' + EXCEL_FILE + ':' + SHEET
-
         MANIFEST_FILE_PREFIX    = 'simple_burnout'
+
+        STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
+                                                                input_manifests_dir     = self.input_data, 
+                                                                input_postings_dir      = self.input_data, 
+                                                                output_manifests_dir    = self.output_data, 
+                                                                output_postings_dir     = self.output_data)
+        root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+                                                                                                    'sheet' : SHEET})
+        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE, sheet=SHEET)
+
+
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = 'simple_burnout_explanations_OUTPUT.yaml'
         EXPLANATIONS_EXPECTED   = 'simple_burnout_explanations_EXPECTED.yaml'
@@ -29,7 +40,7 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)", data={'url'  : url})
 
-            controller          = big_rocks.BigRocksEstimate_Controller(root_trace)
+            controller          = big_rocks.BigRocksEstimate_Controller(root_trace, STORE)
             all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
 
             NB_MANIFESTS_EXPECTED   = 3
@@ -40,12 +51,10 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
             
             for manifest_nb in all_manifests_dict.keys():
                 manifest_dict     = all_manifests_dict[manifest_nb]
-                kind            = manifest_dict['kind']
-                manifest_file   = MANIFEST_FILE_PREFIX + "_" + kind + "_OUTPUT.yaml"
-                controller._saveManifest(root_trace, manifest_dict, MANIFESTS_DIR, manifest_file)
+                STORE.persistManifest(root_trace, manifest_dict, version="OUTPUT")
 
             # Make explanations readable by creating a pretty 
-            explanations_nice   = self.dict_2_nice(controller.show_your_work.worklog, flatten=True)
+            explanations_nice   = DictionaryFormatter().dict_2_nice(controller.show_your_work.worklog, flatten=True, delimeter="::")
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 

@@ -1,7 +1,7 @@
 import sys                              as _sys
 import pandas                           as _pd
 
-from apodeixi.util.a6i_unit_test        import ApodeixiUnitTest
+from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
 
 from apodeixi.representers              import AsDataframe_Representer

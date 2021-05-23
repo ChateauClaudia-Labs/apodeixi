@@ -1,7 +1,8 @@
 import sys                              as _sys
 import pandas                           as _pd
 
-from apodeixi.util.a6i_unit_test        import ApodeixiUnitTest
+from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
+from apodeixi.util.formatting_utils     import DictionaryFormatter
 from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
 
 from apodeixi.text_layout.column_layout import ColumnWidthCalculator
@@ -51,7 +52,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             with open(OUTPUT_FOLDER + '/'  + OUTPUT_EXPLAIN_FILE, 'w') as file:
                 file            .write(output_explain)
             # Make results readable by creating a pretty 
-            result_nice         = self.dict_2_nice(result_dict)
+            result_nice         = DictionaryFormatter().dict_2_nice(result_dict)
             with open(OUTPUT_FOLDER + '/'  + OUTPUT_RESULTS_FILE, 'w') as file:
                 file            .write(result_nice)
 

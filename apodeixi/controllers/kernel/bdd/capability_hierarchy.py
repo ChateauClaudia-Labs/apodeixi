@@ -9,9 +9,11 @@ class CapabilityHierarchy_Controller(SkeletonController):
     '''
     Class to process an Excel posting for a BDD feature injection tree. It produces the YAML manifest for it
     and also creates the dolfer structure associated with the injection tree
+
+    @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
     '''
-    def __init__(self, parent_trace):
-        super().__init__(parent_trace)
+    def __init__(self, parent_trace, store):
+        super().__init__(parent_trace, store)
 
         self.MANIFEST_API = ManifestAPI(    parent_trace    = parent_trace,
                                             domain          = 'kernel', 

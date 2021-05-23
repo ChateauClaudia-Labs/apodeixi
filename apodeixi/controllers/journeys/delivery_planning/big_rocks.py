@@ -11,9 +11,11 @@ class BigRocksEstimate_Controller(SkeletonController):
     '''
     Class to process an Excel posting for big rocks estimates. It produces two YAML manifests, since the investment
     to pay for the big rocks is expected to be posted in the same Excel spreadsheet.
+
+    @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
     '''
-    def __init__(self, parent_trace):
-        super().__init__(parent_trace)
+    def __init__(self, parent_trace, store):
+        super().__init__(parent_trace, store)
 
         self.MANIFEST_API = ManifestAPI(    parent_trace    = parent_trace,
                                             domain          = 'journeys', 
@@ -123,7 +125,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         if True:
             FMT                                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
             metadata                                    = manifest_dict['metadata']
-            metadata['name']                            = FMT(scenario + '.' + journey + '.' + product)
+            metadata['name']                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
 
             MY_PL                                       = BigRocksEstimate_Controller._MyPostingLabel # Abbreviation for readability
             labels                                      = metadata['labels']

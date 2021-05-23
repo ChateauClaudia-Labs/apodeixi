@@ -1,0 +1,141 @@
+apiVersion: bdd.kernel.a6i.io/v1a
+assertion:
+  entity_type: Jobs to be done
+  jobs-to-be-done:
+    JTBD1:
+      Capabilities:
+        C1:
+          Feature:
+            F1:
+              Story:
+                S1:
+                  UID: JTBD1.C1.F1.S1
+                  name: Create
+                S1-name: Create
+                S2:
+                  UID: JTBD1.C1.F1.S2
+                  name: Update
+                S2-name: Update
+              UID: JTBD1.C1.F1
+              name: Drive scaffolding from Apodeixi capability documentation
+            F1-name: Drive scaffolding from Apodeixi capability documentation
+          UID: JTBD1.C1
+          name: Scaffolding for BDD tests
+        C1-name: Scaffolding for BDD tests
+      Stakeholders: Apodeixi developers
+      UID: JTBD1
+      name: Quickly add features to Apodeixi
+    JTBD1-name: Quickly add features to Apodeixi
+    JTBD2:
+      Capabilities:
+        C1:
+          Feature:
+            F1:
+              Story:
+                S1:
+                  UID: JTBD2.C1.F1.S1
+                  name: Create
+                S1-name: Create
+                S2:
+                  UID: JTBD2.C1.F1.S2
+                  name: Update
+                S2-name: Update
+                S3:
+                  UID: JTBD2.C1.F1.S3
+                  name: Baseline
+                S3-name: Baseline
+              UID: JTBD2.C1.F1
+              name: Define big rocks
+            F1-name: Define big rocks
+            F2:
+              Story:
+                S1:
+                  UID: JTBD2.C1.F2.S1
+                  name: Create
+                S1-name: Create
+                S2:
+                  UID: JTBD2.C1.F2.S2
+                  name: Update
+                S2-name: Update
+                S3:
+                  UID: JTBD2.C1.F2.S3
+                  name: Baseline
+                S3-name: Baseline
+              UID: JTBD2.C1.F2
+              name: Define milestones
+            F2-name: Define milestones
+            F3:
+              Story:
+                S1:
+                  UID: JTBD2.C1.F3.S1
+                  name: First import
+                S1-name: First import
+                S2:
+                  UID: JTBD2.C1.F3.S2
+                  name: Refresh imports
+                S2-name: Refresh imports
+                S3:
+                  UID: JTBD2.C1.F3.S3
+                  name: Baseline
+                S3-name: Baseline
+              UID: JTBD2.C1.F3
+              name: Import epics
+            F3-name: Import epics
+            F4:
+              Story:
+                S1:
+                  UID: JTBD2.C1.F4.S1
+                  name: Create
+                S1-name: Create
+                S2:
+                  UID: JTBD2.C1.F4.S2
+                  name: Update
+                S2-name: Update
+                S3:
+                  UID: JTBD2.C1.F4.S3
+                  name: Baseline
+                S3-name: Baseline
+              UID: JTBD2.C1.F4
+              name: Epics mapping
+            F4-name: Epics mapping
+            F5:
+              Story:
+                S1:
+                  UID: JTBD2.C1.F5.S1
+                  name: Create
+                S1-name: Create
+                S2:
+                  UID: JTBD2.C1.F5.S2
+                  name: Baseline
+                S2-name: Baseline
+                S3:
+                  UID: JTBD2.C1.F5.S3
+                  name: Baseline
+                S3-name: Baseline
+              UID: JTBD2.C1.F5
+              name: Compute roadmap
+            F5-name: Compute roadmap
+          UID: JTBD2.C1
+          name: Create roadmap
+        C1-name: Create roadmap
+        C2:
+          UID: JTBD2.C2
+          name: Stress-test roadmap
+        C2-name: Stress-test roadmap
+        C3:
+          UID: JTBD2.C3
+          name: Back-test roadmap
+        C3-name: Back-test roadmap
+      Stakeholders: Product teams, architects
+      UID: JTBD2
+      name: Transform the products
+    JTBD2-name: Transform the products
+  recordedBy: alejandro@chateauclaudia-labs.com
+  scaffoldingPurpose: BDD tests
+kind: capability-hierarchy
+metadata:
+  labels:
+    organization: ChateauClaudia Labs
+    project: Apodeixi
+  name: bdd-tests.apodeixi
+  namespace: chateauclaudia-labs.production

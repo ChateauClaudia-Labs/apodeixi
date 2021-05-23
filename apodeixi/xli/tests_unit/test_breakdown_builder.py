@@ -3,7 +3,7 @@ import datetime
 import pandas                           as pd
 import yaml                             as _yaml
 
-from apodeixi.util.a6i_unit_test        import ApodeixiUnitTest
+from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
 
 from apodeixi.xli.breakdown_builder     import BreakdownTree, UID_Store, Interval

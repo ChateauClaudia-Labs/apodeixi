@@ -10,24 +10,25 @@ class SkeletonController(PostingController):
     '''
     Abstract class intended to be implemented by classes that adhere to the most common conventions for Posting
     Controllers. It helps by implementing those conventions as a common skeleton that can be re-used by derived classes.
-    '''
-    def __init__(self, parent_trace):
-        super().__init__()
 
-    def apply(self, parent_trace, knowledge_base_dir, relative_path, excel_filename, excel_sheet, ctx_range):
+    @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
+    '''
+    def __init__(self, parent_trace, store):
+        super().__init__(parent_trace, store)
+
+    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 
         '''
-        url                         = knowledge_base_dir + '/excel-postings/' + relative_path + '/' + excel_filename \
-                                                                                                        + ':' + excel_sheet
+        url                         = self.store.discoverPostingURL(excel_filename, sheet=excel_sheet)
+
         root_trace                  = parent_trace.doing("Applying Excel posting", data={'url'  : url})
         manifest_file               = excel_filename.replace('xlsx', 'yaml')
-        manifests_dir               = knowledge_base_dir + '/manifests/' + relative_path
         all_manifests_dicts, label  = self._buildAllManifests(root_trace, url, ctx_range)
 
         for manifest_dict in all_manifests_dicts:
-            self._saveManifest(root_trace, manifest_dict, manifests_dir, manifest_file)
+            self.store.persistManifest(root_trace, manifest_dict, version=None)
 
     def getPostingConfig(self, parent_trace, kind):
         '''
@@ -111,19 +112,6 @@ class SkeletonController(PostingController):
                                             'entity_type':                      tree.entity_type,
                                             FMT(tree.entity_type):              tree_dict}
         return manifest_dict
-
-
-    def _saveManifest(self, parent_trace, manifest_dict, manifests_dir, manifest_file):
-        '''
-        Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
-        structure
-        '''
-        my_trace                        = parent_trace.doing("Persisting manifest", 
-                                                                data = {'manifests_dir': manifests_dir, 'manifest_file': manifest_file})
-        if True:
-            with open(manifests_dir + '/' + manifest_file, 'w') as file:
-                _yaml.dump(manifest_dict, file)        
-
 
     def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
         '''

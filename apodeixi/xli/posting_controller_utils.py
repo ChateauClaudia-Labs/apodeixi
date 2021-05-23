@@ -11,9 +11,12 @@ from apodeixi.util.a6i_error                    import ApodeixiError
 class PostingController():
     '''
     Parent class for controllers that parse Excel spreadsheet to create manifests in the KnowledgeBase
+
+    @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
     '''
-    def __init__(self):
-        self.show_your_work     = PostingCtrl_ShowYourWork()
+    def __init__(self, parent_trace, store):
+        self.store              = store
+        self.show_your_work     = PostingCtrl_ShowYourWork(parent_trace)
         return
 
     def _xl_2_tree(self, parent_trace, url, excel_range, config):
@@ -118,7 +121,7 @@ class PostingCtrl_ShowYourWork():
     processed, thanks to the PostingCrl_ShowYourWork object that remembered that information when it was available earlier
     in the processing.
     '''
-    def __init__(self):
+    def __init__(self, parent_trace):
 
         '''
         Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a manifest: it holds
@@ -222,7 +225,6 @@ class PostingCtrl_ShowYourWork():
             
 
         return row_dict2[ME._LAST_UID]
-
 
     def manifest_metas(self):
         '''
@@ -420,7 +422,7 @@ class PostingLabel():
     def read(self, parent_trace, url, excel_range):
         excel_range    = excel_range.upper()
         reader         = ExcelTableReader(url, excel_range, horizontally=False)
-        label_df     = reader.read()
+        label_df       = reader.read()
         
         # Check context has the right number of rows (which are columns in Excel, since we transposed)
         if len(label_df.index) != 1:
@@ -513,7 +515,6 @@ class PostingLabel():
         
 
         return appearances_in_label, sightings
-
 
 class PostingConfig():
     '''

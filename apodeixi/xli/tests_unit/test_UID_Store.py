@@ -1,7 +1,7 @@
-import sys                          as _sys
+import sys                                      as _sys
 
-from apodeixi.util.a6i_unit_test    import ApodeixiUnitTest
-from apodeixi.util.a6i_error        import ApodeixiError, FunctionalTrace
+from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
+from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.xli.breakdown_builder import UID_Store
 

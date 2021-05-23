@@ -44,5 +44,5 @@ metadata:
     scoringCycle: Dec 2020
     scoringMaturity: Draft
     variant: simple; burnout
-  name: default.modernization.fusionopus
+  name: modernization.default.dec-2020.fusionopus
   namespace: my-corp.production
