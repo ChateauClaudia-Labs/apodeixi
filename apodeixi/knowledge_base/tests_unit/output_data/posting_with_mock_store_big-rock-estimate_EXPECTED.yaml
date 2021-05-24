@@ -1,0 +1,48 @@
+apiVersion: delivery-planning.journeys.a6i.io/v1a
+assertion:
+  effort:
+    E1:
+      UID: E1
+      bigRock: BR1
+      name: 4050.0
+    E1-name: 4050.0
+    E2:
+      UID: E2
+      bigRock: BR2
+      name: 6600.0
+    E2-name: 6600.0
+    E3:
+      UID: E3
+      bigRock: BR3
+      name: 4500.0
+    E3-name: 4500.0
+    E4:
+      UID: E4
+      bigRock: BR4
+      name: 10351.0
+    E4-name: 10351.0
+    E5:
+      UID: E5
+      bigRock: BR5
+      name: 525.0
+    E5-name: 525.0
+  entity_type: Effort
+  planType: Marathon
+  recordedBy: jill.thearchitect@mycorp.com
+  scenario: Default
+  scoringCycle: Dec 2020
+  scoringMaturity: Draft
+  variant: simple; burnout
+kind: big-rock-estimate
+metadata:
+  labels:
+    journey: Modernization
+    organization: My Corp
+    planType: Marathon
+    product: FusionOpus
+    scenario: Default
+    scoringCycle: Dec 2020
+    scoringMaturity: Draft
+    variant: simple; burnout
+  name: modernization.default.dec-2020.fusionopus
+  namespace: my-corp.production

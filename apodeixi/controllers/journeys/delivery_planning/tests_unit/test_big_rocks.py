@@ -1,7 +1,7 @@
 import sys                                              as _sys
 
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
-from apodeixi.testing_framework.test_kb_store           import UnitTest_KnowledgeBaseStore
+from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 

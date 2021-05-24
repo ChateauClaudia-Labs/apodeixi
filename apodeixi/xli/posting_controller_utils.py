@@ -10,7 +10,7 @@ from apodeixi.util.a6i_error                    import ApodeixiError
 
 class PostingController():
     '''
-    Parent class for controllers that parse Excel spreadsheet to create manifests in the KnowledgeBase
+    Abstract parent class for controllers that parse Excel spreadsheet to create manifests in the KnowledgeBase
 
     @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
     '''
@@ -18,6 +18,17 @@ class PostingController():
         self.store              = store
         self.show_your_work     = PostingCtrl_ShowYourWork(parent_trace)
         return
+
+    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range, version):
+        '''
+        Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
+
+        Returns a PostingResponse.
+
+        It is an abstract method that must be implemented by derived classes.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'apply' in concrete class",
+                                            data = {'signaled_from': __file__})
 
     def _xl_2_tree(self, parent_trace, url, excel_range, config):
         '''

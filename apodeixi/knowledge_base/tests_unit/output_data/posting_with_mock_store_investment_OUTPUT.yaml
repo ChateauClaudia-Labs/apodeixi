@@ -1,0 +1,48 @@
+apiVersion: delivery-planning.journeys.a6i.io/v1a
+assertion:
+  entity_type: Period
+  period:
+    P1:
+      Incremental: 3584.0
+      UID: P1
+      name: FY 2021
+    P1-name: FY 2021
+    P2:
+      Incremental: 5207.0
+      UID: P2
+      name: FY 2022
+    P2-name: FY 2022
+    P3:
+      Incremental: 5575.0
+      UID: P3
+      name: FY 2023
+    P3-name: FY 2023
+    P4:
+      Incremental: 5800.0
+      UID: P4
+      name: FY 2024
+    P4-name: FY 2024
+    P5:
+      Incremental: 5860.0
+      UID: P5
+      name: FY 2025
+    P5-name: FY 2025
+  planType: Marathon
+  recordedBy: jill.thearchitect@mycorp.com
+  scenario: Default
+  scoringCycle: Dec 2020
+  scoringMaturity: Draft
+  variant: simple; burnout
+kind: investment
+metadata:
+  labels:
+    journey: Modernization
+    organization: My Corp
+    planType: Marathon
+    product: FusionOpus
+    scenario: Default
+    scoringCycle: Dec 2020
+    scoringMaturity: Draft
+    variant: simple; burnout
+  name: modernization.default.dec-2020.fusionopus
+  namespace: my-corp.production

@@ -1,7 +1,5 @@
 import re                                   as _re
 
-
-
 class TextProcessor(): # Represents a list of text lines being written to, tracking how much remains in current line
     def __init__(self, line_width):
         self.line_width       = line_width

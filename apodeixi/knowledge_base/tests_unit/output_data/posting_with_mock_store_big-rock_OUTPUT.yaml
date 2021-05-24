@@ -1,0 +1,43 @@
+apiVersion: delivery-planning.journeys.a6i.io/v1a
+assertion:
+  big-rock:
+    BR1:
+      UID: BR1
+      name: B2C APIs
+    BR1-name: B2C APIs
+    BR2:
+      UID: BR2
+      name: "Cloudification \u2013 Remove Oracle Dependency"
+    BR2-name: "Cloudification \u2013 Remove Oracle Dependency"
+    BR3:
+      UID: BR3
+      name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
+    BR3-name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
+    BR4:
+      UID: BR4
+      name: Services
+    BR4-name: Services
+    BR5:
+      UID: BR5
+      name: Containerization
+    BR5-name: Containerization
+  entity_type: Big Rock
+  planType: Marathon
+  recordedBy: jill.thearchitect@mycorp.com
+  scenario: Default
+  scoringCycle: Dec 2020
+  scoringMaturity: Draft
+  variant: simple; burnout
+kind: big-rock
+metadata:
+  labels:
+    journey: Modernization
+    organization: My Corp
+    planType: Marathon
+    product: FusionOpus
+    scenario: Default
+    scoringCycle: Dec 2020
+    scoringMaturity: Draft
+    variant: simple; burnout
+  name: modernization.default.dec-2020.fusionopus
+  namespace: my-corp.production

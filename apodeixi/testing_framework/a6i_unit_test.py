@@ -45,21 +45,28 @@ class ApodeixiUnitTest(unittest.TestCase):
         with open(self.output_data + '/' + 'tmp.txt', 'w') as file:
             file.write(str(output))
 
-    def _compare_to_expected_yaml(self, result_dict, test_case_name):
+    def _compare_to_expected_yaml(self, output_dict, test_case_name, save_output_dict=False):
         '''
         Utility method for derived classes that create YAML files and need to check they match an expected output
         previously saves as a YAML file as well. 
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        # Persist output and retrieve expected output
-        with open(self.output_data + '/' + test_case_name + '_OUTPUT.yaml', 'w') as file:
-            _yaml.dump(result_dict, file)
+        # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
+        # (at least it would erroneously pass when the expected output is set to an empty file)
+        self.assertIsNotNone(output_dict)
+
+        # Persist output (based on save_output_dict flag)
+        if save_output_dict:
+            with open(self.output_data + '/' + test_case_name + '_OUTPUT.yaml', 'w') as file:
+                _yaml.dump(output_dict, file)
+
+        # Retrieve expected output
         with open(self.output_data + '/' + test_case_name + '_EXPECTED.yaml', 'r') as file:
             expected_dict           = _yaml.load(file, Loader=_yaml.FullLoader)
 
         output_stream               = StringIO()
-        _yaml.dump(result_dict, output_stream)
+        _yaml.dump(output_dict, output_stream)
         result_yaml                 = output_stream.getvalue()
 
         expected_stream             = StringIO()

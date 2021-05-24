@@ -1,4 +1,4 @@
-from apodeixi.util.a6i_error                                    import ApodeixiError
+from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.kernel.bdd.capability_hierarchy       import CapabilityHierarchy_Controller
 from apodeixi.controllers.journeys.delivery_planning.big_rocks  import BigRocksEstimate_Controller
@@ -12,14 +12,32 @@ class KnowledgeBase():
         self.processing_rules   = KB_ProcessingRules()
         return
 
-    def post(self, parent_trace, posting_type):
-        if not posting_type in self.processing_rules.keys():
-            raise ApodeixiError("Invalid posting type '" + posting_type + "': must be one of " + ", ".join(self.processsing_rules.keys()))
+    '''
+    Returns a PostResponse
+    '''
+    def post(self, parent_trace, path_of_file_being_posted, posting_type, excel_sheet="Sheet1", ctx_range="B2:C1000", version=None):
+        root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
+                                                                data = {    'posting_type'  : posting_type,
+                                                                            'path'          : path_of_file_being_posted,
+                                                                            'excel_sheet'   : excel_sheet,
+                                                                            'ctx_range'     : ctx_range,
+                                                                            'version'       : version,
+                                                                            'signaled_from' : __file__
+                                                                            })
+        handlers                = self.processing_rules.posting_handlers
+        
+        if not posting_type in handlers.keys():
+            raise ApodeixiError("Invalid posting type '" + posting_type + "': must be one of " + ", ".join(handlers.keys()))
 
-        ctrl                    = self.processing_rules[posting_type](parent_trace, self.store)
+        ctrl                    = handlers[posting_type][KB_ProcessingRules._CONTROLLER_CLASS](root_trace, self.store)
 
-        #    def apply(self, parent_trace, knowledge_base_dir, relative_path, excel_filename, excel_sheet, ctx_range):
-        ctrl.apply()
+        response                = ctrl.apply(   parent_trace        = root_trace, 
+                                                excel_filename      = path_of_file_being_posted, 
+                                                excel_sheet         = excel_sheet, 
+                                                ctx_range           = ctx_range, 
+                                                version             = version)
+
+        return response
 
 class KB_ProcessingRules():
     '''
@@ -31,17 +49,22 @@ class KB_ProcessingRules():
         self.posting_handlers = {} 
         self._initPostingHandlers()
 
-    def _initPostingHanders(self):
+    def _initPostingHandlers(self):
         ME                                                                  = KB_ProcessingRules
-        self.posting_handlers[ME.POSTING_CAPABILITY_HIERARCHY]              = CapabilityHierarchy_Controller 
 
+        # Init processing rules for the CapabilityHierarchy controller
         rule_dict                                                           = {}
-        rule_dict[_CONTROLLER_CLASS]                                        = BigRocksEstimate_Controller
+        rule_dict[ME._CONTROLLER_CLASS]                                     = CapabilityHierarchy_Controller
+        rule_dict[ME._POSTINGS_FILING_SCHEME]                               = ["scaffoldingPurpose", "project"]
+        self.posting_handlers[ME.POSTING_CAPABILITY_HIERARCHY]              = rule_dict 
+
+        # Init processing rules for the Big Rocks controller
+        rule_dict                                                           = {}
+        rule_dict[ME._CONTROLLER_CLASS]                                     = BigRocksEstimate_Controller
         # Example: ["modernization", "default", "Dec 2020", "FusionOpus"]. This, plus posting type, uniquely identifies location
         # of a posting in the knowledge base. These are fields that the PostingLabel for the controller must have.
-        rule_dict[_POSTINGS_FILING_SCHEME]                                  = ["journey", "scenario", "scoringCycle", "product"]
-
-        self.posting_handlers[ME.POSTING_BIG_ROCKS]                         = BigRocksEstimate_Controller  
+        rule_dict[ME._POSTINGS_FILING_SCHEME]                                  = ["journey", "scenario", "scoringCycle", "product"]
+        self.posting_handlers[ME.POSTING_BIG_ROCKS]                         = rule_dict  
 
     # Possible keys in a rule dictionary for a given posting type
     _CONTROLLER_CLASS               = "_CONTROLLER_CLASS" 
@@ -51,3 +74,7 @@ class KB_ProcessingRules():
     #  of posting a user is doing
     POSTING_CAPABILITY_HIERARCHY    = "capability-hierarchy"
     POSTING_BIG_ROCKS               = "big-rocks"
+
+
+    
+        

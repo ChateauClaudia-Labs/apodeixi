@@ -126,15 +126,6 @@ class ColumnWidthCalculator:
         return scenario + ' width'
     def _scenarioNbLinesColumn(scenario):
         return scenario + ' Nb of lines'
-    
-    def _qualified_columns(self):
-        '''
-        Returns a list, a subset of the `self.data_df` columns that are considered "qualified" as per
-        our invariants documented above in this class' documentation.
-        '''
-        qualified_cols = []
-        for col in self.data_df.columns():
-            return # TODO
 
     def _estimate_nb_lines(column_with_widths):
         '''

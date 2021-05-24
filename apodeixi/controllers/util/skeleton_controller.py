@@ -1,10 +1,10 @@
-import yaml                                     as _yaml
+import yaml                                         as _yaml
 
-from apodeixi.util.a6i_error                    import ApodeixiError
+from apodeixi.util.a6i_error                        import ApodeixiError
 
-from apodeixi.xli                               import ExcelTableReader, \
-                                                    BreakdownTree, Interval, UID_Store, \
-                                                    PostingController, PostingLabel, PostingConfig, UpdatePolicy
+from apodeixi.xli                                   import PostingController, PostingLabel, PostingConfig
+from apodeixi.knowledge_base.knowledge_base_util    import PostResponse
+
 
 class SkeletonController(PostingController):
     '''
@@ -16,19 +16,35 @@ class SkeletonController(PostingController):
     def __init__(self, parent_trace, store):
         super().__init__(parent_trace, store)
 
-    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range):
+    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range, version=None):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 
-        '''
-        url                         = self.store.discoverPostingURL(excel_filename, sheet=excel_sheet)
+        Returns a PostingResponse.
 
-        root_trace                  = parent_trace.doing("Applying Excel posting", data={'url'  : url})
+        '''
+        url                         = self.store.discoverPostingURL(parent_trace        = parent_trace, 
+                                                                    excel_posting_path  = excel_filename, 
+                                                                    sheet=excel_sheet)
+
+        root_trace                  = parent_trace.doing("Applying Excel posting", 
+                                                            data={'url'  : url, 'signaled_from' : __file__})
         manifest_file               = excel_filename.replace('xlsx', 'yaml')
         all_manifests_dicts, label  = self._buildAllManifests(root_trace, url, ctx_range)
 
-        for manifest_dict in all_manifests_dicts:
-            self.store.persistManifest(root_trace, manifest_dict, version=None)
+        response                    = PostResponse()
+        for manifest_nb in all_manifests_dicts.keys():
+            loop_trace              = root_trace.doing("Persisting manifest in store",
+                                                        data = {'manifest_nb': manifest_nb, 'signaled_from' : __file__})
+            manifest_dict           = all_manifests_dicts[manifest_nb]
+            self.store.persistManifest(root_trace, manifest_dict, version)
+            response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict)
+
+        # TODO - Finish the remaining phases of the controller, after creating the manifests. Namely:
+        # TODO  1. Move the Excel spreadsheet to a "prior" area
+        # TODO  2. Generate the Excel spreadsheet that can be used for updates. This probably must be in the derived controller class
+
+        return response
 
     def getPostingConfig(self, parent_trace, kind):
         '''
