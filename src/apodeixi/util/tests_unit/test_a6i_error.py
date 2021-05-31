@@ -8,14 +8,11 @@ class Test_ApodeixiError(ApodeixiUnitTest):
     def setUp(self):
         super().setUp()
 
-        self.expected               = {}
         self.root                   = FunctionalTrace(parent_trace=None)
-        self.step1                  = self.root.doing(activity="Processing Step 1", flow_stage=None, data=None)
-        self.expected['step1']      = [{'activity': 'Processing Step 1', 'flow_stage': '', 'data': {}, 'origination': {}}]
+        self.step1                  = self.root.doing(activity="Processing Step 1", flow_stage=None, data={'fun fact': '-'},
+                                                                                origination={'secret origin': '-'})
 
         self.step2                  = self.root.doing(activity="Processing Step 2", flow_stage='Got past Step 1', data=None)
-        self.expected['step2']      = [{'activity': 'Processing Step 2', 'flow_stage': 'Got past Step 1', 'data': {}, 
-                                                                'origination': {}}]
 
         for idx in range(5):
             if idx==3:
@@ -23,30 +20,29 @@ class Test_ApodeixiError(ApodeixiUnitTest):
                                                                 flow_stage  = "Loop inside Step 2", 
                                                                 data        = {'idx': idx, 'comment': 'Merrily processing loop'},
                                                                 origination = {'concrete class': str(self.__class__.__name__)})
-        self.expected['step2i']     = [{'activity': 'Processing Step 2', 'flow_stage': 'Got past Step 1', 'data': {}, 'origination': {}}, 
-                                        {'activity': 'In loop cycle Step 2-3', 'flow_stage': 'Loop inside Step 2', 
-                                                'data': {'idx': 3, 'comment': 'Merrily processing loop'}, 
-                                                        'origination': {'concrete class': 'Test_ApodeixiError'}}]
-
-        # Temp - to see what output is while writing this test
-        self._save_output(self.step1.examine())
 
     def test_functional_trace(self):
 
-        self.assertEqual(self.step1.examine(),      self.expected['step1'])
-        self.assertEqual(self.step2.examine(),      self.expected['step2'])
-        self.assertEqual(self.step2i.examine(),     self.expected['step2i'])
+        output = "================== Step 1 =============\n\n" \
+                + '\n\n'.join([str(trace_level) for trace_level in self.step1.examine(as_string=True,)]) \
+                + "\n\n\n================== Step 2 =============\n\n" \
+                + '\n\n'.join([str(trace_level) for trace_level in self.step2.examine(as_string=True,)]) \
+                + "\n\n\n================== Step 2i =============\n\n" \
+                + '\n\n'.join([str(trace_level) for trace_level in self.step2i.examine(as_string=True,)]) \
 
-    def test_a61_error(self):
+        self._compare_to_expected_txt(output, 'functional_trace', save_output_txt=True)
+
+    def test_a6i_error(self):
         MSG                                         = "Error with horrible consequences for you"
         try:
             raise ApodeixiError(self.step2i, MSG)
         except ApodeixiError as                     ex:
             trace                                   = ex.functional_trace
             msg                                     = ex.msg
-            self.assertEqual(msg,                   MSG)
-            self.assertEqual(trace.examine(),       self.expected['step2i'])            
+            output = msg + "\n\n" \
+                    + '\n\n'.join([str(trace_level) for trace_level in trace.examine(as_string=True,)]) \
 
+            self._compare_to_expected_txt(output, 'a6i_error', save_output_txt=True)
 
 if __name__ == "__main__":
     # execute only if run as a script

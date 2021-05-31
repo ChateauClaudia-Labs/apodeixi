@@ -1,0 +1,27 @@
+================== Step 1 =============
+
+---->	activity	Processing Step 1
+
+            fun fact            : -
+            secret origin       : -
+
+
+================== Step 2 =============
+
+---->	activity	Processing Step 2
+
+            flow_stage          : Got past Step 1
+
+
+================== Step 2i =============
+
+---->	activity	Processing Step 2
+
+            flow_stage          : Got past Step 1
+
+---->	activity	In loop cycle Step 2-3
+
+            flow_stage          : Loop inside Step 2
+            idx                 : 3
+            comment             : Merrily processing loop
+            concrete class      : Test_ApodeixiError

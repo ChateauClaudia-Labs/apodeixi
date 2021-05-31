@@ -33,18 +33,6 @@ class ApodeixiUnitTest(unittest.TestCase):
 
         return data_df
 
-    def _save_output(self, output):
-        '''
-        Helper class used while developing test cases. Test cases will produce some output that needs to be compared
-        to an expected output. When first written, one needs to capture the generated output somewhere in order to copy-and-paste
-        it into the test case's code as the expected output. This method is used in such situations by temporarily calling
-        it at the end of a test case in order to save the output to a text file. The text file's contents can then be pasted
-        in the test case as the 'expected output'. Once that is done the test case should pass, and one can remove the line
-        that called this method.
-        '''
-        with open(self.output_data + '/' + 'tmp.txt', 'w') as file:
-            file.write(str(output))
-
     def _compare_to_expected_yaml(self, output_dict, test_case_name, save_output_dict=False):
         '''
         Utility method for derived classes that create YAML files and need to check they match an expected output
@@ -74,3 +62,25 @@ class ApodeixiUnitTest(unittest.TestCase):
         expected_yaml               = expected_stream.getvalue()
 
         self.assertEqual(result_yaml, expected_yaml)
+
+    def _compare_to_expected_txt(self, output_txt, test_case_name, save_output_txt=False):
+        '''
+        Utility method for derived classes that create text files and need to check they match an expected output
+        previously saves as a text file as well. 
+
+        It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
+        '''
+        # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
+        # (at least it would erroneously pass when the expected output is set to an empty file)
+        self.assertIsNotNone(output_txt)
+
+        # Persist output (based on save_output_dict flag)
+        if save_output_txt:
+            with open(self.output_data + '/' + test_case_name + '_OUTPUT.txt', 'w') as file:
+                file.write(str(output_txt))
+
+        # Retrieve expected output
+        with open(self.output_data + '/' + test_case_name + '_EXPECTED.txt', 'r') as file:
+            expected_txt            = str(file.read())
+
+        self.assertEqual(str(output_txt), expected_txt)
