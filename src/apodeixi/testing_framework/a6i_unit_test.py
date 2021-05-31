@@ -39,10 +39,16 @@ class ApodeixiUnitTest(unittest.TestCase):
         # done by this cleanup (i.e., expected_df is left "as is" if there are no '\r' in its 'Words per row')
         def _remove_carriage_returns(obj):
             if type(obj) == str:
-                return obj.replace('\r', '')
+                return obj.replace('\\r', '').replace('\r', '')
+            elif type(obj) == list: # Remove carriages element by element
+                return [_remove_carriage_returns(elt) for elt in obj]
             else:
                 return obj
 
+        # First clean the columns
+        data_df.columns = [_remove_carriage_returns(col) for col in data_df.columns]
+
+        # Now clear the cells
         for col in data_df.columns:
             data_df[col] = data_df.apply(lambda row: _remove_carriage_returns(row[col]), axis=1)
 
