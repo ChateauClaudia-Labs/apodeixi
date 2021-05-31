@@ -22,17 +22,20 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
 
     def _shell_test_case(self, name, viewport_width, viewport_height, max_word_length):
 
-        INPUT_FOLDER            = self.input_data
-        INPUT_FILE              = name + '_INPUT.csv'
-        OUTPUT_FOLDER           = self.output_data
-        OUTPUT_FILE             = name + '_OUTPUT.csv'
-        EXPECTED_FILE           = name + '_EXPECTED.csv'
+        INPUT_FOLDER                = self.input_data
+        INPUT_FILE                  = name + '_INPUT.csv'
+        OUTPUT_FOLDER               = self.output_data
+        OUTPUT_FILE                 = name + '_OUTPUT.csv'
+        EXPECTED_FILE               = name + '_EXPECTED.csv'
 
-        OUTPUT_EXPLAIN_FILE     = name + '_explain_OUTPUT.txt'
-        EXPECTED_EXPLAIN_FILE   = name + '_explain_EXPECTED.txt'
+        OUTPUT_COMPARISON_FILE      = name + '_comparison_OUTPUT.txt'
+        EXPECTED_COMPARISON_FILE    = name + '_comparison_EXPECTED.txt'
 
-        OUTPUT_RESULTS_FILE     = name + '_results_OUTPUT.txt'
-        EXPECTED_RESULTS_FILE   = name + '_results_EXPECTED.txt'
+        OUTPUT_EXPLAIN_FILE         = name + '_explain_OUTPUT.txt'
+        EXPECTED_EXPLAIN_FILE       = name + '_explain_EXPECTED.txt'
+
+        OUTPUT_RESULTS_FILE         = name + '_results_OUTPUT.txt'
+        EXPECTED_RESULTS_FILE       = name + '_results_EXPECTED.txt'
 
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Testing computation of column widths")
@@ -65,16 +68,17 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             # Now load the expected output. 
             expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
 
-            # 
-            # We will have to clean it a bit, since some packaging procedures (for example,
-            # creating a Conda package) introduces some carriage returns '\r\n' where the original expected output only
-            # has a newline '\n', causing tests to fail when users install the Conda package. So simply remove the
-            # '\r' from the offending column, which is a column whose values are stringied arrays (i.e., strings with
-            # newlines '\n' that confuse the Conda packaging). For packaging procedures that have no '\r', no harm is
-            # done by this cleanup (i.e., expected_df is left "as is" if there are no '\r' in its 'Words per row')
-            #expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
-            #expected_df['Words per row'] = expected_df.apply(lambda row: row['Words per row'].replace('\r', ''), axis=1)
-           
+            check, comparison_dict = self._compare_dataframes(  df1         = loaded_output_df, 
+                                                                df1_name    = "output",
+                                                                df2         = expected_df, 
+                                                                df2_name    = "expected")
+
+            df_comparison_nice              = DictionaryFormatter().dict_2_nice(comparison_dict, flatten=True)
+            with open(OUTPUT_FOLDER + '/'  + OUTPUT_COMPARISON_FILE, 'w') as file:
+                file            .write(df_comparison_nice)
+
+            with open(OUTPUT_FOLDER + '/'  + EXPECTED_COMPARISON_FILE, 'r') as file:
+                expected_df_comparison  = file.read()           
             with open(OUTPUT_FOLDER + '/'  + EXPECTED_EXPLAIN_FILE, 'r') as file:
                 expected_explain        = file.read()
             with open(OUTPUT_FOLDER + '/'  + EXPECTED_RESULTS_FILE, 'r') as file:
@@ -83,10 +87,66 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         except ApodeixiError as ex:
             print(ex.trace_message()) 
 
-        self.assertTrue(loaded_output_df.equals(expected_df))
+        self.assertEqual(df_comparison_nice,       expected_df_comparison)
+        self.assertTrue(check)
         self.assertEqual(output_explain,    expected_explain)
         self.assertEqual(result_nice,       expected_result)
-        
+
+    def _compare_dataframes(self, df1, df2, df1_name, df2_name):
+        '''
+        Helper method used in lieu of dataframe.equals, which fails for spurious reasons.
+        Under this method's policy, two dataframes are equal if they have the same columns, indices, and are
+        point-wise equal.
+
+        Method returns two things: a boolean result of the comparison, and a dictionary to pin point where there are
+        differences, if any
+        '''
+        # Prepare an explanation of where the dataframes differ, if they do differ. This visibility helps with debugging
+        comparison_dict                                 = {}
+        cols_1                                          = set(df1.columns)
+        cols_2                                          = set(df2.columns)
+
+        # Ensure determinism with sort
+        common_cols                                     = list(cols_1.intersection(cols_2))
+        common_cols.sort() 
+        missing_in_1                                    = list(cols_2.difference(cols_1))
+        missing_in_1.sort()
+        missing_in_2                                    = list(cols_1.difference(cols_2))
+        missing_in_2.sort()
+
+        comparison_dict[df1_name + ' shape']            = str(df1.shape)
+        comparison_dict[df2_name + ' shape']            = str(df2.shape)
+        if len(missing_in_1) > 0:
+            comparison_dict[df1_name + ' missing columns']  = '\n'.join(missing_in_1)
+        if len(missing_in_2) > 0:
+            comparison_dict[df2_name + ' missing columns']  = '\n'.join(missing_in_2)
+
+        # Initialize true until profen false
+        check                                           = True
+
+        if not df1.index.equals(df2.index): 
+            check                                       = False
+        else: # Compare element by element for the common_cols
+            cell_dict                                   = {}
+            for row in df1.iterrows():
+                row1_nb                                 = row[0]
+                row1_data                               = row[1]
+                for col in common_cols: # use common_cols that is a deterministic list
+                    val1                                = row1_data[col]
+                    val2                                = df2.iloc[row1_nb][col]
+                    if val1 != val2:
+                        check                           = False
+                        coords                          = col + '.row' + str(row1_nb)
+                        cell_dict[coords]               = "values differ"
+                        cell_dict[coords + '.' + df1_name]    = str(val1)
+                        cell_dict[coords + '.' + df2_name]    = str(val2)
+            comparison_dict['elt-by-elt comparison']   = cell_dict
+
+            if check:
+                comparison_dict['Result of elt-by-elt comparison'] = "Everything matches"
+
+        return check, comparison_dict
+    
 
 if __name__ == "__main__":
     # execute only if run as a script

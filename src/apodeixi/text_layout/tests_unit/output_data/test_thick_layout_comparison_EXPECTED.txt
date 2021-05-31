@@ -1,0 +1,3 @@
+output shape		(5, 42)
+expected shape		(5, 42)
+Result of elt-by-elt comparison		Everything matches

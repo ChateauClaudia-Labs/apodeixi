@@ -1,10 +1,10 @@
 package:
   name: apodeixi
-  version: 0.2.0a2 # Make sure this is the version already uploaded to PyPI
+  version: 0.2.0a8 
 
 source:
 
-  git_rev: v0.2.0a6
+  git_rev: v0.2.0a8
   git_url: https://github.com/ChateauClaudia-Labs/apodeixi.git
 
 requirements:

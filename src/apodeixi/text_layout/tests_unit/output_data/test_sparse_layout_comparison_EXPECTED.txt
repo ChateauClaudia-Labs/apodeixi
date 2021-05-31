@@ -1,0 +1,3 @@
+output shape		(9, 28)
+expected shape		(9, 28)
+Result of elt-by-elt comparison		Everything matches
