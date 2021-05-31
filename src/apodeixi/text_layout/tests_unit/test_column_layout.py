@@ -64,7 +64,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
 
             # Now load the expected output. 
             expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
-            
+
             # 
             # We will have to clean it a bit, since some packaging procedures (for example,
             # creating a Conda package) introduces some carriage returns '\r\n' where the original expected output only
@@ -72,8 +72,8 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             # '\r' from the offending column, which is a column whose values are stringied arrays (i.e., strings with
             # newlines '\n' that confuse the Conda packaging). For packaging procedures that have no '\r', no harm is
             # done by this cleanup (i.e., expected_df is left "as is" if there are no '\r' in its 'Words per row')
-            expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
-            expected_df['Words per row'] = expected_df.apply(lambda row: row['Words per row'].replace('\r', ''), axis=1)
+            #expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
+            #expected_df['Words per row'] = expected_df.apply(lambda row: row['Words per row'].replace('\r', ''), axis=1)
            
             with open(OUTPUT_FOLDER + '/'  + EXPECTED_EXPLAIN_FILE, 'r') as file:
                 expected_explain        = file.read()
