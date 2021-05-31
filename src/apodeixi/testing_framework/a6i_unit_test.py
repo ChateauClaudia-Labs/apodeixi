@@ -31,6 +31,21 @@ class ApodeixiUnitTest(unittest.TestCase):
         data_df             = data_df.fillna('')
         data_df             = data_df.drop(['Unnamed: 0'], axis=1)
 
+        # We will have to clean data a bit, since some packaging procedures (for example,
+        # creating a Conda package) introduces some carriage returns '\r\n' where the original expected output only
+        # has a newline '\n', causing tests to fail when users install the Conda package. So simply remove the
+        # '\r' from amu offending column, which typically are columns whose values are stringied arrays (i.e., strings with
+        # newlines '\n' that confuse the Conda packaging). For packaging procedures that have no '\r', no harm is
+        # done by this cleanup (i.e., expected_df is left "as is" if there are no '\r' in its 'Words per row')
+        def _remove_carriage_returns(obj):
+            if type(obj) == str:
+                return obj.replace('\r', '')
+            else:
+                return obj
+
+        for col in data_df.columns:
+            data_df[col] = data_df.apply(lambda row: _remove_carriage_returns(row[col]), axis=1)
+
         return data_df
 
     def _compare_to_expected_yaml(self, output_dict, test_case_name, save_output_dict=False):

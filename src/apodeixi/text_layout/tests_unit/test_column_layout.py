@@ -62,7 +62,11 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             loaded_output_df    = self.load_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
 
 
-            # Now load the expected output. We will have to clean it a bit, since some packaging procedures (for example,
+            # Now load the expected output. 
+            expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
+            
+            # 
+            # We will have to clean it a bit, since some packaging procedures (for example,
             # creating a Conda package) introduces some carriage returns '\r\n' where the original expected output only
             # has a newline '\n', causing tests to fail when users install the Conda package. So simply remove the
             # '\r' from the offending column, which is a column whose values are stringied arrays (i.e., strings with
