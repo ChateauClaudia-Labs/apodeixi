@@ -1,0 +1,34 @@
+====================== Validating good-layout
+Successfully validated good-layout
+====================== Validating empty blocks list
+
+
+******** Functional Trace ********
+
+Problem:	No blocks given
+Here are the functional activities that led to the problem:
+
+---->	activity	Testing layout validation
+
+
+====================== Validating with gaps
+
+
+******** Functional Trace ********
+
+Problem:	Cells not present in any block: [2, 2], [2, 3], [3, 2], [3, 3]
+Here are the functional activities that led to the problem:
+
+---->	activity	Testing layout validation
+
+
+====================== Validating with overlaps
+
+
+******** Functional Trace ********
+
+Problem:	Cells present multiple blocks: [3, 1], [4, 1]
+Here are the functional activities that led to the problem:
+
+---->	activity	Testing layout validation
+

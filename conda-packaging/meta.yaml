@@ -1,0 +1,26 @@
+package:
+  name: apodeixi
+  version: 0.2.0a2 # Make sure this is the version already uploaded to PyPI
+
+source:
+
+  git_rev: v0.6.7
+  git_url: ./../.git 
+  # url: https://files.pythonhosted.org/packages/68/be/4b1c725f7fa092a6aae8e9204af43d881a19824b9e9d574d47b9ca8db1a1/apodeixi-0.2.0a2-py3-none-any.whl
+  # sha256: 8d680e7da1067482e9b3d89c8e265152c7cabcde7c7dcce730e67448b9250607
+
+requirements:
+  build:
+    - python
+    - setuptools>=42
+    - wheel
+
+  run:
+    - python
+
+test:
+  imports:
+    -
+
+about:
+  home:
