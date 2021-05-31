@@ -4,11 +4,11 @@ package:
 
 source:
 
-  git_rev: v0.2.0a2
+  git_rev: v0.2.0a3
   git_url: https://github.com/ChateauClaudia-Labs/apodeixi.git
 
 requirements:
-  build:
+  build: # Make sure to include both what is needed to build and to run. Else will get build errors
     - python >=3.9
     - pandas >=1.2.4
     - openpyxl >=3.0.7
@@ -19,7 +19,7 @@ requirements:
     - wheel
     - twine >=3.4.1
 
-  run:
+  run: # Include any dependencies that the user should be prompted to also install when installing our package
     - python >=3.9
     - pandas >=1.2.4
     - openpyxl >=3.0.7
@@ -29,7 +29,7 @@ requirements:
     
 
 test:
-  imports:
+  imports: # Never leave this as "None", as build will fail (at least for default configuration)
     - unittest
 
 about:
