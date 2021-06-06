@@ -44,7 +44,8 @@ class DictionaryFormatter():
                     return str(parent_key) + delimeter + str(key)
                 
             if type(input_dict) in [str, float, int, list, bool, type(None)]: # We hit bottom
-                return input_dict
+                result_dict[parent_key] = input_dict
+                return
             
             if type(input_dict) != dict: # Nothing to flatten, input is not really a dict
                 raise ValueError("Unable to flatten a non-dict '" + str(type(input_dict)) + "'' under parent_key='"
