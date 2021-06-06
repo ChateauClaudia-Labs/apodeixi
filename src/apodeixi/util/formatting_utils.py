@@ -1,3 +1,41 @@
+class ListUtils():
+
+    def is_sublist(self, parent_trace, super_list, alleged_sub_list):
+        '''
+        Checks if `alleged_sub_list` is a sublist of `super_list`. Returns a boolean to state if it is a sublist, as well
+        as two lists: pre_list and sub_list that are "split" by the `alleged_sub_list`. 
+        If the boolean is True then the following will hold true:
+
+            Isublist == pre_list + alleged_sub_list + post_list
+        
+        If on the other hand the boolean is False, then both `pre_list` and `post_list` are None.
+
+        If either the super_list or the alleged_sub_list is empty then it return false.
+        '''
+        if type(super_list) != list or type(alleged_sub_list) != list:
+            raise ApodeixiError(parent_trace, "Can't determine if we have a sub list because was given wrong types, not lists",
+                                                data = {'type of super_list':       str(type(super_list)),
+                                                        'type of alleged_sub_list': str(type(alleged_sub_list))})
+        if len(super_list) == 0 or len(alleged_sub_list) == 0:
+            return False, None, None
+        
+        # Get the indices in super_list for the first element of alleged_sub_list that leave enough room for the
+        # alleged_sub_list to fit after that. These are candidate locations for a split
+        sub_length              = len(alleged_sub_list)
+        candidate_idxs          = [idx for idx, x in enumerate(super_list) 
+                                        if x == alleged_sub_list[0] and len(super_list[idx:]) >= sub_length]
+
+        # Now see if any of the candidate split locations work
+        for idx in candidate_idxs:
+            if alleged_sub_list == super_list[idx:idx + sub_length]: # Found a match!
+                pre_list        = super_list[:idx]
+                post_list       = super_list[idx + sub_length:]
+                return True, pre_list, post_list
+
+        # If we get this far, there is no match
+        return False, None, None
+            
+
 
 class DictionaryFormatter():
     '''
@@ -55,7 +93,7 @@ class DictionaryFormatter():
                 val = input_dict[key]
                 if type(val) == dict:
                     self._flatten(val, result_dict, _full_key(key), delimeter=delimeter)
-                elif type(val) == list:
+                elif type(val) == list and len(val) > 0:
                     for idx in range(len(val)):
                         self._flatten(val[idx], result_dict, _full_key(key + delimeter + str(idx)), delimeter=delimeter)
                 else:

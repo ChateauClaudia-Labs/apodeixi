@@ -175,9 +175,8 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                     following_column    = GIST_OF('Effort (md)'),
                                                                     entity_name         = ME._ENTITY_NAME
                                                                     ) 
-            #interval_spec_effort         = FixedIntervalSpec(None, ['Effort (md)'])
 
-            self.interval_specs          = [interval_spec_big_rocks] #, interval_spec_effort]
+            self.interval_specs          = [interval_spec_big_rocks]
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksConfig

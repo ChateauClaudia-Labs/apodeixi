@@ -11,6 +11,7 @@ import numpy
 
 from apodeixi.xli.xlimporter        import ExcelTableReader
 from apodeixi.util.a6i_error        import ApodeixiError
+from apodeixi.util.formatting_utils import ListUtils
 
 class UID_Store:
     '''
@@ -218,7 +219,7 @@ class ClosedOpenIntervalSpec(IntervalSpec):
     def __init__(self, parent_trace, start_column, following_column, entity_name):
         self.entity_name            = entity_name
         if entity_name == None:
-            raise ApodeixiError(parent_trace, "Unable to instantiate an FixedIntervalSpec from a null or empty list")
+            raise ApodeixiError(parent_trace, "Unable to instantiate an ClosedOpenIntervalSpec from a null entity_name")
         self.start_column           = start_column
         self.following_column        = following_column
 
@@ -260,8 +261,7 @@ class ClosedOpenIntervalSpec(IntervalSpec):
 
 class FixedIntervalSpec(IntervalSpec):
     '''
-    Concrete interval spec class which builds an interval based on only knowing in advance two columns: the column
-    where the interval starts, and the first column *after* the interval.
+    Concrete interval spec class which builds an interval based on only knowing in advance the columns that make it up.
     '''
     def __init__(self, parent_trace, columns, entity_name = None):
         self.entity_name            = entity_name
@@ -276,6 +276,16 @@ class FixedIntervalSpec(IntervalSpec):
     def buildInterval(self, parent_trace, linear_space):
         '''
         '''
+        # Check that self.columns are a connected sub-segment of the linear space
+        my_trace                    = parent_trace.doing("Checking that interval spec's columns are a subset of what Excel has")
+        check, pre_list, post_list  = ListUtils().is_sublist(   parent_trace        = my_trace, 
+                                                                super_list          = linear_space, 
+                                                                alleged_sub_list    = self.columns)
+        if not check:
+            raise ApodeixiError(parent_trace, "FixedIntervalSpec can't build interval since Excel columns don't include spec's columns",
+                                                data = {'linear_space (from Excel)'     : linear_space,
+                                                        "spec's columns":               self.columns})
+        # Checks passed, so now we can do the work
         return Interval(parent_trace, self.columns, self.entity_name)
 
 
