@@ -1,17 +1,10 @@
-import yaml                         as _yaml
-import re                           as _re
-import sys                          as _sys
-import os                           as _os
-import math                         as _math
-import datetime                     as _datetime
+import re                                       as _re
 import pandas
-from nltk.tokenize                  import SExprTokenizer 
 
-import numpy
-
-from apodeixi.xli.xlimporter        import ExcelTableReader
-from apodeixi.util.a6i_error        import ApodeixiError
-from apodeixi.util.formatting_utils import ListUtils
+from apodeixi.xli.xlimporter                    import ExcelTableReader
+from apodeixi.util.a6i_error                    import ApodeixiError
+from apodeixi.xli.interval                      import IntervalUtils, Interval
+from apodeixi.util.dataframe_utils              import DataFrameUtils
 
 class UID_Store:
     '''
@@ -176,149 +169,6 @@ class UID_Store:
                 raise ApodeixiError(parent_trace, "Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
         return tokens
 
-class IntervalSpec():
-    '''
-    Abstract helper class used to construct Interval objects. This is needed because sometimes all columns in an Interval
-    are not known at configuration time, and are only known at runtime.
-    
-    For example, perhaps at configuration time we know where an interval starts, but not where it ends, since the
-    end user might add columns to an Excel spreadsheet that quality as part of the interval. Thus, only at runtime
-    in the context of a particular set of Excel columns (a "linear space") can it be determined which are the columns
-    that qualify as belonging to an interval.
-
-    Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
-    [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
-
-    Concrete classes implement different "spec" algorithms, so this particular class is just an abstract class.
-    '''
-    def __init__(self, parent_trace, entity_name = None):
-        if entity_name == None:
-            raise ApodeixiError(parent_trace, "Unable to instantiate an IntervalSpec from a null entity_name")
-        self.entity_name            = entity_name
-
-    def buildInterval(self, parent_trace, linear_space):
-        '''
-        Implemented by concrete derived classes.
-        Must return an Interval object, constructed by applying the concrete class's semantics
-        to the specificity of the linear_space given.
-
-        Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
-        [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
-        '''
-        raise NotImplementedError("Class " + str(self.__class__) + " forgot to implement method buildInterval") 
-
-
-class ClosedOpenIntervalSpec(IntervalSpec):
-    '''
-    Concrete interval spec class which builds an interval based on knowing its endpoints.
-
-    Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
-    [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
-
-    @param start_column The column of at which the to-be-built Interval starts
-    @param following_column The first column in the (runtime-determined) linear space that lies after the to-be-build Interval
-    '''
-    def __init__(self, parent_trace, start_column, following_column, entity_name):
-        super().__init__(parent_trace, entity_name)
-
-        self.start_column           = start_column
-        self.following_column        = following_column
-
-
-    def buildInterval(self, parent_trace, linear_space):
-        '''
-        '''
-        if self.start_column not in linear_space:
-            raise ApodeixiError(parent_trace, "Can't build interval starting at '" + self.start_column 
-                                                + "' because it does not appear in the linear space",
-                                                data = {    'linear space'      : str(linear_space),
-                                                            'start_column'      : self.start_column},
-                                                origination = {
-                                                            'signaled_from'     : __file__})
-        if self.following_column not in linear_space:
-            raise ApodeixiError(parent_trace, "Can't build interval preceding '" + self.following_column 
-                                                + "' because it does not appear in the linear space",
-                                                data = {    'linear space'      : str(linear_space),
-                                                            'following_column'  : self.following_column},
-                                                origination = {
-                                                            'signaled_from'     : __file__})
-        start_idx               = linear_space.index(self.start_column) 
-        following_idx           = linear_space.index(self.following_column)
-
-        if start_idx >= following_idx:
-            raise ApodeixiError(parent_trace, "Can't build interval because start_column is not before the following_column",
-                                                data = {    'linear space'      : str(linear_space),
-                                                            'start_column'      : self.start_column,
-                                                            'following_column'  : self.following_column},
-                                                origination = {
-                                                            'signaled_from'     : __file__})   
-
-        interval_columns = []
-        for idx in range(start_idx, following_idx):
-            interval_columns.append(linear_space[idx])     
-        
-        return Interval(parent_trace, interval_columns, self.entity_name)
-
-
-class FixedIntervalSpec(IntervalSpec):
-    '''
-    Concrete interval spec class which builds an interval based on only knowing in advance the columns that make it up.
-    '''
-    def __init__(self, parent_trace, columns, entity_name = None):
-        if entity_name == None:
-            entity_name        = _without_comments_in_parenthesis(columns[0])
-        super().__init__(parent_trace, entity_name)
-
-        self.columns                = columns
-
-    def buildInterval(self, parent_trace, linear_space):
-        '''
-        '''
-        # Check that self.columns are a connected sub-segment of the linear space
-        my_trace                    = parent_trace.doing("Checking that interval spec's columns are a subset of what Excel has")
-        check, pre_list, post_list  = ListUtils().is_sublist(   parent_trace        = my_trace, 
-                                                                super_list          = linear_space, 
-                                                                alleged_sub_list    = self.columns)
-        if not check:
-            raise ApodeixiError(parent_trace, "FixedIntervalSpec can't build interval since Excel columns don't include spec's columns",
-                                                data = {'linear_space (from Excel)'     : linear_space,
-                                                        "spec's columns":               self.columns})
-        # Checks passed, so now we can do the work
-        return Interval(parent_trace, self.columns, self.entity_name)
-
-
-class Interval():
-    '''
-    Helper class used as part of the configuration for parsing a table in an Excel spreadsheet. It represents
-    a list of string-valued column names in Excel, ordered from left to right, all for a given entity.
-    Additionally, it indicates which of those column names is the name of the entity (as opposed to a property of)
-    the entity. 
-    '''
-    def __init__(self, parent_trace, columns, entity_name = None):
-        if type(columns) != list or len(columns) == 0:
-            raise ApodeixiError(parent_trace, "Unable to instantiate an Interval from a null or empty list")
-        self.columns                = columns
-        if entity_name == None:
-            self.entity_name        = _without_comments_in_parenthesis(columns[0])
-        else:
-            self.entity_name        = entity_name
-
-    def is_subset(self, columns):
-        '''
-        UID-aware method to test if this Interval is a subset of the given columns. By "UID-aware" we mean
-        that the method ignores any UID column when determining subset condition.
-        For example, ['UID', 'Car', 'Make'] would be considered a subset of ['Car', 'Make', 'Driver']
-        '''
-        me                          = set(self.columns).difference(set([BreakdownTree._UID]))
-        them                        = set(columns)
-        return me.issubset(them)
-
-    def non_entity_cols(self):
-        '''
-        Returns a list of strings, corresponding to the Interval's columns that are not the entity type
-        '''
-        return list(set(self.columns).difference(set([self.entity_name])))
-
 class BreakdownTree():
     '''
     The intuition behind this class is that it represents `1:N` entity relationships. Consider an `entity A` with a `1:N` relationship
@@ -358,7 +208,7 @@ class BreakdownTree():
         self.last_path              = {} # Keys are entity types, and value is an _EntityInstance
         self.acronyms               = {} # Keys are entity types, and value is the acronym used for it
 
-    _UID                    = 'UID'  # Field name for anything that is a UID
+    
 
     def as_dicts(self):
         '''
@@ -366,11 +216,11 @@ class BreakdownTree():
         _EntityInstance objects comprising this BreakdownTree
         '''
         result                                          = {}
-        CLEANED                                         = _numpy_2_float # Abbreviation to express intent
+        CLEANED                                         = DataFrameUtils().numpy_2_float # Abbreviation to express intent
         for k in self.children.keys():
             entity_instance                             = self.children[k]
             entity_instance_dict                        = {}
-            entity_instance_dict[BreakdownTree._UID]    = entity_instance.UID
+            entity_instance_dict[Interval.UID]    = entity_instance.UID
             entity_instance_dict['name']                = CLEANED(entity_instance.name)
 
             for prop_k in entity_instance.scalar_children.keys():
@@ -480,8 +330,8 @@ class BreakdownTree():
                                             data = {'interval': interval.columns, 'columns': columns})
 
             # Check entity appears in exactly one column. 
-            GIST_OF                     = _without_comments_in_parenthesis # Abbreviation for readability
-            idxs                        = [idx for idx in range(len(columns)) if GIST_OF(columns[idx])==interval.entity_name]
+            GIST_OF                     = IntervalUtils().without_comments_in_parenthesis # Abbreviation for readability
+            idxs                        = [idx for idx in range(len(columns)) if GIST_OF(my_trace, columns[idx])==interval.entity_name]
             if len(idxs)>1:
                 raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
             elif len(idxs)==0:
@@ -489,7 +339,7 @@ class BreakdownTree():
             entity_column_idx           = idxs[0]
 
             # Check that if interval's entity is blank, all of interval is bank
-            blank_cols                  = [col for col in interval.columns if _is_blank(row[1][col])]
+            blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
             encountered_new_entity      = not interval.entity_name in blank_cols
             if not encountered_new_entity and len(blank_cols) < len(interval.columns):
                 raise ApodeixiError(my_trace, "Row has a blank '" + interval.entity_name 
@@ -699,10 +549,13 @@ class BreakdownTree():
         if entity_type not in self.acronyms.keys():
             already_used        = [self.acronyms[e] for e in self.acronyms.keys()]
             nb_letters          = 1
-            candidate           = _acronym(entity_type, nb_letters=nb_letters)
+            candidate           = _acronym(parent_trace, entity_type, nb_letters=nb_letters)
             while candidate in already_used:
+                loop_trace      = parent_trace.doing("Looping through already used acronyms, searching for a candidate to re-use",
+                                                        data            = {'candidate':             candidate},
+                                                        origination     = {'signaled_from':         __file__})
                 nb_letters      += 1
-                new_candidate   = _acronym(entity_type, nb_letters=nb_letters)
+                new_candidate   = _acronym(loop_trace, entity_type, nb_letters=nb_letters)
 
                 if len(candidate)==len(new_candidate):
                     # We ran out of letters. Just keep adding letters. Ugly, but should happen very, very rarely
@@ -758,44 +611,7 @@ class BreakdownTree():
                 result_tree                 = all_subtrees[found_root]
             return result_tree
 
-def _is_blank(txt):
-    '''
-    Returns True if 'txt' is NaN or just spaces
-    '''
-    CLEAN           = _numpy_2_float # Avoid numpy problems by turning numpys (if any) to float
-    if type(CLEAN(txt))==float and _math.isnan(txt):
-        return True
-    elif type(txt)==str:
-        stripped_txt = _strip(txt)
-        return len(stripped_txt)==0
-    else:
-        return False
-
-def _strip(txt):
-    '''
-    Removes any whitespace or other "noise" from txt and return sit
-    '''
-    if type(txt)==float and _math.isnan(txt):
-        return ''
-    stripped_txt = str(txt).replace('\n', '').strip(' ')
-    return stripped_txt
-
-def _without_comments_in_parenthesis(txt):
-    '''
-    Returns a substring of `txt` ignoring any sub-text within `txt` that is in parenthesis. It also strips
-    any leading or trailing spaces.
-    
-    For example, if txt is 'Effort (man days) to deliver', then this function return 'Effort to deliver'
-    '''
-    stripped_txt = _strip(txt)
-    # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
-    sexpr                       = SExprTokenizer(strict=False)
-    sexpr_tokens                = sexpr.tokenize(stripped_txt)
-    parenthesis_free_tokens     = [t for t in sexpr_tokens if not ')' in t and not '(' in t]
-    parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
-    return parentheis_free_txt
-
-def _acronym(txt, nb_letters=1):
+def _acronym(parent_trace, txt, nb_letters=1):
     '''
     Returns a string of initials for 'txt', in uppercase, where each 'initial' consists of 1 or
     more letters, depending on the `nb_letters` parameter.
@@ -805,7 +621,7 @@ def _acronym(txt, nb_letters=1):
     For example, if txt is 'Effort (man days) to deliver', this is treated the same as 'Effort to deliver', which results
     in a returned value of 'ETD' if nb_letters=1
     '''
-    parentheis_free_txt         = _without_comments_in_parenthesis(txt)
+    parentheis_free_txt         = IntervalUtils().without_comments_in_parenthesis(parent_trace, txt)
     # Now we got parenthesized text removed. So now we can go for the initials that compose the acronym
     tokens                      = parentheis_free_txt.split(' ')
     acronym                     = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
@@ -830,12 +646,3 @@ def _parse_leaf_uid(leaf_uid, parent_trace):
     nb                  = int(m.group(2))
     return acronym, nb
 
-def _numpy_2_float(x):
-    '''
-    Cleans problems with numbers in the trees being built. Turns out that if they are numpy classes then the
-    YAML produced is unreadable and sometimes won't load. So move anything numpy to floats.
-    '''
-    if type(x)==numpy.int32 or type(x)==numpy.int64 or type(x)==numpy.float32 or type(x)==numpy.float64:
-        return float(x)
-    else:
-        return x

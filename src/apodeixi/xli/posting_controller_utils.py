@@ -2,7 +2,8 @@ import re                                       as _re
 from collections                                import Counter
 
 from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader
-from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree, _without_comments_in_parenthesis
+from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree
+from apodeixi.xli.interval                      import IntervalUtils
 
 from apodeixi.controllers.util.manifest_api     import ManifestAPIVersion
 
@@ -38,12 +39,12 @@ class PostingController():
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
         the UID of the rightmost column in that Excel row that is for an entity)
         '''
-        r                       = ExcelTableReader(url = url,excel_range = excel_range)
+        r                       = ExcelTableReader(url = url,excel_range = excel_range, horizontally = config.horizontally)
         df                      = r.read()
 
         # Clean up df's columns by removing anything in parenthesis
-        GIST_OF                 = _without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
-        df.columns              = [GIST_OF(col) for col in df.columns]
+        GIST_OF                 = IntervalUtils().without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
+        df.columns              = [GIST_OF(parent_trace, col) for col in df.columns]
         
         store                   = UID_Store(parent_trace)
         tree                    = BreakdownTree(uid_store = store, entity_type=config.entity_name(), parent_UID=None)
@@ -540,24 +541,33 @@ class PostingConfig():
     @param intervals        A list of lists of Interval objects, enumerated in the order in which they are expected to appear in the
                             Excel to be read. This enforces that the Excel is formatted as was expected.
     @param kind             A string identifying the manifest kind being posted
+    @param horizontally     States whether the Excel data is to be read row-by-row (horizontally=True) or column-by-column (horizontally=False)
     '''
     def __init__(self, kind):
         self.update_policy          = None
-        self.interval_specs         = []
+        self.interval_spec          = None
         self.kind                   = kind
+        self.horizontally           = True
 
     def buildIntervals(self, parent_trace, linear_space):
         '''
-        Returns a list of Interval objects, constructed from the self.interval_specs by applying those "interval specs"
+        Returns a list of Interval objects, constructed from the self.interval_spec by applying those "interval specs"
         to the specificity of the linear_space given.
 
-        Example: Say an interval spec is: "All columns from A to F, not inclusive". Then if the linear space is
-        [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields the Interval [A, T, Y, U]
+        Example: Say an interval spec is: 
+        
+        "One interval is the list of all columns up to A (non inclusive, then columns from A to F, not inclusive, and the remaining
+        columns form the last interval". 
+        
+        Then if the linear space is
+        [Q, R, A, T, Y, U, F, G, W], the application of the spec to the linear space yields these 3 Intervals:
+        
+        * [Q, R]
+        * [A, T, Y, U]
+        * [F, G, W]
         '''
-        intervals                   = []
-        for spec in self.interval_specs:
-            intervals.append(spec.buildInterval(parent_trace, linear_space))
-        return intervals
+        return self.interval_spec.buildIntervals(parent_trace, linear_space)
+
 
 class UpdatePolicy():
     '''

@@ -25,3 +25,7 @@ Ran 1 test in 1.421s
 
 OK
 ```
+
+To run all tests except a particularly slow test such as `test_aha_importer`, set the `SMOKE_TESTS_ONLY` environment variable:
+
+`SMOKE_TESTS_ONLY=True python -m unittest -v`

@@ -183,7 +183,7 @@ class AsDataframe_Representer:
         all_rows                = [] # Will be one per entity_value, a dictionary of level_1_columns -> scalar value
         
         # Some manifest field names that have fixed, hard-coded values in Apodeixi
-        UID                     = BreakdownTree._UID
+        UID                     = Interval.UID
         NAME                    = 'name'
         SYNTHETIC_COLUMNS       = [UID, NAME] # These are added when parsing Excel, so not "real" content
         

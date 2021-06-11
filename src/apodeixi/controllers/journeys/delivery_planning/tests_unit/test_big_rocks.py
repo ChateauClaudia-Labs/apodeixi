@@ -54,7 +54,10 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
                 STORE.persistManifest(root_trace, manifest_dict, version="OUTPUT")
 
             # Make explanations readable by creating a pretty 
-            explanations_nice   = DictionaryFormatter().dict_2_nice(controller.show_your_work.worklog, flatten=True, delimeter="::")
+            explanations_nice   = DictionaryFormatter().dict_2_nice(    parent_trace    = root_trace,
+                                                                        a_dict          = controller.show_your_work.worklog, 
+                                                                        flatten=True, 
+                                                                        delimeter="::")
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 

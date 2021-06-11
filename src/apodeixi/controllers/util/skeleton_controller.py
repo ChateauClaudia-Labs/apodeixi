@@ -2,8 +2,9 @@ import yaml                                         as _yaml
 
 from apodeixi.util.a6i_error                        import ApodeixiError
 
-from apodeixi.xli                                   import PostingController, PostingLabel, PostingConfig
-from apodeixi.knowledge_base.knowledge_base_util    import PostResponse
+from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
+from apodeixi.knowledge_base.knowledge_base_util        import PostResponse
+from apodeixi.util.formatting_utils                     import StringUtils
 
 
 class SkeletonController(PostingController):
@@ -30,7 +31,7 @@ class SkeletonController(PostingController):
         root_trace                  = parent_trace.doing("Applying Excel posting", 
                                                             data={'url'  : url}, 
                                                             origination = {'signaled_from' : __file__})
-        manifest_file               = excel_filename.replace('xlsx', 'yaml')
+        manifest_file               = StringUtils().rreplace(excel_filename, 'xlsx', 'yaml')
         all_manifests_dicts, label  = self._buildAllManifests(root_trace, url, ctx_range)
 
         response                    = PostResponse()
@@ -177,7 +178,7 @@ class SkeletonController(PostingController):
 
             # Validate that Excel API in posting is one we know how to handle
             posted_xl_api_version       = self._getField(parent_trace, ME._EXCEL_API)
-            required_xl_api             = self.controller.getManifestAPI().apiName().replace("io", "xlsx")
+            required_xl_api             = StringUtils().rreplace(self.controller.getManifestAPI().apiName(), "io", "xlsx")
             supported_xl_api_versions   = [required_xl_api + "/" + version for version in self.controller.getSupportedVersions()]
 
             if not posted_xl_api_version in supported_xl_api_versions:

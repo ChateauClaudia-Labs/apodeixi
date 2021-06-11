@@ -55,7 +55,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             with open(OUTPUT_FOLDER + '/'  + OUTPUT_EXPLAIN_FILE, 'w') as file:
                 file            .write(output_explain)
             # Make results readable by creating a pretty 
-            result_nice         = DictionaryFormatter().dict_2_nice(result_dict)
+            result_nice         = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = result_dict)
             with open(OUTPUT_FOLDER + '/'  + OUTPUT_RESULTS_FILE, 'w') as file:
                 file            .write(result_nice)
 
@@ -73,7 +73,9 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
                                                                 df2         = expected_df, 
                                                                 df2_name    = "expected")
 
-            df_comparison_nice              = DictionaryFormatter().dict_2_nice(comparison_dict, flatten=True)
+            df_comparison_nice              = DictionaryFormatter().dict_2_nice(parent_trace    = root_trace, 
+                                                                                a_dict          = comparison_dict, 
+                                                                                flatten=True)
             with open(OUTPUT_FOLDER + '/'  + OUTPUT_COMPARISON_FILE, 'w') as file:
                 file            .write(df_comparison_nice)
 

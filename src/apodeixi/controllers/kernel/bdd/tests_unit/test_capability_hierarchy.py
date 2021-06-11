@@ -48,7 +48,10 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
             STORE.persistManifest(root_trace, manifest_dict, version="OUTPUT")
 
             # Make explanations readable by creating a pretty 
-            explanations_nice   = DictionaryFormatter().dict_2_nice(controller.show_your_work.worklog, flatten=True, delimeter="::")
+            explanations_nice   = DictionaryFormatter().dict_2_nice(    parent_trace    = root_trace,
+                                                                        a_dict          = controller.show_your_work.worklog, 
+                                                                        flatten=True, 
+                                                                        delimeter="::")
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 
@@ -57,7 +60,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
         with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
-        self._compare_to_expected_yaml(manifest_dict, 'feature_injection')
+        self._compare_to_expected_yaml(manifest_dict, 'feature_injection', save_output_dict = True)
         self.assertEqual(explanations_nice,    expected_explain)
 
 if __name__ == "__main__":

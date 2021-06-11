@@ -1,0 +1,165 @@
+apiVersion: milestone.journeys.a6i.io/v1
+assertion:
+  big-rock:
+    BR1:
+      Breakdown:
+        B1:
+          UID: BR1.B1
+          UID.1: 1.1
+          name: Haas - Model hospital
+        B1-name: Haas - Model hospital
+        B2:
+          UID: BR1.B2
+          UID.1: 1.2
+          name: Haas - Support & Maintenance
+        B2-name: Haas - Support & Maintenance
+        B3:
+          Sub Breakdown:
+            SB1:
+              UID: BR1.B3.SB1
+              UID.2: 1.3.1
+              name: MVP 1
+            SB1-name: MVP 1
+            SB2:
+              UID: BR1.B3.SB2
+              UID.2: 1.3.2
+              name: MVP 2
+            SB2-name: MVP 2
+            SB3:
+              UID: BR1.B3.SB3
+              UID.2: 1.3.3
+              name: MVP 3
+            SB3-name: MVP 3
+          UID: BR1.B3
+          UID.1: 1.3
+          name: Continuous Improvement
+        B3-name: Continuous Improvement
+      UID: BR1
+      name: Cloud Operating Model
+    BR1-name: Cloud Operating Model
+    BR2:
+      Breakdown:
+        B1:
+          UID: BR2.B1
+          UID.1: 2.1
+          name: Patient Unit Test Framework
+        B1-name: Patient Unit Test Framework
+        B2:
+          UID: BR2.B2
+          UID.1: 2.2
+          name: Health regulator and Technical stack certification
+        B2-name: Health regulator and Technical stack certification
+        B3:
+          UID: BR2.B3
+          UID.1: 2.3
+          name: HIPAA Performance Improvement
+        B3-name: HIPAA Performance Improvement
+        B4:
+          Sub Breakdown:
+            SB1:
+              UID: BR2.B4.SB1
+              UID.2: 2.4.1
+              name: Simiplify Core - Java 8 build/runtime adoption
+            SB1-name: Simiplify Core - Java 8 build/runtime adoption
+            SB2:
+              UID: BR2.B4.SB2
+              UID.2: 2.4.2
+              name: Crystal Report Replacement
+            SB2-name: Crystal Report Replacement
+            SB3:
+              UID: BR2.B4.SB3
+              UID.2: 2.4.3
+              name: Automatic recovery of asynchronous framework tasks
+            SB3-name: Automatic recovery of asynchronous framework tasks
+            SB4:
+              UID: BR2.B4.SB4
+              UID.2: 2.4.4
+              name: Improve data grid component - SLA dashboard
+            SB4-name: Improve data grid component - SLA dashboard
+            SB5:
+              UID: BR2.B4.SB5
+              UID.2: 2.4.5
+              name: Archiving Tools
+            SB5-name: Archiving Tools
+            SB6:
+              UID: BR2.B4.SB6
+              UID.2: 2.4.6
+              name: License audit tool enhancement
+            SB6-name: License audit tool enhancement
+            SB7:
+              UID: BR2.B4.SB7
+              UID.2: 2.4.7
+              name: Other Continuous Tech roadmap items (tbc)
+            SB7-name: Other Continuous Tech roadmap items (tbc)
+          UID: BR2.B4
+          UID.1: 2.4
+          name: Technology Improvements
+        B4-name: Technology Improvements
+      UID: BR2
+      name: Tech Roadmap
+    BR2-name: Tech Roadmap
+    BR3:
+      Breakdown:
+        B1:
+          UID: BR3.B1
+          UID.1: 3.1
+          name: Connectivity with WHO
+        B1-name: Connectivity with WHO
+        B2:
+          UID: BR3.B2
+          UID.1: 3.2
+          name: Integration with CDC
+        B2-name: Integration with CDC
+        B3:
+          Sub Breakdown:
+            SB1:
+              UID: BR3.B3.SB1
+              UID.2: 3.3.1
+              name: Consalut Guarantees
+            SB1-name: Consalut Guarantees
+            SB2:
+              UID: BR3.B3.SB2
+              UID.2: 3.3.2
+              name: '*New use cases - TBC later (e.g. Contour/Komgo, Tradeteq, Data
+                API)'
+            SB2-name: '*New use cases - TBC later (e.g. Contour/Komgo, Tradeteq, Data
+              API)'
+            SB3:
+              UID: BR3.B3.SB3
+              UID.2: 3.3.3
+              name: '*New use cases - TBC later (e.g. Contour/Komgo, Tradeteq, Data
+                API)'
+            SB3-name: '*New use cases - TBC later (e.g. Contour/Komgo, Tradeteq, Data
+              API)'
+            SB4:
+              UID: BR3.B3.SB4
+              UID.2: 3.3.4
+              name: '*New use cases - TBC later (e.g. Contour/Komgo, Tradeteq, Data
+                API)'
+            SB4-name: '*New use cases - TBC later (e.g. Contour/Komgo, Tradeteq, Data
+              API)'
+          UID: BR3.B3
+          UID.1: 3.3
+          name: Digital Clinic Ecosystem
+        B3-name: Digital Clinic Ecosystem
+      UID: BR3
+      name: Healthcare Ecosystem - Open API
+    BR3-name: Healthcare Ecosystem - Open API
+  entity_type: Big Rock
+  estimatedBy: joe@my-org.com
+  estimatedOn: 2021-06-06 00:00:00
+  recordedBy: tulia@my-org.com
+  scenario: Annual plan
+  scoringCycle: FY 22
+  scoringMaturity: Draft
+kind: big-rock
+metadata:
+  labels:
+    journey: Modernization
+    organization: CCL
+    product: Opus Health Pro
+    scenario: Annual plan
+    scoringCycle: FY 22
+    scoringMaturity: Draft
+  name: modernization.annual-plan.fy-22.opus-health-pro
+  namespace: ccl.production

@@ -1,0 +1,28 @@
+--------------------- Products with a filing structure in the KnowledgeBase
+
+scoringCycle: FY 22; product: ESS; scenario: MTP.0		Essence-marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: FCC; scenario: MTP.0		FCC.v1.4.20210604.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: FCM; scenario: MTP.0		FCM.20210608.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: FCM; scenario: MTP.1		FCM.20210608_v4.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: GPP; scenario: MTP.0		payments.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: KON; scenario: MTP.0		Kondor.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: LIQ; scenario: MTP.0		LIQ.20210607.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: LPR; scenario: MTP.0		marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: MLZ; scenario: MTP		[]
+scoringCycle: FY 22; product: OPI; scenario: MTP.0		OPICS-marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: PHX; scenario: MTP.0		marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: SUM; scenario: MTP.0		SUMMIT.marathon-investment.modernization.ea.xlsx
+scoringCycle: FY 22; product: TI; scenario: MTP.0		FTI.20210528.marathon-investment.modernization.ea.xlsx
+
+
+--------------------- Products lacking a filing structure in the KnowledgeBase
+
+LOB: Corporate; Short Name: CCB; Name: Connected Corporate Banking
+LOB: NACM & Digital; Short Name: FCQ; Name: Credit Quest
+LOB: NACM & Digital; Short Name: MBTLOS; Name: MortgageBot LOS
+LOB: NACM & Digital; Short Name: MBTPOS; Name: MortgageBot POS
+LOB: Trade & Capital Markets; Short Name: RISK; Name: Risk
+
+--------------------- 'Illegitimate' products: 
+	they are missing in the EA Journeys config but appear in the KnowledgeBase
+

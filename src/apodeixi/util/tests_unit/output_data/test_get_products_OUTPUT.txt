@@ -1,0 +1,85 @@
+
+===============================================
+lob		Corporate
+short_name		LIQ
+name		Loan IQ
+
+===============================================
+lob		Corporate
+short_name		CCB
+name		Connected Corporate Banking
+
+===============================================
+lob		Corporate
+short_name		FCC
+name		Fusion Corporate Channels
+
+===============================================
+lob		Corporate
+short_name		FCM
+name		Fusion Cash Management
+
+===============================================
+lob		Corporate
+short_name		TI
+name		Trade Innovation
+
+===============================================
+lob		Retail International
+short_name		ESS
+name		Essence
+
+===============================================
+lob		Payments
+short_name		GPP
+name		Global PayPlus
+
+===============================================
+lob		NACM & Digital
+short_name		FCQ
+name		Credit Quest
+
+===============================================
+lob		NACM & Digital
+short_name		LPR
+name		Laser Pro
+
+===============================================
+lob		NACM & Digital
+short_name		MBTLOS
+name		MortgageBot LOS
+
+===============================================
+lob		NACM & Digital
+short_name		MBTPOS
+name		MortgageBot POS
+
+===============================================
+lob		NACM & Digital
+short_name		MLZ
+name		Malauzai
+
+===============================================
+lob		NACM & Digital
+short_name		PHX
+name		Phoenix
+
+===============================================
+lob		Trade & Capital Markets
+short_name		KON
+name		Kondor
+
+===============================================
+lob		Trade & Capital Markets
+short_name		OPI
+name		Opics
+
+===============================================
+lob		Trade & Capital Markets
+short_name		RISK
+name		Risk
+
+===============================================
+lob		Trade & Capital Markets
+short_name		SUM
+name		Summit

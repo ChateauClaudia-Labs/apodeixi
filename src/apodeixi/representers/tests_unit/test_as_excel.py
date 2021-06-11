@@ -63,13 +63,13 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
 
             output_dict['status']           = status
             output_dict['layout span']      = rep.span
-            output_dict['column widths']    = DictionaryFormatter().dict_2_nice(rep.widths_dict)
+            output_dict['column widths']    = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = rep.widths_dict)
             output_dict['total width']      = sum([rep.widths_dict[k]['width'] for k in rep.widths_dict.keys()])
 
-            output_nice         = DictionaryFormatter().dict_2_nice(output_dict)
+            output_nice         = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = output_dict)
             with open(OUTPUT_FOLDER + '/' + OUTPUT_FILE, 'w') as file:
                 file            .write(output_nice)
-            ws_info_nice         = self._nice_ws_info(worksheet_info)
+            ws_info_nice         = self._nice_ws_info(root_trace, worksheet_info)
             with open(OUTPUT_FOLDER + '/' + WS_INFO_OUTPUT_FILE, 'w') as file:
                 file            .write(ws_info_nice)
 
@@ -85,10 +85,10 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
         self.assertEqual(output_nice,       expected)
         self.assertEqual(ws_info_nice,  ws_info_expected)
 
-    def _nice_ws_info(self, worksheet_info):
+    def _nice_ws_info(self, parent_trace, worksheet_info):
         nice_format                     = ''
         nice_format += "\n======================== Column information =========================="
-        nice_format += DictionaryFormatter().dict_2_nice(worksheet_info.colinfo)
+        nice_format += DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, a_dict = worksheet_info.colinfo)
 
         fmt_dict                        = worksheet_info.format_dict
         for row_nb in fmt_dict.keys():
@@ -96,7 +96,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             for col_nb in row_dict.keys():
                 nice_format += "\n\n================ Formats row = " + str(row_nb) + ", col = " + str(col_nb) + " ============"
                 cell_fmt_dict           = row_dict[col_nb]
-                nice                    = DictionaryFormatter().dict_2_nice(cell_fmt_dict)
+                nice                    = DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, a_dict = cell_fmt_dict)
                 nice_format += "\n" + nice
         return nice_format
 

@@ -1,0 +1,57 @@
+------------------------ Checking quarter's month to start and ------------------------
+  First integer is the month of the year
+  Second integer is -1 or 0, depending on whether it is a month in the previous calendar year
+
+Q1._starts_on_month() = (6, -1); Q1._ends_on_month() = (8, -1)
+Q2._starts_on_month() = (9, -1); Q2._ends_on_month() = (11, -1)
+Q3._starts_on_month() = (12, -1); Q3._ends_on_month() = (2, 0)
+Q4._starts_on_month() = (3, 0); Q4._ends_on_month() = (5, 0)
+
+------------------------ Checking quarter's day to start and end ------------------------
+
+Q1.first_day() = 2020-06-01; Q1.last_day() = 2020-08-31
+Q2.first_day() = 2020-09-01; Q2.last_day() = 2020-11-30
+Q3.first_day() = 2020-12-01; Q3.last_day() = 2021-02-28
+Q4.first_day() = 2021-03-01; Q4.last_day() = 2021-05-31
+
+------------------------ Checking quarter's display ------------------------
+
+Q1.displayFY() = FY21; Q1.displayQuarter() = Q1
+Q2.displayFY() = FY21; Q2.displayQuarter() = Q2
+Q3.displayFY() = FY21; Q3.displayQuarter() = Q3
+Q4.displayFY() = FY21; Q4.displayQuarter() = Q4
+
+------------------------ Checking quarter's contains ------------------------
+
+
+Q2.contains(14-January-2021)         = False
+Q3.contains(14-January-2021)    = True
+Q4.contains(14-January-2021)    = False
+
+Q2.contains(01-February-2020)         = False
+Q3.contains(01-February-2020)    = False
+Q4.contains(01-February-2020)    = False
+
+Q2.contains(01-February-2021)         = False
+Q3.contains(01-February-2021)    = True
+Q4.contains(01-February-2021)    = False
+
+Q2.contains(01-February-2022)         = False
+Q3.contains(01-February-2022)    = False
+Q4.contains(01-February-2022)    = False
+
+Q2.contains(31-January-2021)         = False
+Q3.contains(31-January-2021)    = True
+Q4.contains(31-January-2021)    = False
+
+Q2.contains(28-February-2021)         = False
+Q3.contains(28-February-2021)    = True
+Q4.contains(28-February-2021)    = False
+
+Q2.contains(01-March-2021)         = False
+Q3.contains(01-March-2021)    = False
+Q4.contains(01-March-2021)    = True
+
+Q2.contains(12-May-2021)         = False
+Q3.contains(12-May-2021)    = False
+Q4.contains(12-May-2021)    = True

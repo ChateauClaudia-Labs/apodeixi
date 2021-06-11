@@ -3,7 +3,8 @@ from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 
-from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig, FixedIntervalSpec
+from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig
+from apodeixi.xli.interval                          import ClosedOpenIntervalSpec
 
 class CapabilityHierarchy_Controller(SkeletonController):
     '''
@@ -91,20 +92,18 @@ class CapabilityHierarchy_Controller(SkeletonController):
         Codifies the schema and integrity expectations for BDD capabiity hierarchy manifests
         '''
 
-        _ENTITY_NAME                = 'Jobs to be done'
+        _ENTITY_NAME                    = 'Jobs to be done'
 
         def __init__(self, kind, update_policy):
-            ME                      = CapabilityHierarchy_Controller._MyPostingConfig
+            ME                          = CapabilityHierarchy_Controller._MyPostingConfig
             super().__init__(kind)
-            self.update_policy      = update_policy
+            self.update_policy          = update_policy
 
-            interval_spec_jobs           = FixedIntervalSpec(None, [ME._ENTITY_NAME, 'Stakeholders']) 
-            interval_spec_capabilities   = FixedIntervalSpec(None, ['Capabilities'])
-            interval_spec_features       = FixedIntervalSpec(None, ['Feature'])
-            interval_spec_stories        = FixedIntervalSpec(None, ['Story'])
+            interval_spec_milestones    = ClosedOpenIntervalSpec(   parent_trace        = None, 
+                                                                    splitting_columns   = ['Capabilities', 'Feature', 'Story'],
+                                                                    entity_name         = ME._ENTITY_NAME) 
 
-            self.interval_specs          = [interval_spec_jobs,     interval_spec_capabilities, 
-                                            interval_spec_features, interval_spec_stories]
+            self.interval_spec          = interval_spec_milestones
 
         def entity_name(self):
             ME                      = CapabilityHierarchy_Controller._MyPostingConfig
