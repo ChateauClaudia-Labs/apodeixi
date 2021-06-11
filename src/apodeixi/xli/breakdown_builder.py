@@ -191,7 +191,9 @@ class IntervalSpec():
 
     Concrete classes implement different "spec" algorithms, so this particular class is just an abstract class.
     '''
-    def _init__(self, entity_name = None):
+    def __init__(self, parent_trace, entity_name = None):
+        if entity_name == None:
+            raise ApodeixiError(parent_trace, "Unable to instantiate an IntervalSpec from a null entity_name")
         self.entity_name            = entity_name
 
     def buildInterval(self, parent_trace, linear_space):
@@ -217,9 +219,8 @@ class ClosedOpenIntervalSpec(IntervalSpec):
     @param following_column The first column in the (runtime-determined) linear space that lies after the to-be-build Interval
     '''
     def __init__(self, parent_trace, start_column, following_column, entity_name):
-        self.entity_name            = entity_name
-        if entity_name == None:
-            raise ApodeixiError(parent_trace, "Unable to instantiate an ClosedOpenIntervalSpec from a null entity_name")
+        super().__init__(parent_trace, entity_name)
+
         self.start_column           = start_column
         self.following_column        = following_column
 
@@ -264,14 +265,11 @@ class FixedIntervalSpec(IntervalSpec):
     Concrete interval spec class which builds an interval based on only knowing in advance the columns that make it up.
     '''
     def __init__(self, parent_trace, columns, entity_name = None):
-        self.entity_name            = entity_name
-        if type(columns) != list or len(columns) == 0:
-            raise ApodeixiError(parent_trace, "Unable to instantiate an FixedIntervalSpec from a null or empty list")
-        self.columns                = columns
         if entity_name == None:
-            self.entity_name        = _without_comments_in_parenthesis(columns[0])
-        else:
-            self.entity_name        = entity_name
+            entity_name        = _without_comments_in_parenthesis(columns[0])
+        super().__init__(parent_trace, entity_name)
+
+        self.columns                = columns
 
     def buildInterval(self, parent_trace, linear_space):
         '''
