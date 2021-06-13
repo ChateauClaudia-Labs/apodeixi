@@ -28,6 +28,25 @@ class ApodeixiUnitTest(unittest.TestCase):
         # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
         self.output_data            = _os.path.join(_os.path.dirname(me__file__), 'output_data') # Works ! :-) Thanks inspect!
 
+        # Remember it before we change it to use a test configuration, and then restore it in the tearDown method
+        self.original_config_directory                           = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
+
+        # Unlike the case if input/output data, here we want the location of this class, not its concrete derived class,
+        # since the location of the Apodexei config to be used for tests is globally unique
+        # So we use __file__ instead of the me__file__ we got from inspect above
+        _os.environ['APODEIXI_CONFIG_DIRECTORY']            = _os.path.join(_os.path.dirname(__file__), 'config') 
+
+
+    def tearDown(self):
+        super().tearDown()
+
+        # Restore the environment variable that we modeified in setUp
+        old_dir                                             = self.original_config_directory
+        # Dictionaries abhor null values, so default of empty string if null. 
+        if old_dir == None:
+            old_dir                                         = ''
+        _os.environ['APODEIXI_CONFIG_DIRECTORY']            = old_dir
+
     def load_csv(self, path):
         '''
         Helper method to load a "clean DataFrame" from a CSV file, correcting for spurious columns and NAs

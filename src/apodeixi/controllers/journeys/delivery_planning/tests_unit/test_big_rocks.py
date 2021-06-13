@@ -81,6 +81,6 @@ if __name__ == "__main__":
         what_to_do = args[1]
         if what_to_do=='simple_burnout':
             T.test_simple_burnout()
-
+        T.tearDown()
 
     main(_sys.argv)

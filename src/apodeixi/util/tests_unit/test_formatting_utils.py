@@ -40,7 +40,7 @@ class Test_NotebookUtils(ApodeixiUnitTest):
                                                                                 replacement_lambda      = hide_timestamps)
             my_trace                        = root_trace.doing("Hiding user_folders printed as output")
             def _hide_user_folders(val):
-                folder_hints                = ['src\\apodeixi', 'src\\\\apodeixi']
+                folder_hints                = ['apodeixi\\util', 'apodeixi\\\\util']
                 result                      = val
                 for hint in folder_hints:
                     if hint in val: # val is a path, keep only what comes after 'src/apodeixi'.
@@ -67,5 +67,6 @@ if __name__ == "__main__":
         what_to_do = args[1]
         if what_to_do=='notebook_run':
             T.test_notebook_run()
-
+        T.tearDown()
+        
     main(_sys.argv)

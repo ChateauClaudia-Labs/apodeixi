@@ -56,5 +56,6 @@ if __name__ == "__main__":
             T.test_a6i_config()
         elif what_to_do=='get_products':
             T.test_get_products()
-
+        T.tearDown()
+        
     main(_sys.argv)

@@ -13,12 +13,17 @@ class ApodeixiConfig():
     '''
     def __init__(self, parent_trace):
         
-        CONFIG_FILE                 = self._get_config_filename()
-        CONFIG_FOLDER               = self._get_config_folder()
+        CONFIG_FILE                 = self._get_config_filename(parent_trace)
+        CONFIG_FOLDER               = self._get_config_folder(parent_trace)
 
-        with open(CONFIG_FOLDER + '/' + CONFIG_FILE, 'r') as file:
-            config_txt            = str(file.read())
-        config_dict = _toml.loads(config_txt)
+        my_trace                    = parent_trace.doing("Attempting to load Apodeixi configuration",
+                                                            data = {'CONFIG_FOLDER': CONFIG_FOLDER, 'CONFIG_FILE': CONFIG_FILE})
+        try:
+            with open(CONFIG_FOLDER + '/' + CONFIG_FILE, 'r') as file:
+                config_txt            = str(file.read())
+            config_dict = _toml.loads(config_txt)
+        except Exception as ex:
+            raise ApodeixiError(my_trace, "Was not able to retrieve Apodeixi configuration due to: " + str(ex))
 
         self.config_dict            = config_dict
 
@@ -30,23 +35,36 @@ class ApodeixiConfig():
                                                                 valid_types     = [str])
         if check:
             INCLUDE_FILE            = config_dict['include']['file']
-            with open(CONFIG_FOLDER + '/' + INCLUDE_FILE, 'r') as file:
-                file_to_include_txt            = str(file.read())
-            file_to_include_dict = _toml.loads(file_to_include_txt)
+            try:
+                my_trace                    = parent_trace.doing("Attemping to load include file referenced in Apodeixi configuration",
+                                                                    data = {'include.file': INCLUDE_FILE})
+                with open(CONFIG_FOLDER + '/' + INCLUDE_FILE, 'r') as file:
+                    file_to_include_txt            = str(file.read())
+                file_to_include_dict = _toml.loads(file_to_include_txt)
+            except Exception as ex:
+                raise ApodeixiError(my_trace, "Was not able to retrieve include file referenced inApodeixi configuration due to: " 
+                                                + str(ex),
+                                                data = {'include.file': INCLUDE_FILE})
+
             self.config_dict        = file_to_include_dict | self.config_dict
 
-    def _get_config_folder(self):
-        me__file__                  = _inspect.getfile(self.__class__)
-        # CONFIG_FOLDER             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpect instead
-        CONFIG_FOLDER             = _os.path.join(_os.path.dirname(me__file__), '../../../config') # Works ! :-) Thanks inspect!
+    def _get_config_folder(self, parent_trace):
+        APODEIXI_CONFIG_DIRECTORY                           = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 
-        return CONFIG_FOLDER
+        if APODEIXI_CONFIG_DIRECTORY == None or len(APODEIXI_CONFIG_DIRECTORY.strip())==0:
+            raise ApodeixiError(parent_trace, "Environment variable $APODEIXI_CONFIG_DIRECTORY is not set, so can't " 
+                                                + "figure out from which folder to load the Apodeixi configuration")
 
-    def _get_config_filename(self):
+        if not _os.path.isdir(APODEIXI_CONFIG_DIRECTORY):
+            raise ApodeixiError(parent_trace, "Environment variable $APODEIXI_CONFIG_DIRECTORY does not point to a valid directory",
+                                                data = {'$APODEIXI_CONFIG_DIRECTORY', str(APODEIXI_CONFIG_DIRECTORY)})
+
+        return APODEIXI_CONFIG_DIRECTORY
+
+    def _get_config_filename(self, parent_trace):
         '''
         Should be extended by derived classes to change where the configuration file should come from
         '''
-        #CONFIG_FOLDER   = self._get_config_folder()
         return 'apodeixi_config.toml'
 
     def getSecretsFolder(self, parent_trace):

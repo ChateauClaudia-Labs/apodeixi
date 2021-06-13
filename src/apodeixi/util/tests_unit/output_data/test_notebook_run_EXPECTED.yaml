@@ -62,7 +62,7 @@ cells:
     outputs:
       0:
         data:
-          text/plain: <Root directory hidden in test output>src\\apodeixi\\util\\tests_unit\\output_data\\notebooks'
+          text/plain: <Root directory hidden in test output>apodeixi\\util\\tests_unit\\output_data\\notebooks'
         execution_count: 1
         metadata: {}
         output_type: execute_result
@@ -75,7 +75,7 @@ cells:
   3:
     cell_type: code
     execution_count: null
-    id: 3a1ec00c
+    id: 3539315d
     metadata: {}
     outputs: {}
     source: ''
