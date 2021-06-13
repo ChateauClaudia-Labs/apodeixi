@@ -1,10 +1,10 @@
 package:
   name: apodeixi
-  version: 0.3.0a4
+  version: 0.3.0a5
 
 source:
 
-  git_rev: v0.3.0a4
+  git_rev: v0.3.0a5
   git_url: https://github.com/ChateauClaudia-Labs/apodeixi.git
 
 requirements:
