@@ -77,3 +77,69 @@ if I update Anaconda later:
 A final twist to the mystery is that even though each virtual environment seems to have a different copy of 
 `Lib/py_compile.py`, it appears that they are all **hard links** to each other for a given Python version( 3.x and 2.x are different,
 but all the environments for 3.x have the *same file*: you change one of them and the others reflect the change)
+
+# More verbosity in $ANACONDA_HOME/Lib/site-packages/setuptools/command/easy_install.py
+
+To help with troubleshooting, I modified the level of verbosity in easy_install.py and also added a print of the stack trace.
+
+Two functions where changed. Look at the lines with "Alejandro" below:
+
+```
+
+    def install_egg(self, egg_path, tmpdir):  
+
+                        ...             ...             ...             ...
+
+            try:
+
+                        ...         ...         ...         ...
+
+                self.execute(
+                    f,
+                    (egg_path, destination),
+                    (m + " %s to %s") % (
+                        os.path.basename(egg_path),
+                        os.path.dirname(destination)
+                    ),
+                )
+
+                        ....        ...         ...             ....
+                        
+            except Exception as ex: # Changed by Alejandro
+                import traceback
+                print ("-------------------------- Strack trace print added by Alejandro ______________________")
+                traceback.print_tb(ex.__traceback__)
+                print("---- Exception is: " + str(ex))
+                print ("-------------------------- end of strack trace print added by Alejandro")
+                update_dist_caches(destination, fix_zipimporter_caches=False)
+                raise
+
+```
+
+Verbosity was added in this other function (which probably explains why a Conda full build now prints ~8,000 lines instead of ~600):
+
+```
+
+    def byte_compile(self, to_compile):
+        if sys.dont_write_bytecode:
+            return
+
+        from distutils.util import byte_compile
+
+        try:
+            # try to make the byte compile messages quieter
+            log.info('**************** In setuptools.command.easy_install.py - Alejandro kept verbosity high, doing +1 instead of -1')
+            log.set_verbosity(self.verbose+1) # - 1)
+
+            byte_compile(to_compile, optimize=0, force=1, dry_run=self.dry_run)
+            if self.optimize:
+                byte_compile(
+                    to_compile, optimize=self.optimize, force=1,
+                    dry_run=self.dry_run,
+                )
+        finally:
+            log.set_verbosity(self.verbose)  # restore original verbosity
+
+```
+
+
