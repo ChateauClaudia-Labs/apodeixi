@@ -3,27 +3,27 @@ assertion:
   entity_type: Period
   period:
     P1:
-      Incremental: 3584.0
+      Incremental: 3584
       UID: P1
       name: FY 2021
     P1-name: FY 2021
     P2:
-      Incremental: 5207.0
+      Incremental: 5207
       UID: P2
       name: FY 2022
     P2-name: FY 2022
     P3:
-      Incremental: 5575.0
+      Incremental: 5575
       UID: P3
       name: FY 2023
     P3-name: FY 2023
     P4:
-      Incremental: 5800.0
+      Incremental: 5800
       UID: P4
       name: FY 2024
     P4-name: FY 2024
     P5:
-      Incremental: 5860.0
+      Incremental: 5860
       UID: P5
       name: FY 2025
     P5-name: FY 2025

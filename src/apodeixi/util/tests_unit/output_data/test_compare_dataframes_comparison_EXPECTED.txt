@@ -1,0 +1,35 @@
+
+
+-------------------- df1 shape ----------------------
+(18, 3)
+
+-------------------- df2 shape ----------------------
+(17, 3)
+
+-------------------- only in df1 ----------------------
+['LA-NACION-7', 'LA-NACION-8', 'LA-NACION-9', 'LA-NACION-10']
+
+-------------------- only in df2 ----------------------
+['LA-NACION-12', 'LA-NACION-15', 'FIGARO-43']
+
+-------------------- elt-by-elt comparison ----------------------
+[Tema][FIGARO-38]:
+df1		aldeas como Pun� en la Amazonia
+df2		Apr�s les fortes chaleurs de ces
+
+[Tema][FIGARO-39]:
+df1		como Pun� en la Amazonia profunda
+df2		les fortes chaleurs de ces derniers
+
+[Tema][FIGARO-40]:
+df1		Pun� en la Amazonia profunda triunfa
+df2		fortes chaleurs de ces derniers jours,
+
+[Tema][FIGARO-41]:
+df1		en la Amazonia profunda triunfa en
+df2		chaleurs de ces derniers jours, le
+
+[Tema][FIGARO-42]:
+df1		la Amazonia profunda triunfa en medio
+df2		de ces derniers jours, le temps
+

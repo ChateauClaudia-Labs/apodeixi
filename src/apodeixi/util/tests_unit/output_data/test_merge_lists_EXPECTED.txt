@@ -1,0 +1,16 @@
+============ List1 ================
+[1000, 3000, 4000, 5000, 8000, 9000]
+
+============ List2 ================
+[1000, 2000, 3000, 4000, 5000, 6000, 7000, 9000]
+
+============ Merged Result ================
+Element: 1000		LEFT		RIGHT
+Element: 2000		    		RIGHT
+Element: 3000		LEFT		RIGHT
+Element: 4000		LEFT		RIGHT
+Element: 5000		LEFT		RIGHT
+Element: 6000		    		RIGHT
+Element: 7000		    		RIGHT
+Element: 8000		LEFT		     
+Element: 9000		LEFT		RIGHT

@@ -4,28 +4,28 @@ assertion:
     E1:
       UID: E1
       bigRock: BR1
-      name: 4050.0
-    E1-name: 4050.0
+      name: 4050
+    E1-name: 4050
     E2:
       UID: E2
       bigRock: BR2
-      name: 6600.0
-    E2-name: 6600.0
+      name: 6600
+    E2-name: 6600
     E3:
       UID: E3
       bigRock: BR3
-      name: 4500.0
-    E3-name: 4500.0
+      name: 4500
+    E3-name: 4500
     E4:
       UID: E4
       bigRock: BR4
-      name: 10351.0
-    E4-name: 10351.0
+      name: 10351
+    E4-name: 10351
     E5:
       UID: E5
       bigRock: BR5
-      name: 525.0
-    E5-name: 525.0
+      name: 525
+    E5-name: 525
   entity_type: Effort
   planType: Marathon
   recordedBy: jill.thearchitect@mycorp.com

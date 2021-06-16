@@ -8,8 +8,7 @@ from io                     import StringIO
 
 
 from apodeixi.util.formatting_utils                 import DictionaryFormatter
-
-from apodeixi.util.dataframe_utils                  import DataFrameUtils
+from apodeixi.util.dataframe_utils                  import DataFrameUtils, DataFrameComparator
 
 class ApodeixiUnitTest(unittest.TestCase):  
     '''
@@ -78,6 +77,10 @@ class ApodeixiUnitTest(unittest.TestCase):
         for col in data_df.columns:
             data_df[col] = data_df.apply(lambda row: _remove_carriage_returns(row[col]), axis=1)
 
+        # Clean up numbers to a standard
+        CLEANED                                         = DataFrameUtils().numpy_2_float # Abbreviation to express intent
+        for col in data_df.columns:
+            data_df[col] = data_df.apply(lambda row: CLEANED(row[col]), axis=1)
         return data_df
 
     def _compare_to_expected_yaml(self, output_dict, test_case_name, save_output_dict=False):
@@ -152,7 +155,7 @@ class ApodeixiUnitTest(unittest.TestCase):
 
         self.assertEqual(str(output_txt), expected_txt)
 
-    def _compare_to_expected_df(self, parent_trace, output_df, test_case_name, columns_to_ignore=[]):
+    def _compare_to_expected_df(self, parent_trace, output_df, test_case_name, columns_to_ignore=[], id_column=None):
         '''
         Utility method for derived classes that creates DataFrames (saved as CSV files) and checks they match an expected output
         previously saves as a CSV file as well. 
@@ -160,6 +163,8 @@ class ApodeixiUnitTest(unittest.TestCase):
         It also saves the output as a CSV file, which can be copied to be the expected output when test case is created.
 
         @param columns_to_ignore List of column names (possibly empty), for columns that should be excluded from the comparison
+        @param id_column A string representing the column that should be used to identify rows in comparison text produced. 
+                         If set to None, then the row index is used.
         '''
         OUTPUT_FOLDER               = self.output_data
         OUTPUT_FILE                 = test_case_name + '_OUTPUT.csv'
@@ -171,7 +176,8 @@ class ApodeixiUnitTest(unittest.TestCase):
         # (at least it would erroneously pass when the expected output is set to an empty file)
         self.assertIsNotNone(output_df)
 
-        output_df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
+        OUTPUT_COLUMNS              = [col for col in output_df.columns if not col in columns_to_ignore] 
+        output_df[OUTPUT_COLUMNS].to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
 
         # Load the output we just saved, which we'll use for regression comparison since in Pandas the act of loading will
         # slightly change formats (e.g., strings for numbers become Numpy numbers) 
@@ -182,13 +188,17 @@ class ApodeixiUnitTest(unittest.TestCase):
         # Retrieve expected output
         expected_df                 = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
 
-        OUTPUT_COLUMNS              = [col for col in loaded_output_df.columns if not col in columns_to_ignore]  
         EXPECTED_COLUMNS            = [col for col in expected_df.columns if not col in columns_to_ignore]  
 
-        check, comparison_dict      = DataFrameUtils().compare_dataframes(   df1         = loaded_output_df[OUTPUT_COLUMNS], 
-                                                                            df1_name    = "output",
-                                                                            df2         = expected_df[EXPECTED_COLUMNS], 
-                                                                            df2_name    = "expected")
+
+        my_trace                    = parent_trace.doing("Invoking the DataFrameComparator")
+        comparator                  = DataFrameComparator(  df1         = loaded_output_df[OUTPUT_COLUMNS], 
+                                                            df1_name    = "output",
+                                                            df2         = expected_df[EXPECTED_COLUMNS], 
+                                                            df2_name    = "expected",
+                                                            id_column   = id_column)
+
+        check, comparison_dict      = comparator.compare(my_trace)
 
         df_comparison_nice          = DictionaryFormatter().dict_2_nice(    parent_trace    = parent_trace,
                                                                             a_dict          = comparison_dict, 
