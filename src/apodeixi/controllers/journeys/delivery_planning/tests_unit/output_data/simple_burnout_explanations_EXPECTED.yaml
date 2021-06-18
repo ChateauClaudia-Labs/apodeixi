@@ -1,9 +1,12 @@
 _MANIFEST_META::0::_DATA_KIND		big-rock
 _MANIFEST_META::0::_DATA_RANGE		E2:E9
+_MANIFEST_META::0::_DATA_SHEET		simple burnout
 _MANIFEST_META::1::_DATA_KIND		big-rock-estimate
 _MANIFEST_META::1::_DATA_RANGE		F2:F9
+_MANIFEST_META::1::_DATA_SHEET		simple burnout
 _MANIFEST_META::2::_DATA_KIND		investment
 _MANIFEST_META::2::_DATA_RANGE		H2:I10
+_MANIFEST_META::2::_DATA_SHEET		simple burnout
 big-rock::data.kind::_ROW_WORK::0::_LAST_UID		BR1
 big-rock::data.kind::_ROW_WORK::1::_LAST_UID		BR2
 big-rock::data.kind::_ROW_WORK::2::_LAST_UID		BR3

@@ -88,14 +88,23 @@ class SkeletonController(PostingController):
         # Keys will be the manifest unique integer identifiers assigned by _MyPostingLabel._initialize_show_your_work
         all_manifests_dict                 = {} 
         
-        for manifest_nb, kind, excel_range in self.show_your_work.manifest_metas():
+        for manifest_nb, kind, excel_range, excel_sheet in self.show_your_work.manifest_metas():
             my_trace                        = parent_trace.doing("Parsing data for 1 manifest", 
                                                                     data = {'url': url, 'kind': kind, 'excel_range': excel_range},
                                                                     origination = {'signaled_from': __file__})
-            manifest_dict                   = self._buildOneManifest(my_trace, url, label, kind, excel_range)
+            manifest_url                    = SkeletonController._build_manifest_url(   posting_url             = url, 
+                                                                                        manifest_excel_sheet    = excel_sheet)
+            manifest_dict                   = self._buildOneManifest(my_trace, manifest_url, label, kind, excel_range)
             all_manifests_dict[manifest_nb] = manifest_dict
 
         return all_manifests_dict, label
+
+    def _build_manifest_url(posting_url, manifest_excel_sheet):
+        posting_excel_sheet                 = posting_url.split(":")[-1]
+        excel_path_length                   = len(posting_url) - len(posting_excel_sheet) - 1 # Subtract 1 for the ":" delimeter
+        excel_path                          = posting_url[0:excel_path_length]
+        manifest_url                        = excel_path + ":" + manifest_excel_sheet
+        return manifest_url
 
     def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
         '''
@@ -147,8 +156,9 @@ class SkeletonController(PostingController):
         '''
         _EXCEL_API                  = "excelAPI"
         _DATA_KIND                  = "data.kind"
-        _ORGANIZATION               = 'organization'
         _DATA_RANGE                 = "data.range"
+        _DATA_SHEET                 = "data.sheet"
+        _ORGANIZATION               = 'organization'
         _ENVIRONMENT                = 'environment'
         _RECORDED_BY                = 'recordedBy'
 
@@ -187,9 +197,9 @@ class SkeletonController(PostingController):
 
             # Validate that kind of domain object(s) in posting is(are) one that we know how to handle, 
             # and save the findings along the way in the controller's show_your_work for later use
-            self._initialize_show_your_work(parent_trace)
+            self._initialize_show_your_work(parent_trace, url)
 
-            for manifest_nb, kind, excel_range in self.controller.show_your_work.manifest_metas():
+            for manifest_nb, kind, excel_range, excel_sheet in self.controller.show_your_work.manifest_metas():
 
                 supported_data_kinds             = self.controller.getSupportedKinds()
                 if not kind in supported_data_kinds:
@@ -224,7 +234,7 @@ class SkeletonController(PostingController):
             
             return self.ctx[fieldname]
 
-        def _initialize_show_your_work(self, parent_trace):
+        def _initialize_show_your_work(self, parent_trace, url):
             '''
             Used to prepare the information needed to retrieve the data for each of the manifests (1 or more) that
             are being posted within the same Excel spreadsheet using a common PostingLabel.
@@ -234,6 +244,13 @@ class SkeletonController(PostingController):
             
             This method looks inside self.sightings['data.kind'] and self.sightings['data.range'], both of which should
             be arrays of the same size. For example, [] (if there is only one manifest) or [0, 1, 2] if there are three.
+
+            Optionally, the user may have specified 'data.sheet.0', 'data.sheet.1', 'data.sheet.2', say, if the data resides
+            in a different Excel worksheet than the one containing this Posting Label. So this method also inquires on
+            whether self.sightings['data.sheet'] exists and if so it will also process it just like the others.
+
+            If the user did nost specify 'data.sheet.x' fields, then it will be defaulted to the same sheet containing
+            this Posting Label by inferring it from the `url`
 
             Based on this it initializes self.controller.show_your_work:
 
@@ -246,13 +263,14 @@ class SkeletonController(PostingController):
 
             '''
 
-            def _keep_work(parent_trace, manifest_nb, kind_field, range_field): #, result):
+            def _keep_work(parent_trace, manifest_nb, kind_field, range_field, sheet_field):
                 '''
                 Helper function to avoid repetitive code in both branches of an if-else
                 '''
                 FMT                 = PostingController.format_as_yaml_fieldname # Abbreviation for readability
                 kind_val            = FMT(self.ctx[kind_field])
                 range_val           = self.ctx[range_field]
+                sheet_val           = self.ctx[sheet_field]
                 my_trace            = parent_trace.doing("Initializing show-my-work memory for manifest of kind '" + kind_val + "'")
                 self.controller.show_your_work.include(parent_trace=my_trace, manifest_kind=kind_val, posting_label_field=ME._DATA_KIND)
 
@@ -260,27 +278,85 @@ class SkeletonController(PostingController):
                 self.controller.show_your_work.keep_manifest_meta(  parent_trace    = my_trace, 
                                                                     manifest_nb     = manifest_nb, 
                                                                     kind            = kind_val, 
-                                                                    excel_range     = range_val)
+                                                                    excel_range     = range_val,
+                                                                    excel_sheet     = sheet_val)
 
+            def _check_lists_match(parent_trace, list_dict):
+                '''
+                Helper method to raise an exception if a set of lists are not identical.
+                The lists have names and passed in a dictionary with the names as keys. For example,
+                for key 'kind' and list [1, 2, 3], this is passed by setting list_dict['kind'] = [1, 2, 3]
+                '''
+                missing_lists           = []
+                different_lists         = False
+                common_list            = None
+                all_fields              = list(list_dict.keys())
+                for key in all_fields:
+                    a_list              = list_dict[key]
+                    if a_list == None:
+                        missing_lists.append(key)
+                    if common_list == None and a_list != None: # First cycle in loop that has a list, so initialize common_list
+                        common_list     = a_list
+                    if a_list != common_list:
+                        different_lists = True
 
-            ME = SkeletonController._MyPostingLabel
+                if len(missing_lists) > 0:
+                    raise ApodeixieError(parent_trace, "Posting label lacks values for some fields",
+                                                        data = {'missing fields': ','.join(missing_lists)})
+                if different_lists:
+                    msg_dict            = {}
+                    for key in all_fields:
+                        msg_dict[key]   = ",".join(list_dict[key])
+                    raise ApodeixiError(parent_trace, "Posting label has inconsistent entries for " + ",".join(all_fields) 
+                                                    + ": they should both exist and have the same suffixes",
+                                                    data = msg_dict)
+
+            ME                  = SkeletonController._MyPostingLabel
             if self.sightings == None:
                 raise ApodeixiError(parent_trace, "Can't determine data coordinates because self.sightings has not yet been computed")
 
             kind_list           = self.sightings[ME._DATA_KIND]
             range_list          = self.sightings[ME._DATA_RANGE]
 
-            if kind_list==None or range_list==None or len(kind_list)!=len(range_list):
-                raise ApodeixiError(parent_trace, "PostingLabel has inconsistent " + _DATA_KIND + " and " + _DATA_RANGE 
-                                                    + " entries: they should both exist and have the same cardinality")
+            sheet_list          = self._default_sheet_if_needed(parent_trace, kind_list, url)
+
+
+            _check_lists_match(parent_trace, {  ME._DATA_KIND:          kind_list,
+                                                ME._DATA_RANGE:         range_list,
+                                                ME._DATA_SHEET:         sheet_list})
+
             if len(kind_list) == 0: # There is only one manifest to build in this case
                 kind_field      = ME._DATA_KIND   # The field in the PostingLabel, like 'data.kind.2'
                 range_field     = ME._DATA_RANGE
-                _keep_work(parent_trace, 0, kind_field, range_field)
+                sheet_field     = ME._DATA_SHEET
+                _keep_work(parent_trace, 0, kind_field, range_field, sheet_field)
                 
             else:                   # There are multiple manifests to build in this case
                 
                 for idx in range(len(kind_list)):
                     kind_field  = ME._DATA_KIND    + '.' + str(kind_list[idx])   # The field in the PostingLabel, like 'data.kind.2'
                     range_field = ME._DATA_RANGE   + '.' + str(range_list[idx])
-                    _keep_work(parent_trace, idx, kind_field, range_field) 
+                    sheet_field = ME._DATA_SHEET   + '.' + str(sheet_list[idx])
+                    _keep_work(parent_trace, idx, kind_field, range_field, sheet_field) 
+
+        def _default_sheet_if_needed(self, parent_trace, suffix_list, url):
+            '''
+            Helper method to default the Excel sheet to use for each manifest in situations where the user has not specified it.
+            If the user has specified it, then it just returns the suffixes associated to it by the user.
+            If not, then it defaults it inside self.ctx, and returns the suffix_list.
+            '''
+            ME                              = SkeletonController._MyPostingLabel
+            sheet_field                     = ME._DATA_SHEET
+            result                          = None
+            if sheet_field in self.sightings.keys():
+                result                      = self.sightings[ME._DATA_SHEET]
+            else: # User did not specify any sheet fields, so must default them from the url
+                default_sheet               = url.split(":")[-1]
+                if len(suffix_list) == 0:
+                    self.ctx[sheet_field]   = default_sheet
+                else:
+                    for idx in suffix_list:
+                        self.ctx[sheet_field + "." + str(idx)]   = default_sheet
+                result                      = suffix_list
+
+            return result

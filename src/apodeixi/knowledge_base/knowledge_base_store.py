@@ -12,11 +12,13 @@ class KnowledgeBaseStore():
     def __init__(self):
         return
 
-    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Sheet1"):
+    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Posting Label"):
+        '''
+        Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
+        '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'discoverPostingURL' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
-
 
     def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''

@@ -71,8 +71,10 @@ class BigRocksEstimate_Controller(SkeletonController):
         referenced                      = 'big-rock'
 
         # Expect exactly 1 match
-        matching_nbs                    = [manifest_nb for manifest_nb, kind, excel_range in self.show_your_work.manifest_metas()
-                                                        if kind == referencing]
+        matching_nbs                    = [manifest_nb 
+                                            for manifest_nb, kind, excel_range, excel_sheet 
+                                            in self.show_your_work.manifest_metas()
+                                            if kind == referencing]
         if len(matching_nbs)==0:
             raise ApodeixiError(my_trace, "Unable to find metadata in controller's show_your_work for kind='" + referencing + "'")
         if len(matching_nbs) > 1:

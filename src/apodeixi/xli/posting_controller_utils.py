@@ -1,4 +1,5 @@
 import re                                       as _re
+import math                                     as _math
 from collections                                import Counter
 
 from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader
@@ -82,7 +83,14 @@ class PostingController():
         Returns a re-formatting of the string `txt` to adhere to the standards controller apply to field names.
         Specifically, no spaces and all lower case. Internal spaces are replaced by a hyphen
         '''
-        return txt.strip().lower().replace(' ', '-')
+        tyt     = txt
+        if type(txt) == float and _math.isnan(txt):
+            tyt = ''
+        else:
+            tyt = str(txt) # Precaution in case somebody passes a non-string, like a float (Pandas might put a 0.0 on an empty field instead of '')
+        
+        return tyt.strip().lower().replace(' ', '-')
+
 
     def getManifestAPI(self):
         '''
@@ -163,6 +171,7 @@ class PostingCtrl_ShowYourWork():
     _LAST_UID               = '_LAST_UID'
     _DATA_KIND              = '_DATA_KIND'
     _DATA_RANGE             = '_DATA_RANGE'
+    _DATA_SHEET             = '_DATA_SHEET'
     _MANIFEST_META          = '_MANIFEST_META'
 
     def include(self, parent_trace, manifest_kind, posting_label_field):
@@ -242,12 +251,13 @@ class PostingCtrl_ShowYourWork():
 
     def manifest_metas(self):
         '''
-        Returns a list of triples [manifest_nb, kind, excel_range]
+        Returns a list of lists [manifest_nb, kind, excel_range, excel_sheet]
 
         Each of them is extracted from the internal representation whereby 
 
             * self.worklog[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
             * self.worklog[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
+            * self.worklog[_MANIFEST_META][manifest_nb][_DATA_SHEET]    = excel_sheet
         '''
         ME                              = PostingCtrl_ShowYourWork
         result                          = []
@@ -255,15 +265,17 @@ class PostingCtrl_ShowYourWork():
         for manifest_nb in meta_dict.keys():
             kind                        = meta_dict[manifest_nb][ME._DATA_KIND]
             excel_range                 = meta_dict[manifest_nb][ME._DATA_RANGE]
-            result.append ([manifest_nb, kind, excel_range])
+            excel_sheet                 = meta_dict[manifest_nb][ME._DATA_SHEET]
+            result.append ([manifest_nb, kind, excel_range, excel_sheet])
         return result
 
-    def keep_manifest_meta(self, parent_trace, manifest_nb, kind, excel_range):
+    def keep_manifest_meta(self, parent_trace, manifest_nb, kind, excel_range, excel_sheet):
         '''
         Causes this to happen: 
         
         * self.worklog[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
         * self.worklog[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
+        * self.worklog[_MANIFEST_META][manifest_nb][_EXCEL_RANGE]   = excel_sheet
 
         More details:
 
@@ -277,6 +289,7 @@ class PostingCtrl_ShowYourWork():
 
         meta_dict[manifest_nb][ME._DATA_KIND]       = kind
         meta_dict[manifest_nb][ME._DATA_RANGE]      = excel_range
+        meta_dict[manifest_nb][ME._DATA_SHEET]      = excel_sheet
 
     def keep_row_last_UID(self, parent_trace, kind, row_nb, uid, posting_label_field=None):
         '''
@@ -434,6 +447,46 @@ class PostingLabel():
         self.sightings      = None 
 
     def read(self, parent_trace, url, excel_range):
+
+        def _val_is_null(val):
+            '''
+            Helper method that returns a boolean. Returns true if val "is null" in the broad sense of the word, meaning
+            any of:
+                * val is None
+                * If val is a float, val is nan
+                * If val is a string, it has zero length after stripping
+            '''
+            if type(val) == float and _math.isnan(val):
+                return True
+            if type(val) == str and len(val.strip())==0:
+                return True
+            # If we get this far we haven't found anything problematic
+                return False
+
+        def _missing_fields(expected_fields, sightings, row):
+            '''
+            Helper method that returns a list of fields that are in the `expected_fields` but missing in the sightings.
+            
+            More accurately, it returns a list of columns in `row` that are missing or have missing values.
+            For example, if 'kind' is in `expected_fields` and sightings['kind'] = [1, 2, 3] but row['kind.3'] is blank,
+            then it 'kind.3' will be in the list that is returned.
+            '''
+            missing_fields                  = []
+            for field in expected_fields:
+                if not field in sightings.keys():
+                    missing_fields.append[field]
+                idx_list                    = sightings[field]
+                if len(idx_list) ==  0: # Empty index list, that means that field is a column name in the row
+                    if _val_is_null(row[field]):
+                        missing_fields.append(field)
+                else: # There are multiple columns in row
+                    for idx in idx_list:
+                        col                 = field + "." + str(idx)
+                        if _val_is_null(row[col]):
+                            missing_fields.append(col)
+            # If we get this far we haven't found anything problematic
+            return missing_fields
+
         excel_range    = excel_range.upper()
         reader         = ExcelTableReader(url, excel_range, horizontally=False)
         label_df       = reader.read()
@@ -457,16 +510,20 @@ class PostingLabel():
                             data = {'Duplicate fields': ', '.join(duplicate_msgs)})
         
         appearances, sightings = self._fields_found(self.mandatory_fields, label_df)
-        missing_fields = [field for field in self.mandatory_fields if field not in sightings.keys()]
+        #missing_fields = [field for field in self.mandatory_fields if field not in sightings.keys()]
+        missing_fields = _missing_fields(   expected_fields     = self.mandatory_fields, 
+                                            sightings           = sightings, 
+                                            row                 = label_df.loc[0])
+
         if len(missing_fields) > 0:
             missing_txt = ", ".join(["'" + field + "'" for field in missing_fields])
-            raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' lacks these mandatory fields: "
+            raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' lacks at least one entry mandatory fields: "
                             + missing_txt)
                        
         ctx = {}
 
         for appearance in appearances:
-            ctx[appearance]     = label_df.iloc[0][appearance] # labe_df has exactly one row (we checked earlier in this function)
+            ctx[appearance]     = label_df.iloc[0][appearance] # label_df has exactly one row (we checked earlier in this function)
             
         # Special validations for date fields - we only support "one appearance" for such fields. I.e.,
         # don't currently support something like "posted-on.0", "posted-on.1", "posted-on.2". Only support "posted-on"
@@ -567,7 +624,6 @@ class PostingConfig():
         * [F, G, W]
         '''
         return self.interval_spec.buildIntervals(parent_trace, linear_space)
-
 
 class UpdatePolicy():
     '''

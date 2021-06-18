@@ -1,7 +1,9 @@
 _MANIFEST_META::0::_DATA_KIND		modernization-milestone
 _MANIFEST_META::0::_DATA_RANGE		L2:P30
+_MANIFEST_META::0::_DATA_SHEET		Sheet1
 _MANIFEST_META::1::_DATA_KIND		big-rock
 _MANIFEST_META::1::_DATA_RANGE		E7:J50
+_MANIFEST_META::1::_DATA_SHEET		Sheet1
 modernization-milestone::data.kind::_ROW_WORK::0::_LAST_UID		M1
 modernization-milestone::data.kind::_ROW_WORK::1::_LAST_UID		M2
 modernization-milestone::data.kind::_ROW_WORK::2::_LAST_UID		M3

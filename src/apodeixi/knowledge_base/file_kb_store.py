@@ -26,9 +26,11 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         }
 
-    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Sheet1"):
+    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Posting Label"):
         ME                          = File_KnowledgeBaseStore
-        
+        '''
+        Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
+        '''
         if not _os.path.isfile(excel_posting_path):
             raise ApodeixiError(parent_trace, "File does not exist",
                                                 data = {    'excel_posting_path': excel_posting_path})

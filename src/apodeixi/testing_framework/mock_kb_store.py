@@ -30,7 +30,10 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
                                                 ]
         return supported_apis
 
-    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Sheet1"):
+    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Posting Label"):
+        '''
+        Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
+        '''
         filename    = _os.path.split(excel_posting_path)[1]
         url         = self.input_postings_dir  +  '/' + filename + ':' + sheet
         return url
