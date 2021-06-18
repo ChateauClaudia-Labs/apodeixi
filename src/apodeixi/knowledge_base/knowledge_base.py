@@ -1,7 +1,8 @@
-from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
+from apodeixi.util.a6i_error                                                import ApodeixiError, FunctionalTrace
 
-from apodeixi.controllers.kernel.bdd.capability_hierarchy       import CapabilityHierarchy_Controller
-from apodeixi.controllers.journeys.delivery_planning.big_rocks  import BigRocksEstimate_Controller
+from apodeixi.controllers.kernel.bdd.capability_hierarchy                   import CapabilityHierarchy_Controller
+from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
+from apodeixi.controllers.journeys.delivery_planning.milestones_controller  import MilestonesController
 
 class KnowledgeBase():
     '''
@@ -9,27 +10,56 @@ class KnowledgeBase():
     '''
     def __init__(self, store):
         self.store              = store
-        self.processing_rules   = KB_ProcessingRules()
+        
+        self.controllers           = { #List of associations of posting API => dict of kind=> PostingController class to use 
+                                        # for such posting API
+            'delivery-planning.journeys.a6i':       {   "big-rocks":                        BigRocksEstimate_Controller,
+                                                        'modernization-milestone':          MilestonesController},
+            'bdd.kernel.a6i':                       {   "capability-hierarchy":             CapabilityHierarchy_Controller},
+            'milestone.journeys.a6i':               None, # TODO
+            'milestone.journeys.a6i':               None, # TODO
+            'milestones.initiative.a6i':            None, # TODO
+            'charter.initiative.a6i':               None, # TODO
+        }
+
         return
 
     '''
     Returns a PostResponse
     '''
-    def post(self, parent_trace, path_of_file_being_posted, posting_type, excel_sheet="Sheet1", ctx_range="B2:C1000", version=None):
+    def post(self, parent_trace, path_of_file_being_posted, posted_kind, excel_sheet="Sheet1", ctx_range="B2:C1000", version=None):
         root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
-                                                                data = {    'posting_type'  : posting_type,
+                                                                data = {    'posted_kind'   : posted_kind,
                                                                             'path'          : path_of_file_being_posted,
                                                                             'excel_sheet'   : excel_sheet,
                                                                             'ctx_range'     : ctx_range,
                                                                             'version'       : version},
                                                                 origination = {'signaled_from' : __file__
                                                                             })
-        handlers                = self.processing_rules.posting_handlers
-        
-        if not posting_type in handlers.keys():
-            raise ApodeixiError("Invalid posting type '" + posting_type + "': must be one of " + ", ".join(handlers.keys()))
 
-        ctrl                    = handlers[posting_type][KB_ProcessingRules._CONTROLLER_CLASS](root_trace, self.store)
+        my_trace                = parent_trace.doing("Inferring the posting API from filename",
+                                                        data = {'filename': path_of_file_being_posted})
+        posting_api             = self.store.infer_posting_api(my_trace, path_of_file_being_posted)
+
+        my_trace                = parent_trace.doing("Checking if posting API for this file is supported")
+        supported_apis          = list(self.controllers.keys())
+        if not posting_api in supported_apis:
+            raise ApodeixiError(my_trace, "The posting API for this file is not supported by the Knowledge Base",
+                                            data = {    'posting_api':                      posting_api,
+                                                        'filename':                         path_of_file_being_posted,
+                                                        'supported apis':                   str(supported_apis)})
+        
+        my_trace                = parent_trace.doing("Checking if posted_kind is supported by posting_api",
+                                                        data = {    'posted_kind':         posted_kind,
+                                                                    'posting_api':          posting_api})
+        controllers_sub_dict    = self.controllers[posting_api]
+        supported_kinds         = list(controllers_sub_dict.keys())
+        if not posted_kind in supported_kinds:
+            raise ApodeixiError(my_trace, "The posted kind is not supported by the posting API",
+                                            data = {    'posted_kind':         posted_kind,
+                                                        'posting_api':          posting_api})
+
+        ctrl                    = controllers_sub_dict[posted_kind](root_trace, self.store)
 
         response                = ctrl.apply(   parent_trace        = root_trace, 
                                                 excel_filename      = path_of_file_being_posted, 
@@ -38,43 +68,6 @@ class KnowledgeBase():
                                                 version             = version)
 
         return response
-
-class KB_ProcessingRules():
-    '''
-    Configuration class to represent the processing that the KnowledgeBase must take in response to an "event". For example,
-    what concrete posting controller to use in response to an Excel posting.
-    '''
-    def __init__(self):
-        # Keys are strings for each kind of Excel posting known to the knowledge base, and values are controller classes to handle them
-        self.posting_handlers = {} 
-        self._initPostingHandlers()
-
-    def _initPostingHandlers(self):
-        ME                                                                  = KB_ProcessingRules
-
-        # Init processing rules for the CapabilityHierarchy controller
-        rule_dict                                                           = {}
-        rule_dict[ME._CONTROLLER_CLASS]                                     = CapabilityHierarchy_Controller
-        rule_dict[ME._POSTINGS_FILING_SCHEME]                               = ["scaffoldingPurpose", "project"]
-        self.posting_handlers[ME.POSTING_CAPABILITY_HIERARCHY]              = rule_dict 
-
-        # Init processing rules for the Big Rocks controller
-        rule_dict                                                           = {}
-        rule_dict[ME._CONTROLLER_CLASS]                                     = BigRocksEstimate_Controller
-        # Example: ["modernization", "default", "Dec 2020", "FusionOpus"]. This, plus posting type, uniquely identifies location
-        # of a posting in the knowledge base. These are fields that the PostingLabel for the controller must have.
-        rule_dict[ME._POSTINGS_FILING_SCHEME]                                  = ["journey", "scenario", "scoringCycle", "product"]
-        self.posting_handlers[ME.POSTING_BIG_ROCKS]                         = rule_dict  
-
-    # Possible keys in a rule dictionary for a given posting type
-    _CONTROLLER_CLASS               = "_CONTROLLER_CLASS" 
-    _POSTINGS_FILING_SCHEME         = "_POSTINGS_FILING_SCHEME"    
-
-    # Static strings used for the string users are expected to provide to expresss what type
-    #  of posting a user is doing
-    POSTING_CAPABILITY_HIERARCHY    = "capability-hierarchy"
-    POSTING_BIG_ROCKS               = "big-rocks"
-
 
     
         

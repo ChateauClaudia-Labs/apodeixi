@@ -22,6 +22,14 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         self.output_manifests_dir           = output_manifests_dir
         self.output_postings_dir            = output_postings_dir
 
+    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
+        '''
+        Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
+        '''
+        supported_apis                      = [ 'delivery-planning.journeys.a6i',
+                                                ]
+        return supported_apis
+
     def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Sheet1"):
         filename    = _os.path.split(excel_posting_path)[1]
         url         = self.input_postings_dir  +  '/' + filename + ':' + sheet
@@ -54,14 +62,19 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         matching_manifests = [] # List of dictionaries, one per manifest
         matching_filenames = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
 
+        suffix                  = ''
+        if version != None:
+            suffix              += '_' + version
+        suffix                  += '.yaml'
+
         input_manifests, input_filenames    = self._getMatchingManifests(   parent_trace    = parent_trace, 
                                                                             folder          = self.input_manifests_dir, 
                                                                             manifest_handle = manifest_handle, 
-                                                                            version         = version)
+                                                                            suffix          = suffix)
         output_manifests, output_filenames  = self._getMatchingManifests(   parent_trace    = parent_trace, 
                                                                             folder          = self.output_manifests_dir, 
                                                                             manifest_handle = manifest_handle, 
-                                                                            version         = version)
+                                                                            suffix          = suffix)
         matching_manifests.extend(input_manifests)
         matching_manifests.extend(output_manifests)
         matching_filenames.extend(input_filenames)
@@ -78,40 +91,3 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
             return None
         # By now we know there is exaclty one match - that must be the manifest we are after
         return matching_manifests[0]
-
-    def _getMatchingManifests(self, parent_trace, folder, manifest_handle, version):
-        '''
-        Returns two lists of the same length:
-
-        * A list of dictionaries, one per manifest that matches the given manifest handle
-        * A list of filenames, which is where each of those manifests was retrieved from
-        '''
-        matching_manifests = [] # List of dictionaries, one per manifest
-        matching_filenames = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
-
-        # Two areas where to search for manifests: input area, and output area. First the input area
-        for filename in self._getFilenames(parent_trace, folder, version):
-            my_trace            = parent_trace.doing("Loading manifest from file",
-                                                        data = {'filename':         filename,
-                                                                'folder':           folder},
-                                                        origination = {
-                                                                'concrete class':   str(self.__class__.__name__), 
-                                                                'signaled_from':    __file__})
-            with open(folder + '/' + filename, 'r') as file:
-                manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
-            #manifest_dict       = _yaml.load(filename, Loader=_yaml.FullLoader)
-            inferred_handle     = ManifestHandle.inferHandle(my_trace, manifest_dict)
-            if inferred_handle == manifest_handle:
-                matching_filenames.append(filename)
-                matching_manifests.append(manifest_dict)
-
-        return matching_manifests, matching_filenames
-
-    def _getFilenames(self, parent_trace, folder, version):
-        '''
-        Helper method that looks at all yaml files in the given folder and returns their filenames
-        '''
-        suffix              = '.yaml'
-        if version != None:
-            suffix          = '_' + version + '.yaml'
-        return [filename for filename in _os.listdir(folder) if filename.endswith(suffix)]

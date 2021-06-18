@@ -93,6 +93,20 @@ class ApodeixiConfig():
         
         return self.config_dict[KB][POSTINGS_FOLDER]
 
+    def get_KB_ManifestsRootFolder(self, parent_trace):
+        my_trace            = parent_trace.doing("Retrieving Knowledge Base's root manifests folder from the Apodeixi Configuration ")
+        KB                  = 'knowledge-base'
+        MANIFESTS_FOLDER    = 'manifests-root-folder'
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
+                                                                root_dict       = self.config_dict, 
+                                                                root_dict_name  = 'apodeixi',
+                                                                path_list       = [KB, MANIFESTS_FOLDER],
+                                                                valid_types     = [str])
+        if not check:
+            raise ApodeixiError(my_trace, "Can't locate root folder for manifests: " + explanation)
+        
+        return self.config_dict[KB][MANIFESTS_FOLDER]
+
     def getMonthFiscalYearStarts(self, parent_trace):
         my_trace            = parent_trace.doing("Retrieving Knowledge Base's root postings folder from the Apodeixi Configuration ")
         SETTINGS            = 'organization-settings'
@@ -106,7 +120,6 @@ class ApodeixiConfig():
             raise ApodeixiError(my_trace, "Can't locate root folder for postings: " + explanation)
         
         return self.config_dict[SETTINGS][FY_START]
-
 
     def getProducts(self, parent_trace):
         '''

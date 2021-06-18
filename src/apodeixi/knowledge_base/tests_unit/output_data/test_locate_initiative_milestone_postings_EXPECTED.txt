@@ -1,0 +1,13 @@
+--------------------- Workstreams with a filing structure in the KnowledgeBase
+
+scoringCycle: FY 22; workstream_UID: s1; scenario: None		[]
+scoringCycle: FY 22; workstream_UID: s1.w0; scenario: None.0		w0-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w1; scenario: None.0		w1-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w2; scenario: None.0		w2-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w3; scenario: None.0		w3-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w4; scenario: None.0		w4-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w5; scenario: None.0		w5-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w6; scenario: None.0		w6-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w7; scenario: None.0		w7-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w8; scenario: None.0		w8-milestones.initiative.a6i.xlsx
+scoringCycle: FY 22; workstream_UID: s1.w9; scenario: None.0		w9-milestones.initiative.a6i.xlsx

@@ -4,6 +4,7 @@ folder = "C:/Alex/Code/ea-journeys/secrets"
 
 [knowledge-base]
 postings-root-folder = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/excel-postings"
+manifests-root-folder = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/manifests"
 
 [organization-settings]
 month-fiscal-year-starts = 6
