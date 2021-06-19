@@ -1,14 +1,14 @@
-import sys                                      as _sys
+import sys                                              as _sys
 
-from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
-from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
-from apodeixi.util.formatting_utils             import DictionaryFormatter 
+from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest
+from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
+from apodeixi.util.formatting_utils                     import DictionaryFormatter 
 
-from apodeixi.knowledge_base.file_kb_store      import File_KnowledgeBaseStore
+from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
 
-from apodeixi.util.apodeixi_config              import ApodeixiConfig
+from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
-class Test_File_KnowledgeBaseStore(ApodeixiUnitTest):
+class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()

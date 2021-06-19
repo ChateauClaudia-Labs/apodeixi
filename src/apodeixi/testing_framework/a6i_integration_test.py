@@ -5,7 +5,7 @@ import inspect
 from apodeixi.testing_framework.a6i_skeleton_test   import ApodeixiSkeletonTest
 
 
-class ApodeixiUnitTest(ApodeixiSkeletonTest):  
+class ApodeixiIntegrationTest(ApodeixiSkeletonTest):  
     '''
     Parent class for unit tests in Apodeixi
     '''
@@ -18,9 +18,7 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
         # So instead we rely on the inspect package
         me__file__                  = inspect.getfile(self.__class__)
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
-        self.input_data             = _os.path.join(_os.path.dirname(me__file__), 'input_data') # Works ! :-) Thanks inspect!
-        # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
-        self.output_data            = _os.path.join(_os.path.dirname(me__file__), 'output_data') # Works ! :-) Thanks inspect!
+        self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
 
     def tearDown(self):
@@ -33,7 +31,7 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        super()._compare_to_expected_yaml(output_dict, test_case_name, data_dir = self.output_data, save_output_dict=False)
+        super()._compare_to_expected_yaml(output_dict, test_case_name, data_dir = self.results_data, save_output_dict=False)
 
     def _compare_to_expected_txt(self, output_txt, test_case_name, save_output_txt=False):
         '''
@@ -42,7 +40,7 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        super()._compare_to_expected_txt(output_txt, test_case_name, data_dir = self.output_data, save_output_txt=False)
+        super()._compare_to_expected_txt(output_txt, test_case_name, data_dir = self.results_data, save_output_txt=False)
 
     def _compare_to_expected_df(self, parent_trace, output_df, test_case_name, columns_to_ignore=[], id_column=None):
         '''
@@ -55,5 +53,5 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
         @param id_column A string representing the column that should be used to identify rows in comparison text produced. 
                          If set to None, then the row index is used.
         '''
-        super()._compare_to_expected_df(parent_trace, output_df, test_case_name, data_dir = self.output_data, 
+        super()._compare_to_expected_df(parent_trace, output_df, test_case_name, data_dir = self.results_data, 
                                             columns_to_ignore=[], id_column=None)

@@ -91,7 +91,6 @@ class PostingController():
         
         return tyt.strip().lower().replace(' ', '-')
 
-
     def getManifestAPI(self):
         '''
         Implemented by concrete classes.

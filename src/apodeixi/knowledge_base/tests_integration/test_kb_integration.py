@@ -1,38 +1,18 @@
 import sys                                              as _sys
 
-from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
-from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
+from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
 
-from apodeixi.util.apodeixi_config              import ApodeixiConfig
+from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
-class Test_KnowledgeBase(ApodeixiUnitTest):
+class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
-
-    def test_posting_with_mock_store(self):
-
-        MANIFEST_FILE_PREFIX    = 'posting_with_mock_store'
-        posted_kind             = 'big-rocks'
-
-        STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
-                                                                input_manifests_dir     = self.input_data, 
-                                                                input_postings_dir      = self.input_data, 
-                                                                output_manifests_dir    = self.output_data, 
-                                                                output_postings_dir     = self.output_data)
-
-        EXCEL_FILE                      = MANIFEST_FILE_PREFIX + '_delivery-planning.journeys.a6i.xlsx' 
-        
-        self._posting_testing_skeleton( store           = STORE, 
-                                        posted_kind     = posted_kind, 
-                                        test_case_name  = MANIFEST_FILE_PREFIX,
-                                        excel_file      = EXCEL_FILE)
-
 
     def test_posting_with_file_store(self):
 
@@ -100,12 +80,10 @@ class Test_KnowledgeBase(ApodeixiUnitTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_KnowledgeBase()
+        T = Test_KnowledgeBase_Integration()
         T.setUp()
         what_to_do = args[1]
-        if what_to_do=='posting_with_mock_store':
-            T.test_posting_with_mock_store()
-        elif what_to_do=='posting_with_file_store':
+        if what_to_do=='posting_with_file_store':
             T.test_posting_with_file_store()
 
     main(_sys.argv)

@@ -13,6 +13,10 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
         super().setUp()
 
     def test_simple_burnout(self):
+        '''
+        Tests the "internal logic" of a controller: the _buildAllManifests method, using a simple mock KnowledgeBaseStore
+        suitable for unit tests.
+        '''
 
         EXCEL_FILE              = 'simple_burnout_INPUT.xlsx' 
         SHEET                   = 'simple burnout'
