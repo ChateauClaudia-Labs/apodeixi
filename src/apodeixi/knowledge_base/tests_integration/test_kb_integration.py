@@ -5,33 +5,21 @@ from apodeixi.util.formatting_utils                     import DictionaryFormatt
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
-from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
-
-from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
 class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
 
-    def test_posting_with_file_store(self):
+    def test_big_rocks_posting(self):
 
-        MANIFEST_FILE_PREFIX            = 'posting_with_file_store'
+        MANIFEST_FILE_PREFIX            = 'big_rocks_posting'
         posted_kind                     = 'big-rocks'
 
-        root_trace                      = FunctionalTrace(None).doing("Loading Apodeixi configuration",
-                                                                        origination = {'signaled_from': __file__})
-        config                          = ApodeixiConfig(root_trace)
-        postings_folder                 = config.get_KB_PostingsRootFolder(root_trace)
-        manifests_folder                = config.get_KB_ManifestsRootFolder(root_trace)
+        EXCEL_FILE                      = self.postings_folder + "/journeys/Dec 2020/FusionOpus/Default/" \
+                                            + MANIFEST_FILE_PREFIX + '.delivery-planning.journeys.a6i.xlsx' 
 
-        STORE                           = File_KnowledgeBaseStore(  postings_rootdir        = postings_folder,
-                                                                    derived_data_rootdir    = manifests_folder)
-
-        EXCEL_FILE                      = postings_folder + "/journeys/Dec 2020/FusionOpus/Default/" \
-                                            + MANIFEST_FILE_PREFIX + '_delivery-planning.journeys.a6i.xlsx' 
-
-        self._posting_testing_skeleton( store           = STORE, 
+        self._posting_testing_skeleton( store           = self.store, #STORE, 
                                         posted_kind     = posted_kind, 
                                         test_case_name  = MANIFEST_FILE_PREFIX,
                                         excel_file      = EXCEL_FILE)
@@ -83,7 +71,7 @@ if __name__ == "__main__":
         T = Test_KnowledgeBase_Integration()
         T.setUp()
         what_to_do = args[1]
-        if what_to_do=='posting_with_file_store':
-            T.test_posting_with_file_store()
+        if what_to_do=='big_rocks_posting':
+            T.test_big_rocks_posting()
 
     main(_sys.argv)

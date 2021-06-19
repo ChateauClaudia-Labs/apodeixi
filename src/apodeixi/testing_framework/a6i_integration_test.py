@@ -1,9 +1,15 @@
-import sys                  as _sys
-import os                   as _os
+import sys                                              as _sys
+import os                                               as _os
 import inspect
 
-from apodeixi.testing_framework.a6i_skeleton_test   import ApodeixiSkeletonTest
+from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
 
+from apodeixi.util.a6i_error                            import FunctionalTrace , ApodeixiError
+
+#from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
+from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
+
+from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
 class ApodeixiIntegrationTest(ApodeixiSkeletonTest):  
     '''
@@ -19,6 +25,15 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         me__file__                  = inspect.getfile(self.__class__)
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
         self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
+
+        root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
+                                                                        origination = {'signaled_from': __file__})
+        self.config                 = ApodeixiConfig(root_trace)
+        self.postings_folder        = self.config.get_KB_PostingsRootFolder(root_trace)
+        self.manifests_folder       = self.config.get_KB_ManifestsRootFolder(root_trace)
+
+        self.store                  = File_KnowledgeBaseStore(  postings_rootdir        = self.postings_folder,
+                                                                derived_data_rootdir    = self.manifests_folder)
 
 
     def tearDown(self):
