@@ -11,7 +11,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
     def setUp(self):
         super().setUp()
         
-        root_trace                      = FunctionalTrace(None).doing("Loading Apodeixi configuration",
+        root_trace                      = FunctionalTrace(None).doing("Retrieving product list from config",
                                                                         origination = {'signaled_from': __file__})
         self.products                   = self.config.getProducts(root_trace)
 

@@ -1,10 +1,10 @@
 from apodeixi.util.a6i_error                    import ApodeixiError
 
-class InitiativeWorkstreamAggregator():
+class WorkstreamAggregator():
     '''
     Class to aggregate milestones across multiple workstreams for a particular strategic initiative
     '''
-    def __init__(self, parent_trace, initative_UID, knowledge_base_store):
+    def __init__(self, parent_trace, initiative_UID, knowledge_base_store):
         self.initiative_UID         = initiative_UID
         self.kb_store               = knowledge_base_store
 
@@ -19,9 +19,13 @@ class InitiativeWorkstreamAggregator():
         @param posting_version An instance of a posting version.
         
         '''
-        POSTING_API                 = 'milestones.initiative.a6i'
+        POSTING_API                 = 'workstream.initiatives.a6i'
+
+        result_df                   = None
 
         locations_dict              = self.kb_store.locatePostings( parent_trace                    = parent_trace, 
                                                                     posting_api                     = POSTING_API,
                                                                     filing_coordinates_filter       = None, 
                                                                     posting_version_filter          = None)
+
+        return result_df

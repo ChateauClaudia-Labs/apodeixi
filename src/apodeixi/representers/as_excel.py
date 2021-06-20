@@ -1,11 +1,11 @@
 import pandas                               as _pd
 import xlsxwriter
-from xlsxwriter.utility import xl_rowcol_to_cell, xl_range
+from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.text_layout.excel_layout      import ManifestLayout
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
-from .as_dataframe                          import AsDataframe_Representer
+from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 
 class Manifest_Representer:
     '''

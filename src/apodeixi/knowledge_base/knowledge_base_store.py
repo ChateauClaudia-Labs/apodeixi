@@ -22,25 +22,67 @@ class KnowledgeBaseStore():
 
     def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
+        Returns a dictionary with the information of all postings that satisfy the criteria.
+
+        The keys are FilingCoordinates instances, and the values are lists with the file name of each posting that lies
+        at those coordinates.
+
         @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
                             'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
-                            such as 'opus_milestione.modernization.a6i.xlsx' will be located by this method.
-        @param filing_coordinates_filter A function that takes a JourneysFilingCoordinates instance as a parameter and returns a boolean. 
-                            Any JourneysFilingCoordinates instance for which this filter returns False will be excluded from the output.
+                            such as 'opus_milestone.modernization.a6i.xlsx' will be located by this method.
+        @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
+                            Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
-        @param posting_version An instance of a posting version.
+        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
+                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
+                            If set to None then no filtering is done.
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'locatePostings' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
     def persistManifest(self, parent_trace, manifest_dict, version = None):
+        '''
+        Abstract method implemented by concrete classes.
+
+        It persists a manifest object whose content is given by `manifest_dict`, and returns a 
+        ManifestHandle that uniquely identifies it.
+        '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'persistManifest' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
     def retrieveManifest(self, parent_trace, manifest_handle, version = None):
+        '''
+        Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.
+        If none exists, it returns None.
+
+        @param manifest_handle A ManifestHandle instance that uniquely identifies the manifest we seek to retrieve.
+        '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'retrieveManifest' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
+    def searchManifests(self, parent_trace, manifest_api, labels_filter=None, manifest_version_filter=None):
+        '''
+        Used to retrieve all manifests in the store for a given `manifest_api` provided they match the
+        given conditions.
+
+        Returns a dictionary where the keys are ManifestHandle instances and the values are dictionaries
+        representing the data of the manifest corresponding to that ManifestHandle.
+
+        @param manifest_api A string that identifies the type of manifest supported by the store. For example,
+                            'milestone.modernization.a6i' is a recognized manifest API and store manifest objects
+                            for such an api will be retrieved by this method.
+        @param labels_filter A function that takes aa dict as a parameter and returns a boolean. The dict represents the content
+                            of a manifest.
+                            Any store mmanifest for which this filter returns False will be excluded from the output.
+                            If set to None then no filtering is done.
+        @param manifest_version_filter A function that takes a ManifestVersion instance as a parameter and returns a boolean. 
+                            Any ManifestVersion instance for which this filter returns False will be excluded from the output.
+                            If set to None then no filtering is done.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'searchManifests' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
@@ -63,36 +105,6 @@ class KnowledgeBaseStore():
                                             data = {    'filename':             filename,
                                                         'supported apis':       str(list(self.filing_rules.keys()))})
 
-    def _getMatchingManifests(self, parent_trace, folder, manifest_handle, suffix):
-        '''
-        Returns two lists of the same length:
 
-        * A list of dictionaries, one per manifest that matches the given manifest handle
-        * A list of filenames, which is where each of those manifests was retrieved from
-        '''
-        matching_manifests = [] # List of dictionaries, one per manifest
-        matching_filenames = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
-
-        # Two areas where to search for manifests: input area, and output area. First the input area
-        for filename in self._getFilenames(parent_trace, folder, suffix):
-            my_trace            = parent_trace.doing("Loading manifest from file",
-                                                        data = {'filename':         filename,
-                                                                'folder':           folder},
-                                                        origination = {
-                                                                'concrete class':   str(self.__class__.__name__), 
-                                                                'signaled_from':    __file__})
-            with open(folder + '/' + filename, 'r') as file:
-                manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
-            #manifest_dict       = _yaml.load(filename, Loader=_yaml.FullLoader)
-            inferred_handle     = ManifestHandle.inferHandle(my_trace, manifest_dict)
-            if inferred_handle == manifest_handle:
-                matching_filenames.append(filename)
-                matching_manifests.append(manifest_dict)
-
-        return matching_manifests, matching_filenames
-
-    def _getFilenames(self, parent_trace, folder, suffix):
-        '''
-        Helper method that looks at all yaml files in the given folder and returns their filenames
-        '''
-        return [filename for filename in _os.listdir(folder) if filename.endswith(suffix)]
+        
+ 

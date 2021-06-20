@@ -126,4 +126,14 @@ class PostResponse(Response):
         handle                  = ManifestHandle.inferHandle(parent_trace, manifest_dict)
         self.manifest_handles_dict[Response.CREATE].append(handle)
 
+class PostingVersion():
+    '''
+    Helper class to represent different versions of the same posting
+    '''
+    def __init__(self, version_nb = 0):
+        self.version_nb         = version_nb
+        return
+    
+    def nextVersion(self, posting_version):
+        return PostingVersion(posting_version.version_nb + 1)
 
