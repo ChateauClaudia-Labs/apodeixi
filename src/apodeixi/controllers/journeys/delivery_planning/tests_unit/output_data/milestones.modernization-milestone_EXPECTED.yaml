@@ -2,7 +2,7 @@ apiVersion: milestone.journeys.a6i.io/v1
 assertion:
   entity_type: Milestone
   estimatedBy: joe@my-org.com
-  estimatedOn: 2021-06-06 00:00:00
+  estimatedOn: &id001 2021-06-06 00:00:00
   milestone:
     M1:
       Date: Q3 FY22
@@ -39,9 +39,13 @@ assertion:
 kind: modernization-milestone
 metadata:
   labels:
+    environment: Production
+    estimatedBy: joe@my-org.com
+    estimatedOn: *id001
     journey: Modernization
     organization: CCL
     product: Opus Health Pro
+    recordedBy: tulia@my-org.com
     scenario: Annual plan
     scoringCycle: FY 22
     scoringMaturity: Draft

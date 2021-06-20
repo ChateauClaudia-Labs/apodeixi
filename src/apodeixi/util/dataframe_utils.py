@@ -1,5 +1,7 @@
 import numpy                                    as _numpy
 import math                                     as _math
+import pandas                                   as _pd
+import datetime    as _datetime
 
 from apodeixi.util.a6i_error                    import ApodeixiError    
 
@@ -9,7 +11,7 @@ class DataFrameUtils():
     def __init__(self):
         return
 
-    def numpy_2_float(self, x):
+    def _numpy_2_float(self, x):
         '''
         Cleans problems with numbers in the trees being built. Turns out that if they are numpy classes then the
         YAML produced is unreadable and sometimes won't load. So move anything numpy to floats. If there are no decimals, returns an int
@@ -24,6 +26,38 @@ class DataFrameUtils():
                 return y # This is really a float
         else:
             return x
+
+    def clean(self, x):
+        '''
+        Addresses a number of problems with cell values returned by Pandas when which are not formattable outside Pandas
+        in a nice way. Things like: nan, NaT, dates, numpy classes, ...
+
+        So it returns a "cleaned up" version of x, safe to use in text messages or as values in a YAML file.
+        It preserves the "natural type" of x - numbers become int or float, dates become datetime, strings remain strings,
+        and "bad stuff" (nans, NaT, etc) become an empty string.
+
+        If there is nothing to clean, just return x
+        '''
+        # Clean up numerical stuff, if any
+        y           = self._numpy_2_float(x)
+        if type(y)==float and _math.isnan(y):
+            y       = ''
+
+        # Clean up NaT stuff, if any
+        if type(y) == type(_pd.NaT): 
+            y       = ''
+
+        # Clean up dates, if any
+        if 'strftime' in dir(y):
+            y       = y.strftime('%Y-%m-%d') # As required by YAML: ISO-8601 simple date format
+            y       = _datetime.datetime.strptime(y, '%Y-%m-%d') # Now parse into a datetime
+
+        # Tidy up strings, if needed - remove new lines, trailing or leading spaces
+        '''
+        if type(y)==str:
+            y       = y.replace('\n', '').strip(' ')
+        '''
+        return y
 
 class DataFrameComparator():
     '''

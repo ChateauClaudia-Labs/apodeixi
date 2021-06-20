@@ -120,6 +120,8 @@ class SkeletonController(PostingController):
         environment                 = label.environment         (parent_trace)  
                     
         recorded_by                 = label.recordedBy          (parent_trace)
+        estimated_by                = label.estimatedBy         (parent_trace)
+        estimated_on                = label.estimatedOn         (parent_trace)
 
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
                                                                 data = {'url': url, 'excel_range': excel_range}, 
@@ -138,13 +140,19 @@ class SkeletonController(PostingController):
             FMT                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
             manifest_dict               = {}
             metadata                    = { 'namespace':    FMT(organization + '.' + environment), 
-                                            'labels':       {'organization': organization}}
+                                            'labels':       {   label._ORGANIZATION:    organization,
+                                                                label._ENVIRONMENT:     environment,
+                                                                label._RECORDED_BY:     recorded_by,
+                                                                label._ESTIMATED_BY:    estimated_by,
+                                                                label._ESTIMATED_ON:    estimated_on}}
 
             manifest_dict['apiVersion'] = self.api_version(my_trace)
             manifest_dict['kind']       = kind
             manifest_dict['metadata']   = metadata
 
-            manifest_dict['assertion']  = {label._RECORDED_BY:                 recorded_by , 
+            manifest_dict['assertion']  = { label._RECORDED_BY:                 recorded_by ,
+                                            label._ESTIMATED_BY:                estimated_by, 
+                                            label._ESTIMATED_ON:                estimated_on,
                                             'entity_type':                      tree.entity_type,
                                             FMT(tree.entity_type):              tree_dict}
         return manifest_dict
@@ -169,6 +177,8 @@ class SkeletonController(PostingController):
         _ORGANIZATION               = 'organization'
         _ENVIRONMENT                = 'environment'
         _RECORDED_BY                = 'recordedBy'
+        _ESTIMATED_BY               = 'estimatedBy'
+        _ESTIMATED_ON               = 'estimatedOn'
 
         def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
             # Shortcut to reference class static variables
@@ -176,14 +186,14 @@ class SkeletonController(PostingController):
 
             combined_mandatory_fields               = [ ME._EXCEL_API,          ME._DATA_KIND,              # Determine apiVersion
                                                         ME._ORGANIZATION,       ME._ENVIRONMENT,            # Determine namespace
-                                                        ME._RECORDED_BY,
+                                                        ME._RECORDED_BY,        ME._ESTIMATED_BY,       ME._ESTIMATED_ON,
                                                         ME._DATA_RANGE]
             combined_mandatory_fields.extend(mandatory_fields)
 
             combined_optional_fields                = [ME._DATA_SHEET]
             combined_optional_fields.extend(optional_fields)
 
-            combined_date_fields                    = []
+            combined_date_fields                    = [ME._ESTIMATED_ON]
             combined_date_fields.extend(date_fields)
 
             super().__init__(   parent_trace        = parent_trace,
@@ -237,6 +247,19 @@ class SkeletonController(PostingController):
 
             return self._getField(parent_trace, ME._RECORDED_BY)
         
+        def estimatedBy(self, parent_trace):
+            # Shortcut to reference class static variables
+            ME = SkeletonController._MyPostingLabel
+
+            return self._getField(parent_trace, ME._ESTIMATED_BY)
+
+        def estimatedOn(self, parent_trace):
+            # Shortcut to reference class static variables
+            ME = SkeletonController._MyPostingLabel
+
+            dt  = self._getField(parent_trace, ME._ESTIMATED_ON)
+            return dt
+
         def _getField(self, parent_trace, fieldname):
             if self.ctx==None:
                 raise ApodeixiError(parent_trace, "PostingLabel's context is not yet initialized, so can't read '" + fieldname + "'")

@@ -1,6 +1,8 @@
 apiVersion: delivery-planning.journeys.a6i.io/v1a
 assertion:
   entity_type: Period
+  estimatedBy: joe.thedevhead@mycorp.com
+  estimatedOn: &id001 2021-04-29 00:00:00
   period:
     P1:
       Incremental: 3584
@@ -36,10 +38,14 @@ assertion:
 kind: investment
 metadata:
   labels:
+    environment: Production
+    estimatedBy: joe.thedevhead@mycorp.com
+    estimatedOn: *id001
     journey: Modernization
     organization: My Corp
     planType: Marathon
     product: FusionOpus
+    recordedBy: jill.thearchitect@mycorp.com
     scenario: Default
     scoringCycle: Dec 2020
     scoringMaturity: Draft

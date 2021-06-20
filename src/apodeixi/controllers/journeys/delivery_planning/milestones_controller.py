@@ -50,7 +50,7 @@ class MilestonesController(SkeletonController):
                                                                 manifest_nb         = manifest_nb,
                                                                 controller          = self)
         elif kind == ME.REFERENCED_KIND:
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = BigRocksEstimate_Controller._BigRocksConfig(  update_policy       = update_policy, 
                                                                                         kind                = kind,
                                                                                         manifest_nb         = manifest_nb,

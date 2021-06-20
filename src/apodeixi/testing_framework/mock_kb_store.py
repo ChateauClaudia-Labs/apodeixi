@@ -47,7 +47,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         suffix              = ''
         if version != None:
             suffix = '_' + version
-        manifest_file       = self.test_case_name + "_" + kind + suffix + ".yaml"
+        manifest_file       = self.test_case_name + "." + kind + suffix + ".yaml"
         my_trace            = parent_trace.doing("Persisting manifest", 
                                                     data = {    'manifests_dir': self.output_manifests_dir, 
                                                                 'manifest_file': manifest_file},

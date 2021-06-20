@@ -1,6 +1,8 @@
 apiVersion: workstream.initiatives.a6i.io/v1a
 assertion:
   entity_type: Metric
+  estimatedBy: joe.theworkstreamlead@mycorp.com
+  estimatedOn: &id001 2021-04-29 00:00:00
   initiative: S1
   metric:
     M1:
@@ -12,9 +14,9 @@ assertion:
       Frequency of Collection: Annual
       Granularity: ELT
       Metric Type: R
-      Q1 FY 22 Target: .nan
-      Q2 FY22 Target: .nan
-      Q3 FY22 Target: .nan
+      Q1 FY 22 Target: ''
+      Q2 FY22 Target: ''
+      Q3 FY22 Target: ''
       Q4 FY 22 Target: TBD 8/31/21
       Source: ea-journeys knowledge base system
       UID: M1
@@ -23,7 +25,7 @@ assertion:
     M2:
       Baseline Value: TBD 8/31/21
       Definition of metric: Aggregation across all products of the product-specific
-        metrics M5, M6, M7
+        metrics M6, M7, M8
       FY 23 Target: TBD 8/31/21
       FY 24 Target: TBD 8/31/21
       Frequency of Collection: Quarterly
@@ -38,19 +40,19 @@ assertion:
       name: Containerization, PaaS, Multi-tenancy
     M2-name: Containerization, PaaS, Multi-tenancy
     M3:
-      Baseline Value: .nan
+      Baseline Value: ''
       Definition of metric: Aggregation across all products of the product-specific
-        metric M8
-      FY 23 Target: .nan
-      FY 24 Target: .nan
-      Frequency of Collection: .nan
+        metric M9
+      FY 23 Target: 1
+      FY 24 Target: 1
+      Frequency of Collection: Quarterly
       Granularity: ELT
       Metric Type: P
-      Q1 FY 22 Target: .nan
-      Q2 FY22 Target: .nan
-      Q3 FY22 Target: .nan
-      Q4 FY 22 Target: .nan
-      Source: .nan
+      Q1 FY 22 Target: 1
+      Q2 FY22 Target: 1
+      Q3 FY22 Target: 1
+      Q4 FY 22 Target: 1
+      Source: Aha and the the ea-journeys knowledge base system.
       UID: M3
       name: 'Aggregated # of epics delivered'
     M3-name: 'Aggregated # of epics delivered'
@@ -69,9 +71,9 @@ assertion:
       Frequency of Collection: Annual
       Granularity: Growth products
       Metric Type: R
-      Q1 FY 22 Target: .nan
-      Q2 FY22 Target: .nan
-      Q3 FY22 Target: .nan
+      Q1 FY 22 Target: ''
+      Q2 FY22 Target: ''
+      Q3 FY22 Target: ''
       Q4 FY 22 Target: TBD 8/31/21
       Source: ea-journeys knowledge base system
       UID: M4
@@ -86,9 +88,9 @@ assertion:
       Frequency of Collection: Annual
       Granularity: New products
       Metric Type: R
-      Q1 FY 22 Target: .nan
-      Q2 FY22 Target: .nan
-      Q3 FY22 Target: .nan
+      Q1 FY 22 Target: ''
+      Q2 FY22 Target: ''
+      Q3 FY22 Target: ''
       Q4 FY 22 Target: TBD 8/31/21
       Source: ea-journeys knowledge base system
       UID: M5
@@ -146,7 +148,7 @@ assertion:
       name: Scalability enablement
     M8-name: Scalability enablement
     M9:
-      Baseline Value: .nan
+      Baseline Value: ''
       Definition of metric: "Metric is separately reported for each of 14 growth products\
         \ and computed as follows:\n1. Product modernization roadmaps will be defined\
         \ based on milestones that align to Amplify booking projections. \n2. A given\
@@ -170,6 +172,7 @@ assertion:
     M9-name: '# of EPICs delivered in time and budget'
   program: Amplify
   recordedBy: jill.theinitiativepmo@mycorp.com
+  scenario: Default
   scoringCycle: Dec 2020
   scoringMaturity: Draft
   workstreamTitle: Modernization
@@ -177,12 +180,17 @@ assertion:
 kind: workstream-metric
 metadata:
   labels:
+    environment: Production
+    estimatedBy: joe.theworkstreamlead@mycorp.com
+    estimatedOn: *id001
     initiative: S1
     organization: My Corp
     program: Amplify
+    recordedBy: jill.theinitiativepmo@mycorp.com
     scenario: Default
     scoringCycle: Dec 2020
     scoringMaturity: Draft
+    workstreamTitle: Modernization
     workstreamUID: W1
   name: default.dec-2020.w1.s1
   namespace: my-corp.production

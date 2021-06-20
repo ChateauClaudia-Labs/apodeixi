@@ -67,8 +67,8 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         for col in data_df.columns:
             data_df[col] = data_df.apply(lambda row: _remove_carriage_returns(row[col]), axis=1)
 
-        # Clean up numbers to a standard
-        CLEANED                                         = DataFrameUtils().numpy_2_float # Abbreviation to express intent
+        # Clean up numbers and all else to a standard
+        CLEANED                                         = DataFrameUtils().clean  # Abbreviation to express intent
         for col in data_df.columns:
             data_df[col] = data_df.apply(lambda row: CLEANED(row[col]), axis=1)
         return data_df

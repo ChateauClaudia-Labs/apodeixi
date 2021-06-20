@@ -9,6 +9,7 @@ from apodeixi.xli.interval                      import IntervalUtils
 from apodeixi.controllers.util.manifest_api     import ManifestAPIVersion
 
 from apodeixi.util.dictionary_utils             import DictionaryUtils
+from apodeixi.util.dataframe_utils              import DataFrameUtils
 from apodeixi.util.a6i_error                    import ApodeixiError
 
 class PostingController():
@@ -78,7 +79,7 @@ class PostingController():
                                                             'signaled_from': __file__,
                                                              })
                 a_uid           = tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, 
-                                                                config=config)
+                                                                config=config, all_rows=rows)
                 if a_uid != None: # Improve our working hypothesis of last_uid
                     last_uid = a_uid
             # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
@@ -459,6 +460,8 @@ class PostingLabel():
             for field in expected_fields:
                 if not field in sightings.keys():
                     missing_fields.append(field)
+                    continue
+
                 idx_list                    = sightings[field]
                 if len(idx_list) ==  0: # Empty index list, that means that field is a column name in the row
                     if _val_is_null(row[field]):
@@ -498,9 +501,10 @@ class PostingLabel():
         appearances, sightings = self._fields_found(    expected_fields         = self.mandatory_fields, 
                                                         optional_fields         = self.optional_fields, 
                                                         label_df                = label_df)
-        
-        my_trace        = parent_trace.doing("Checking if fields are missing",
+
+        my_trace        = parent_trace.doing("Checking if fields are missing or spurious",
                                                 data = {"url": url, "excel range": excel_range})
+        spurious_fields     = [col for col in label_df.columns if col not in appearances]
         missing_fields = _missing_fields(   parent_trace        = my_trace,
                                             expected_fields     = self.mandatory_fields, 
                                             sightings           = sightings, 
@@ -508,9 +512,17 @@ class PostingLabel():
 
         if len(missing_fields) > 0:
             missing_txt = ", ".join(["'" + field + "'" for field in missing_fields])
-            raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' lacks at least one entry mandatory fields: "
+            if len(spurious_fields) > 0:
+                missing_txt += "\nPerhaps you have a typo, since these other fields are not valid: " \
+                                + ", ".join(["'" + field + "'" for field in spurious_fields])
+            raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' lacks at least one mandatory fields: "
                             + missing_txt)
-                       
+
+        if len(spurious_fields) > 0:
+            spurious_txt = ", ".join(["'" + field + "'" for field in spurious_fields])
+            raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' has these invalid fields: "
+                            + spurious_txt)
+
         ctx = {}
 
         for appearance in appearances:
@@ -521,7 +533,11 @@ class PostingLabel():
         for field in self.date_fields:
             BAD_SCHEMA_MSG      = "Incorrect schema for field '" + field + "' when processing the context in range '" \
                                     + excel_range + "'."
-            ctx[field]          = SchemaUtils.to_yaml_date(ctx[field], BAD_SCHEMA_MSG)
+            #CLEANED                                         = DataFrameUtils().clean
+            val                 = ctx[field]
+            clean_val           = SchemaUtils.to_yaml_date(val, BAD_SCHEMA_MSG)
+            #clean_val           = CLEANED(val)
+            ctx[field]          = clean_val
         
         self.ctx                = ctx 
         self.sightings  = sightings

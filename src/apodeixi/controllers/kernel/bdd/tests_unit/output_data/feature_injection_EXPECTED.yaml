@@ -1,6 +1,8 @@
 apiVersion: bdd.kernel.a6i.io/v1a
 assertion:
   entity_type: Jobs to be done
+  estimatedBy: alejandro@chateauclaudia-labs.com
+  estimatedOn: &id001 2021-06-20 00:00:00
   jobs-to-be-done:
     JTBD1:
       Capabilities:
@@ -135,7 +137,11 @@ assertion:
 kind: capability-hierarchy
 metadata:
   labels:
+    environment: Production
+    estimatedBy: alejandro@chateauclaudia-labs.com
+    estimatedOn: *id001
     organization: ChateauClaudia Labs
     project: Apodeixi
+    recordedBy: alejandro@chateauclaudia-labs.com
   name: bdd-tests.apodeixi
   namespace: chateauclaudia-labs.production

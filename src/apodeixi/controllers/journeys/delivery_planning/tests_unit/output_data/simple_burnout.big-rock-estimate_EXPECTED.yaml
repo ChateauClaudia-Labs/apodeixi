@@ -27,6 +27,8 @@ assertion:
       name: 525
     E5-name: 525
   entity_type: Effort
+  estimatedBy: joe.thedevhead@mycorp.com
+  estimatedOn: &id001 2021-04-29 00:00:00
   planType: Marathon
   recordedBy: jill.thearchitect@mycorp.com
   scenario: Default
@@ -36,10 +38,14 @@ assertion:
 kind: big-rock-estimate
 metadata:
   labels:
+    environment: Production
+    estimatedBy: joe.thedevhead@mycorp.com
+    estimatedOn: *id001
     journey: Modernization
     organization: My Corp
     planType: Marathon
     product: FusionOpus
+    recordedBy: jill.thearchitect@mycorp.com
     scenario: Default
     scoringCycle: Dec 2020
     scoringMaturity: Draft

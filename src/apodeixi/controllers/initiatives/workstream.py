@@ -100,6 +100,7 @@ class Workstream_Controller(SkeletonController):
             MY_PL                                       = Workstream_Controller._MyPostingLabel # Abbreviation for readability
             labels                                      = metadata['labels']
             labels[MY_PL._WORKSTREAM_UID]               = workstream_UID
+            labels[MY_PL._WORKSTREAM_TITLE]             = workstream_title
             labels[MY_PL._PROGRAM]                      = program
             labels[MY_PL._INITIATIVE]                   = initiative
             labels[MY_PL._SCENARIO]                     = scenario
@@ -112,6 +113,7 @@ class Workstream_Controller(SkeletonController):
             assertion[MY_PL._WORKSTREAM_TITLE]          = workstream_title
             assertion[MY_PL._PROGRAM]                   = program
             assertion[MY_PL._INITIATIVE]                = initiative
+            assertion[MY_PL._SCENARIO]                  = scenario
             assertion[MY_PL._SCORING_CYCLE]             = scoring_cycle
             assertion[MY_PL._SCORING_MATURITY]          = scoring_maturity
         

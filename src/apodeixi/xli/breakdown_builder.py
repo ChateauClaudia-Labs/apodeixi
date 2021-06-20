@@ -216,7 +216,7 @@ class BreakdownTree():
         _EntityInstance objects comprising this BreakdownTree
         '''
         result                                          = {}
-        CLEANED                                         = DataFrameUtils().numpy_2_float # Abbreviation to express intent
+        CLEANED                                         = DataFrameUtils().clean  # Abbreviation to express intent
         for k in self.children.keys():
             entity_instance                             = self.children[k]
             entity_instance_dict                        = {}
@@ -239,7 +239,7 @@ class BreakdownTree():
 
         return result
         
-    def readDataframeFragment(self, interval, row, parent_trace, config): 
+    def readDataframeFragment(self, interval, row, parent_trace, config, all_rows): 
         '''
         Used to attach or enrich an immediate child to the root of this BreakdownTree based on information in a row
         in a Pandas DataFrame.
@@ -364,49 +364,108 @@ class BreakdownTree():
         parent_entity                       = None
         my_trace                            = parent_trace.doing("Discovering parent entity",
                                                                     origination = {'signaled_from': __file__})
-        if True:
-            ancestor_entities_idxs      = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
-                                                                                    and idx < entity_column_idx]
-            if len(ancestor_entities_idxs) == 0:
-                my_trace                = my_trace.doing("Validating we are the root entity", 
-                                                data={'self.entity_type': self.entity_type,
-                                                        'entity_column_idx': entity_column_idx})
-                if interval.entity_name != self.entity_type:
-                    raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'") 
-            else:
-                parent_entity           = columns[max(ancestor_entities_idxs)]
-
         if encountered_new_entity: 
             my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval.entity_name + "'.",
                                                                     origination = {'signaled_from': __file__})
             if True:
-                if parent_entity == None: # Attach to the root
-                    docking_uid             = self.parent_UID
-                else:
-                    my_trace                = my_trace.doing("Validating we previously created a node for '" 
-                                                                    + parent_entity + "' to which to attach '" 
-                                                                    + interval.entity_name + "'.",
-                                                                    origination = {'signaled_from': __file__})
-                    if parent_entity not in self.last_path.keys():
-                        raise ApodeixiError(my_trace, "No prior node found for  '" + parent_entity + "'") 
-                    
-                    parent_entity_instance  = self.last_path[parent_entity]
-                    docking_uid             = parent_entity_instance.UID
+                docking_uid                 = self._discover_docking_uid(   parent_trace        = my_trace, 
+                                                                            interval            = interval,
+                                                                            entity_column_idx   = entity_column_idx,
+                                                                            original_row_nb     = row[0], 
+                                                                            current_row_nb      = row[0], 
+                                                                            all_rows            = all_rows, 
+                                                                            config              = config)
 
             my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
                                                                     + "' below docking_uid '" + str(docking_uid) + "'",
                                                                     origination = {'signaled_from': __file__})
-            subtree_full_uid                = self.dockEntityData(  full_docking_uid    = docking_uid, 
+            subtree_full_uid                = self.dockEntityData(  parent_trace        = my_trace,
+                                                                    full_docking_uid    = docking_uid, 
                                                                     entity_type         = interval.entity_name, 
                                                                     data_to_attach      = row[1][interval.columns], 
-                                                                    parent_trace        = my_trace)
-
+                                                                    config              = config)
             return subtree_full_uid
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
             return None
-        
-    def dockEntityData(self, full_docking_uid, entity_type, data_to_attach, parent_trace):
+
+    def _discover_docking_uid(self, parent_trace, interval, entity_column_idx, original_row_nb, current_row_nb, all_rows, config):
+        '''
+        Helper method used when a new entity is encountered in dataframe cell, where the cell's coordinates
+        are:
+        * row is determined by int `original_row_nb`
+        * column is determined by int `entity_column_idx`
+
+        In these conditions, this method does a "lexicographic" search to find the "last branch in the tree seen so far"
+        to which to get attached. This is done by searching like this:
+
+        * Search in the current row for the last entity to the left of `entity_column_idx` for which we don't have a
+          blank in this row. Initially the current row (defined by paramter `current_row_nb`) should be the same
+          as `original_row_nb`.
+        * If not found, recursively try the preceding row. That call keeps the same `original_row_nb` but decrements
+          `current_row_nb`
+
+        Once the search is done and a `parent entity` is found, then we use the UID of the last node for that entity
+        (available from the memory captured in self.last path from prior pricessing). That is the UID to which we want
+        to dock, and that is what this method returns.
+
+        If in the process the search never finds a UID, then it raises an ApodeixiError unless the `entity_column_idx`
+        corresponds to the first (highest level) entity, in which case self.parent_UID is returned
+        '''
+        known_entity_types              = list(self.last_path.keys())
+        row_data                        = all_rows[current_row_nb][1]
+        columns                         = list(row_data.index)
+        ancestor_entities_idxs          = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
+                                                                                and idx < entity_column_idx]
+        if len(ancestor_entities_idxs) == 0: # Only legal if we are the top-level entity, in which case return the parent_UID
+            my_trace                    = parent_trace.doing("Validating we are the root entity", 
+                                            data={'self.entity_type': self.entity_type,
+                                                    'entity_column_idx': entity_column_idx})
+            if interval.entity_name != self.entity_type:
+                raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'") 
+            else:
+                return self.parent_UID
+
+        # If we get this far, then we are not the top entity so we must find some UID to which to dock.
+        # First search in the current row for the last entity that didn't have a non-blank value. If we find one,
+        # we dock to its UID. If not, try again in the preceding row
+        my_trace                        = parent_trace.doing("Searching for docking UID for an entity in row " + str(current_row_nb),
+                                                        data = {    'entity':       str(columns[entity_column_idx]),
+                                                                    'row_nb':       str(current_row_nb)})
+        row_data                        = all_rows[current_row_nb][1]
+        non_blank_ancestors_idx         = [idx for idx in ancestor_entities_idxs if not
+                                            IntervalUtils().is_blank( row_data[columns[idx]]  )
+                                        ]
+
+        if len(non_blank_ancestors_idx) == 0: # No luck in this row. Try the preceding one, unless there isn't any, which means fail
+
+            if current_row_nb == 0: # No preceding row, so search stops with failure
+                # Search failed bacause we have only seen blanks in all rows, so fail with an error message explaining
+                # to the user which part of the Excel spreadsheet is blank and needs fixing
+                excel_original_row_nb   = config.excel_row_nb(my_trace, original_row_nb)
+                excel_current_row_nb    = config.excel_row_nb(my_trace, current_row_nb)
+                excel_sheet             = config.excel_sheet(my_trace)
+                ancestor_entities       = [columns[idx] for idx in ancestor_entities_idx ]
+                msg                     = "You left blank columns \n['" + "', '".join(ancestor_entities) + "']" \
+                                            + "\nfor excel rows " + str(excel_current_row_nb) + "-" + str(excel_original_row_nb) + "." \
+                                            + "\nThat is not allowed since you have non-blank data in column '" \
+                                            + str(columns[entity_column_idx]) + "' at excel row " + str(excel_original_row) + "'"
+                raise ApodeixiError(my_trace, msg)
+            else: # Try our lack in the preceding row
+                return self._discover_docking_uid(  parent_trace            = my_trace,
+                                                    interval                = interval,
+                                                    entity_column_idx       = entity_column_idx, 
+                                                    original_row_nb         = original_row_nb, 
+                                                    current_row_nb          = current_row_nb -1, 
+                                                    all_rows                = all_rows,
+                                                    config                  = config)
+        else: # We found it!
+            parent_entity               = columns[max(non_blank_ancestors_idx)]
+            parent_entity_instance      = self.last_path[parent_entity]
+            docking_uid                 = parent_entity_instance.UID
+            return docking_uid
+
+    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, config):
         '''
         Method to attach a descendent to the tree. When an entity A links 1:n with an entity B,
         this method can be used to "attach" an instance 'bi' of B to an instance 'a' of A.
@@ -463,8 +522,19 @@ class BreakdownTree():
                                                                     leaf_uid    = leaf_uid)
 
         for idx in data_to_attach.index:
-            if idx != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
-                new_node.setProperty(idx, data_to_attach[idx])
+            property_name       = idx
+            if IntervalUtils().is_a_UID_column(my_trace, property_name):
+                if config.update_policy.reuse_uids == False:
+                    continue # Don't change the UID value we just generated - ignore whatever the user entered
+                else:
+                    # Keep the user UID values, but "correct" the property name in case the user got "creative"
+                    # and named them things like "UID.1", "UID.2", etc., since in the YAML manifest only "UID"
+                    # makes sense
+                    property_name   = Interval.UID
+            if property_name != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
+                val             = data_to_attach[idx]
+                cleaned_val     = DataFrameUtils().clean(val) # Get rid of nan, bad dates, NaT, etc
+                new_node.setProperty(property_name, cleaned_val)
 
         tree_to_attach_to.children[leaf_uid]    = new_node
 

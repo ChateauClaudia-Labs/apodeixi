@@ -59,16 +59,11 @@ class IntervalUtils():
         '''
         Returns True if 'txt' is NaN or just spaces
         '''
-        CLEAN           = DataFrameUtils().numpy_2_float # Avoid numpy problems by turning numpys (if any) to float
-        if type(CLEAN(txt))==float and _math.isnan(txt):
-            return True
-        elif type(txt)==str:
-            stripped_txt = self._strip(txt)
+        CLEAN           = DataFrameUtils().clean  # Avoid problems with nan, numpy classes, dates, NaTs, etc.
+        y               = CLEAN(txt)
+        if type(y)==str:
+            stripped_txt = self._strip(y)
             return len(stripped_txt)==0
-        elif type(txt) == type(_pd.NaT): 
-            # Special Pandas object, kind of like a "instance of a null date". Instances are always different, so must compare types to detect
-            # if `txt` is of the same type as _pd.NaT
-            return True
         else:
             return False
 
