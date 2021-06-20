@@ -69,7 +69,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
                                         save_output_txt = True)
 
     def test_locate_initiative_milestone_postings(self):
-        POSTING_API                     = 'milestones.initiative.a6i'
+        POSTING_API                     = 'workstream.initiatives.a6i'
         TEST_NAME                       = 'test_locate_initiative_milestone_postings'
         self._locate_workstream_postings(POSTING_API, TEST_NAME)
 

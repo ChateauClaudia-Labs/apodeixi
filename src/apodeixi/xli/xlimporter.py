@@ -116,20 +116,19 @@ class ExcelTableReader:
         self.excel_range  = excel_range.upper()
         self.horizontally = horizontally
         
-    def read(self, horizontally=True):
-        path, sheet                                    = self.__parse_url()
+    def read(self, parent_trace, horizontally=True):
+
+        my_trace                                        = parent_trace.doing("Parsing excel posting's url",
+                                                                                data = {"url": str(self.url)})
+        path, sheet                                     = self.__parse_url(my_trace)
         
-        first_column, last_column, first_row, last_row = self.__parse_range()
+        my_trace                                        = parent_trace.doing("Parsing excel range",
+                                                                                data = {"excel_range": str(self.excel_range)})        
+        first_column, last_column, first_row, last_row  = self.__parse_range(my_trace)
         
-        if first_row < 1:
-            raise ValueError ("Incorrectly formatted Excel range was given: '" + self.excel_range 
-                              + "'. Row numbers must be 1 or higher")
-            
-        if first_row >= last_row:
-            raise ValueError ("Incorrectly formatted Excel range was given: '" + self.excel_range 
-                              + "'. It spans 0 rows")
+
         
-        # Not that Excel columns start at 1, but Pandas counts rows from 0, so need to offset the
+        # Note that Excel columns start at 1, but Pandas counts rows from 0, so need to offset the
         # header by 1
         if self.horizontally==True:
             header = first_row - 1
@@ -158,26 +157,26 @@ class ExcelTableReader:
         
         return df
     
-    def __parse_url(self):
+    def __parse_url(self, parent_trace):
         '''
         Given a url of form "<some string A, maybe with colons>:<some string B without colons>"
         it returns the two substrings separated by the last colon
         '''
         s = _re.split(':', self.url)
         if len(s) < 2:
-            raise ValueError ("Incorrectly formatted url was given: '" + self.url
+            raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: '" + self.url
                              +"'. Should instead be formmated like this example: "
                              + "'C:/MyDocuments/MySpreadsheets/Wonderful.xlsx:SheetName'")
         sheet = s[len(s)-1]
         path = self.url.split(':' + sheet)[0]
         if len(path) == 0 or len(sheet) ==0:
-            raise ValueError ("Incorrectly formatted url was given: \n\t'" + self.url
+            raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: \n\t'" + self.url
                              + "'\nShould instead be formmated like this example, with a non-empty path and a non-empty"
                              + " sheet name separated by the last colon in the url: \n"
                              + "\t'C:/My Documents/My Spreadsheets/Wonderful.xlsx:SheetName'")
         return path, sheet
     
-    def __parse_range(self):
+    def __parse_range(self, parent_trace):
         '''
         Parses strings for Excel ranges like 'C5:DA15' and returns the columns and rows: 'C', 'DA', 5, 15.
         If the given range is not correctly formatted then throws an exception
@@ -185,7 +184,7 @@ class ExcelTableReader:
         REGEX = '^([a-zA-Z]+)([1-9][0-9]*):([a-zA-Z]+)([1-9][0-9]*)$'
         res = _re.match(REGEX, self.excel_range)
         if (res == None or len(res.groups()) != 4):
-            raise ValueError ("Incorrectly formatted Excel range was given: '" + self.excel_range 
+            raise ApodeixiError (parent_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
                               + "'. Should instead be formatted like this example: 'C5:DA15'")
             
             
@@ -199,9 +198,29 @@ class ExcelTableReader:
         first_row    = min(int(res.group(2)), int(res.group(4)))
         last_row     = max(int(res.group(2)), int(res.group(4)))
                            
+        my_trace                = parent_trace.doing("Checking excel range is correctly formatted")
+        if first_row < 1:
+            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+                              + "'. Row numbers must be 1 or higher")
+            
+        if first_row >= last_row:
+            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+                              + "'. It spans 0 rows")
         return first_column, last_column, first_row, last_row
         #return res.group(1), res.group(3), int(res.group(2)), int(res.group(4))
     
+    def df_2_xl_row(self, parent_trace, df_row_nb):
+        '''
+        Helper method available to other Apodeixi classes. Particularly helpful in creating user-friendly error messages by
+        inferring user-visible information (a row number in Excel) from an internal parsing information (a DataFrame row number)
+        '''
+        first_column, last_column, first_row, last_row = self.__parse_range(parent_trace = parent_trace)
+
+        # DataFrame rows start at 0, which in Excel is the row after the row of column headers.
+        # Hence the extra "+1"
+        return first_row + 1 + df_row_nb
+
+
     def __rotate(self, df):
         '''
         Used when self.horizontally is false, and we read from Excel that needs to be transposed.

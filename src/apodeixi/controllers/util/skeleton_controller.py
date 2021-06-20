@@ -63,7 +63,7 @@ class SkeletonController(PostingController):
         '''
         raise NotImplementedError("Class " + str(self.__class__) + " forgot to implement method getPostingLabel")
 
-    def _buildAllManifests(self, parent_trace, url, ctx_range):
+    def _buildAllManifests(self, parent_trace, url, ctx_range="B2:C100"):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure.
@@ -162,7 +162,7 @@ class SkeletonController(PostingController):
         _ENVIRONMENT                = 'environment'
         _RECORDED_BY                = 'recordedBy'
 
-        def __init__(self, parent_trace, controller, mandatory_fields, date_fields):
+        def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
@@ -172,12 +172,16 @@ class SkeletonController(PostingController):
                                                         ME._DATA_RANGE]
             combined_mandatory_fields.extend(mandatory_fields)
 
+            combined_optional_fields                = [ME._DATA_SHEET]
+            combined_optional_fields.extend(optional_fields)
+
             combined_date_fields                    = []
             combined_date_fields.extend(date_fields)
 
             super().__init__(   parent_trace        = parent_trace,
                                 controller          = controller,
                                 mandatory_fields    = combined_mandatory_fields,
+                                optional_fields     = combined_optional_fields,
                                 date_fields         = combined_date_fields)
 
         def read(self, parent_trace, url, excel_range):
@@ -272,7 +276,7 @@ class SkeletonController(PostingController):
                 range_val           = self.ctx[range_field]
                 sheet_val           = self.ctx[sheet_field]
                 my_trace            = parent_trace.doing("Initializing show-my-work memory for manifest of kind '" + kind_val + "'")
-                self.controller.show_your_work.include(parent_trace=my_trace, manifest_kind=kind_val, posting_label_field=ME._DATA_KIND)
+                #self.controller.show_your_work.include(parent_trace=my_trace, manifest_kind=kind_val, posting_label_field=ME._DATA_KIND)
 
                 my_trace            = parent_trace.doing("Saving manifest kind, range in show_my_work")
                 self.controller.show_your_work.keep_manifest_meta(  parent_trace    = my_trace, 

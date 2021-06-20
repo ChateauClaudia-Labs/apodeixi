@@ -5,49 +5,51 @@ from apodeixi.testing_framework.mock_kb_store           import UnitTest_Knowledg
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
-from apodeixi.controllers.journeys.delivery_planning    import big_rocks 
+from apodeixi.controllers.initiatives.workstream        import Workstream_Controller 
 
-class Test_BigRocksEstimate(ApodeixiUnitTest):
+class Test_Workstream(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
 
-    def test_simple_burnout(self):
+    def test_workstream_controller(self):
         '''
         Tests the "internal logic" of a controller: the _buildAllManifests method, using a simple mock KnowledgeBaseStore
         suitable for unit tests.
         '''
 
-        EXCEL_FILE              = 'simple_burnout_INPUT.xlsx' 
-        SHEET                   = 'simple burnout'
-        CTX_RANGE               = 'b2:c20'
+        EXCEL_FILE              = 'workstream_controller_INPUT.xlsx' 
+        #SHEET                   = 'simple burnout'
+        #CTX_RANGE               = 'b2:c20'
 
-        MANIFEST_FILE_PREFIX    = 'simple_burnout'
+        MANIFEST_FILE_PREFIX    = 'workstream_controller'
 
         STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
                                                                 input_manifests_dir     = self.input_data, 
                                                                 input_postings_dir      = self.input_data, 
                                                                 output_manifests_dir    = self.output_data, 
                                                                 output_postings_dir     = self.output_data)
+
         root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
-                                                                                                    'sheet' : SHEET})
-        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE, sheet=SHEET)
+                                                                                                    })
+                                                                                                    #'sheet' : SHEET})
+        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE) #, sheet=SHEET)
 
 
         MANIFESTS_DIR           = self.output_data
-        EXPLANATIONS_OUTPUT     = 'simple_burnout_explanations_OUTPUT.yaml'
-        EXPLANATIONS_EXPECTED   = 'simple_burnout_explanations_EXPECTED.yaml'
+        EXPLANATIONS_OUTPUT     = 'workstream_controller_explanations_OUTPUT.yaml'
+        EXPLANATIONS_EXPECTED   = 'workstream_controller_explanations_EXPECTED.yaml'
         all_manifests_dicts     = []
 
-        PL                      = big_rocks.BigRocksEstimate_Controller._MyPostingLabel # Abbreviation for readability purposes
+        PL                      = Workstream_Controller._MyPostingLabel # Abbreviation for readability purposes
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)", data={'url'  : url})
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating workstream", data={'url'  : url})
 
-            controller          = big_rocks.BigRocksEstimate_Controller(root_trace, STORE)
-            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
+            controller          = Workstream_Controller(root_trace, STORE)
+            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url)#, CTX_RANGE)
 
-            NB_MANIFESTS_EXPECTED   = 3
+            NB_MANIFESTS_EXPECTED   = 2
             if len(all_manifests_dict.keys()) != NB_MANIFESTS_EXPECTED:
                 raise ApodeixiError(root_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
                                     + str(len(all_manifests_dicts)))
@@ -80,11 +82,11 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_BigRocksEstimate()
+        T = Test_Workstream()
         T.setUp()
         what_to_do = args[1]
-        if what_to_do=='simple_burnout':
-            T.test_simple_burnout()
+        if what_to_do=='workstream_controller':
+            T.test_workstream_controller()
         T.tearDown()
 
     main(_sys.argv)

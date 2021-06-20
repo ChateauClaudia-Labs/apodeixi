@@ -1,6 +1,6 @@
 from apodeixi.util.a6i_error                    import ApodeixiError
 
-class InitiativeMilestonesAggregator():
+class InitiativeWorkstreamAggregator():
     '''
     Class to aggregate milestones across multiple workstreams for a particular strategic initiative
     '''

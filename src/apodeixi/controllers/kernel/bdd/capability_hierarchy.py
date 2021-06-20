@@ -39,7 +39,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
         '''
         ME                          = CapabilityHierarchy_Controller
         update_policy               = UpdatePolicy(         reuse_uids      = False,            merge   = False)
-        config                      = ME._MyPostingConfig(  update_policy   = update_policy,    kind    = kind)
+        config                      = ME._MyPostingConfig(  update_policy   = update_policy,    kind    = kind,     controller = self)
 
         return config 
 
@@ -94,16 +94,38 @@ class CapabilityHierarchy_Controller(SkeletonController):
 
         _ENTITY_NAME                    = 'Jobs to be done'
 
-        def __init__(self, kind, update_policy):
+        def __init__(self, kind, update_policy, controller):
             ME                          = CapabilityHierarchy_Controller._MyPostingConfig
-            super().__init__(kind)
-            self.update_policy          = update_policy
+            super().__init__(kind, update_policy, controller)
 
             interval_spec_milestones    = ClosedOpenIntervalSpec(   parent_trace        = None, 
                                                                     splitting_columns   = ['Capabilities', 'Feature', 'Story'],
                                                                     entity_name         = ME._ENTITY_NAME) 
 
             self.interval_spec          = interval_spec_milestones
+
+        def preflightPostingValidation(self, parent_trace, posted_content_df):
+            '''
+            Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
+            data posted in Excel.
+
+            The intention for this preflight validation is to provide the user with more user-friendly error messages that
+            educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+            preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+            by which time the error generated might not be too user friendly.
+
+            Thus this method is not so much to avoid corruption of the data, since downstream logic will prevent corruption
+            anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
+            '''
+            ME                              = CapabilityHierarchy_Controller._MyPostingConfig
+            posted_cols                     = list(posted_content_df.columns)
+            mandatory_cols                  = [ME._ENTITY_NAME]
+            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+            if len(missing_cols) > 0:
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                                                    data = {    'Missing columns':    missing_cols,
+                                                                'Posted columns':     posted_cols})
 
         def entity_name(self):
             ME                      = CapabilityHierarchy_Controller._MyPostingConfig

@@ -68,7 +68,7 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
             t200                      = time.time()
             # Make explanations readable by creating a pretty 
             explanations_nice   = DictionaryFormatter().dict_2_nice(    parent_trace    = my_trace, 
-                                                                        a_dict          = controller.show_your_work.worklog, 
+                                                                        a_dict          = controller.show_your_work.as_dict(my_trace), 
                                                                         flatten         = True, 
                                                                         delimeter       = "::")
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:

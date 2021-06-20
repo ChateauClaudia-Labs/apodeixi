@@ -8,6 +8,7 @@ from apodeixi.xli.interval                      import IntervalUtils
 
 from apodeixi.controllers.util.manifest_api     import ManifestAPIVersion
 
+from apodeixi.util.dictionary_utils             import DictionaryUtils
 from apodeixi.util.a6i_error                    import ApodeixiError
 
 class PostingController():
@@ -41,11 +42,19 @@ class PostingController():
         the UID of the rightmost column in that Excel row that is for an entity)
         '''
         r                       = ExcelTableReader(url = url,excel_range = excel_range, horizontally = config.horizontally)
-        df                      = r.read()
+        my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
+                                                        data = {"url": url, "excel range": excel_range})
+        df                      = r.read(my_trace)
 
         # Clean up df's columns by removing anything in parenthesis
         GIST_OF                 = IntervalUtils().without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
         df.columns              = [GIST_OF(parent_trace, col) for col in df.columns]
+
+        my_trace                = parent_trace.doing("Sanity check that user complied with right schema",
+                                                        data = {"posting's url"         : str(url),
+                                                                "excel range examined"  : str(excel_range)})
+
+        config.preflightPostingValidation(parent_trace = my_trace, posted_content_df = df)
         
         store                   = UID_Store(parent_trace)
         tree                    = BreakdownTree(uid_store = store, entity_type=config.entity_name(), parent_UID=None)
@@ -56,11 +65,11 @@ class PostingController():
                                                             origination = {                   
                                                                                     'signaled_from': __file__,
                                                                                     })
-
+        
         for idx in range(len(rows)):
             last_uid            = None # Will represent the 
             for interval in config.buildIntervals(my_trace, list(df.columns)):
-                loop_trace      = my_trace.doing(activity="Processing fragment", data={ 'row': idx, 
+                loop_trace      = my_trace.doing(activity="Processing fragment", data={ 'excel row': r.df_2_xl_row(my_trace, idx), 
                                                                                         'interval': interval.columns},
                                                                     origination = {
                                                                                         'signaled_from': __file__,
@@ -73,8 +82,7 @@ class PostingController():
             self.show_your_work.keep_row_last_UID(  parent_trace        = my_trace, 
                                                     kind                = config.kind, 
                                                     row_nb              = idx, 
-                                                    uid                 = last_uid, 
-                                                    posting_label_field = None)
+                                                    uid                 = last_uid)
 
         return tree
 
@@ -133,6 +141,7 @@ class PostingCtrl_ShowYourWork():
     '''
     Helper class used by PostingControllers to record some intermediate calculations for later reference in
     subsequent processing steps by a PostingController.
+
     For example, a PostingController might create multiple manifests based on multiple Excel ranges, and they
     may need to be joined. Typically the join is determined based on Excel: if branch B1 of manifest M1 lies in the
     same Excel row as branch B2 of manifest M2, then it is possible and natural (for example) for B2 to be enriched with a
@@ -141,28 +150,42 @@ class PostingCtrl_ShowYourWork():
     they can be matched based on that Excel row number at a stage of the computation when Excel is no longer being 
     processed, thanks to the PostingCrl_ShowYourWork object that remembered that information when it was available earlier
     in the processing.
+
+    There are multiple data structure used to record intermediate calculations, either because the information is really 
+    different or because we need to access it from a different "primary key".
+
+    Each data structure is a (possibly nested) dictionary representing a mapping from "primary keys" to content".
+    Logically speaking:
+
+    * self.context_dict maps 
+    
+        * <"_MANIFEST_METADATA", manifest number> => {manifest metadata, as key-value pairs}
+
+        * <"_MANIFEST_XL_READER", manifest_number> => ExcelReader instance from which manifest content was ingested
+
+    * self.worklog maps
+
+        * <kind, dataframe_row_nb> => {intermediate computations while processing such row as key-value pairs}
+
+        * In particular, the last_UID of each row (i.e., UID for the last non-blank)
+
     '''
     def __init__(self, parent_trace):
 
         '''
-        Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a manifest: it holds
+        Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a dataframe row for a particular manifest.
+        That leaf dictionary holds
         all intermediate values that the controller chose to remember in the process of computing that particular
-        manifest.
+        manifest:
 
-        That manifest-specific dictionary is 2 levels from the root. Either:
+        * self.worklog[<kind>][dataframe_row_nb] if the PostingLabel has multiple manifests of the same kind.
 
-        * or self.workloca[<kind>][<posting label field>] if the PostingLabel has multiple manifests of the same kind.
-
-        For example, if a PostingLabel has two 'big-rock' manifests with labels 'data.kind.1' and 'data.kind.2', then
-        the controller records intermediate values for the first manifest in self.worklog['big-rock]['data.kind.1']
-        and for the second manifest in self.worklog['big-rock]['data.kind.2']
-
-        A different PostingLabel that has only one 'big-rock' manifest would simply record intermediate
         '''
-        self.worklog                        = {}
+        self.worklog                            = {}
+        self.context_dict                       = {}
 
-        ME                                  = PostingCtrl_ShowYourWork
-        self.worklog[ME._MANIFEST_META]     = {}
+        ME                                      = PostingCtrl_ShowYourWork
+        self.context_dict[ME._MANIFEST_META]    = {}
 
         return
 
@@ -172,8 +195,105 @@ class PostingCtrl_ShowYourWork():
     _DATA_RANGE             = '_DATA_RANGE'
     _DATA_SHEET             = '_DATA_SHEET'
     _MANIFEST_META          = '_MANIFEST_META'
+    _EXCEL_READER           = '_EXCEL_READER'
 
-    def include(self, parent_trace, manifest_kind, posting_label_field):
+    def as_dict(self, parent_trace):
+
+        return self.context_dict | self.worklog
+
+    def uid_from_row(self, parent_trace, kind, dataframe_row_nb):
+        '''
+        Finds and returns the last (i.e., most granular) UID for the given row.
+        If we think of the DataFrame's row as a branch in a tree, the UID returned corresponds to the leaf
+        of the branch.
+
+        '''
+        ME                          = PostingCtrl_ShowYourWork
+        path_list               = [kind, dataframe_row_nb, ME._LAST_UID]
+        check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
+                                                                    root_dict           = self.worklog, 
+                                                                    root_dict_name      = 'worklog', 
+                                                                    path_list           = path_list, 
+                                                                    valid_types         = [str])
+        if not check:
+            raise ApodeixiError(parent_trace, "Last UID for this row has not been recorded",
+                                        data = {'kind': kind, 'dataframe_row_nb': dataframe_row_nb})
+        
+        return self.worklog[kind][dataframe_row_nb][ME._LAST_UID]
+
+    def row_from_uid(self, parent_trace, kind, uid):
+        '''
+        This is the inverse function to uid_from_row.
+
+        It finds and returns the unique dataframe row number for the row that contains the given uid as its
+        last UID.
+
+        If we think of the DataFrame rows as branches in a tree, then this returns the branch number given
+        the UID of the branch's leaf node.
+        '''
+        ME                      = PostingCtrl_ShowYourWork
+        my_trace                = parent_trace.doing("Computing row number from last uid",
+                                                        data = {'kind': str(kind), 'uid': str(uid)})
+        path_list               = [kind, DictionaryUtils.WILDCARD, ME._LAST_UID]
+
+        def _filter_lambda(val):
+            return val == uid
+
+        filtered_dict           = DictionaryUtils().filter( parent_trace        = parent_trace, 
+                                                            root_dict           = self.worklog, 
+                                                            root_dict_name      = 'worklog', 
+                                                            path_list           = path_list,
+                                                            filter_lambda       = _filter_lambda)
+
+        path_list               = [kind]
+        check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
+                                                                    root_dict           = filtered_dict, 
+                                                                    root_dict_name      = 'worklog', 
+                                                                    path_list           = path_list, 
+                                                                    valid_types         = [dict])
+        if not check:
+            raise ApodeixiError(parent_trace, "UID has not been previously recorded for this kind of manifest",
+                                        data = {'kind': str(kind), 'uid': str(uid)})
+        
+        matches                 = list(filtered_dict[kind].keys())
+
+        if len(matches) != 1:
+            raise ApodeixiError(my_trace, "Expected exactly 1 Excel rows with the give UID for this kind of manifest "
+                                            + " - found " + str(len(matches)),
+                                            data = {'kind' : kind,    
+                                                    'uid'  : uid,     'rows' : str(matches)})
+        return matches[0]
+
+    def find_referenced_uid(self, parent_trace, kind1, kind2, uid1):
+        '''
+        Finds a uid2 such that the following is true:
+
+        Define row_nb as the unique integer where uid1 appears for <kind1>:
+        
+        * self.worklog[kind1][row_nb][_LAST_UID] = uid1
+
+        Then use the same row_nb but for <kind2>, and get uid2 as
+
+        * self.worklog[kind2][row_nb][_LAST_UID] = uid2
+        '''
+        my_trace                    = parent_trace.doing("Doing row_from_uid for referencing manifest",
+                                                        data = {'kind1': kind1, 'uid1': uid1})
+
+        row_nb                      = self.row_from_uid(    parent_trace        = my_trace,
+                                                            kind                = kind1,
+                                                            uid                 = uid1)
+        
+        my_trace                    = parent_trace.doing("Doing uid_from_row for referenced manifest",
+                                                        data = {'kind2': kind2, 'row_nb': row_nb})
+
+        uid2                        = self.uid_from_row(    parent_trace        = my_trace,
+                                                            kind                = kind2,
+                                                            dataframe_row_nb    = row_nb)
+
+        return uid2
+
+    # ===================== OLD
+    def DEPRECATEDinclude(self, parent_trace, manifest_kind, posting_label_field):
         '''
         Causes this to dictionary to exist: self.worklog[manifest_kind][posting_label_field]
 
@@ -198,7 +318,7 @@ class PostingCtrl_ShowYourWork():
             kind_dict[posting_label_field]  = {}        
         return
 
-    def find_referenced_uid(self, parent_trace, kind1, kind2, uid1, posting_label_field1=None, posting_label_field2=None):
+    def DEPRECATEDfind_referenced_uid(self, parent_trace, kind1, kind2, uid1, posting_label_field1=None, posting_label_field2=None):
         '''
         Finds a uid2 such that the following is true:
 
@@ -260,7 +380,7 @@ class PostingCtrl_ShowYourWork():
         '''
         ME                              = PostingCtrl_ShowYourWork
         result                          = []
-        meta_dict                       = self.worklog[ME._MANIFEST_META]
+        meta_dict                       = self.context_dict[ME._MANIFEST_META]
         for manifest_nb in meta_dict.keys():
             kind                        = meta_dict[manifest_nb][ME._DATA_KIND]
             excel_range                 = meta_dict[manifest_nb][ME._DATA_RANGE]
@@ -282,7 +402,7 @@ class PostingCtrl_ShowYourWork():
         information about a manifest during processing, especially when one does not know a priory the kinds or ranges.
         '''
         ME                                          = PostingCtrl_ShowYourWork
-        meta_dict                                   = self.worklog[ME._MANIFEST_META]
+        meta_dict                                   = self.context_dict[ME._MANIFEST_META]
         if not manifest_nb in meta_dict.keys():
             meta_dict[manifest_nb]                  = {}
 
@@ -294,17 +414,23 @@ class PostingCtrl_ShowYourWork():
         '''
         Causes this to happen: self.worklog[kind][posting_label_field][row_nb][_LAST_UID] = uid
         '''
-        ME                  = PostingCtrl_ShowYourWork
-        self.keep_row_work(parent_trace, kind, row_nb, ME._LAST_UID, uid, posting_label_field=None)
+        ME                          = PostingCtrl_ShowYourWork
 
-    def keep_row_work(self, parent_trace, kind, row_nb, thing_to_remember, value, posting_label_field=None):
+        path_list                   = [kind, row_nb, ME._LAST_UID]
+        DictionaryUtils().set_val(  parent_trace        = parent_trace,
+                                    root_dict           = self.worklog, 
+                                    root_dict_name      = 'worklog', 
+                                    path_list           = path_list, 
+                                    val                 = uid)
+
+    def DEPRECATEDkeep_row_work(self, parent_trace, kind, row_nb, thing_to_remember, value, posting_label_field=None):
         '''
         Causes this to happen: self.worklog[kind][posting_label_field][row_nb][thing_to_remember] = value
         '''
         row_dict                        = self._getRowDict(parent_trace, row_nb, kind, posting_label_field)
         row_dict[thing_to_remember]     = value
 
-    def keep(self, parent_trace, kind, thing_to_remember, value, posting_label_field=None):
+    def DEPRECATEDkeep(self, parent_trace, kind, thing_to_remember, value, posting_label_field=None):
         '''
         Causes this to happen: self.worklog[kind][posting_label_field][thing_to_remember] = value
 
@@ -327,7 +453,7 @@ class PostingCtrl_ShowYourWork():
         # Now for the real work
         work_dict[thing_to_remember] = value
 
-    def _getAllRowsDict(self, parent_trace, kind, posting_label_field):
+    def DEPRECATED_getAllRowsDict(self, parent_trace, kind, posting_label_field):
         '''
         Helper function to return the dictionary under
 
@@ -341,7 +467,7 @@ class PostingCtrl_ShowYourWork():
         all_rows_dict               = work_dict[ME._ROW_WORK]
         return all_rows_dict
 
-    def _getRowDict(self, parent_trace, row_nb, kind, posting_label_field):
+    def DEPRECATED_getRowDict(self, parent_trace, row_nb, kind, posting_label_field):
         '''
         Helper function to return the dictionary under
 
@@ -354,7 +480,7 @@ class PostingCtrl_ShowYourWork():
         row_dict                    = all_rows_dict[row_nb]
         return row_dict
 
-    def _getWorkDict(self, parent_trace, kind, posting_label_field):
+    def DEPRECATED_getWorkDict(self, parent_trace, kind, posting_label_field):
         if not kind in self.worklog.keys():
             raise ApodeixiError(parent_trace, "Can't retrieve show-your-work area because the requested kind was not "\
                                             + "previously initialized. Sounds like include(-) was not called in advance",
@@ -410,11 +536,12 @@ class PostingLabel():
                                 this information to know which fields require it.
     '''
 
-    def __init__(self, parent_trace, controller, mandatory_fields, date_fields):
+    def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
         if mandatory_fields == None:
             raise ApodeixiError(parent_trace, "Can't create a PostingLabel with a null list of mandatory fields")
         self.controller             = controller
         self.mandatory_fields       = mandatory_fields
+        self.optional_fields        = optional_fields
         self.date_fields            = date_fields
         self.ctx                    = None
 
@@ -462,7 +589,7 @@ class PostingLabel():
             # If we get this far we haven't found anything problematic
                 return False
 
-        def _missing_fields(expected_fields, sightings, row):
+        def _missing_fields(parent_trace, expected_fields, sightings, row):
             '''
             Helper method that returns a list of fields that are in the `expected_fields` but missing in the sightings.
             
@@ -473,7 +600,7 @@ class PostingLabel():
             missing_fields                  = []
             for field in expected_fields:
                 if not field in sightings.keys():
-                    missing_fields.append[field]
+                    missing_fields.append(field)
                 idx_list                    = sightings[field]
                 if len(idx_list) ==  0: # Empty index list, that means that field is a column name in the row
                     if _val_is_null(row[field]):
@@ -488,7 +615,9 @@ class PostingLabel():
 
         excel_range    = excel_range.upper()
         reader         = ExcelTableReader(url, excel_range, horizontally=False)
-        label_df       = reader.read()
+        my_trace        = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
+                                                data = {"url": url, "excel range": excel_range})
+        label_df       = reader.read(my_trace)
         
         # Check context has the right number of rows (which are columns in Excel, since we transposed)
         if len(label_df.index) != 1:
@@ -508,9 +637,14 @@ class PostingLabel():
                             + "\nSome fields appear more than once",
                             data = {'Duplicate fields': ', '.join(duplicate_msgs)})
         
-        appearances, sightings = self._fields_found(self.mandatory_fields, label_df)
-        #missing_fields = [field for field in self.mandatory_fields if field not in sightings.keys()]
-        missing_fields = _missing_fields(   expected_fields     = self.mandatory_fields, 
+        appearances, sightings = self._fields_found(    expected_fields         = self.mandatory_fields, 
+                                                        optional_fields         = self.optional_fields, 
+                                                        label_df                = label_df)
+        
+        my_trace        = parent_trace.doing("Checking if fields are missing",
+                                                data = {"url": url, "excel range": excel_range})
+        missing_fields = _missing_fields(   parent_trace        = my_trace,
+                                            expected_fields     = self.mandatory_fields, 
                                             sightings           = sightings, 
                                             row                 = label_df.loc[0])
 
@@ -534,7 +668,7 @@ class PostingLabel():
         self.ctx                = ctx 
         self.sightings  = sightings
 
-    def _fields_found(self, expected_fields, label_df):
+    def _fields_found(self, expected_fields, optional_fields, label_df):
         '''
         Helper method that "sort of" looks to see if all the expected_fields appear in the columns of label_df.
         We say "sort_of" because sometimes a field in expected_fields really corresponds to an integer-indexed set of fields.
@@ -573,7 +707,9 @@ class PostingLabel():
                 field                       = g.group(1)
                 appearance_nb               = g.group(2)
 
-            if field != None and field in expected_fields:
+            schema_fields                   = expected_fields.copy()
+            schema_fields.extend(optional_fields)
+            if field != None and field in schema_fields:
                 appearances_in_label            .append(col)
 
                 # Now add to the list of integers associated with this field
@@ -599,11 +735,32 @@ class PostingConfig():
     @param kind             A string identifying the manifest kind being posted
     @param horizontally     States whether the Excel data is to be read row-by-row (horizontally=True) or column-by-column (horizontally=False)
     '''
-    def __init__(self, kind):
-        self.update_policy          = None
-        self.interval_spec          = None
+    def __init__(self, kind, update_policy, controller):
+        self.update_policy          = update_policy
+        self.interval_spec          = None # Should be initialized in constructor of concrete derived class
         self.kind                   = kind
+        self.controller             = controller
         self.horizontally           = True
+
+    def preflightPostingValidation(self, parent_trace, posted_content_df):
+        '''
+        Abstract function implemented by concrete derived classes.
+
+        It does some initial validation of the `posted_content_df`, which is intended to be a DataFrame representation of the
+        data posted in Excel.
+
+        The intention for this preflight validation is to provide the user with more user-friendly error messages that
+        educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+        preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+        by which time the error generated might not be too user friendly.
+
+        Thus this method is not so much to avoid corruption of the data, since downstream logic will ensure that. Rather,
+        it is to provide usability by outputting high-level user-meaningful error messages.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'preflightPostingValidation' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
 
     def buildIntervals(self, parent_trace, linear_space):
         '''

@@ -259,7 +259,9 @@ class BreakdownBuilder:
 
     def _buildLevel1Breakdown(self):
         reader                           = ExcelTableReader(url=self.l0_url, excel_range=self.l0_excel_range)
-        l0_df                            = reader.read()
+        root_trace                       = FunctionalTrace(None).doing("About to read Excel into a dataframe",
+                                                                data = {'url': self.l0_url, 'excel_range': self.l0_excel_range})
+        l0_df                            = reader.read(root_trace)
         columns                          = l0_df.columns
 
         if len(columns) < 2:
@@ -314,7 +316,9 @@ class BreakdownBuilder:
         excel_range         = link.L2_excel_range
         reader              = ExcelTableReader(url, excel_range)
 
-        l2l3_df             = reader.read()
+        root_trace                       = FunctionalTrace(None).doing("About to read Excel into a dataframe",
+                                                                data = {'url': url, 'excel_range': excel_range})
+        l2l3_df             = reader.read(root_trace)
         root_trace          = FunctionalTrace(None).doing("Building level 2 breakdown")
 
         if len(l2l3_df.columns) != 5:
@@ -553,7 +557,9 @@ def DEPRECATEDapplyMarathonJourneyPlan(ctx, url, excel_range, repo_root_dir):
     
     reader              = ExcelTableReader(url, excel_range)
     
-    plan_df             = reader.read()
+    root_trace          = FunctionalTrace(None).doing("About to read Excel into a dataframe",
+                                                                data = {'url': self.l0_url, 'excel_range': self.l0_excel_range})
+    plan_df             = reader.read(root_trace)
     if len(plan_df.columns) != 2:
         raise ValueError ("Badly formatted Marathon Plan: should have exactly two columns, ideally called: 'Workstream' and "
                          + "'Effort'. Error when processing range= '" + excel_range + "' and url=\n\t" + url)
@@ -619,9 +625,11 @@ def DEPRECATEDapplyInvestmentCommittment(ctx, url, excel_range, repo_root_dir):
     committing_date     = SchemaUtils.to_yaml_date(ctx[_ESTIMATED_ON], BAD_SCHEMA_MSG)
     
     # Load data and validate its geometric shape
-    reader        = ExcelTableReader(url, excel_range)
-    
-    plan_df       = reader.read()
+    reader              = ExcelTableReader(url, excel_range)
+
+    root_trace          = FunctionalTrace(None).doing("About to read Excel into a dataframe",
+                                                                data = {'url': self.l0_url, 'excel_range': self.l0_excel_range})
+    plan_df             = reader.read(root_trace)
     if len(plan_df.columns) != 2:
         raise ValueError ("Badly formatted Investment Plan: should have exactly two columns, "\
                           + "ideally called: 'Period' and Investment'. "\

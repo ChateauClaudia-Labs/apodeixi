@@ -21,8 +21,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
             'delivery-planning.journeys.a6i':       JourneysFilingCoordinates,
             'milestone.journeys.a6i':               JourneysFilingCoordinates,
-            'milestones.initiative.a6i':            InitiativesFilingCoordinates,
-            'charter.initiative.a6i':               InitiativesFilingCoordinates
+            'workstream.initiatives.a6i':           InitiativesFilingCoordinates,
+            'charter.initiatives.a6i':              InitiativesFilingCoordinates
 
         }
 
@@ -185,7 +185,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         result                      = []
         for file in _os.listdir(full_path): # This picks up both directories and files
             d = _os.path.join(full_path, file)
-            if not _os.path.isdir(d) and file.endswith(posting_api + ".xlsx"):
+            # Avoid Excel "temporary backup" files that start with "~". They can exist if user has Excel open when this code runs
+            if not _os.path.isdir(d) and file.endswith(posting_api + ".xlsx") and not file.startswith("~"):
                 result.append(file)
         return result
  

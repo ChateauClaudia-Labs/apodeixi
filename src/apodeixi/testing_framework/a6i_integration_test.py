@@ -46,7 +46,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        super()._compare_to_expected_yaml(output_dict, test_case_name, data_dir = self.results_data, save_output_dict=False)
+        super()._compare_to_expected_yaml(output_dict, test_case_name, data_dir = self.results_data, save_output_dict=save_output_dict)
 
     def _compare_to_expected_txt(self, output_txt, test_case_name, save_output_txt=False):
         '''
@@ -55,7 +55,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        super()._compare_to_expected_txt(output_txt, test_case_name, data_dir = self.results_data, save_output_txt=False)
+        super()._compare_to_expected_txt(output_txt, test_case_name, data_dir = self.results_data, save_output_txt=save_output_txt)
 
     def _compare_to_expected_df(self, parent_trace, output_df, test_case_name, columns_to_ignore=[], id_column=None):
         '''
@@ -69,4 +69,4 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                          If set to None, then the row index is used.
         '''
         super()._compare_to_expected_df(parent_trace, output_df, test_case_name, data_dir = self.results_data, 
-                                            columns_to_ignore=[], id_column=None)
+                                            columns_to_ignore=columns_to_ignore, id_column=id_column)

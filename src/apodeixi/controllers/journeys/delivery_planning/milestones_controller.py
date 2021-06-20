@@ -45,10 +45,14 @@ class MilestonesController(SkeletonController):
         ME                              = MilestonesController
         if kind == ME.MY_KIND:
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._MilestonesConfig(update_policy=update_policy, kind=kind, controller=self)
+            config                      = ME._MilestonesConfig( update_policy       = update_policy, 
+                                                                kind                = kind, 
+                                                                controller          = self)
         elif kind == ME.REFERENCED_KIND:
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = BigRocksEstimate_Controller._BigRocksConfig(update_policy=update_policy, kind=kind)
+            config                      = BigRocksEstimate_Controller._BigRocksConfig(  update_policy       = update_policy, 
+                                                                                        kind                = kind,
+                                                                                        controller          = self)
 
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
@@ -95,9 +99,7 @@ class MilestonesController(SkeletonController):
             br_uid                = UID_FINDER(   parent_trace                  = my_trace, 
                                                         kind1                   = referencing, 
                                                         kind2                   = referenced, 
-                                                        uid1                    = e_uid, 
-                                                        posting_label_field1    = None, 
-                                                        posting_label_field2    = None)
+                                                        uid1                    = e_uid)
 
             milestones_dict[e_uid][ME.REFERENCED_KIND]  = br_uid
 
@@ -167,13 +169,35 @@ class MilestonesController(SkeletonController):
         def __init__(self, update_policy, kind, controller):
             ME                                  = MilestonesController._MilestonesConfig
 
-            super().__init__(kind)
+            super().__init__(kind, update_policy, controller)
             self.horizontally                   = False # Replaces parent class's default, so we read Excel by columns, not by rows
-            self.update_policy                  = update_policy
 
             interval_spec_milestones   = GreedyIntervalSpec( parent_trace = None, entity_name = ME._ENTITY_NAME) 
 
             self.interval_spec                  = interval_spec_milestones
+
+        def preflightPostingValidation(self, parent_trace, posted_content_df):
+            '''
+            Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
+            data posted in Excel.
+
+            The intention for this preflight validation is to provide the user with more user-friendly error messages that
+            educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+            preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+            by which time the error generated might not be too user friendly.
+
+            Thus this method is not so much to avoid corruption of the data, since downstream logic will prevent corruption
+            anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
+            '''
+            ME                              = MilestonesController._MilestonesConfig
+            posted_cols                     = list(posted_content_df.columns)
+            mandatory_cols                  = [ME._ENTITY_NAME]
+            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+            if len(missing_cols) > 0:
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                                                    data = {    'Missing columns':    missing_cols,
+                                                                'Posted columns':     posted_cols})
 
         def entity_name(self):
             ME                      = MilestonesController._MilestonesConfig

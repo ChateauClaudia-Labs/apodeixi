@@ -8,8 +8,11 @@ from apodeixi.xli.posting_controller_utils          import PostingConfig, Postin
 
 class BigRocksEstimate_Controller(SkeletonController):
     '''
-    Class to process an Excel posting for big rocks estimates. It produces two YAML manifests, since the investment
-    to pay for the big rocks is expected to be posted in the same Excel spreadsheet.
+    Class to process an Excel posting for big rocks estimates. It produces three YAML manifests:
+    
+    * One for the big rocks
+    * One for the effort estimates
+    * One for the investment promised
 
     @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
     '''
@@ -40,13 +43,19 @@ class BigRocksEstimate_Controller(SkeletonController):
         ME                          = BigRocksEstimate_Controller
         if kind == 'big-rock':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._BigRocksConfig(update_policy=update_policy, kind=kind)
+            config                      = ME._BigRocksConfig(           kind            = kind, 
+                                                                        update_policy   = update_policy, 
+                                                                        controller      = self)
         elif kind == 'big-rock-estimate':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._BigRocksEstimatesConfig(update_policy = update_policy, controller = self, kind=kind)
+            config                      = ME._BigRocksEstimatesConfig(  kind            = kind, 
+                                                                        update_policy   = update_policy, 
+                                                                        controller      = self)
         elif kind == 'investment':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._InvestmentConfig(update_policy=update_policy, kind=kind)
+            config                      = ME._InvestmentConfig(         kind            = kind, 
+                                                                        update_policy   = update_policy, 
+                                                                        controller      = self)
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
                                                 + ", ".join(self.SUPPORTED_KINDS),
@@ -94,9 +103,7 @@ class BigRocksEstimate_Controller(SkeletonController):
             br_uid                = UID_FINDER(   parent_trace            = my_trace, 
                                                         kind1                   = referencing, 
                                                         kind2                   = referenced, 
-                                                        uid1                    = e_uid, 
-                                                        posting_label_field1    = None, 
-                                                        posting_label_field2    = None)
+                                                        uid1                    = e_uid)
 
             effort_dict[e_uid]['bigRock']  = br_uid
 
@@ -164,10 +171,9 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         _ENTITY_NAME                    = 'Big Rock'
 
-        def __init__(self, update_policy, kind):
+        def __init__(self, kind, update_policy, controller):
             ME                          = BigRocksEstimate_Controller._BigRocksConfig
-            super().__init__(kind)
-            self.update_policy          = update_policy
+            super().__init__(kind, update_policy, controller)
         
             interval_spec_big_rocks     = MinimalistIntervalSpec(  parent_trace        = None, 
                                                                     entity_name         = ME._ENTITY_NAME
@@ -175,6 +181,28 @@ class BigRocksEstimate_Controller(SkeletonController):
 
             self.interval_spec          = interval_spec_big_rocks
 
+        def preflightPostingValidation(self, parent_trace, posted_content_df):
+            '''
+            Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
+            data posted in Excel.
+
+            The intention for this preflight validation is to provide the user with more user-friendly error messages that
+            educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+            preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+            by which time the error generated might not be too user friendly.
+
+            Thus this method is not so much to avoid corruption of the data, since downstream logic will prevent corruption
+            anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
+            '''
+            ME                              = BigRocksEstimate_Controller._BigRocksConfig
+            posted_cols                     = list(posted_content_df.columns)
+            mandatory_cols                  = [ME._ENTITY_NAME]
+            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+            if len(missing_cols) > 0:
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                                                    data = {    'Missing columns':    missing_cols,
+                                                                'Posted columns':     posted_cols})
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksConfig
             return ME._ENTITY_NAME
@@ -186,15 +214,37 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         _ENTITY_NAME                            = 'Effort'
 
-        def __init__(self, update_policy, kind, controller):
+        def __init__(self, kind, update_policy, controller):
             ME                                  = BigRocksEstimate_Controller._BigRocksEstimatesConfig
 
-            super().__init__(kind)
-            self.update_policy                  = update_policy
+            super().__init__(kind, update_policy, controller)
 
             interval_spec_big_rocks_estimates   = GreedyIntervalSpec(parent_trace = None) 
 
             self.interval_spec                  = interval_spec_big_rocks_estimates
+
+        def preflightPostingValidation(self, parent_trace, posted_content_df):
+            '''
+            Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
+            data posted in Excel.
+
+            The intention for this preflight validation is to provide the user with more user-friendly error messages that
+            educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+            preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+            by which time the error generated might not be too user friendly.
+
+            Thus this method is not so much to avoid corruption of the data, since downstream logic will prevent corruption
+            anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
+            '''
+            ME                              = BigRocksEstimate_Controller._BigRocksEstimatesConfig
+            posted_cols                     = list(posted_content_df.columns)
+            mandatory_cols                  = [ME._ENTITY_NAME]
+            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+            if len(missing_cols) > 0:
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                                                    data = {    'Missing columns':    missing_cols,
+                                                                'Posted columns':     posted_cols})
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksEstimatesConfig
@@ -207,14 +257,36 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         _ENTITY_NAME                = 'Period'
 
-        def __init__(self, kind, update_policy):
+        def __init__(self, kind, update_policy, controller):
             ME                      = BigRocksEstimate_Controller._InvestmentConfig
-            super().__init__(kind)
-            self.update_policy      = update_policy
+            super().__init__(kind, update_policy, controller)
 
             interval_spec_period    = GreedyIntervalSpec(None) 
 
             self.interval_spec      = interval_spec_period
+
+        def preflightPostingValidation(self, parent_trace, posted_content_df):
+            '''
+            Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
+            data posted in Excel.
+
+            The intention for this preflight validation is to provide the user with more user-friendly error messages that
+            educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+            preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+            by which time the error generated might not be too user friendly.
+
+            Thus this method is not so much to avoid corruption of the data, since downstream logic will prevent corruption
+            anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
+            '''
+            ME                              = BigRocksEstimate_Controller._InvestmentConfig
+            posted_cols                     = list(posted_content_df.columns)
+            mandatory_cols                  = [ME._ENTITY_NAME]
+            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+            if len(missing_cols) > 0:
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                                                    data = {    'Missing columns':    missing_cols,
+                                                                'Posted columns':     posted_cols})
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._InvestmentConfig

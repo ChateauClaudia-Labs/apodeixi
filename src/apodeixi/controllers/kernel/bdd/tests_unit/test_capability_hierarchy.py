@@ -49,7 +49,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
             # Make explanations readable by creating a pretty 
             explanations_nice   = DictionaryFormatter().dict_2_nice(    parent_trace    = root_trace,
-                                                                        a_dict          = controller.show_your_work.worklog, 
+                                                                        a_dict          = controller.show_your_work.as_dict(root_trace), 
                                                                         flatten=True, 
                                                                         delimeter="::")
             with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:

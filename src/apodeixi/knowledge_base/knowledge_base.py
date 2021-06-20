@@ -17,9 +17,9 @@ class KnowledgeBase():
                                                         'modernization-milestone':          MilestonesController},
             'bdd.kernel.a6i':                       {   "capability-hierarchy":             CapabilityHierarchy_Controller},
             'milestone.journeys.a6i':               None, # TODO
-            'milestone.journeys.a6i':               None, # TODO
-            'milestones.initiative.a6i':            None, # TODO
-            'charter.initiative.a6i':               None, # TODO
+
+            'workstream.initiatives.a6i':           None, # TODO
+            'charter.initiatives.a6i':              None, # TODO
         }
 
         return
