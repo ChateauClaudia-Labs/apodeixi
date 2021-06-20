@@ -33,13 +33,16 @@ class CapabilityHierarchy_Controller(SkeletonController):
     def getSupportedKinds(self):
         return self.SUPPORTED_KINDS
 
-    def getPostingConfig(self, parent_trace, kind):
+    def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
         ME                          = CapabilityHierarchy_Controller
         update_policy               = UpdatePolicy(         reuse_uids      = False,            merge   = False)
-        config                      = ME._MyPostingConfig(  update_policy   = update_policy,    kind    = kind,     controller = self)
+        config                      = ME._MyPostingConfig(  update_policy   = update_policy,    
+                                                            kind            = kind, 
+                                                            manifest_nb     = manifest_nb,    
+                                                            controller      = self)
 
         return config 
 
@@ -50,12 +53,12 @@ class CapabilityHierarchy_Controller(SkeletonController):
         ME                              = CapabilityHierarchy_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, url, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict                   = super()._buildOneManifest(parent_trace, manifest_nb, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to CapabilityHierarchy_Controller") 
         scaffolding_purpose             = label.scaffoldingPurpose  (my_trace)
@@ -94,9 +97,12 @@ class CapabilityHierarchy_Controller(SkeletonController):
 
         _ENTITY_NAME                    = 'Jobs to be done'
 
-        def __init__(self, kind, update_policy, controller):
+        def __init__(self, kind, manifest_nb, update_policy, controller):
             ME                          = CapabilityHierarchy_Controller._MyPostingConfig
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind                = kind, 
+                                update_policy       = update_policy, 
+                                manifest_nb         = manifest_nb,
+                                controller          = controller)
 
             interval_spec_milestones    = ClosedOpenIntervalSpec(   parent_trace        = None, 
                                                                     splitting_columns   = ['Capabilities', 'Feature', 'Story'],

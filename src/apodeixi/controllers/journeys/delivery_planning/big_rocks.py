@@ -36,7 +36,7 @@ class BigRocksEstimate_Controller(SkeletonController):
     def getSupportedKinds(self):
         return self.SUPPORTED_KINDS
 
-    def getPostingConfig(self, parent_trace, kind):
+    def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
@@ -44,17 +44,20 @@ class BigRocksEstimate_Controller(SkeletonController):
         if kind == 'big-rock':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._BigRocksConfig(           kind            = kind, 
-                                                                        update_policy   = update_policy, 
+                                                                        update_policy   = update_policy,
+                                                                        manifest_nb     = manifest_nb, 
                                                                         controller      = self)
         elif kind == 'big-rock-estimate':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._BigRocksEstimatesConfig(  kind            = kind, 
                                                                         update_policy   = update_policy, 
+                                                                        manifest_nb     = manifest_nb,
                                                                         controller      = self)
         elif kind == 'investment':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._InvestmentConfig(         kind            = kind, 
                                                                         update_policy   = update_policy, 
+                                                                        manifest_nb     = manifest_nb,
                                                                         controller      = self)
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
@@ -109,12 +112,12 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
-    def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, url, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict                   = super()._buildOneManifest(parent_trace, manifest_nb, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to BigRocksEstimate_Controller") 
 
@@ -171,9 +174,12 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         _ENTITY_NAME                    = 'Big Rock'
 
-        def __init__(self, kind, update_policy, controller):
+        def __init__(self, kind, manifest_nb, update_policy, controller):
             ME                          = BigRocksEstimate_Controller._BigRocksConfig
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind                = kind, 
+                                update_policy       = update_policy, 
+                                manifest_nb         = manifest_nb,
+                                controller          = controller)
         
             interval_spec_big_rocks     = MinimalistIntervalSpec(  parent_trace        = None, 
                                                                     entity_name         = ME._ENTITY_NAME
@@ -214,10 +220,13 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         _ENTITY_NAME                            = 'Effort'
 
-        def __init__(self, kind, update_policy, controller):
+        def __init__(self, kind, manifest_nb, update_policy, controller):
             ME                                  = BigRocksEstimate_Controller._BigRocksEstimatesConfig
 
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind            = kind, 
+                                update_policy   = update_policy, 
+                                manifest_nb     = manifest_nb,
+                                controller      = controller)
 
             interval_spec_big_rocks_estimates   = GreedyIntervalSpec(parent_trace = None) 
 
@@ -257,9 +266,12 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         _ENTITY_NAME                = 'Period'
 
-        def __init__(self, kind, update_policy, controller):
+        def __init__(self, kind, manifest_nb, update_policy, controller):
             ME                      = BigRocksEstimate_Controller._InvestmentConfig
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind                = kind, 
+                                update_policy       = update_policy, 
+                                manifest_nb         = manifest_nb,
+                                controller          = controller)
 
             interval_spec_period    = GreedyIntervalSpec(None) 
 

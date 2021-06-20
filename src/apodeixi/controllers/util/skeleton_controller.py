@@ -49,7 +49,7 @@ class SkeletonController(PostingController):
 
         return response
 
-    def getPostingConfig(self, parent_trace, kind):
+    def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
         Implemented by concrete controller classes.
         Must return a PostingConfig, corresponding to the configuration that the concrete controller supports.
@@ -94,7 +94,13 @@ class SkeletonController(PostingController):
                                                                     origination = {'signaled_from': __file__})
             manifest_url                    = SkeletonController._build_manifest_url(   posting_url             = url, 
                                                                                         manifest_excel_sheet    = excel_sheet)
-            manifest_dict                   = self._buildOneManifest(my_trace, manifest_url, label, kind, excel_range)
+            manifest_dict                   = self._buildOneManifest(   parent_trace        = my_trace, 
+                                                                        manifest_nb         = manifest_nb, 
+                                                                        url                 = manifest_url, 
+                                                                        label               = label, 
+                                                                        kind                = kind, 
+                                                                        excel_range         = excel_range)
+                
             all_manifests_dict[manifest_nb] = manifest_dict
 
         return all_manifests_dict, label
@@ -106,7 +112,7 @@ class SkeletonController(PostingController):
         manifest_url                        = excel_path + ":" + manifest_excel_sheet
         return manifest_url
 
-    def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, url, label, kind, excel_range):
         '''
         Returns a  dictionary corresponding to the manifest that was built in this method
         '''
@@ -119,7 +125,9 @@ class SkeletonController(PostingController):
                                                                 data = {'url': url, 'excel_range': excel_range}, 
                                                                 origination = {'signaled_from': __file__})
         if True:
-            config                      = self.getPostingConfig(my_trace, kind)
+            config                      = self.getPostingConfig(    parent_trace        = my_trace, 
+                                                                    kind                = kind,
+                                                                    manifest_nb         = manifest_nb)
             tree                        = self._xl_2_tree(my_trace, url, excel_range, config)
             tree_dict                   = tree.as_dicts()
         

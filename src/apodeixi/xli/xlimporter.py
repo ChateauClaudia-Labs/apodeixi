@@ -124,7 +124,7 @@ class ExcelTableReader:
         
         my_trace                                        = parent_trace.doing("Parsing excel range",
                                                                                 data = {"excel_range": str(self.excel_range)})        
-        first_column, last_column, first_row, last_row  = self.__parse_range(my_trace)
+        first_column, last_column, first_row, last_row  = ExcelTableReader.__parse_range(my_trace, self.excel_range)
         
 
         
@@ -176,15 +176,15 @@ class ExcelTableReader:
                              + "\t'C:/My Documents/My Spreadsheets/Wonderful.xlsx:SheetName'")
         return path, sheet
     
-    def __parse_range(self, parent_trace):
+    def __parse_range(parent_trace, excel_range):
         '''
         Parses strings for Excel ranges like 'C5:DA15' and returns the columns and rows: 'C', 'DA', 5, 15.
         If the given range is not correctly formatted then throws an exception
         '''
         REGEX = '^([a-zA-Z]+)([1-9][0-9]*):([a-zA-Z]+)([1-9][0-9]*)$'
-        res = _re.match(REGEX, self.excel_range)
+        res = _re.match(REGEX, excel_range)
         if (res == None or len(res.groups()) != 4):
-            raise ApodeixiError (parent_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+            raise ApodeixiError (parent_trace, "Incorrectly formatted Excel range was given: '" + excel_range 
                               + "'. Should instead be formatted like this example: 'C5:DA15'")
             
             
@@ -200,21 +200,22 @@ class ExcelTableReader:
                            
         my_trace                = parent_trace.doing("Checking excel range is correctly formatted")
         if first_row < 1:
-            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + excel_range 
                               + "'. Row numbers must be 1 or higher")
             
         if first_row >= last_row:
-            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + excel_range 
                               + "'. It spans 0 rows")
         return first_column, last_column, first_row, last_row
-        #return res.group(1), res.group(3), int(res.group(2)), int(res.group(4))
+        
     
-    def df_2_xl_row(self, parent_trace, df_row_nb):
+    def df_2_xl_row(parent_trace, df_row_nb, excel_range):
         '''
         Helper method available to other Apodeixi classes. Particularly helpful in creating user-friendly error messages by
         inferring user-visible information (a row number in Excel) from an internal parsing information (a DataFrame row number)
         '''
-        first_column, last_column, first_row, last_row = self.__parse_range(parent_trace = parent_trace)
+        first_column, last_column, first_row, last_row = ExcelTableReader.__parse_range( parent_trace = parent_trace, 
+                                                                                    excel_range     = excel_range)
 
         # DataFrame rows start at 0, which in Excel is the row after the row of column headers.
         # Hence the extra "+1"

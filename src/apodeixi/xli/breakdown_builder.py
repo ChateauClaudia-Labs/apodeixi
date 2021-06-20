@@ -342,8 +342,16 @@ class BreakdownTree():
             blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
             encountered_new_entity      = not interval.entity_name in blank_cols
             if not encountered_new_entity and len(blank_cols) < len(interval.columns):
-                raise ApodeixiError(my_trace, "Row has a blank '" + interval.entity_name 
-                                    + "' so rest of row's interval should be blank, but isn't")
+                # Create a friendly error message 
+                excel_row_nb            = config.excel_row_nb(my_trace, row[0])
+                excel_sheet             = config.excel_sheet(my_trace)
+                non_black_cols          = [col for col in interval.columns if not col in blank_cols]
+                raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
+                                                + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
+                                                + "\nYou can't leave it blank unless you also clear data you wrote "
+                                                + " in row " + str(excel_row_nb) + " for these " 
+                                                + str(len(non_black_cols)) + " columns:\n['"
+                                                + "', '".join(non_black_cols) + "']")
 
             # Check that interval itself has no subentities (as any subentity should be *after* the interval)
             # Remember to not count interval.entity_name as "illegal", since it is clearly an entity and not a sub-entity/

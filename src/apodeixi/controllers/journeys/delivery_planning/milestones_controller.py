@@ -38,7 +38,7 @@ class MilestonesController(SkeletonController):
     def getSupportedKinds(self):
         return self.SUPPORTED_KINDS
 
-    def getPostingConfig(self, parent_trace, kind):
+    def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
@@ -47,11 +47,13 @@ class MilestonesController(SkeletonController):
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = ME._MilestonesConfig( update_policy       = update_policy, 
                                                                 kind                = kind, 
+                                                                manifest_nb         = manifest_nb,
                                                                 controller          = self)
         elif kind == ME.REFERENCED_KIND:
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             config                      = BigRocksEstimate_Controller._BigRocksConfig(  update_policy       = update_policy, 
                                                                                         kind                = kind,
+                                                                                        manifest_nb         = manifest_nb,
                                                                                         controller          = self)
 
         else:
@@ -105,12 +107,12 @@ class MilestonesController(SkeletonController):
 
         return all_manifests_dict, label
 
-    def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, url, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict                   = super()._buildOneManifest(parent_trace, manifest_nb, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to MilestonesController") 
 
@@ -166,10 +168,13 @@ class MilestonesController(SkeletonController):
 
         _ENTITY_NAME                            = 'Milestone'
 
-        def __init__(self, update_policy, kind, controller):
+        def __init__(self, update_policy, kind, manifest_nb, controller):
             ME                                  = MilestonesController._MilestonesConfig
 
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind            = kind, 
+                                update_policy   = update_policy, 
+                                manifest_nb     = manifest_nb,
+                                controller      = controller)
             self.horizontally                   = False # Replaces parent class's default, so we read Excel by columns, not by rows
 
             interval_spec_milestones   = GreedyIntervalSpec( parent_trace = None, entity_name = ME._ENTITY_NAME) 

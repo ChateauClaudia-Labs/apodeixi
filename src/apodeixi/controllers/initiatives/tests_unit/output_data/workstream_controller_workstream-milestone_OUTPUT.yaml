@@ -1,0 +1,202 @@
+apiVersion: workstream.initiatives.a6i.io/v1a
+assertion:
+  entity_type: Theme
+  initiative: S1
+  program: Amplify
+  recordedBy: jill.theinitiativepmo@mycorp.com
+  scoringCycle: Dec 2020
+  scoringMaturity: Draft
+  theme:
+    T1:
+      Milestone:
+        M1:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1627689600000000000
+          - null
+          - null
+          Task:
+            TA1:
+              Task Date: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+              - 1623715200000000000
+              - null
+              - null
+              UID: T1.M1.TA1
+              name: Break up journey into "big rocks" mapped to "milestones"
+            TA1-name: Break up journey into "big rocks" mapped to "milestones"
+            TA2:
+              Task Date: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+              - 1626307200000000000
+              - null
+              - null
+              UID: T1.M1.TA2
+              name: Engage GMs and Finance to see roadmap expectations behind booking
+                projections
+            TA2-name: Engage GMs and Finance to see roadmap expectations behind booking
+              projections
+            TA3:
+              Dependency:
+                D1:
+                  Dependent on: W0
+                  UID: T1.M1.TA3.D1
+                  name: Completion of W0 initial analysis (expected by end of August)
+                D1-name: Completion of W0 initial analysis (expected by end of August)
+                D2:
+                  Dependent on: W5, W6, W8
+                  UID: T1.M1.TA3.D2
+                  name: Receipt of requirements from sales, pricing and support (expected
+                    by end of August)
+                D2-name: Receipt of requirements from sales, pricing and support (expected
+                  by end of August)
+              Task Date: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+              - 1627689600000000000
+              - null
+              - null
+              UID: T1.M1.TA3
+              name: Update roadmap and/or MTP booking projections
+            TA3-name: Update roadmap and/or MTP booking projections
+          UID: T1.M1
+          name: Align roadmaps to MTP bookings projection
+        M1-name: Align roadmaps to MTP bookings projection
+      UID: .nan
+      name: Commercial alignment
+    T1-name: Commercial alignment
+    T2:
+      Milestone:
+        M1:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1632960000000000000
+          - null
+          - null
+          UID: T2.M1
+          name: Align to value props emerging from W0
+        M1-name: Align to value props emerging from W0
+      UID: .nan
+      name: Product strategy alignment
+    T2-name: Product strategy alignment
+    T3:
+      Milestone:
+        M1:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1638230400000000000
+          - null
+          - null
+          UID: T3.M1
+          name: Reflect GTM requirements in roadmaps
+        M1-name: Reflect GTM requirements in roadmaps
+        M2:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1653955200000000000
+          - null
+          - null
+          UID: T3.M2
+          name: Delivery of GTM requirements for 30% of modernizing products
+        M2-name: Delivery of GTM requirements for 30% of modernizing products
+        M3:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1685491200000000000
+          - null
+          - null
+          UID: T3.M3
+          name: Delivery of GTM requirements for 60% of modernizing products
+        M3-name: Delivery of GTM requirements for 60% of modernizing products
+        M4:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1717113600000000000
+          - null
+          - null
+          UID: T3.M4
+          name: 'Delivery of GTM requirements for 100% of modernizing products '
+        M4-name: 'Delivery of GTM requirements for 100% of modernizing products '
+      UID: .nan
+      name: Incorporation of GTM requirements
+    T3-name: Incorporation of GTM requirements
+    T4:
+      Milestone:
+        M1:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1661904000000000000
+          - null
+          - null
+          Task:
+            TA1:
+              Task Date: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+              - 1627689600000000000
+              - null
+              - null
+              UID: T4.M1.TA1
+              name: Agree plan with the EAs
+            TA1-name: Agree plan with the EAs
+            TA2:
+              Dependency:
+                D1:
+                  Dependent on: W2
+                  UID: T4.M1.TA2.D1
+                  name: Availability of FusionOperate for pertinent stacks by 11/30/21
+                D1-name: Availability of FusionOperate for pertinent stacks by 11/30/21
+                D2:
+                  Dependent on: W2
+                  UID: T4.M1.TA2.D2
+                  name: Availability of FusionOperate for pertinent stacks by 8/31/22
+                D2-name: Availability of FusionOperate for pertinent stacks by 8/31/22
+                D3:
+                  Dependent on: W2
+                  UID: T4.M1.TA2.D3
+                  name: Availability of FusionOperate for pertinent stacks by 8/31/23
+                D3-name: Availability of FusionOperate for pertinent stacks by 8/31/23
+              Task Date: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+              - 1630368000000000000
+              - null
+              - null
+              UID: T4.M1.TA2
+              name: Convey plan to FO Team
+            TA2-name: Convey plan to FO Team
+          UID: T4.M1
+          name: Baseline FusionOperate adoption targets
+        M1-name: Baseline FusionOperate adoption targets
+        M2:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1653955200000000000
+          - null
+          - null
+          UID: T4.M2
+          name: Delivery of Fusion Operate aggregate adoption targets (gorwth product
+            target and new product target)  for FY 22
+        M2-name: Delivery of Fusion Operate aggregate adoption targets (gorwth product
+          target and new product target)  for FY 22
+        M3:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1685491200000000000
+          - null
+          - null
+          UID: T4.M3
+          name: Delivery of Fusion Operate aggregate adoption targets (gorwth product
+            target and new product target)  for FY 23
+        M3-name: Delivery of Fusion Operate aggregate adoption targets (gorwth product
+          target and new product target)  for FY 23
+        M4:
+          Date due: !!python/object/apply:pandas._libs.tslibs.timestamps.Timestamp
+          - 1717113600000000000
+          - null
+          - null
+          UID: T4.M4
+          name: Delivery of Fusion Operate aggregate adoption targets (gorwth product
+            target and new product target)  for FY 24
+        M4-name: Delivery of Fusion Operate aggregate adoption targets (gorwth product
+          target and new product target)  for FY 24
+      UID: .nan
+      name: Adoption of FusionOperate
+    T4-name: Adoption of FusionOperate
+  workstreamTitle: Modernization
+  workstreamUID: W1
+kind: workstream-milestone
+metadata:
+  labels:
+    initiative: S1
+    organization: My Corp
+    program: Amplify
+    scenario: Default
+    scoringCycle: Dec 2020
+    scoringMaturity: Draft
+    workstreamUID: W1
+  name: default.dec-2020.w1.s1
+  namespace: my-corp.production

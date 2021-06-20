@@ -35,17 +35,23 @@ class Workstream_Controller(SkeletonController):
     def getSupportedKinds(self):
         return self.SUPPORTED_KINDS
 
-    def getPostingConfig(self, parent_trace, kind):
+    def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
         ME                          = Workstream_Controller
         if kind == 'workstream-milestone':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._WorkstreamMilestoneConfig(update_policy=update_policy, kind=kind, controller = self)
+            config                      = ME._WorkstreamMilestoneConfig(    update_policy       = update_policy, 
+                                                                            kind                = kind, 
+                                                                            manifest_nb         = manifest_nb,
+                                                                            controller          = self)
         elif kind == 'workstream-metric':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._WorkstreamMetricConfig(update_policy = update_policy, kind = kind, controller = self)
+            config                      = ME._WorkstreamMetricConfig(       update_policy       = update_policy, 
+                                                                            kind                = kind, 
+                                                                            manifest_nb         = manifest_nb,
+                                                                            controller          = self)
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
                                                 + ", ".join(self.SUPPORTED_KINDS),
@@ -66,12 +72,12 @@ class Workstream_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
-    def _buildOneManifest(self, parent_trace, url, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, url, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, url, label, kind, excel_range)
+        manifest_dict                   = super()._buildOneManifest(parent_trace, manifest_nb, url, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to Workstream_Controller") 
 
@@ -129,9 +135,12 @@ class Workstream_Controller(SkeletonController):
 
         _SPLITTING_COLUMNS              = ['Milestone', 'Task', 'Dependency']
 
-        def __init__(self, update_policy, kind, controller):
+        def __init__(self, update_policy, kind, manifest_nb, controller):
             ME                          = Workstream_Controller._WorkstreamMilestoneConfig
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind            = kind, 
+                                update_policy   = update_policy,
+                                manifest_nb     = manifest_nb, 
+                                controller      = controller)
         
             interval_spec_milestones    = ClosedOpenIntervalSpec(   parent_trace        = None, 
                                                                     splitting_columns   = ME._SPLITTING_COLUMNS,
@@ -174,10 +183,13 @@ class Workstream_Controller(SkeletonController):
 
         _ENTITY_NAME                            = 'Metric'
 
-        def __init__(self, update_policy, kind, controller):
+        def __init__(self, update_policy, kind, manifest_nb, controller):
             ME                                  = Workstream_Controller._WorkstreamMetricConfig
 
-            super().__init__(kind, update_policy, controller)
+            super().__init__(   kind            = kind, 
+                                update_policy   = update_policy, 
+                                manifest_nb     = manifest_nb,
+                                controller      = controller)
 
             interval_spec_metrics               = GreedyIntervalSpec(parent_trace = None, entity_name = ME._ENTITY_NAME) 
 
