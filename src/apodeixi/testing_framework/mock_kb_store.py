@@ -6,7 +6,7 @@ from apodeixi.util.path_utils                       import PathUtils
 
 from apodeixi.knowledge_base.knowledge_base_store   import KnowledgeBaseStore
 from apodeixi.knowledge_base.filing_coordinates     import FilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils, PostingLabelHandle
+from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils
 
 class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
     '''

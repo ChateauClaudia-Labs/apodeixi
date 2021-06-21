@@ -60,13 +60,13 @@ class KnowledgeBaseStore():
                                                                     relative_path       = relative_path)
 
         # Now build the posting label handle
-        posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace, 
+        posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,
+                                                                    posting_api         = posting_api,
+                                                                    kb_store_url        = kb_store_url, 
+                                                                    filing_coords       = filing_coords,
                                                                     excel_filename      = filename, 
                                                                     excel_sheet         = sheet, 
                                                                     excel_range         = excel_range)
-        posting_handle.posting_api      = posting_api
-        parsed_tokens                   = filing_coords.path_tokens(my_trace)
-        posting_handle.excel_path       = kb_store_url  +  '/' + '/'.join(parsed_tokens) 
 
         return posting_handle
 

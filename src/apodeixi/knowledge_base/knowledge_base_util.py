@@ -2,31 +2,65 @@ from apodeixi.util.dictionary_utils                             import Dictionar
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
 class PostingLabelHandle():
-    def __init__(self, parent_trace, excel_filename, excel_sheet, excel_range):
+    '''
+    Object with all the information needed to identify and retrieve the Posting Label information in a posting.
+
+    It is not meant to be created directly - it should be created only by the KnowledgeBase store, and then passed around as needed.
+    '''
+    def __init__(self, parent_trace, posting_api, kb_store_url, filing_coords, excel_filename, excel_sheet, excel_range):
         self.excel_filename         = excel_filename
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
 
-        self.posting_api            = None # Set by the store when it constructs the PostingLabelHandle
-        self.excel_path             = None # Set by the store when it constructs the PostingLabelHandle
+        self.posting_api            = posting_api 
+        self.filing_coords          = filing_coords 
+        self.kb_store_url           = kb_store_url 
 
     def getPostingAPI(self, parent_trace):
         return self.posting_api
 
     def getFullPath(self, parent_trace):
-        return self.excel_path + "/" + self.excel_filename
+
+        parsed_tokens                   = self.filing_coords.path_tokens(parent_trace)
+        excel_path       = self.kb_store_url  +  '/' + '/'.join(parsed_tokens)
+        return excel_path + "/" + self.excel_filename
+
+    def buildDataHandle(self, parent_trace, manifest_nb, kind, excel_sheet, excel_range):
+        '''
+        Constructs a new PostingDataHandle and returns it. It shares with this PostingLabelHandle the information to
+        locate the Excel spreadsheet, but (may) differ with the information internal to the Excel spreadsheet, such as
+        worksheet and range. It also will populate data specific to the manifest associated to the PostingDataHandle being built
+        '''
+        data_handle             = PostingDataHandle(    parent_trace        = parent_trace,
+                                                        manifest_nb         = manifest_nb,
+                                                        kind                = kind,
+                                                        kb_store_url        = self.kb_store_url,
+                                                        filing_coords       = self.filing_coords,
+                                                        excel_filename      = self.excel_filename,
+                                                        excel_sheet         = excel_sheet,
+                                                        excel_range         = excel_range)
+        return data_handle
 
 class PostingDataHandle():
-    def __init__(self, parent_trace, manifest_nb, kind, excel_path, excel_filename, excel_sheet, excel_range):
+    '''
+    Object with all the information needed to identify and retrieve the content for a particulra manifest in a posting.
+
+    It is not meant to be created directly - it should be created only by the PostingLabelHandle, and then passed around as needed.
+    '''
+    def __init__(self, parent_trace, manifest_nb, kind, kb_store_url, filing_coords, excel_filename, excel_sheet, excel_range):
         self.excel_filename         = excel_filename
-        self.excel_path             = excel_path
+
+        self.kb_store_url           = kb_store_url
+        self.filing_coords          = filing_coords
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
         self.manifest_nb            = manifest_nb
         self.kind                   = kind
 
     def getFullPath(self, parent_trace):
-        return self.excel_path + "/" + self.excel_filename
+        parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
+        excel_path                  = self.kb_store_url  +  '/' + '/'.join(parsed_tokens)
+        return excel_path + "/" + self.excel_filename
 
 class ManifestUtils():
     def __init__(self):

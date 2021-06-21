@@ -112,15 +112,17 @@ class SkeletonController(PostingController):
         '''
         result                  = []
         excel_filename          = posting_label_handle.excel_filename
-        excel_path              = posting_label_handle.excel_path
+        kb_store_url            = posting_label_handle.kb_store_url
+        filing_coords           = posting_label_handle.filing_coords
+
         for manifest_nb, kind, excel_range, excel_sheet in self.show_your_work.manifest_metas():
             loop_trace          = parent_trace.doing("Creating PostingDataHandle for manifest " + str(manifest_nb),
                                                         data = {"kind": kind})
-            data_handle         = PostingDataHandle(    parent_trace        = loop_trace,
+
+            data_handle         = posting_label_handle.buildDataHandle(    
+                                                        parent_trace        = loop_trace,
                                                         manifest_nb         = manifest_nb,
                                                         kind                = kind,
-                                                        excel_path          = excel_path,
-                                                        excel_filename      = excel_filename,
                                                         excel_sheet         = excel_sheet,
                                                         excel_range         = excel_range)
             result.append(data_handle)
