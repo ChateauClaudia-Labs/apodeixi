@@ -1,4 +1,5 @@
 import os                                           as _os
+from pathlib                                        import Path
 
 from apodeixi.util.a6i_error                        import ApodeixiError
 
@@ -114,3 +115,8 @@ class PathUtils():
             folders         = folders[1:]
         return folders
 
+    def create_path_if_needed(self, parent_trace, path):
+        '''
+        Helper method to create a directory if it does not alreay exist
+        '''
+        Path(path).mkdir(parents=True, exist_ok=True)

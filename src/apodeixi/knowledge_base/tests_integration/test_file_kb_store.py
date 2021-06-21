@@ -33,20 +33,23 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" and coords.scenario == "MTP"
 
-            coords_dict                     = self.store.locatePostings(    parent_trace                = root_trace, 
+            scanned_handles                  = self.store.searchPostings(    parent_trace                = root_trace,
                                                                             posting_api                 = posting_api, 
                                                                             filing_coordinates_filter   = _coords_filter, 
                                                                             posting_version_filter      = None)
 
             stringified_coords_dict         = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
-            for coords in coords_dict.keys():
-                stringified_coords_dict[format(coords, '')] = coords_dict[coords]
-            coords_txt                      = "--------------------- Products with a filing structure in the KnowledgeBase\n\n"
+            idx = 1
+            for handle in scanned_handles:
+                stringified_coords_dict[str(idx) + "." + format(handle.filing_coords, '')] = handle.excel_filename
+                idx +=1
+            coords_txt                      = "--------------------- Products with a posting in the KnowledgeBase filing structure\n\n"
             coords_txt                      += DictionaryFormatter().dict_2_nice(   parent_trace   = root_trace,
                                                                                     a_dict          = stringified_coords_dict, 
                                                                                     flatten=True)
             
-            products_in_kb                  = [coords.product for coords in coords_dict.keys()]
+            #products_in_kb                  = [coords.product for coords in coords_dict.keys()]
+            products_in_kb                  = [handle.filing_coords.product for handle in scanned_handles]
 
             # These are legitimate products in the Apodeixi config but with no filing structure in the Knowledge Base
             missing                         = [format(prod_info) for prod_info in self.products if not prod_info.short_name in products_in_kb]
@@ -54,7 +57,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             # This is the dual gap: products with filing structure in the Knowledge Base but not appearing as legitimate in the Apodeixi config
             illegitimate                    = [prod for prod in products_in_kb if not prod in [prod_info.short_name for prod_info in self.products]]
 
-            coords_txt                      += "\n\n--------------------- Products lacking a filing structure in the KnowledgeBase\n\n"
+            coords_txt                      += "\n\n--------------------- Products lacking postings in the KnowledgeBase filing structure\n\n"
             coords_txt                      += "\n".join(missing)
 
             coords_txt                      += "\n\n--------------------- 'Illegitimate' products: \n" \
@@ -84,14 +87,18 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" # and coords.scenario == "MTP"
 
-            coords_dict                     = kb.locatePostings(    parent_trace                = root_trace, 
+            scanned_handles                 = kb.searchPostings(    parent_trace                = root_trace, 
                                                                     posting_api                 = posting_api, 
                                                                     filing_coordinates_filter   = _coords_filter, 
                                                                     posting_version_filter      = None)
 
             stringified_coords_dict         = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
-            for coords in coords_dict.keys():
-                stringified_coords_dict[format(coords, '')] = coords_dict[coords]
+
+            idx = 1
+            for handle in scanned_handles:
+                stringified_coords_dict[str(idx) + "." + format(handle.filing_coords, '')] = handle.excel_filename
+                idx +=1
+
             coords_txt                      = "--------------------- Workstreams with a filing structure in the KnowledgeBase\n\n"
             coords_txt                      += DictionaryFormatter().dict_2_nice(   parent_trace   = root_trace,
                                                                                     a_dict          = stringified_coords_dict, 

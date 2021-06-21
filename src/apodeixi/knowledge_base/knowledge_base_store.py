@@ -70,12 +70,15 @@ class KnowledgeBaseStore():
 
         return posting_handle
 
-    def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
-        Returns a dictionary with the information of all postings that satisfy the criteria.
+        Abstract method
 
-        The keys are FilingCoordinates instances, and the values are lists with the file name of each posting that lies
-        at those coordinates.
+        Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
+        the given criteria:
+
+        * They are all postings for the `posting_api`
+        * They pass the given filters
 
         @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
                             'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
@@ -85,9 +88,9 @@ class KnowledgeBaseStore():
                             If set to None then no filtering is done.
         @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
                             Any PostingVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.
+                            If set to None then no filtering is done.n.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'locatePostings' in concrete class",
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'searchPostings' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
@@ -153,11 +156,13 @@ class KnowledgeBaseStore():
 
     def searchManifests(self, parent_trace, manifest_api, labels_filter=None, manifest_version_filter=None):
         '''
-        Used to retrieve all manifests in the store for a given `manifest_api` provided they match the
-        given conditions.
+        Abstract method
 
-        Returns a dictionary where the keys are ManifestHandle instances and the values are dictionaries
-        representing the data of the manifest corresponding to that ManifestHandle.
+        Returns a list of ManifestHandle objects, one for each manifest in the Knowledge Base that matches
+        the given criteria:
+
+        * They are all manifests for the `manifest_api`
+        * They pass the given filters
 
         @param manifest_api A string that identifies the type of manifest supported by the store. For example,
                             'milestone.modernization.a6i' is a recognized manifest API and store manifest objects

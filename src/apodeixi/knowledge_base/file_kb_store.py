@@ -1,6 +1,5 @@
 import os                                               as _os
 import yaml                                             as _yaml
-from pathlib                                            import Path
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, InitiativesFilingCoordinates
@@ -34,8 +33,6 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         '''
         return list(self.filing_rules.keys())
 
-
-
     def getFilingClass(self, parent_trace, posting_api):
         '''
         Returns a class object, derived from FilingCoordinates, that this store uses to structure postings for 
@@ -54,12 +51,13 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         return kb_store_url
 
 
-    def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
-        Returns a dictionary with the information of all postings that satisfy the criteria.
+        Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
+        the given criteria:
 
-        The keys are FilingCoordinates instances, and the values are lists with the file name of each posting that lies
-        at those coordinates.
+        * They are all postings for the `posting_api`
+        * They pass the given filters
 
         @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
                             'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
@@ -75,42 +73,26 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
         if posting_version_filter != None:
             raise ApodeixiError(parent_trace, "Apologies, but filtering postings by version is not yet implemented in "
-                                                + "File_KnowledgeBaseStore. Aborting the effort to locatePostings.")
+                                                + "File_KnowledgeBaseStore. Aborting the effort to searchPostings.")
 
         my_trace                    = parent_trace.doing("Scanning existing filing coordinates")
         if True:
-            scanned_coords              = []
-            supported_apis              = self.supported_apis(parent_trace=my_trace)
-            if not posting_api in supported_apis:
-                raise ApodeixiError(my_trace, "Knowledge Base does not accept this kind of posting API",
-                                                data = {    "posting_api":      str(posting_api),
-                                                            "supported apis":   str(supported_apis)})
-            filing_class                = self.filing_rules[posting_api]
+            scanned_handles         = []
             for currentdir, dirs, files in _os.walk(self.postings_rootdir):
-                for subdir in dirs:
-                    loop_trace          = my_trace.doing("Tokenzing  path", data = {'currentdir': currentdir, 'subdir': subdir})
-                    path_tokens         = PathUtils().tokenizePath( parent_trace    = loop_trace,
-                                                            path   = _os.path.join(currentdir, subdir).split(self.postings_rootdir)[1]) 
-                    filing_coords       = None
+                #for subdir in dirs:
+                for a_file in files:
+                    loop_trace          = my_trace.doing("Scanning directory", data = {'currentdir': currentdir, 'file': a_file})
                     try:
-                        filing_coords   = filing_class().build(parent_trace = loop_trace, path_tokens = path_tokens)
+                        handle      = self.buildPostingHandle(  parent_trace        = loop_trace,
+                                                                excel_posting_path  = _os.path.join(currentdir, a_file))
                     except ApodeixiError as ex:
-                        pass # This error just means this subdir is not pertinent for the search
-                    if filing_coords    != None:
-                        if filing_coordinates_filter == None or filing_coordinates_filter(filing_coords): # Passed the filter, if any
-                            scanned_coords.append(filing_coords)
+                        continue # This just means that this directory had nothing matching the posting API
+                    if handle.posting_api != posting_api:
+                        continue # Don't count this handle, since it for the wrong posting_api
+                    if filing_coordinates_filter == None or filing_coordinates_filter(handle.filing_coords): # Passed the filter, if any
+                        scanned_handles.append(handle)
 
-        my_trace                    = parent_trace.doing("Collecting matching files for scanned coordinates")
-        if True:
-            result                  = {}
-            for coords in scanned_coords:
-                files               = self._findMatchingFiles(my_trace, coords, posting_api)
-                result[coords]      = files
-
-        return result
-
-    
-
+        return scanned_handles
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
@@ -126,7 +108,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         if version != None and len(str(version).strip()) > 0:
             suffix = '.' + str(version)
         manifest_dir        = self.derived_data_rootdir + "/" + namespace  + "/" + name
-        ME._create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
+        PathUtils().create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
         manifest_file       = kind + suffix + ".yaml"
         my_trace            = parent_trace.doing("Persisting manifest", 
                                                     data = {    'manifests_dir': manifest_dir, 
@@ -170,26 +152,6 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             return None
         # By now we know there is exaclty one match - that must be the manifest we are after
         return matching_manifests[0]
-
-
-
-    def _findMatchingFiles(self, parent_trace, filing_coordinates, posting_api):
-        path_tokens                 = filing_coordinates.path_tokens(parent_trace)
-        full_path                   = self.postings_rootdir + "/" + "/".join(path_tokens)
-
-        result                      = []
-        for file in _os.listdir(full_path): # This picks up both directories and files
-            d = _os.path.join(full_path, file)
-            # Avoid Excel "temporary backup" files that start with "~". They can exist if user has Excel open when this code runs
-            if not _os.path.isdir(d) and file.endswith(posting_api + ".xlsx") and not file.startswith("~"):
-                result.append(file)
-        return result
- 
-    def _create_path_if_needed(parent_trace, path):
-        '''
-        Helper method to create a directory if it does not alreay exist
-        '''
-        Path(path).mkdir(parents=True, exist_ok=True)
 
     def _getMatchingManifests(self, parent_trace, folder, manifest_handle):
         '''
