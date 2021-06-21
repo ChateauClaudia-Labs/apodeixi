@@ -76,16 +76,20 @@ class JourneysFilingCoordinates(FilingCoordinates):
                     ["journeys", scoringCycle, product, scenario]. 
     '''
     def build(self, parent_trace, path_tokens):
+        ME                          = JourneysFilingCoordinates
         if type(path_tokens)        != list:
             raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list, instead received a " + str(type(path_tokens)))
         if len(path_tokens)         != 4:
-            return None
-        if path_tokens[0]           != JourneysFilingCoordinates.JOURNEYS:
-            return None
+            raise ApodeixiError(parent_trace, "Expected exactly 4 path tokens",
+                                                data = {'path_tokens': str(path_tokens)})
+        if path_tokens[0]           != ME.JOURNEYS:
+            raise ApodeixiError(parent_trace, "The first path token is required to be '" + ME.JOURNEYS + "'",
+                                                data = {'path_tokens': str(path_tokens)})
 
         non_strings                 = [token for token in path_tokens if type(token) != str]
         if len(non_strings) > 0:
-            return None
+            raise ApodeixiError(parent_trace, "Some tokens are not strings",
+                                                data = {'non-string types found': str([type(x) for x in non_strings])})
 
         self.scoringCycle           = path_tokens[1]
         self.product                = path_tokens[2]

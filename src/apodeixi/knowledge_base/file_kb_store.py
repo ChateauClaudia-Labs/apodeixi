@@ -5,6 +5,7 @@ from pathlib                                            import Path
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, InitiativesFilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
+from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.a6i_error                            import ApodeixiError
 
 class File_KnowledgeBaseStore(KnowledgeBaseStore):
@@ -33,68 +34,25 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         '''
         return list(self.filing_rules.keys())
 
-    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
-        ME                          = File_KnowledgeBaseStore
+
+
+    def getFilingClass(self, parent_trace, posting_api):
         '''
-        Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
+        Returns a class object, derived from FilingCoordinates, that this store uses to structure postings for 
+        the giving posting api
         '''
-        if not _os.path.isfile(excel_posting_path):
-            raise ApodeixiError(parent_trace, "File does not exist",
-                                                data = {    'excel_posting_path': excel_posting_path})
+        if not posting_api in self.supported_apis(parent_trace):
+            raise ApodeixiError(parent_trace, "Posting API '" + str(posting_api) + "' is not supported.")
+        klass                           = self.filing_rules[posting_api]
+        return klass
 
-        # Check if file exists to begin with
-        excel_posting_path_tokens       = _os.path.split(excel_posting_path)
-        posting_filename                = excel_posting_path_tokens[1]
-        posting_dir                     = excel_posting_path_tokens[0]
+    def getStoreURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate this Knowledge Base store
+        '''
+        kb_store_url                    = self.postings_rootdir    
+        return kb_store_url
 
-        posting_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
-                                                    excel_filename      = posting_filename, 
-                                                    excel_sheet         = sheet, 
-                                                    excel_range         = excel_range)
-
-        
-        
-        # Check that posting is for a supported posting API
-        my_trace                        = parent_trace.doing("Inferring api from posting's filename")
-        posting_handle.posting_api      = None
-        supported_apis                  = self.supported_apis(parent_trace=parent_trace)
-        for api in supported_apis:
-            if posting_filename.endswith(api + ".xlsx"):
-                posting_handle.posting_api             = api
-                break
-        if posting_handle.posting_api == None:
-            raise ApodeixiError(parent_trace, "Filename is not for a supported API",
-                                            data = {    'filename':             posting_filename,
-                                                        'supported apis':       str(supported_apis)})
-
-        # Check if the posting is in the Knowledge Base to start with. 
-        my_trace                        = parent_trace.doing("Checking that posting belongs to Knowledge Base")
-        if not posting_dir.startswith(self.postings_rootdir):
-            raise ApodeixiError(my_trace, "Can't post a file not in the Knowledge Base's folder structure",
-                                                data =  {   'excel_posting_path':           excel_posting_path,
-                                                            'knowledge base root directory':    self.postings_rootdir})
-        posting_relative_path           = excel_posting_path.split(self.postings_rootdir)[1]
-
-        path_tokens                     = ME._tokenizePath( parent_trace    = parent_trace,
-                                                            relative_path   = posting_relative_path)[:-1] # Discard last token, which is filename
-        # Check thath the relative path of the posting within the Knowledge Base corresponds to the filing structure
-        # for that API
-        filing_coords                   = self.filing_rules[posting_handle.posting_api]()
-        my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
-                                                                + "within the Knowledge Base")
-        built_filing_coords             = filing_coords.build(parent_trace = my_trace, path_tokens = path_tokens)
-        if built_filing_coords == None:
-            raise ApodeixiError(my_trace, "Posting is not in the right folder within the Knowledge Base for this kind of API",
-                                            data = {'posting relative path tokens':         path_tokens,
-                                                    'posting api':                          posting_handle.posting_api,
-                                                    'relative path expected by api':        filing_coords.expected_tokens(my_trace)})
-
-        my_trace                        = parent_trace.doing("Done validating; constructing URL")
-        parsed_tokens                   = built_filing_coords.path_tokens(my_trace)
-
-        posting_handle.excel_path       = self.postings_rootdir  +  '/' + '/'.join(parsed_tokens) 
-
-        return posting_handle
 
     def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
@@ -131,9 +89,13 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             for currentdir, dirs, files in _os.walk(self.postings_rootdir):
                 for subdir in dirs:
                     loop_trace          = my_trace.doing("Tokenzing  path", data = {'currentdir': currentdir, 'subdir': subdir})
-                    path_tokens         = ME._tokenizePath( parent_trace    = loop_trace,
-                                                            relative_path   = _os.path.join(currentdir, subdir).split(self.postings_rootdir)[1]) 
-                    filing_coords       = filing_class().build(parent_trace = loop_trace, path_tokens = path_tokens)
+                    path_tokens         = PathUtils().tokenizePath( parent_trace    = loop_trace,
+                                                            path   = _os.path.join(currentdir, subdir).split(self.postings_rootdir)[1]) 
+                    filing_coords       = None
+                    try:
+                        filing_coords   = filing_class().build(parent_trace = loop_trace, path_tokens = path_tokens)
+                    except ApodeixiError as ex:
+                        pass # This error just means this subdir is not pertinent for the search
                     if filing_coords    != None:
                         if filing_coordinates_filter == None or filing_coordinates_filter(filing_coords): # Passed the filter, if any
                             scanned_coords.append(filing_coords)
@@ -223,38 +185,6 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
                 result.append(file)
         return result
  
-    def _tokenizePath(parent_trace, relative_path):
-        '''
-        Helper method suggested in  https://stackoverflow.com/questions/3167154/how-to-split-a-dos-path-into-its-components-in-python.
-        It tokenizes relative paths to make it easier to construct FilingCoordinates from them
-        For example, given a relative path like
-
-                \FY 22\LIQ\MTP
-
-        it returns a list
-
-                ['FY 22', 'LIQ', 'MTP']
-        '''
-        folders             = []
-        SPURIOUS_FOLDERS    = ["\\", "/"] # This might be added in Windows by some _os / split manipulations. If so, ignore it
-        LIMIT               = 1000 # Maximum path length to handle. As a precaution to avoid infinte loops
-        idx                 = 0
-        path                = relative_path
-        while idx < LIMIT: # This could have been "while True", but placed a limit out of caution
-            path, folder = _os.path.split(path)
-
-            if folder   != "": 
-                folders.append(folder)
-            elif path   != "":
-                folders.append(path)
-                break
-            idx             += 1
-
-        folders.reverse()
-        if folders[0] in SPURIOUS_FOLDERS:
-            folders         = folders[1:]
-        return folders
-
     def _create_path_if_needed(parent_trace, path):
         '''
         Helper method to create a directory if it does not alreay exist

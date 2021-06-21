@@ -1,7 +1,8 @@
 import os                                           as _os
 import yaml                                         as _yaml
 
-from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle
+from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, PostingLabelHandle
+from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 class KnowledgeBaseStore():
@@ -20,14 +21,54 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def getFilingClass(self, parent_trace, posting_api):
+        '''
+        Abstract method. 
+        
+        Returns a class object, derived from FilingCoordinates, that this store uses to structure postings for 
+        the giving posting api. Used to build the posting handle.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getFilingClass' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
+    def getStoreURL(self, parent_trace):
+        '''
+        Abstract method.
+
+        Returns a string that can be used to locate this Knowledge Base store
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getFilingClass' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
     def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
         Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'buildPostingHandle' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        kb_store_url                    = self.getStoreURL(parent_trace) 
+        relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
+                                                                    root_dir        = kb_store_url,
+                                                                    full_path       = excel_posting_path)
 
+        posting_api                     = self._filename_2_api(parent_trace, filename)
+                                                   
+        my_trace                        = parent_trace.doing("Building the filing coordinates",
+                                                                data = {"relative_path": str(relative_path)})
+        filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
+                                                                    posting_api         = posting_api, 
+                                                                    relative_path       = relative_path)
+
+        # Now build the posting label handle
+        posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace, 
+                                                                    excel_filename      = filename, 
+                                                                    excel_sheet         = sheet, 
+                                                                    excel_range         = excel_range)
+        posting_handle.posting_api      = posting_api
+        parsed_tokens                   = filing_coords.path_tokens(my_trace)
+        posting_handle.excel_path       = kb_store_url  +  '/' + '/'.join(parsed_tokens) 
+
+        return posting_handle
 
     def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
@@ -50,7 +91,43 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def _filename_2_api(self, parent_trace, filename):
+        '''
+        Helper method that can be used by derived classes to infer the posting api from a filename.
 
+        Returns a string: the posting api. Raises an ApodeixiError if none of the store's supported apis matches the filename.
+        '''
+        posting_api                                 = None
+        supported_apis                              = self.supported_apis(parent_trace=parent_trace)
+        for api in supported_apis:
+            if filename.endswith(api + ".xlsx"):
+                posting_api          = api
+                break
+        if posting_api == None:
+            raise ApodeixiError(parent_trace, "Filename is not for as API supported by the Knowledge Base store",
+                                            data    = {    'filename':             filename,
+                                                            'supported apis':       str(supported_apis)})
+        return posting_api
+
+    def _buildFilingCoords(self, parent_trace, posting_api, relative_path):
+        '''
+        Helper method that concrete derived classes may choose to use as part of implementing `buildPostingHandle`,
+        to determine the FilingCoordinates to put into the posting handle.
+        '''
+
+        path_tokens                     = PathUtils().tokenizePath( parent_trace    = parent_trace,
+                                                                    path   = relative_path) 
+                                                            
+        filing_class                    = self.getFilingClass(parent_trace, posting_api)
+        my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
+                                                                + "within the Knowledge Base")
+        filing_coords                   = filing_class().build(parent_trace = my_trace, path_tokens = path_tokens)
+        if filing_coords == None:
+            raise ApodeixiError(my_trace, "Posting is not in the right folder within the Knowledge Base for this kind of API",
+                                            data = {'posting relative path tokens':         path_tokens,
+                                                    'posting api':                          posting_api,
+                                                    'relative path expected by api':        filing_coords.expected_tokens(my_trace)})
+        return filing_coords
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''

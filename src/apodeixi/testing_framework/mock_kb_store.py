@@ -2,8 +2,10 @@ import os                                           as _os
 import yaml                                         as _yaml
 
 from apodeixi.util.a6i_error                        import ApodeixiError
+from apodeixi.util.path_utils                       import PathUtils
 
 from apodeixi.knowledge_base.knowledge_base_store   import KnowledgeBaseStore
+from apodeixi.knowledge_base.filing_coordinates     import FilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils, PostingLabelHandle
 
 class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
@@ -22,43 +24,48 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         self.output_manifests_dir           = output_manifests_dir
         self.output_postings_dir            = output_postings_dir
 
+        self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
+            'delivery-planning.journeys.a6i':       UnitTest_FilingCoordinates,
+            '_INPUT':                               UnitTest_FilingCoordinates, # Need spurious api "_INPUT" for unit tests
+        }
+
     def supported_apis(self, parent_trace):
         '''
         Returns a list of the posting APIs that this KnowledgeStore knows about.
         '''
-        supported_apis      = [ 'delivery-planning.journeys.a6i', '_INPUT', # Need spurious api "_INPUT" for unit tests
-                                                ]
+        supported_apis      = list(self.filing_rules.keys())
         return supported_apis
 
     def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
         Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
         '''
-        posting_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
-                                                    excel_filename      = excel_posting_path, 
-                                                    excel_sheet         = sheet, 
-                                                    excel_range         = excel_range)
+        if PathUtils().is_leaf(parent_trace, excel_posting_path):
+            full_path                   = self.input_postings_dir + "/" + excel_posting_path
+        else:
+            full_path                   = excel_posting_path
 
-        filename                                    = _os.path.split(excel_posting_path)[1]
-        posting_handle.excel_path                   = self.input_postings_dir
+        return super().buildPostingHandle(  parent_trace        = parent_trace, 
+                                            excel_posting_path  = full_path, 
+                                            sheet               = sheet, 
+                                            excel_range         = excel_range)
 
-        my_trace                                    = parent_trace.doing("Inferring api from posting's filename")
-        posting_handle.posting_api                  = None
-        supported_apis                              = self.supported_apis(parent_trace=parent_trace)
-        for api in supported_apis:
-            if filename.endswith(api + ".xlsx"):
-                posting_handle.posting_api          = api
-                break
-        if posting_handle.posting_api == None:
-            raise ApodeixiError(parent_trace, "Filename is not for a supported API",
-                                            data    = {    'filename':             filename,
-                                                            'supported apis':       str(supported_apis)})
+    def getFilingClass(self, parent_trace, posting_api):
+        '''
+        Returns a class object, derived from FilingCoordinates, that this store uses to structure postings for 
+        the giving posting api
+        '''
+        if not posting_api in self.supported_apis(parent_trace):
+            raise ApodeixiError(parent_trace, "Posting API '" + str(posting_api) + "' is not supported.")
+        klass                           = self.filing_rules[posting_api]
+        return klass
 
-
-        
-        return posting_handle
-
-
+    def getStoreURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate this Knowledge Base store
+        '''
+        kb_store_url                    = _os.path.dirname(self.input_postings_dir)    
+        return kb_store_url
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
@@ -172,3 +179,79 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         matches = [filename for filename in matches if not filename.endswith("EXPECTED.yaml")]
         matches = [filename for filename in matches if not filename.endswith("OUTPUT.yaml")]
         return matches
+
+class UnitTest_FilingCoordinates(FilingCoordinates):
+    '''
+    Dummy filing coordinates class used for unit tests.
+    It implements a trivial filing structure: everything is in one of the two root posting directories of the store
+    (input and output directories) which must be called "input_data" or "output_data"
+
+    In other words, an "flat filing structure" - path tokens is a list of size 1
+    '''
+    def __init__(self):
+        super().__init__()
+        # These will be set later, by the build(-) method
+        self.data_folder            = None
+        return
+
+    INPUT_DATA                      = "input_data"
+    OUTPUT_DATA                     = "output_data"
+    '''
+    For this class, this abstract method has a dummy implementation.
+
+    So it returns self as long as the `path_tokens` is an empty list, and raises an ApodeixiError if it isn't.
+
+    @path_tokens: Must be an empty list. 
+    '''
+    def build(self, parent_trace, path_tokens):
+        ME                          = UnitTest_FilingCoordinates
+        if type(path_tokens)        != list:
+            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list, instead received a " 
+                                            + str(type(path_tokens)))
+        if len(path_tokens)         != 1:
+            raise ApodeixiError(parent_trace, "This FilingCoordinates requires exactly one path token",
+                                            data = {"path_tokens": str(path_tokens)})
+        data_folder                 = path_tokens[0]
+        if data_folder != ME.INPUT_DATA and data_folder != ME.OUTPUT_DATA:
+             raise ApodeixiError(parent_trace, "This FilingCoordinates requires data folder to one of " 
+                                            + ["'" + f + "'" for f in [ME.INPUT_DATA, ME.OUTPUT_DATA]],
+                                            data = {"path_tokens": str(path_tokens)})
+        self.data_folder            = data_folder
+        return self
+
+    def path_tokens(self, parent_trace):
+        '''
+        Dummy implementation of method required by parent class. Returns a list with one entry only. 
+        '''
+        if self.data_folder==None :
+            raise ApodeixiError(parent_trace, "Can't provide path_tokens because JourneysFilingCoordinates is not fully built",
+                                    data = {"data_folder": self.data_folder})
+        return [self.data_folder]
+
+    def to_dict(self, parent_trace):
+        '''
+        Dummy implementation of method required by parent class. Returns an dict with just one entry.
+        '''
+        return {'data_folder': self.data_folder}
+
+    def __format__(self, format_spec):
+        '''
+        Dummy implementation of method required by parent class. Returns string explaining value of self.data_folder
+        '''
+        msg     = "data_folder: "      + str(self.data_folder)
+
+        return msg
+
+    def __str__(self):
+        '''
+        Dummy implementation of method required by parent class. Returns an string representation of self.data_folder
+        '''
+        msg     = str(self.data_folder)
+        return msg
+
+    def expected_tokens(self, parent_trace):
+        '''
+        Dummy implementation of method required by parent class. Returns an string representation of the template
+        expected, consisting of just 1 token (the data folder)
+        '''
+        return "[<data_folder>]"

@@ -98,7 +98,8 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
                                                                                     flatten=True)
 
         except ApodeixiError as ex:
-            print(ex.trace_message()) 
+            print(ex.trace_message())
+            
 
         self._compare_to_expected_txt(  output_txt      = coords_txt, 
                                         test_case_name  = test_name, 

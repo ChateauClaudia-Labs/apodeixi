@@ -48,7 +48,8 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
 
             response            = kbase.post(   parent_trace                = root_trace, 
                                                 path_of_file_being_posted   = excel_file, 
-                                                posted_kind                 = posted_kind)
+                                                posted_kind                 = posted_kind,
+                                                excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED   = 3
             if len(response.createdHandles()) != NB_MANIFESTS_EXPECTED:

@@ -3,7 +3,6 @@ from apodeixi.util.a6i_error                                                impo
 from apodeixi.controllers.kernel.bdd.capability_hierarchy                   import CapabilityHierarchy_Controller
 from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
 from apodeixi.controllers.journeys.delivery_planning.milestones_controller  import MilestonesController
-from apodeixi.knowledge_base.knowledge_base_util                            import PostingLabelHandle
 from apodeixi.util.dictionary_utils                                         import DictionaryUtils
 
 class KnowledgeBase():
@@ -29,7 +28,7 @@ class KnowledgeBase():
     '''
     Returns a PostResponse
     '''
-    def post(self, parent_trace, path_of_file_being_posted, posted_kind, excel_sheet="Sheet1", ctx_range="B2:C1000"):
+    def post(self, parent_trace, path_of_file_being_posted, posted_kind, excel_sheet="Posting Label", ctx_range="B2:C1000"):
         root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
                                                                 data = {    'posted_kind'   : posted_kind,
                                                                             'path'          : path_of_file_being_posted,
