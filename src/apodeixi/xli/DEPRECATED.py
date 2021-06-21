@@ -12,6 +12,26 @@ from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
 
 from apodeixi.xli.xlimporter import SchemaUtils, ExcelTableReader
 
+def _parse_url(url):
+    '''
+    Given a url of form "<some string A, maybe with colons>:<some string B without colons>"
+    it returns the two substrings separated by the last colon
+    '''
+    parent_trace              = FunctionalTrace(None).doing("Parsing url")
+    s = _re.split(':', url)
+    if len(s) < 2:
+        raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: '" + url
+                            +"'. Should instead be formmated like this example: "
+                            + "'C:/MyDocuments/MySpreadsheets/Wonderful.xlsx:SheetName'")
+    sheet = s[len(s)-1]
+    path = url.split(':' + sheet)[0]
+    if len(path) == 0 or len(sheet) ==0:
+        raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: \n\t'" + url
+                            + "'\nShould instead be formmated like this example, with a non-empty path and a non-empty"
+                            + " sheet name separated by the last colon in the url: \n"
+                            + "\t'C:/My Documents/My Spreadsheets/Wonderful.xlsx:SheetName'")
+    return path, sheet
+
 def _is_blank(txt):
     '''
     Returns True if 'txt' is NaN or just spaces
@@ -258,7 +278,9 @@ class BreakdownBuilder:
     '''
 
     def _buildLevel1Breakdown(self):
-        reader                           = ExcelTableReader(url=self.l0_url, excel_range=self.l0_excel_range)
+        path, sheet                     = _parse_url(self.l0_url)
+        #reader                           = ExcelTableReader(url=self.l0_url, excel_range=self.l0_excel_range)
+        reader                           = ExcelTableReader(path, sheet, excel_range=self.l0_excel_range)
         root_trace                       = FunctionalTrace(None).doing("About to read Excel into a dataframe",
                                                                 data = {'url': self.l0_url, 'excel_range': self.l0_excel_range})
         l0_df                            = reader.read(root_trace)
@@ -314,7 +336,9 @@ class BreakdownBuilder:
             '''    
         url                 = link.L2_URL
         excel_range         = link.L2_excel_range
-        reader              = ExcelTableReader(url, excel_range)
+        path, sheet         = _parse_url(url)
+        #reader              = ExcelTableReader(url, excel_range)
+        reader              = ExcelTableReader(path, sheet, excel_range)
 
         root_trace                       = FunctionalTrace(None).doing("About to read Excel into a dataframe",
                                                                 data = {'url': url, 'excel_range': excel_range})
@@ -424,6 +448,8 @@ class BreakdownBuilder:
             else:
                 break # By convention, if an interval is blank for a row, all other intervals to the left of it are also blank
     '''
+
+
 
 
 class DEPRECATED_UID_Store:
@@ -555,7 +581,9 @@ def DEPRECATEDapplyMarathonJourneyPlan(ctx, url, excel_range, repo_root_dir):
     BAD_SCHEMA_MSG      = "Bad estimation date provided in context"
     estimation_date     = SchemaUtils.to_yaml_date(ctx[_ESTIMATED_ON], BAD_SCHEMA_MSG)
     
-    reader              = ExcelTableReader(url, excel_range)
+    path, sheet         = _parse_url(url)
+    #reader              = ExcelTableReader(url, excel_range)
+    reader              = ExcelTableReader(path, sheet, excel_range)
     
     root_trace          = FunctionalTrace(None).doing("About to read Excel into a dataframe",
                                                                 data = {'url': self.l0_url, 'excel_range': self.l0_excel_range})
@@ -625,7 +653,9 @@ def DEPRECATEDapplyInvestmentCommittment(ctx, url, excel_range, repo_root_dir):
     committing_date     = SchemaUtils.to_yaml_date(ctx[_ESTIMATED_ON], BAD_SCHEMA_MSG)
     
     # Load data and validate its geometric shape
-    reader              = ExcelTableReader(url, excel_range)
+    path, sheet         = _parse_url(url)
+    #reader              = ExcelTableReader(url, excel_range)
+    reader              = ExcelTableReader(path, sheet, excel_range)
 
     root_trace          = FunctionalTrace(None).doing("About to read Excel into a dataframe",
                                                                 data = {'url': self.l0_url, 'excel_range': self.l0_excel_range})

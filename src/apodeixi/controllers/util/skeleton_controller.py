@@ -3,7 +3,7 @@ import yaml                                         as _yaml
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
-from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils
+from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle
 from apodeixi.util.formatting_utils                     import StringUtils
 
 
@@ -82,24 +82,27 @@ class SkeletonController(PostingController):
                                                                 origination = {'signaled_from': __file__})
         if True:            
             label                           = self.getPostingLabel(my_trace)
-            url                             = posting_label_handle.get_url()
-            ctx_range                       = posting_label_handle.excel_range
-            label.read(my_trace, url, ctx_range)    
+            label.read(my_trace, posting_label_handle)     
 
         MY_PL                               = SkeletonController._MyPostingLabel
 
         # Keys will be the manifest unique integer identifiers assigned by _MyPostingLabel._initialize_show_your_work
         all_manifests_dict                 = {} 
         
-        for manifest_nb, kind, excel_range, excel_sheet in self.show_your_work.manifest_metas():
+        for data_handle in self.getDataHandles(parent_trace, posting_label_handle):
+            kind                            = data_handle.kind
+            manifest_nb                     = data_handle.manifest_nb
+            excel_range                     = data_handle.excel_range
+            
             my_trace                        = parent_trace.doing("Parsing data for 1 manifest", 
-                                                                    data = {'url': url, 'kind': kind, 'excel_range': excel_range},
+                                                                    data = {'kind': kind, 'excel_range': excel_range},
                                                                     origination = {'signaled_from': __file__})
-            manifest_url                    = SkeletonController._build_manifest_url(   posting_url             = url, 
-                                                                                        manifest_excel_sheet    = excel_sheet)
+            manifest_url                   = data_handle.get_manifest_url(my_trace, posting_label_handle)
+
             manifest_dict                   = self._buildOneManifest(   parent_trace        = my_trace, 
                                                                         manifest_nb         = manifest_nb, 
                                                                         url                 = manifest_url, 
+                                                                        posting_data_handle = data_handle,
                                                                         label               = label, 
                                                                         kind                = kind, 
                                                                         excel_range         = excel_range)
@@ -108,6 +111,27 @@ class SkeletonController(PostingController):
 
         return all_manifests_dict, label
 
+    def getDataHandles(self, parent_trace, posting_label_handle):
+        '''
+        Returns a list of PostingDataHandle objects, one for each manifest whose posting needs to be processed
+        '''
+        result                  = []
+        excel_filename          = posting_label_handle.excel_filename
+        excel_path              = posting_label_handle.excel_path
+        for manifest_nb, kind, excel_range, excel_sheet in self.show_your_work.manifest_metas():
+            loop_trace          = parent_trace.doing("Creating PostingDataHandle for manifest " + str(manifest_nb),
+                                                        data = {"kind": kind})
+            data_handle         = PostingDataHandle(    parent_trace        = loop_trace,
+                                                        manifest_nb         = manifest_nb,
+                                                        kind                = kind,
+                                                        excel_path          = excel_path,
+                                                        excel_filename      = excel_filename,
+                                                        excel_sheet         = excel_sheet,
+                                                        excel_range         = excel_range)
+            result.append(data_handle)
+        return result
+
+
     def _build_manifest_url(posting_url, manifest_excel_sheet):
         posting_excel_sheet                 = posting_url.split(":")[-1]
         excel_path_length                   = len(posting_url) - len(posting_excel_sheet) - 1 # Subtract 1 for the ":" delimeter
@@ -115,7 +139,7 @@ class SkeletonController(PostingController):
         manifest_url                        = excel_path + ":" + manifest_excel_sheet
         return manifest_url
 
-    def _buildOneManifest(self, parent_trace, manifest_nb, url, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, url, posting_data_handle, label, kind, excel_range):
         '''
         Returns a  dictionary corresponding to the manifest that was built in this method
         '''
@@ -139,7 +163,7 @@ class SkeletonController(PostingController):
             config                      = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                     kind                = kind,
                                                                     manifest_nb         = manifest_nb)
-            tree                        = self._xl_2_tree(my_trace, url, excel_range, config)
+            tree                        = self._xl_2_tree(my_trace, url, posting_data_handle, excel_range, config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
@@ -219,11 +243,13 @@ class SkeletonController(PostingController):
                                 optional_fields     = combined_optional_fields,
                                 date_fields         = combined_date_fields)
 
-        def read(self, parent_trace, url, excel_range):
+        def read(self, parent_trace, posting_label_handle):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
-            super().read(parent_trace, url, excel_range)
+            super().read(parent_trace, posting_label_handle)
+
+            excel_range                 = posting_label_handle.excel_range
 
             # Validate that Excel API in posting is one we know how to handle
             posted_xl_api_version       = self._getField(parent_trace, ME._EXCEL_API)
@@ -236,7 +262,7 @@ class SkeletonController(PostingController):
 
             # Validate that kind of domain object(s) in posting is(are) one that we know how to handle, 
             # and save the findings along the way in the controller's show_your_work for later use
-            self._initialize_show_your_work(parent_trace, url)
+            self._initialize_show_your_work(parent_trace, posting_label_handle)
 
             for manifest_nb, kind, excel_range, excel_sheet in self.controller.show_your_work.manifest_metas():
 
@@ -292,7 +318,7 @@ class SkeletonController(PostingController):
             
             return self.ctx[fieldname]
 
-        def _initialize_show_your_work(self, parent_trace, url):
+        def _initialize_show_your_work(self, parent_trace, posting_label_handle):
             '''
             Used to prepare the information needed to retrieve the data for each of the manifests (1 or more) that
             are being posted within the same Excel spreadsheet using a common PostingLabel.
@@ -308,7 +334,7 @@ class SkeletonController(PostingController):
             whether self.sightings['data.sheet'] exists and if so it will also process it just like the others.
 
             If the user did nost specify 'data.sheet.x' fields, then it will be defaulted to the same sheet containing
-            this Posting Label by inferring it from the `url`
+            this Posting Label by inferring it from the `posting_label_handle`
 
             Based on this it initializes self.controller.show_your_work:
 
@@ -376,7 +402,7 @@ class SkeletonController(PostingController):
             kind_list           = self.sightings[ME._DATA_KIND]
             range_list          = self.sightings[ME._DATA_RANGE]
 
-            sheet_list          = self._default_sheet_if_needed(parent_trace, kind_list, url)
+            sheet_list          = self._default_sheet_if_needed(parent_trace, kind_list, posting_label_handle)
 
 
             _check_lists_match(parent_trace, {  ME._DATA_KIND:          kind_list,
@@ -397,7 +423,7 @@ class SkeletonController(PostingController):
                     sheet_field = ME._DATA_SHEET   + '.' + str(sheet_list[idx])
                     _keep_work(parent_trace, idx, kind_field, range_field, sheet_field) 
 
-        def _default_sheet_if_needed(self, parent_trace, suffix_list, url):
+        def _default_sheet_if_needed(self, parent_trace, suffix_list, posting_label_handle):
             '''
             Helper method to default the Excel sheet to use for each manifest in situations where the user has not specified it.
             If the user has specified it, then it just returns the suffixes associated to it by the user.
@@ -408,8 +434,8 @@ class SkeletonController(PostingController):
             result                          = None
             if sheet_field in self.sightings.keys():
                 result                      = self.sightings[ME._DATA_SHEET]
-            else: # User did not specify any sheet fields, so must default them from the url
-                default_sheet               = url.split(":")[-1]
+            else: # User did not specify any sheet fields, so must default them from the posting_label_handle
+                default_sheet               = posting_label_handle.excel_sheet
                 if len(suffix_list) == 0:
                     self.ctx[sheet_field]   = default_sheet
                 else:

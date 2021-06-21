@@ -34,7 +34,7 @@ class PostingController():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'apply' in concrete class",
                                             origination = {'signaled_from': __file__})
 
-    def _xl_2_tree(self, parent_trace, url, excel_range, config):
+    def _xl_2_tree(self, parent_trace, url, data_handle, excel_range, config):
         '''
         Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
@@ -42,7 +42,10 @@ class PostingController():
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
         the UID of the rightmost column in that Excel row that is for an entity)
         '''
-        r                       = ExcelTableReader(url = url,excel_range = excel_range, horizontally = config.horizontally)
+        #r                       = ExcelTableReader(url = url,excel_range = excel_range, horizontally = config.horizontally)
+        path                    = data_handle.getFullPath(parent_trace)
+        sheet                   = data_handle.excel_sheet
+        r                       = ExcelTableReader(path, sheet,excel_range = excel_range, horizontally = config.horizontally)
         my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
                                                         data = {"url": url, "excel range": excel_range})
         df                      = r.read(my_trace)
@@ -429,7 +432,7 @@ class PostingLabel():
         '''
         self.sightings      = None 
 
-    def read(self, parent_trace, url, excel_range):
+    def read(self, parent_trace, posting_label_handle):
 
         def _val_is_null(val):
             '''
@@ -472,8 +475,14 @@ class PostingLabel():
             # If we get this far we haven't found anything problematic
             return missing_fields
 
+        url                         = posting_label_handle.get_url()
+        excel_range                 = posting_label_handle.excel_range
+
         excel_range    = excel_range.upper()
-        reader         = ExcelTableReader(url, excel_range, horizontally=False)
+        #reader         = ExcelTableReader(url, excel_range, horizontally=False)
+        path            = posting_label_handle.getFullPath(parent_trace)
+        sheet           = posting_label_handle.excel_sheet
+        reader         = ExcelTableReader(path, sheet, excel_range, horizontally=False)
         my_trace       = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
                                                 data = {"url": url, "excel range": excel_range})
         label_df       = reader.read(my_trace)

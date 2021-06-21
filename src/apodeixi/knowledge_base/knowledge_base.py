@@ -46,7 +46,7 @@ class KnowledgeBase():
                                                                     sheet               = excel_sheet, 
                                                                     excel_range         = ctx_range)
 
-        posting_api             = self.store.infer_posting_api(my_trace, path_of_file_being_posted)
+        posting_api             = label_handle.getPostingAPI(my_trace)
 
         my_trace                = parent_trace.doing("Retrieving a PostingController to process the posting")
         ctrl                    = self.findController(  parent_trace        = my_trace,

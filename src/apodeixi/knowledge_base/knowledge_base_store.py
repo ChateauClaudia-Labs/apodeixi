@@ -51,16 +51,6 @@ class KnowledgeBaseStore():
                                                                                 'signaled_from': __file__})
 
 
-    def infer_posting_api(self, parent_trace, filename):
-        '''
-        '''
-        for api in self.supported_apis(parent_trace=parent_trace, manifest_handle=None, version = None):
-            if filename.endswith(api + ".xlsx"):
-                return api
-        # If we get this far then the filename does not correspond to a supported API. Raise an exception
-        raise ApodeixiError(parent_trace, "Filename is not for a supported API",
-                                            data = {    'filename':             filename,
-                                                        'supported apis':       str(list(self.filing_rules.keys()))})
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''

@@ -1,7 +1,6 @@
 import re                                       as _re
 import pandas
 
-from apodeixi.xli.xlimporter                    import ExcelTableReader
 from apodeixi.util.a6i_error                    import ApodeixiError
 from apodeixi.xli.interval                      import IntervalUtils, Interval
 from apodeixi.util.dataframe_utils              import DataFrameUtils

@@ -111,16 +111,21 @@ class ExcelTableReader:
                         or columns (horizontally=False). It is True by default
     @return A Pandas DataFrame built from the data provided.
     '''
-    def __init__(self, url, excel_range, horizontally=True):
-        self.url          = url
-        self.excel_range  = excel_range.upper()
-        self.horizontally = horizontally
+    #def __init__(self, url, excel_range, horizontally=True):
+    def __init__(self, excel_filename, excel_sheet, excel_range, horizontally=True):
+        #self.url          = url
+        self.excel_filename     = excel_filename
+        self.excel_sheet        = excel_sheet
+        self.excel_range        = excel_range.upper()
+        self.horizontally       = horizontally
         
     def read(self, parent_trace, horizontally=True):
 
         my_trace                                        = parent_trace.doing("Parsing excel posting's url",
-                                                                                data = {"url": str(self.url)})
-        path, sheet                                     = self.__parse_url(my_trace)
+                                                                                data = {"excel_filename":   self.excel_filename,
+                                                                                        "excel_sheet":      self.excel_sheet})
+                                                                                #data = {"url": str(self.url)})
+        #path, sheet                                     = self.__parse_url(my_trace)
         
         my_trace                                        = parent_trace.doing("Parsing excel range",
                                                                                 data = {"excel_range": str(self.excel_range)})        
@@ -139,8 +144,8 @@ class ExcelTableReader:
             else:
                 header = None 
             nrows  = last_row - first_row +1 # First row is data, not header, so nrows is 1 bigger
-        df                                             = _pd.read_excel(io         = path, 
-                                                                       sheet_name = sheet,
+        df                                             = _pd.read_excel(io         = self.excel_filename, #path, 
+                                                                       sheet_name = self.excel_sheet, #sheet,
                                                                        header     = header, 
                                                                        usecols    = first_column + ':' + last_column, 
                                                                        nrows      = nrows)
@@ -157,11 +162,12 @@ class ExcelTableReader:
         
         return df
     
+    '''
     def __parse_url(self, parent_trace):
-        '''
-        Given a url of form "<some string A, maybe with colons>:<some string B without colons>"
-        it returns the two substrings separated by the last colon
-        '''
+        #
+        #Given a url of form "<some string A, maybe with colons>:<some string B without colons>"
+        #it returns the two substrings separated by the last colon
+        #
         s = _re.split(':', self.url)
         if len(s) < 2:
             raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: '" + self.url
@@ -175,7 +181,8 @@ class ExcelTableReader:
                              + " sheet name separated by the last colon in the url: \n"
                              + "\t'C:/My Documents/My Spreadsheets/Wonderful.xlsx:SheetName'")
         return path, sheet
-    
+    '''
+
     def __parse_range(parent_trace, excel_range):
         '''
         Parses strings for Excel ranges like 'C5:DA15' and returns the columns and rows: 'C', 'DA', 5, 15.

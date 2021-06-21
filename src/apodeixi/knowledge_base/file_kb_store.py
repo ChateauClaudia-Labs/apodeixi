@@ -46,10 +46,26 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         excel_posting_path_tokens       = _os.path.split(excel_posting_path)
         posting_filename                = excel_posting_path_tokens[1]
         posting_dir                     = excel_posting_path_tokens[0]
+
+        posting_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
+                                                    excel_filename      = posting_filename, 
+                                                    excel_sheet         = sheet, 
+                                                    excel_range         = excel_range)
+
+        posting_handle.excel_path       = posting_dir
         
         # Check that posting is for a supported posting API
         my_trace                        = parent_trace.doing("Inferring api from posting's filename")
-        posting_api                     = self.infer_posting_api(my_trace, posting_filename)
+        posting_handle.posting_api      = None
+        supported_apis                  = self.supported_apis(parent_trace=parent_trace)
+        for api in supported_apis:
+            if posting_filename.endswith(api + ".xlsx"):
+                posting_handle.posting_api             = api
+                break
+        if posting_handle.posting_api == None:
+            raise ApodeixiError(parent_trace, "Filename is not for a supported API",
+                                            data = {    'filename':             posting_filename,
+                                                        'supported apis':       str(supported_apis)})
 
         # Check if the posting is in the Knowledge Base to start with. 
         my_trace                        = parent_trace.doing("Checking that posting belongs to Knowledge Base")
@@ -63,14 +79,14 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
                                                             relative_path   = posting_relative_path)[:-1] # Discard last token, which is filename
         # Check thath the relative path of the posting within the Knowledge Base corresponds to the filing structure
         # for that API
-        filing_coords                   = self.filing_rules[posting_api]()
+        filing_coords                   = self.filing_rules[posting_handle.posting_api]()
         my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
                                                                 + "within the Knowledge Base")
         built_filing_coords             = filing_coords.build(parent_trace = my_trace, path_tokens = path_tokens)
         if built_filing_coords == None:
             raise ApodeixiError(my_trace, "Posting is not in the right folder within the Knowledge Base for this kind of API",
                                             data = {'posting relative path tokens':         path_tokens,
-                                                    'posting api':                          posting_api,
+                                                    'posting api':                          posting_handle.posting_api,
                                                     'relative path expected by api':        filing_coords.expected_tokens(my_trace)})
 
         my_trace                        = parent_trace.doing("Done validating; constructing URL")
@@ -78,10 +94,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         url         = self.postings_rootdir  +  '/' + '/'.join(parsed_tokens) + '/' + posting_filename + ':' + sheet
 
-        posting_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
-                                                    excel_filename      = excel_posting_path, 
-                                                    excel_sheet         = sheet, 
-                                                    excel_range         = excel_range)
+
         posting_handle.url  = url
         return posting_handle
 
