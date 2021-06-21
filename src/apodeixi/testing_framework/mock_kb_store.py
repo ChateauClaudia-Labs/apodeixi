@@ -40,8 +40,6 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
                                                     excel_range         = excel_range)
 
         filename                        = _os.path.split(excel_posting_path)[1]
-        url                             = self.input_postings_dir  +  '/' + filename + ':' + sheet
-        posting_handle.url              = url
         posting_handle.excel_path       = self.input_postings_dir
 
         my_trace                        = parent_trace.doing("Inferring api from posting's filename")

@@ -97,11 +97,9 @@ class SkeletonController(PostingController):
             my_trace                        = parent_trace.doing("Parsing data for 1 manifest", 
                                                                     data = {'kind': kind, 'excel_range': excel_range},
                                                                     origination = {'signaled_from': __file__})
-            manifest_url                   = data_handle.get_manifest_url(my_trace, posting_label_handle)
 
             manifest_dict                   = self._buildOneManifest(   parent_trace        = my_trace, 
                                                                         manifest_nb         = manifest_nb, 
-                                                                        url                 = manifest_url, 
                                                                         posting_data_handle = data_handle,
                                                                         label               = label, 
                                                                         kind                = kind, 
@@ -139,7 +137,7 @@ class SkeletonController(PostingController):
         manifest_url                        = excel_path + ":" + manifest_excel_sheet
         return manifest_url
 
-    def _buildOneManifest(self, parent_trace, manifest_nb, url, posting_data_handle, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, posting_data_handle, label, kind, excel_range):
         '''
         Returns a  dictionary corresponding to the manifest that was built in this method
         '''
@@ -155,15 +153,15 @@ class SkeletonController(PostingController):
                                                             data = {    "manifest_nb":  str(manifest_nb),
                                                                         "kind":         str(kind)})
         next_version                = self.nextVersion(my_trace,manifest_nb)
-
+        path                        = posting_data_handle.getFullPath(my_trace)
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
-                                                                data = {'url': url, 'excel_range': excel_range}, 
+                                                                data = {'path': path, 'excel_range': excel_range}, 
                                                                 origination = {'signaled_from': __file__})
         if True:
             config                      = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                     kind                = kind,
                                                                     manifest_nb         = manifest_nb)
-            tree                        = self._xl_2_tree(my_trace, url, posting_data_handle, excel_range, config)
+            tree                        = self._xl_2_tree(my_trace, posting_data_handle, excel_range, config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
@@ -196,7 +194,7 @@ class SkeletonController(PostingController):
                                                     manifest_version    = next_version)
         return manifest_dict
 
-    def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
+    def _genExcel(self, parent_trace, ctx_range, manifests_dir, manifest_file):
         '''
         Helper function that is amenable to unit testing (i.e., does not require a KnowledgeBase structure for I/O).
 

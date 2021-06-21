@@ -103,30 +103,23 @@ class ExcelTableReader:
     '''
     Reads a table of data from an Excel spreadsheet and creates a Pandas DataFrame from it.
     The table is required to have a single row of column headers at the top of the table.
-    @param url A path to an Excel spreadsheet with the name of the sheet appended after a colon.
-               Example: 'C:/myDocuments/mySpreadsheets/wonderful.xlsx:Sheet1'
+    @param excel_fullpath A path to an Excel spreadsheet.
+               Example: 'C:/myDocuments/mySpreadsheets/wonderful.xlsx'
+    @param excel_sheet Name of the worksheet in the Excel spreadsheet where we should retrieve content from.
     @param excel_range A string representing a range in Excel. The first row must be the column headers.
                        Example: "A3:D10"
     @param horizontally A boolean to determine whether the data to be read is arranged in rows (horizontally=True)
                         or columns (horizontally=False). It is True by default
     @return A Pandas DataFrame built from the data provided.
     '''
-    #def __init__(self, url, excel_range, horizontally=True):
-    def __init__(self, excel_filename, excel_sheet, excel_range, horizontally=True):
-        #self.url          = url
-        self.excel_filename     = excel_filename
+    def __init__(self, excel_fullpath, excel_sheet, excel_range, horizontally=True):
+        self.excel_fullpath     = excel_fullpath
         self.excel_sheet        = excel_sheet
         self.excel_range        = excel_range.upper()
         self.horizontally       = horizontally
         
     def read(self, parent_trace, horizontally=True):
-
-        my_trace                                        = parent_trace.doing("Parsing excel posting's url",
-                                                                                data = {"excel_filename":   self.excel_filename,
-                                                                                        "excel_sheet":      self.excel_sheet})
-                                                                                #data = {"url": str(self.url)})
-        #path, sheet                                     = self.__parse_url(my_trace)
-        
+       
         my_trace                                        = parent_trace.doing("Parsing excel range",
                                                                                 data = {"excel_range": str(self.excel_range)})        
         first_column, last_column, first_row, last_row  = ExcelTableReader.__parse_range(my_trace, self.excel_range)
@@ -144,7 +137,7 @@ class ExcelTableReader:
             else:
                 header = None 
             nrows  = last_row - first_row +1 # First row is data, not header, so nrows is 1 bigger
-        df                                             = _pd.read_excel(io         = self.excel_filename, #path, 
+        df                                             = _pd.read_excel(io         = self.excel_fullpath, #path, 
                                                                        sheet_name = self.excel_sheet, #sheet,
                                                                        header     = header, 
                                                                        usecols    = first_column + ':' + last_column, 
@@ -162,26 +155,6 @@ class ExcelTableReader:
         
         return df
     
-    '''
-    def __parse_url(self, parent_trace):
-        #
-        #Given a url of form "<some string A, maybe with colons>:<some string B without colons>"
-        #it returns the two substrings separated by the last colon
-        #
-        s = _re.split(':', self.url)
-        if len(s) < 2:
-            raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: '" + self.url
-                             +"'. Should instead be formmated like this example: "
-                             + "'C:/MyDocuments/MySpreadsheets/Wonderful.xlsx:SheetName'")
-        sheet = s[len(s)-1]
-        path = self.url.split(':' + sheet)[0]
-        if len(path) == 0 or len(sheet) ==0:
-            raise ApodeixiError (parent_trace, "Incorrectly formatted url was given: \n\t'" + self.url
-                             + "'\nShould instead be formmated like this example, with a non-empty path and a non-empty"
-                             + " sheet name separated by the last colon in the url: \n"
-                             + "\t'C:/My Documents/My Spreadsheets/Wonderful.xlsx:SheetName'")
-        return path, sheet
-    '''
 
     def __parse_range(parent_trace, excel_range):
         '''

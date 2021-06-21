@@ -7,12 +7,8 @@ class PostingLabelHandle():
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
 
-        self.url                    = None # Set by the store when it constructs the PostingLabelHandle
         self.posting_api            = None # Set by the store when it constructs the PostingLabelHandle
         self.excel_path             = None # Set by the store when it constructs the PostingLabelHandle
-
-    def get_url(self):
-        return self.url
 
     def getPostingAPI(self, parent_trace):
         return self.posting_api
@@ -28,15 +24,6 @@ class PostingDataHandle():
         self.excel_range            = excel_range
         self.manifest_nb            = manifest_nb
         self.kind                   = kind
-
-    def get_manifest_url(self, parent_trace, posting_label_handle):
-        posting_excel_sheet                 = posting_label_handle.excel_sheet
-        posting_url                         = posting_label_handle.get_url()
-        manifest_excel_sheet                = self.excel_sheet
-        excel_path_length                   = len(posting_url) - len(posting_excel_sheet) - 1 # Subtract 1 for the ":" delimeter
-        excel_path                          = posting_url[0:excel_path_length]
-        manifest_url                        = excel_path + ":" + manifest_excel_sheet
-        return manifest_url
 
     def getFullPath(self, parent_trace):
         return self.excel_path + "/" + self.excel_filename

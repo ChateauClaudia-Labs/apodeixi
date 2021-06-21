@@ -34,7 +34,7 @@ class PostingController():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'apply' in concrete class",
                                             origination = {'signaled_from': __file__})
 
-    def _xl_2_tree(self, parent_trace, url, data_handle, excel_range, config):
+    def _xl_2_tree(self, parent_trace, data_handle, excel_range, config):
         '''
         Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
@@ -42,12 +42,11 @@ class PostingController():
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
         the UID of the rightmost column in that Excel row that is for an entity)
         '''
-        #r                       = ExcelTableReader(url = url,excel_range = excel_range, horizontally = config.horizontally)
         path                    = data_handle.getFullPath(parent_trace)
         sheet                   = data_handle.excel_sheet
         r                       = ExcelTableReader(path, sheet,excel_range = excel_range, horizontally = config.horizontally)
         my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
-                                                        data = {"url": url, "excel range": excel_range})
+                                                        data = {"path": path, "excel range": excel_range})
         df                      = r.read(my_trace)
 
         # Clean up df's columns by removing anything in parenthesis
@@ -55,7 +54,7 @@ class PostingController():
         df.columns              = [GIST_OF(parent_trace, col) for col in df.columns]
 
         my_trace                = parent_trace.doing("Sanity check that user complied with right schema",
-                                                        data = {"posting's url"         : str(url),
+                                                        data = {"posting's path"         : str(path),
                                                                 "excel range examined"  : str(excel_range)})
 
         config.preflightPostingValidation(parent_trace = my_trace, posted_content_df = df)
@@ -475,16 +474,14 @@ class PostingLabel():
             # If we get this far we haven't found anything problematic
             return missing_fields
 
-        url                         = posting_label_handle.get_url()
         excel_range                 = posting_label_handle.excel_range
 
         excel_range    = excel_range.upper()
-        #reader         = ExcelTableReader(url, excel_range, horizontally=False)
         path            = posting_label_handle.getFullPath(parent_trace)
         sheet           = posting_label_handle.excel_sheet
         reader         = ExcelTableReader(path, sheet, excel_range, horizontally=False)
         my_trace       = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
-                                                data = {"url": url, "excel range": excel_range})
+                                                data = {"path": path, "excel range": excel_range})
         label_df       = reader.read(my_trace)
         
         # Check context has the right number of rows (which are columns in Excel, since we transposed)
@@ -510,7 +507,7 @@ class PostingLabel():
                                                         label_df                = label_df)
 
         my_trace        = parent_trace.doing("Checking if fields are missing or spurious",
-                                                data = {"url": url, "excel range": excel_range})
+                                                data = {"path": path, "excel range": excel_range})
         spurious_fields     = [col for col in label_df.columns if col not in appearances]
         missing_fields = _missing_fields(   parent_trace        = my_trace,
                                             expected_fields     = self.mandatory_fields, 

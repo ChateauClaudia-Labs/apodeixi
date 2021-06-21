@@ -52,7 +52,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
                                                     excel_sheet         = sheet, 
                                                     excel_range         = excel_range)
 
-        posting_handle.excel_path       = posting_dir
+        
         
         # Check that posting is for a supported posting API
         my_trace                        = parent_trace.doing("Inferring api from posting's filename")
@@ -92,10 +92,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         my_trace                        = parent_trace.doing("Done validating; constructing URL")
         parsed_tokens                   = built_filing_coords.path_tokens(my_trace)
 
-        url         = self.postings_rootdir  +  '/' + '/'.join(parsed_tokens) + '/' + posting_filename + ':' + sheet
+        posting_handle.excel_path       = self.postings_rootdir  +  '/' + '/'.join(parsed_tokens) 
 
-
-        posting_handle.url  = url
         return posting_handle
 
     def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):

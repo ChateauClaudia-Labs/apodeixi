@@ -72,12 +72,12 @@ class Workstream_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
-    def _buildOneManifest(self, parent_trace, manifest_nb, url, posting_data_handle, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, manifest_nb, posting_data_handle, label, kind, excel_range):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
-        manifest_dict                   = super()._buildOneManifest(parent_trace, manifest_nb, url, posting_data_handle, label, kind, excel_range)
+        manifest_dict                   = super()._buildOneManifest(parent_trace, manifest_nb, posting_data_handle, label, kind, excel_range)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to Workstream_Controller") 
 
