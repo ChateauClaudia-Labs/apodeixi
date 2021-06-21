@@ -143,5 +143,7 @@ metadata:
     organization: ChateauClaudia Labs
     project: Apodeixi
     recordedBy: alejandro@chateauclaudia-labs.com
+    version: 1
   name: bdd-tests.apodeixi
   namespace: chateauclaudia-labs.production
+  version: 1

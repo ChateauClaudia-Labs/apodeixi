@@ -1,41 +1,41 @@
 apiVersion: delivery-planning.journeys.a6i.io/v1a
 assertion:
-  effort:
-    E1:
-      UID: E1
-      bigRock: BR1
-      name: 4050
-    E1-name: 4050
-    E2:
-      UID: E2
-      bigRock: BR2
-      name: 6600
-    E2-name: 6600
-    E3:
-      UID: E3
-      bigRock: BR3
-      name: 4500
-    E3-name: 4500
-    E4:
-      UID: E4
-      bigRock: BR4
-      name: 10351
-    E4-name: 10351
-    E5:
-      UID: E5
-      bigRock: BR5
-      name: 525
-    E5-name: 525
-  entity_type: Effort
+  entity_type: Period
   estimatedBy: joe.thedevhead@mycorp.com
   estimatedOn: &id001 2021-04-29 00:00:00
+  period:
+    P1:
+      Incremental: 3584
+      UID: P1
+      name: FY 2021
+    P1-name: FY 2021
+    P2:
+      Incremental: 5207
+      UID: P2
+      name: FY 2022
+    P2-name: FY 2022
+    P3:
+      Incremental: 5575
+      UID: P3
+      name: FY 2023
+    P3-name: FY 2023
+    P4:
+      Incremental: 5800
+      UID: P4
+      name: FY 2024
+    P4-name: FY 2024
+    P5:
+      Incremental: 5860
+      UID: P5
+      name: FY 2025
+    P5-name: FY 2025
   planType: Marathon
   recordedBy: jill.thearchitect@mycorp.com
   scenario: Default
   scoringCycle: Dec 2020
   scoringMaturity: Draft
   variant: simple; burnout
-kind: big-rock-estimate
+kind: investment
 metadata:
   labels:
     environment: Production
@@ -50,5 +50,7 @@ metadata:
     scoringCycle: Dec 2020
     scoringMaturity: Draft
     variant: simple; burnout
+    version: 1
   name: modernization.default.dec-2020.fusionopus
   namespace: my-corp.production
+  version: 1

@@ -48,8 +48,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
 
             response            = kbase.post(   parent_trace                = root_trace, 
                                                 path_of_file_being_posted   = excel_file, 
-                                                posted_kind                 = posted_kind,
-                                                version                     = "OUTPUT")
+                                                posted_kind                 = posted_kind)
 
             NB_MANIFESTS_EXPECTED   = 3
             if len(response.createdHandles()) != NB_MANIFESTS_EXPECTED:
@@ -63,7 +62,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
                                                         origination = {    
                                                                     'concrete class': str(self.__class__.__name__), 
                                                                     'signaled_from': __file__})
-                manifest_dict       = store.retrieveManifest(loop_trace, handle, version = "OUTPUT")
+                manifest_dict       = store.retrieveManifest(loop_trace, handle)
                 self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
 
             return

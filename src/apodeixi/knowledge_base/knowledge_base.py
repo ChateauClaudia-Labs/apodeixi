@@ -27,13 +27,12 @@ class KnowledgeBase():
     '''
     Returns a PostResponse
     '''
-    def post(self, parent_trace, path_of_file_being_posted, posted_kind, excel_sheet="Sheet1", ctx_range="B2:C1000", version=None):
+    def post(self, parent_trace, path_of_file_being_posted, posted_kind, excel_sheet="Sheet1", ctx_range="B2:C1000"):
         root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
                                                                 data = {    'posted_kind'   : posted_kind,
                                                                             'path'          : path_of_file_being_posted,
                                                                             'excel_sheet'   : excel_sheet,
-                                                                            'ctx_range'     : ctx_range,
-                                                                            'version'       : version},
+                                                                            'ctx_range'     : ctx_range},
                                                                 origination = {'signaled_from' : __file__
                                                                             })
 
@@ -64,8 +63,7 @@ class KnowledgeBase():
         response                = ctrl.apply(   parent_trace        = root_trace, 
                                                 excel_filename      = path_of_file_being_posted, 
                                                 excel_sheet         = excel_sheet, 
-                                                ctx_range           = ctx_range, 
-                                                version             = version)
+                                                ctx_range           = ctx_range)
 
         return response
 

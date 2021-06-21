@@ -4,7 +4,7 @@ import yaml                                         as _yaml
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.knowledge_base.knowledge_base_store   import KnowledgeBaseStore
-from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle
+from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils
 
 class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
     '''
@@ -39,14 +39,16 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         return url
 
 
-    def persistManifest(self, parent_trace, manifest_dict, version = None):
+    def persistManifest(self, parent_trace, manifest_dict):
         '''
         Persists manifest_dict as a yaml object and returns a ManifestHandle that uniquely identifies it.
         '''
         kind                = manifest_dict['kind']
         suffix              = ''
-        if version != None:
-            suffix = '_' + version
+
+        version             = ManifestUtils().get_manifest_version(parent_trace, manifest_dict)
+        if version != None and len(str(version).strip()) > 0:
+            suffix = '.' + str(version)
         manifest_file       = self.test_case_name + "." + kind + suffix + ".yaml"
         my_trace            = parent_trace.doing("Persisting manifest", 
                                                     data = {    'manifests_dir': self.output_manifests_dir, 
@@ -60,7 +62,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
             handle          = ManifestHandle.inferHandle(my_trace, manifest_dict)
             return handle
 
-    def retrieveManifest(self, parent_trace, manifest_handle, version = None):
+    def retrieveManifest(self, parent_trace, manifest_handle):
         '''
         Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.
         If none exists, it returns None.
@@ -70,19 +72,13 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         matching_manifests = [] # List of dictionaries, one per manifest
         matching_filenames = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
 
-        suffix                  = ''
-        if version != None:
-            suffix              += '_' + version
-        suffix                  += '.yaml'
 
         input_manifests, input_filenames    = self._getMatchingManifests(   parent_trace    = parent_trace, 
                                                                             folder          = self.input_manifests_dir, 
-                                                                            manifest_handle = manifest_handle, 
-                                                                            suffix          = suffix)
+                                                                            manifest_handle = manifest_handle)
         output_manifests, output_filenames  = self._getMatchingManifests(   parent_trace    = parent_trace, 
                                                                             folder          = self.output_manifests_dir, 
-                                                                            manifest_handle = manifest_handle, 
-                                                                            suffix          = suffix)
+                                                                            manifest_handle = manifest_handle)
         matching_manifests.extend(input_manifests)
         matching_manifests.extend(output_manifests)
         matching_filenames.extend(input_filenames)
@@ -100,7 +96,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         # By now we know there is exaclty one match - that must be the manifest we are after
         return matching_manifests[0]
 
-    def _getMatchingManifests(self, parent_trace, folder, manifest_handle, suffix):
+    def _getMatchingManifests(self, parent_trace, folder, manifest_handle):
         '''
         Returns two lists of the same length:
 
@@ -122,7 +118,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         matching_filenames = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
 
         # Two areas where to search for manifests: input area, and output area. First the input area
-        for filename in self._getFilenames(parent_trace, folder, suffix):
+        for filename in self._getFilenames(parent_trace, folder):
             my_trace            = parent_trace.doing("Loading manifest from file",
                                                         data = {'filename':         filename,
                                                                 'folder':           folder},
@@ -139,10 +135,16 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
 
         return matching_manifests, matching_filenames
 
-    def _getFilenames(self, parent_trace, folder, suffix):
+    def _getFilenames(self, parent_trace, folder):
         '''
-        Helper method that looks at all files in the given folder that end in the given suffix and returns their filenames
-
-        The suffix might be ".yaml" to retrieve manifests, or even "_<version>.yaml" for versioned manifests
+        Helper method that looks at all files in the given folder that end in the given suffix and returns their filenames if
+        they comply with the store's file naming conventions for manifests
         '''
-        return [filename for filename in _os.listdir(folder) if filename.endswith(suffix)]
+        # Exclude files named "*EXPECTED.yaml" because logically they are not part of the store.
+        # Ditto for files named "*OUTPUT.yaml". 
+        # The store only has files named "*.<version nb>.yaml". Other files may sit in the same folder because the
+        # test harness produces them, but they are not logically part of the store
+        matches = [filename for filename in _os.listdir(folder) if filename.endswith(".yaml")]
+        matches = [filename for filename in matches if not filename.endswith("EXPECTED.yaml")]
+        matches = [filename for filename in matches if not filename.endswith("OUTPUT.yaml")]
+        return matches

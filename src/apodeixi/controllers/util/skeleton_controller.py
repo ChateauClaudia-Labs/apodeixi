@@ -3,7 +3,7 @@ import yaml                                         as _yaml
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
-from apodeixi.knowledge_base.knowledge_base_util        import PostResponse
+from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils
 from apodeixi.util.formatting_utils                     import StringUtils
 
 
@@ -17,7 +17,7 @@ class SkeletonController(PostingController):
     def __init__(self, parent_trace, store):
         super().__init__(parent_trace, store)
 
-    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range, version=None):
+    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 
@@ -40,7 +40,7 @@ class SkeletonController(PostingController):
                                                         data = {'manifest_nb': manifest_nb}, 
                                                         origination = {'signaled_from' : __file__})
             manifest_dict           = all_manifests_dicts[manifest_nb]
-            self.store.persistManifest(root_trace, manifest_dict, version)
+            self.store.persistManifest(root_trace, manifest_dict)
             response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict)
 
         # TODO - Finish the remaining phases of the controller, after creating the manifests. Namely:
@@ -48,6 +48,13 @@ class SkeletonController(PostingController):
         # TODO  2. Generate the Excel spreadsheet that can be used for updates. This probably must be in the derived controller class
 
         return response
+
+    def nextVersion(self, parent_trade, manifest_nb):
+        '''
+        Returns an int, corresponding to the version number that should be used if the manifest identified by
+        the int `manifest_nb` needs to be persisted.
+        '''
+        return 1 # Hard-coded for now. TODO - compute it based on a lookup in the store for the last version of the manifest
 
     def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
@@ -123,6 +130,12 @@ class SkeletonController(PostingController):
         estimated_by                = label.estimatedBy         (parent_trace)
         estimated_on                = label.estimatedOn         (parent_trace)
 
+        _VERSION                    = "version" # Refers to the version of the manifest, not of the posting
+        my_trace                    = parent_trace.doing("Computing the version number to use for the manifest",
+                                                            data = {    "manifest_nb":  str(manifest_nb),
+                                                                        "kind":         str(kind)})
+        next_version                = self.nextVersion(my_trace,manifest_nb)
+
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
                                                                 data = {'url': url, 'excel_range': excel_range}, 
                                                                 origination = {'signaled_from': __file__})
@@ -144,7 +157,9 @@ class SkeletonController(PostingController):
                                                                 label._ENVIRONMENT:     environment,
                                                                 label._RECORDED_BY:     recorded_by,
                                                                 label._ESTIMATED_BY:    estimated_by,
-                                                                label._ESTIMATED_ON:    estimated_on}}
+                                                                label._ESTIMATED_ON:    estimated_on,
+                                                            }
+                                            }
 
             manifest_dict['apiVersion'] = self.api_version(my_trace)
             manifest_dict['kind']       = kind
@@ -155,6 +170,10 @@ class SkeletonController(PostingController):
                                             label._ESTIMATED_ON:                estimated_on,
                                             'entity_type':                      tree.entity_type,
                                             FMT(tree.entity_type):              tree_dict}
+            
+            ManifestUtils().set_manifest_version(   parent_trace        = parent_trace, 
+                                                    manifest_dict       = manifest_dict, 
+                                                    manifest_version    = next_version)
         return manifest_dict
 
     def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
@@ -179,6 +198,8 @@ class SkeletonController(PostingController):
         _RECORDED_BY                = 'recordedBy'
         _ESTIMATED_BY               = 'estimatedBy'
         _ESTIMATED_ON               = 'estimatedOn'
+
+        _POSTING_VERSION            = "postingVersion"
 
         def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
             # Shortcut to reference class static variables
@@ -259,6 +280,12 @@ class SkeletonController(PostingController):
 
             dt  = self._getField(parent_trace, ME._ESTIMATED_ON)
             return dt
+
+        def postingVersion(self, parent_trace):
+            # Shortcut to reference class static variables
+            ME = SkeletonController._MyPostingLabel
+
+            return self._getField(parent_trace, ME._POSTING_VERSION)
 
         def _getField(self, parent_trace, fieldname):
             if self.ctx==None:

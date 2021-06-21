@@ -190,7 +190,9 @@ metadata:
     scenario: Default
     scoringCycle: Dec 2020
     scoringMaturity: Draft
+    version: 1
     workstreamTitle: Modernization
     workstreamUID: W1
   name: default.dec-2020.w1.s1
   namespace: my-corp.production
+  version: 1

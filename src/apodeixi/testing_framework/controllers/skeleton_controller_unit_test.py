@@ -4,6 +4,7 @@ from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
 
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 import time
@@ -63,7 +64,8 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
             t180                         = time.time()
             for manifest_nb in all_manifests_dict.keys():
                 manifest_dict     = all_manifests_dict[manifest_nb]
-                STORE.persistManifest(my_trace, manifest_dict, version="OUTPUT")
+
+                STORE.persistManifest(my_trace, manifest_dict)
 
             t200                      = time.time()
             # Make explanations readable by creating a pretty 

@@ -4,7 +4,7 @@ from pathlib                                            import Path
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, InitiativesFilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils
 from apodeixi.util.a6i_error                            import ApodeixiError
 
 class File_KnowledgeBaseStore(KnowledgeBaseStore):
@@ -73,7 +73,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         url         = self.postings_rootdir  +  '/' + '/'.join(parsed_tokens) + '/' + posting_filename + ':' + sheet
         return url
 
-    def persistManifest(self, parent_trace, manifest_dict, version = None):
+    def persistManifest(self, parent_trace, manifest_dict):
         '''
         Persists manifest_dict as a yaml object and returns a ManifestHandle that uniquely identifies it.
         '''
@@ -82,8 +82,10 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         name                = manifest_dict['metadata']['name']
         namespace           = manifest_dict['metadata']['namespace']
         suffix              = ''
-        if version != None:
-            suffix = '_' + version
+
+        version             = ManifestUtils().get_manifest_version(parent_trace, manifest_dict)
+        if version != None and len(str(version).strip()) > 0:
+            suffix = '.' + str(version)
         manifest_dir        = self.derived_data_rootdir + "/" + namespace  + "/" + name
         ME._create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
         manifest_file       = kind + suffix + ".yaml"
@@ -100,7 +102,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             handle          = ManifestHandle.inferHandle(my_trace, manifest_dict)
             return handle
 
-    def retrieveManifest(self, parent_trace, manifest_handle, version = None):
+    def retrieveManifest(self, parent_trace, manifest_handle):
         '''
         Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.
         If none exists, it returns None.
@@ -112,14 +114,9 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         folder                  = self.derived_data_rootdir + '/' + manifest_handle.namespace + '/' + manifest_handle.name
 
-        suffix                  = manifest_handle.kind
-        if version != None:
-            suffix              += '_' + version
-        suffix                  += '.yaml'
         manifests, filenames    = self._getMatchingManifests(   parent_trace    = parent_trace, 
                                                                 folder          = folder, 
-                                                                manifest_handle = manifest_handle, 
-                                                                suffix          = suffix)
+                                                                manifest_handle = manifest_handle)
         matching_manifests.extend(manifests)
         matching_filenames.extend(filenames)
         
@@ -240,7 +237,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         '''
         Path(path).mkdir(parents=True, exist_ok=True)
 
-    def _getMatchingManifests(self, parent_trace, folder, manifest_handle, suffix):
+    def _getMatchingManifests(self, parent_trace, folder, manifest_handle):
         '''
         Returns two lists of the same length:
 
@@ -253,16 +250,12 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         @param folder A string scoping a subset of the store
         @param manifest_handle A ManifestHandle instance that (should) uniquely identify a single manifest in the store
-        @param suffix A string representing a valid "file extension" type used for manifests, where the logical
-                        notion of "file extension" is up to each concrete store class to define. For filesystem-based
-                        stores, the suffix string is literally a file extension in the filesystem, such as ".yaml"
-                        for stores that persist manifests as yaml files.
         '''
         matching_manifests = [] # List of dictionaries, one per manifest
         matching_filenames = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
 
         # Two areas where to search for manifests: input area, and output area. First the input area
-        for filename in self._getFilenames(parent_trace, folder, suffix):
+        for filename in self._getFilenames(parent_trace, folder):
             my_trace            = parent_trace.doing("Loading manifest from file",
                                                         data = {'filename':         filename,
                                                                 'folder':           folder},
@@ -279,13 +272,15 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         return matching_manifests, matching_filenames
 
-    def _getFilenames(self, parent_trace, folder, suffix):
+    def _getFilenames(self, parent_trace, folder):
         '''
         Helper method that looks at all files in the given folder that end in the given suffix and returns their filenames
 
         The suffix might be ".yaml" to retrieve manifests, or even "_<version>.yaml" for versioned manifests
         '''
-        return [filename for filename in _os.listdir(folder) if filename.endswith(suffix)]
+        matches = [filename for filename in _os.listdir(folder) if filename.endswith(".yaml")]
+
+        return matches
 
 
 

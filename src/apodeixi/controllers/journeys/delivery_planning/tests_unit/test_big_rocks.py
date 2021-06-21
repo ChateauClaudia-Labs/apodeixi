@@ -3,6 +3,7 @@ import sys                                              as _sys
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.journeys.delivery_planning    import big_rocks 
@@ -55,7 +56,8 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
             
             for manifest_nb in all_manifests_dict.keys():
                 manifest_dict     = all_manifests_dict[manifest_nb]
-                STORE.persistManifest(root_trace, manifest_dict, version="OUTPUT")
+
+                STORE.persistManifest(root_trace, manifest_dict)
 
             # Make explanations readable by creating a pretty 
             explanations_nice   = DictionaryFormatter().dict_2_nice(    parent_trace    = root_trace,

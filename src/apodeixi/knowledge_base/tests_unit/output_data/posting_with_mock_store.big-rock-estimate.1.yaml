@@ -3,33 +3,32 @@ assertion:
   effort:
     E1:
       UID: E1
-      name: 4050.0
-    E1-name: 4050.0
+      bigRock: BR1
+      name: 4050
+    E1-name: 4050
     E2:
       UID: E2
-      name: 6600.0
-    E2-name: 6600.0
+      bigRock: BR2
+      name: 6600
+    E2-name: 6600
     E3:
       UID: E3
-      name: 4500.0
-    E3-name: 4500.0
+      bigRock: BR3
+      name: 4500
+    E3-name: 4500
     E4:
       UID: E4
-      name: 10351.0
-    E4-name: 10351.0
+      bigRock: BR4
+      name: 10351
+    E4-name: 10351
     E5:
       UID: E5
-      name: 525.0
-    E5-name: 525.0
-    E6:
-      UID: E6
-      name: .nan
-    E6-name: .nan
-    E7:
-      UID: E7
-      name: .nan
-    E7-name: .nan
+      bigRock: BR5
+      name: 525
+    E5-name: 525
   entity_type: Effort
+  estimatedBy: joe.thedevhead@mycorp.com
+  estimatedOn: &id001 2021-04-29 00:00:00
   planType: Marathon
   recordedBy: jill.thearchitect@mycorp.com
   scenario: Default
@@ -39,13 +38,19 @@ assertion:
 kind: big-rock-estimate
 metadata:
   labels:
+    environment: Production
+    estimatedBy: joe.thedevhead@mycorp.com
+    estimatedOn: *id001
     journey: Modernization
     organization: My Corp
     planType: Marathon
     product: FusionOpus
+    recordedBy: jill.thearchitect@mycorp.com
     scenario: Default
     scoringCycle: Dec 2020
     scoringMaturity: Draft
     variant: simple; burnout
-  name: default.modernization.fusionopus
+    version: 1
+  name: modernization.default.dec-2020.fusionopus
   namespace: my-corp.production
+  version: 1

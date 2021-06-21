@@ -41,7 +41,7 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-    def persistManifest(self, parent_trace, manifest_dict, version = None):
+    def persistManifest(self, parent_trace, manifest_dict):
         '''
         Abstract method implemented by concrete classes.
 
@@ -52,7 +52,7 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-    def retrieveManifest(self, parent_trace, manifest_handle, version = None):
+    def retrieveManifest(self, parent_trace, manifest_handle):
         '''
         Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.
         If none exists, it returns None.

@@ -1,13 +1,59 @@
+from apodeixi.util.dictionary_utils                             import DictionaryUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
+class ManifestUtils():
+    def __init__(self):
+        return
+
+    def set_manifest_version(self, parent_trace, manifest_dict, manifest_version):
+        _VERSION                            = "version" # Refers to the version of the manifest, not of the posting
+        _METADATA                           = "metadata"
+        _LABELS                             = "labels"
+
+        my_trace                            = parent_trace.doing("Validating manifest dictionary structure before setting version")
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
+                                                                root_dict       = manifest_dict, 
+                                                                root_dict_name  = 'manifest_dict',
+                                                                path_list       = [_METADATA, _LABELS],
+                                                                valid_types     = None)
+        if not check:
+            raise ApodeixiError(my_trace, "Can't set manifest version because it is not structured correctly",
+                                        data = {'explanation': explanation})
+
+        metadata_dict                       = manifest_dict[_METADATA]
+        metadata_dict[_VERSION]             = manifest_version
+        metadata_dict[_LABELS][_VERSION]    = manifest_version
+
+    def get_manifest_version(self, parent_trace, manifest_dict):
+        _VERSION                            = "version" # Refers to the version of the manifest, not of the posting
+        _METADATA                           = "metadata"
+        _LABELS                             = "labels"
+
+        my_trace                            = parent_trace.doing("Validating manifest dictionary structure before getting version")
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
+                                                                root_dict       = manifest_dict, 
+                                                                root_dict_name  = 'manifest_dict',
+                                                                path_list       = [_METADATA, _VERSION],
+                                                                valid_types     = None)
+        if not check:
+            raise ApodeixiError(my_trace, "Can't get manifest version because it is not structured correctly",
+                                        data = {'explanation': explanation})
+
+        metadata_dict                       = manifest_dict[_METADATA]
+        manifest_version                    = metadata_dict[_VERSION] 
+        return manifest_version
+    
 class ManifestHandle():
     '''
     Object that uniquely identifies a manifest in an Apodeixi knowledge base
     '''
-    def __init__(self, namespace, name, kind):
+    def __init__(self, apiVersion, kind, namespace, name, version):
+        self.apiVersion     = apiVersion
+        self.kind           = kind
         self.namespace      = namespace
         self.name           = name
-        self.kind           = kind
+        self.version        = version
+        
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -19,7 +65,11 @@ class ManifestHandle():
         return not self.__eq__(other)
 
     def __str__(self):
-        msg = "<namespace = '" + self.namespace + "'; name = '" + self.name + "'; kind = '" + self.kind + "'>"
+        msg = "<apiVersion = '" + self.apiVersion + "'" \
+                + "'; namespace = '" + self.namespace \
+                + "'; kind = '" + self.kind \
+                + "'; name = '" + self.name \
+                + "'; version = '" + str(self.version) + "'>"
         return msg
 
     def inferHandle(parent_trace, manifest_dict):
@@ -31,13 +81,16 @@ class ManifestHandle():
             raise ApodeixiError(parent_trace, "Can't record manifest creation because manifest was not passed as a dictionary. "
                                                 "Instead was given a " + str(type(manifest_dict)),
                                                 origination = {'signaled_from': __file__})
+        API_VERSION                 = 'apiVersion'
+        VERSION                     = 'version'
         NAME                        = 'name'
         NAMESPACE                   = 'namespace'
         KIND                        = 'kind'
         METADATA                    = 'metadata'
-        REQUIRED_KEYS               = [METADATA, KIND]
 
-        REQUIRED_METADATA_SUBKEYS   = [NAME, NAMESPACE]
+        REQUIRED_KEYS               = [API_VERSION, METADATA, KIND]
+
+        REQUIRED_METADATA_SUBKEYS   = [NAME, NAMESPACE, VERSION]
 
         missed_keys                 = [key for key in REQUIRED_KEYS if not key in manifest_dict.keys()]
         if len(missed_keys) > 0:
@@ -52,9 +105,11 @@ class ManifestHandle():
                                                 "manifest's metadata: " + str(missed_metadata_subkeys),
                                                 origination = {'signaled_from': __file__})
 
-        handle                  = ManifestHandle(   namespace   = metadata_dict[NAMESPACE], 
+        handle                  = ManifestHandle(   apiVersion  = manifest_dict[API_VERSION],
+                                                    namespace   = metadata_dict[NAMESPACE], 
                                                     name        = metadata_dict[NAME], 
-                                                    kind        = manifest_dict[KIND])
+                                                    kind        = manifest_dict[KIND],
+                                                    version     = metadata_dict[VERSION])
         return handle
 
 class Response():

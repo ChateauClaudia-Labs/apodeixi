@@ -1,41 +1,36 @@
 apiVersion: delivery-planning.journeys.a6i.io/v1a
 assertion:
-  entity_type: Period
+  big-rock:
+    BR1:
+      UID: BR1
+      name: B2C APIs
+    BR1-name: B2C APIs
+    BR2:
+      UID: BR2
+      name: "Cloudification \u2013 Remove Oracle Dependency"
+    BR2-name: "Cloudification \u2013 Remove Oracle Dependency"
+    BR3:
+      UID: BR3
+      name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
+    BR3-name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
+    BR4:
+      UID: BR4
+      name: Services
+    BR4-name: Services
+    BR5:
+      UID: BR5
+      name: Containerization
+    BR5-name: Containerization
+  entity_type: Big Rock
   estimatedBy: joe.thedevhead@mycorp.com
   estimatedOn: &id001 2021-04-29 00:00:00
-  period:
-    P1:
-      Incremental: 3584
-      UID: P1
-      name: FY 2021
-    P1-name: FY 2021
-    P2:
-      Incremental: 5207
-      UID: P2
-      name: FY 2022
-    P2-name: FY 2022
-    P3:
-      Incremental: 5575
-      UID: P3
-      name: FY 2023
-    P3-name: FY 2023
-    P4:
-      Incremental: 5800
-      UID: P4
-      name: FY 2024
-    P4-name: FY 2024
-    P5:
-      Incremental: 5860
-      UID: P5
-      name: FY 2025
-    P5-name: FY 2025
   planType: Marathon
   recordedBy: jill.thearchitect@mycorp.com
   scenario: Default
   scoringCycle: Dec 2020
   scoringMaturity: Draft
   variant: simple; burnout
-kind: investment
+kind: big-rock
 metadata:
   labels:
     environment: Production
@@ -50,5 +45,7 @@ metadata:
     scoringCycle: Dec 2020
     scoringMaturity: Draft
     variant: simple; burnout
+    version: 1
   name: modernization.default.dec-2020.fusionopus
   namespace: my-corp.production
+  version: 1

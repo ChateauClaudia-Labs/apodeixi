@@ -394,7 +394,6 @@ class PostingLabel():
     @param date_fields      List of strings in the spreadsheet's posting labels that are dates. Dates need special parsing so need
                                 this information to know which fields require it.
     '''
-
     def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
         if mandatory_fields == None:
             raise ApodeixiError(parent_trace, "Can't create a PostingLabel with a null list of mandatory fields")
@@ -428,7 +427,6 @@ class PostingLabel():
         If a field X is not appearing in the label_df, then X is not a key of self.sightings. So this dictionary's
         keys also inform on what are the fields that did appear in the Excel's posting label area.
         '''
-        
         self.sightings      = None 
 
     def read(self, parent_trace, url, excel_range):
