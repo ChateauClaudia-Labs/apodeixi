@@ -12,7 +12,7 @@ class KnowledgeBaseStore():
     def __init__(self):
         return
 
-    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
+    def supported_apis(self, parent_trace):
         '''
         Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
         '''

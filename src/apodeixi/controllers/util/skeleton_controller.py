@@ -99,11 +99,8 @@ class SkeletonController(PostingController):
                                                                     origination = {'signaled_from': __file__})
 
             manifest_dict                   = self._buildOneManifest(   parent_trace        = my_trace, 
-                                                                        manifest_nb         = manifest_nb, 
                                                                         posting_data_handle = data_handle,
-                                                                        label               = label, 
-                                                                        kind                = kind, 
-                                                                        excel_range         = excel_range)
+                                                                        label               = label)
                 
             all_manifests_dict[manifest_nb] = manifest_dict
 
@@ -137,10 +134,13 @@ class SkeletonController(PostingController):
         manifest_url                        = excel_path + ":" + manifest_excel_sheet
         return manifest_url
 
-    def _buildOneManifest(self, parent_trace, manifest_nb, posting_data_handle, label, kind, excel_range):
+    def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Returns a  dictionary corresponding to the manifest that was built in this method
         '''
+        manifest_nb                 = posting_data_handle.manifest_nb
+        kind                        = posting_data_handle.kind
+
         organization                = label.organization        (parent_trace)
         environment                 = label.environment         (parent_trace)  
                     
@@ -155,13 +155,13 @@ class SkeletonController(PostingController):
         next_version                = self.nextVersion(my_trace,manifest_nb)
         path                        = posting_data_handle.getFullPath(my_trace)
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
-                                                                data = {'path': path, 'excel_range': excel_range}, 
+                                                                data = {'path': path}, 
                                                                 origination = {'signaled_from': __file__})
         if True:
             config                      = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                     kind                = kind,
                                                                     manifest_nb         = manifest_nb)
-            tree                        = self._xl_2_tree(my_trace, posting_data_handle, excel_range, config)
+            tree                        = self._xl_2_tree(my_trace, posting_data_handle, config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 

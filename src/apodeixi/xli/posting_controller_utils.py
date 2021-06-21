@@ -34,7 +34,7 @@ class PostingController():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'apply' in concrete class",
                                             origination = {'signaled_from': __file__})
 
-    def _xl_2_tree(self, parent_trace, data_handle, excel_range, config):
+    def _xl_2_tree(self, parent_trace, data_handle, config):
         '''
         Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
@@ -44,6 +44,7 @@ class PostingController():
         '''
         path                    = data_handle.getFullPath(parent_trace)
         sheet                   = data_handle.excel_sheet
+        excel_range             = data_handle.excel_range
         r                       = ExcelTableReader(path, sheet,excel_range = excel_range, horizontally = config.horizontally)
         my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
                                                         data = {"path": path, "excel range": excel_range})

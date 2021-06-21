@@ -22,11 +22,11 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         self.output_manifests_dir           = output_manifests_dir
         self.output_postings_dir            = output_postings_dir
 
-    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
+    def supported_apis(self, parent_trace):
         '''
         Returns a list of the posting APIs that this KnowledgeStore knows about.
         '''
-        supported_apis                      = [ 'delivery-planning.journeys.a6i', '_INPUT', # Need spurious api "_INPUT" for unit tests
+        supported_apis      = [ 'delivery-planning.journeys.a6i', '_INPUT', # Need spurious api "_INPUT" for unit tests
                                                 ]
         return supported_apis
 
@@ -39,20 +39,20 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
                                                     excel_sheet         = sheet, 
                                                     excel_range         = excel_range)
 
-        filename                        = _os.path.split(excel_posting_path)[1]
-        posting_handle.excel_path       = self.input_postings_dir
+        filename                                    = _os.path.split(excel_posting_path)[1]
+        posting_handle.excel_path                   = self.input_postings_dir
 
-        my_trace                        = parent_trace.doing("Inferring api from posting's filename")
-        posting_handle.posting_api      = None
-        supported_apis                  = self.supported_apis(parent_trace=parent_trace)
+        my_trace                                    = parent_trace.doing("Inferring api from posting's filename")
+        posting_handle.posting_api                  = None
+        supported_apis                              = self.supported_apis(parent_trace=parent_trace)
         for api in supported_apis:
             if filename.endswith(api + ".xlsx"):
-                posting_handle.posting_api             = api
+                posting_handle.posting_api          = api
                 break
         if posting_handle.posting_api == None:
             raise ApodeixiError(parent_trace, "Filename is not for a supported API",
-                                            data = {    'filename':             filename,
-                                                        'supported apis':       str(supported_apis)})
+                                            data    = {    'filename':             filename,
+                                                            'supported apis':       str(supported_apis)})
 
 
         

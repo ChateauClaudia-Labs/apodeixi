@@ -27,7 +27,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         }
 
-    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
+    def supported_apis(self, parent_trace):
         '''
         Returns a list of the posting APIs that this KnowledgeStore knows about.
         '''
@@ -105,11 +105,13 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
                             'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
-                            such as 'opus_milestione.modernization.a6i.xlsx' will be located by this method.
+                            such as 'opus_milestone.modernization.a6i.xlsx' will be located by this method.
         @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
                             Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
-        @param posting_version An instance of a posting version.
+        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
+                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
+                            If set to None then no filtering is done.n.
         '''
         ME                          = File_KnowledgeBaseStore
         # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
@@ -120,7 +122,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         my_trace                    = parent_trace.doing("Scanning existing filing coordinates")
         if True:
             scanned_coords              = []
-            supported_apis              = list(self.filing_rules.keys())
+            supported_apis              = self.supported_apis(parent_trace=my_trace)
             if not posting_api in supported_apis:
                 raise ApodeixiError(my_trace, "Knowledge Base does not accept this kind of posting API",
                                                 data = {    "posting_api":      str(posting_api),
