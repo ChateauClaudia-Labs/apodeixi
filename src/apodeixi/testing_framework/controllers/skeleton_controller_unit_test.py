@@ -39,9 +39,7 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
 
         root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                   'sheet' : SHEET})
-        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE, sheet=SHEET)
-
-        
+        posting_handle          = STORE.buildPostingHandle(root_trace, EXCEL_FILE, sheet=SHEET, excel_range=CTX_RANGE)
 
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = MANIFEST_FILE_PREFIX + '_explanations_OUTPUT.yaml'
@@ -50,15 +48,15 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
 
         t100                    = time.time()
         try:
-            my_trace          = parent_trace.doing("Generating manifest(s)", data={'url'  : url})
+            my_trace          = parent_trace.doing("Generating manifest(s)")
 
             controller                  = controller_class(my_trace, STORE)
             t120                         = time.time()
-            all_manifests_dict, label,   = controller._buildAllManifests(my_trace, url, CTX_RANGE)
+            all_manifests_dict, label,   = controller._buildAllManifests(my_trace, posting_handle)
 
             if len(all_manifests_dict.keys()) != NB_MANIFESTS_EXPECTED:
                 raise ApodeixiError(my_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
-                                    + str(len(all_manifests_dicts)))
+                                    + str(len(all_manifests_dict.keys())))
 
             
             t180                         = time.time()

@@ -44,7 +44,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
                                                                                         'signaled_from' : __file__,
                                                                                         'concrete class': str(self.__class__.__name__)})
 
-            kbase               = KnowledgeBase(store)
+            kbase               = KnowledgeBase(root_trace, store)
 
             response            = kbase.post(   parent_trace                = root_trace, 
                                                 path_of_file_being_posted   = excel_file, 

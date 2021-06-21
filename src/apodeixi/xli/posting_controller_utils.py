@@ -23,7 +23,7 @@ class PostingController():
         self.show_your_work     = PostingCtrl_ShowYourWork(parent_trace)
         return
 
-    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range, version):
+    def apply(self, parent_trace, posting_label_handle):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 

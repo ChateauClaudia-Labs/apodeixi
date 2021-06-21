@@ -4,7 +4,7 @@ from pathlib                                            import Path
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, InitiativesFilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
 from apodeixi.util.a6i_error                            import ApodeixiError
 
 class File_KnowledgeBaseStore(KnowledgeBaseStore):
@@ -27,7 +27,13 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         }
 
-    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Posting Label"):
+    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
+        '''
+        Returns a list of the posting APIs that this KnowledgeStore knows about.
+        '''
+        return list(self.filing_rules.keys())
+
+    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         ME                          = File_KnowledgeBaseStore
         '''
         Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
@@ -71,7 +77,65 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         parsed_tokens                   = built_filing_coords.path_tokens(my_trace)
 
         url         = self.postings_rootdir  +  '/' + '/'.join(parsed_tokens) + '/' + posting_filename + ':' + sheet
-        return url
+
+        posting_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
+                                                    excel_filename      = excel_posting_path, 
+                                                    excel_sheet         = sheet, 
+                                                    excel_range         = excel_range)
+        posting_handle.url  = url
+        return posting_handle
+
+    def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+        '''
+        Returns a dictionary with the information of all postings that satisfy the criteria.
+
+        The keys are FilingCoordinates instances, and the values are lists with the file name of each posting that lies
+        at those coordinates.
+
+        @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
+                            'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
+                            such as 'opus_milestione.modernization.a6i.xlsx' will be located by this method.
+        @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
+                            Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
+                            If set to None then no filtering is done.
+        @param posting_version An instance of a posting version.
+        '''
+        ME                          = File_KnowledgeBaseStore
+        # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
+        if posting_version_filter != None:
+            raise ApodeixiError(parent_trace, "Apologies, but filtering postings by version is not yet implemented in "
+                                                + "File_KnowledgeBaseStore. Aborting the effort to locatePostings.")
+
+        my_trace                    = parent_trace.doing("Scanning existing filing coordinates")
+        if True:
+            scanned_coords              = []
+            supported_apis              = list(self.filing_rules.keys())
+            if not posting_api in supported_apis:
+                raise ApodeixiError(my_trace, "Knowledge Base does not accept this kind of posting API",
+                                                data = {    "posting_api":      str(posting_api),
+                                                            "supported apis":   str(supported_apis)})
+            filing_class                = self.filing_rules[posting_api]
+            for currentdir, dirs, files in _os.walk(self.postings_rootdir):
+                for subdir in dirs:
+                    loop_trace          = my_trace.doing("Tokenzing  path", data = {'currentdir': currentdir, 'subdir': subdir})
+                    path_tokens         = ME._tokenizePath( parent_trace    = loop_trace,
+                                                            relative_path   = _os.path.join(currentdir, subdir).split(self.postings_rootdir)[1]) 
+                    filing_coords       = filing_class().build(parent_trace = loop_trace, path_tokens = path_tokens)
+                    if filing_coords    != None:
+                        if filing_coordinates_filter == None or filing_coordinates_filter(filing_coords): # Passed the filter, if any
+                            scanned_coords.append(filing_coords)
+
+        my_trace                    = parent_trace.doing("Collecting matching files for scanned coordinates")
+        if True:
+            result                  = {}
+            for coords in scanned_coords:
+                files               = self._findMatchingFiles(my_trace, coords, posting_api)
+                result[coords]      = files
+
+        return result
+
+    
+
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
@@ -132,60 +196,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         # By now we know there is exaclty one match - that must be the manifest we are after
         return matching_manifests[0]
 
-    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
-        '''
-        Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
-        '''
-        return list(self.filing_rules.keys())
 
-    def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
-        '''
-        Returns a dictionary with the information of all postings that satisfy the criteria.
-
-        The keys are FilingCoordinates instances, and the values are lists with the file name of each posting that lies
-        at those coordinates.
-
-        @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
-                            'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
-                            such as 'opus_milestione.modernization.a6i.xlsx' will be located by this method.
-        @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
-                            Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.
-        @param posting_version An instance of a posting version.
-        '''
-        ME                          = File_KnowledgeBaseStore
-        # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
-        if posting_version_filter != None:
-            raise ApodeixiError(parent_trace, "Apologies, but filtering postings by version is not yet implemented in "
-                                                + "File_KnowledgeBaseStore. Aborting the effort to locatePostings.")
-
-        my_trace                    = parent_trace.doing("Scanning existing filing coordinates")
-        if True:
-            scanned_coords              = []
-            supported_apis              = list(self.filing_rules.keys())
-            if not posting_api in supported_apis:
-                raise ApodeixiError(my_trace, "Knowledge Base does not accept this kind of posting API",
-                                                data = {    "posting_api":      str(posting_api),
-                                                            "supported apis":   str(supported_apis)})
-            filing_class                = self.filing_rules[posting_api]
-            for currentdir, dirs, files in _os.walk(self.postings_rootdir):
-                for subdir in dirs:
-                    loop_trace          = my_trace.doing("Tokenzing  path", data = {'currentdir': currentdir, 'subdir': subdir})
-                    path_tokens         = ME._tokenizePath( parent_trace    = loop_trace,
-                                                            relative_path   = _os.path.join(currentdir, subdir).split(self.postings_rootdir)[1]) 
-                    filing_coords       = filing_class().build(parent_trace = loop_trace, path_tokens = path_tokens)
-                    if filing_coords    != None:
-                        if filing_coordinates_filter == None or filing_coordinates_filter(filing_coords): # Passed the filter, if any
-                            scanned_coords.append(filing_coords)
-
-        my_trace                    = parent_trace.doing("Collecting matching files for scanned coordinates")
-        if True:
-            result                  = {}
-            for coords in scanned_coords:
-                files               = self._findMatchingFiles(my_trace, coords, posting_api)
-                result[coords]      = files
-
-        return result
 
     def _findMatchingFiles(self, parent_trace, filing_coordinates, posting_api):
         path_tokens                 = filing_coordinates.path_tokens(parent_trace)

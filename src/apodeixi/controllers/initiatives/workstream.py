@@ -66,9 +66,9 @@ class Workstream_Controller(SkeletonController):
         ME                              = Workstream_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def _buildAllManifests(self, parent_trace, url, ctx_range = "B2:C100"):
+    def _buildAllManifests(self, parent_trace, posting_label_handle):
 
-        all_manifests_dict, label              = super()._buildAllManifests(parent_trace, url, ctx_range)
+        all_manifests_dict, label              = super()._buildAllManifests(parent_trace, posting_label_handle)
 
         return all_manifests_dict, label
 

@@ -17,7 +17,6 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
         EXCEL_FILE              = 'feature_injection_INPUT.xlsx' 
         SHEET                   = 'Feature Injection'
-        CTX_RANGE               = 'b2:c100'
 
         MANIFEST_FILE_PREFIX    = 'feature_injection'
 
@@ -29,7 +28,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
         root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     'sheet' : SHEET})
-        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE, sheet=SHEET)
+        posting_handle          = STORE.buildPostingHandle(root_trace, EXCEL_FILE, sheet=SHEET)
 
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = 'feature_injection_explanations_OUTPUT.yaml'
@@ -37,10 +36,11 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
         manifest_dict             = {}
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding", data={'url'  : url})
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding") 
 
             controller          = ctrl.CapabilityHierarchy_Controller(root_trace, STORE)
-            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
+            all_manifests_dict, label,   = controller._buildAllManifests(   parent_trace            = root_trace, 
+                                                                            posting_label_handle    = posting_handle)
 
             if len(all_manifests_dict) != 1:
                 raise ApodeixiError(root_trace, 'Expected one manifest, but found ' + str(len(all_manifests_dict)))

@@ -17,22 +17,19 @@ class SkeletonController(PostingController):
     def __init__(self, parent_trace, store):
         super().__init__(parent_trace, store)
 
-    def apply(self, parent_trace, excel_filename, excel_sheet, ctx_range):
+    def apply(self, parent_trace, posting_label_handle):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 
         Returns a PostingResponse.
 
         '''
-        url                         = self.store.discoverPostingURL(parent_trace        = parent_trace, 
-                                                                    excel_posting_path  = excel_filename, 
-                                                                    sheet=excel_sheet)
+        excel_filename              = posting_label_handle.excel_filename
 
         root_trace                  = parent_trace.doing("Applying Excel posting", 
-                                                            data={'url'  : url}, 
                                                             origination = {'signaled_from' : __file__})
         manifest_file               = StringUtils().rreplace(excel_filename, 'xlsx', 'yaml')
-        all_manifests_dicts, label  = self._buildAllManifests(root_trace, url, ctx_range)
+        all_manifests_dicts, label  = self._buildAllManifests(root_trace, posting_label_handle)
 
         response                    = PostResponse()
         for manifest_nb in all_manifests_dicts.keys():
@@ -70,11 +67,9 @@ class SkeletonController(PostingController):
         '''
         raise NotImplementedError("Class " + str(self.__class__) + " forgot to implement method getPostingLabel")
 
-    def _buildAllManifests(self, parent_trace, url, ctx_range="B2:C100"):
+    def _buildAllManifests(self, parent_trace, posting_label_handle):
         '''
-        Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
-        structure.
-
+        Helper function, amenable to unit testing.
         Returns 2 things:
 
         * a dictionary of dictionaries. The keys are integer ids for each manifest, as maintained in 
@@ -84,10 +79,11 @@ class SkeletonController(PostingController):
 
         '''
         my_trace                            = parent_trace.doing("Parsing posting label", 
-                                                                data = {'url': url, 'ctx_range': ctx_range}, 
                                                                 origination = {'signaled_from': __file__})
         if True:            
             label                           = self.getPostingLabel(my_trace)
+            url                             = posting_label_handle.get_url()
+            ctx_range                       = posting_label_handle.excel_range
             label.read(my_trace, url, ctx_range)    
 
         MY_PL                               = SkeletonController._MyPostingLabel

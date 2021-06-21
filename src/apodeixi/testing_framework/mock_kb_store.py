@@ -4,7 +4,7 @@ import yaml                                         as _yaml
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.knowledge_base.knowledge_base_store   import KnowledgeBaseStore
-from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils
+from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils, PostingLabelHandle
 
 class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
     '''
@@ -24,19 +24,26 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
 
     def supported_apis(self, parent_trace, manifest_handle=None, version = None):
         '''
-        Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
+        Returns a list of the posting APIs that this KnowledgeStore knows about.
         '''
         supported_apis                      = [ 'delivery-planning.journeys.a6i',
                                                 ]
         return supported_apis
 
-    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Posting Label"):
+    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
         Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
         '''
-        filename    = _os.path.split(excel_posting_path)[1]
-        url         = self.input_postings_dir  +  '/' + filename + ':' + sheet
-        return url
+        posting_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
+                                                    excel_filename      = excel_posting_path, 
+                                                    excel_sheet         = sheet, 
+                                                    excel_range         = excel_range)
+
+        filename                = _os.path.split(excel_posting_path)[1]
+        url                     = self.input_postings_dir  +  '/' + filename + ':' + sheet
+        posting_handle.url      = url
+        return posting_handle
+
 
 
     def persistManifest(self, parent_trace, manifest_dict):
@@ -95,6 +102,9 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
             return None
         # By now we know there is exaclty one match - that must be the manifest we are after
         return matching_manifests[0]
+
+
+
 
     def _getMatchingManifests(self, parent_trace, folder, manifest_handle):
         '''

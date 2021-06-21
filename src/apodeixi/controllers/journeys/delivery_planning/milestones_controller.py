@@ -70,9 +70,9 @@ class MilestonesController(SkeletonController):
         ME                              = MilestonesController
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def _buildAllManifests(self, parent_trace, url, ctx_range):
+    def _buildAllManifests(self, parent_trace, posting_label_handle):
         ME                              = MilestonesController
-        all_manifests_dict, label       = super()._buildAllManifests(parent_trace, url, ctx_range)
+        all_manifests_dict, label       = super()._buildAllManifests(parent_trace, posting_label_handle)
 
         my_trace                        = parent_trace.doing("Linking " + ME.MY_KIND + " manifest to UIDs from " + ME.REFERENCED_KIND + " manifest "
                                                                 + "in MilestonesController")

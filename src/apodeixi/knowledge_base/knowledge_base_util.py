@@ -1,6 +1,18 @@
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
+class PostingLabelHandle():
+    def __init__(self, parent_trace, excel_filename, excel_sheet, excel_range):
+        self.excel_filename         = excel_filename
+        self.excel_sheet            = excel_sheet
+        self.excel_range            = excel_range
+
+        self.url                    = None # Set by the store when it constructs the PostingLabelHandle
+
+    def get_url(self):
+        return self.url
+
+
 class ManifestUtils():
     def __init__(self):
         return

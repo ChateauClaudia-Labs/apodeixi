@@ -12,13 +12,22 @@ class KnowledgeBaseStore():
     def __init__(self):
         return
 
-    def discoverPostingURL(self, parent_trace, excel_posting_path, sheet="Posting Label"):
+    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
+        '''
+        Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'supported_apis' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
+    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
         Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'discoverPostingURL' in concrete class",
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'buildPostingHandle' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
+
 
     def locatePostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
@@ -40,6 +49,18 @@ class KnowledgeBaseStore():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'locatePostings' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
+
+
+    def infer_posting_api(self, parent_trace, filename):
+        '''
+        '''
+        for api in self.supported_apis(parent_trace=parent_trace, manifest_handle=None, version = None):
+            if filename.endswith(api + ".xlsx"):
+                return api
+        # If we get this far then the filename does not correspond to a supported API. Raise an exception
+        raise ApodeixiError(parent_trace, "Filename is not for a supported API",
+                                            data = {    'filename':             filename,
+                                                        'supported apis':       str(list(self.filing_rules.keys()))})
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
@@ -86,24 +107,6 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-    def supported_apis(self, parent_trace, manifest_handle=None, version = None):
-        '''
-        Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
-        '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'supported_apis' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
-
-    def infer_posting_api(self, parent_trace, filename):
-        '''
-        '''
-        for api in self.supported_apis(parent_trace=parent_trace, manifest_handle=None, version = None):
-            if filename.endswith(api + ".xlsx"):
-                return api
-        # If we get this far then the filename does not correspond to a supported API. Raise an exception
-        raise ApodeixiError(parent_trace, "Filename is not for a supported API",
-                                            data = {    'filename':             filename,
-                                                        'supported apis':       str(list(self.filing_rules.keys()))})
 
 
         

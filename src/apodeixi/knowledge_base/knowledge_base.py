@@ -3,12 +3,14 @@ from apodeixi.util.a6i_error                                                impo
 from apodeixi.controllers.kernel.bdd.capability_hierarchy                   import CapabilityHierarchy_Controller
 from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
 from apodeixi.controllers.journeys.delivery_planning.milestones_controller  import MilestonesController
+from apodeixi.knowledge_base.knowledge_base_util                            import PostingLabelHandle
+from apodeixi.util.dictionary_utils                                         import DictionaryUtils
 
 class KnowledgeBase():
     '''
     @param store A KnowledgeBaseStore instance. Handles all I/O for this KnowledgeBase.
     '''
-    def __init__(self, store):
+    def __init__(self, parent_trace, store):
         self.store              = store
         
         self.controllers           = { #List of associations of posting API => dict of kind=> PostingController class to use 
@@ -38,34 +40,65 @@ class KnowledgeBase():
 
         my_trace                = parent_trace.doing("Inferring the posting API from filename",
                                                         data = {'filename': path_of_file_being_posted})
+
+        label_handle            = self.store.buildPostingHandle(    parent_trace        = my_trace,
+                                                                    excel_posting_path  = path_of_file_being_posted, 
+                                                                    sheet               = excel_sheet, 
+                                                                    excel_range         = ctx_range)
+
         posting_api             = self.store.infer_posting_api(my_trace, path_of_file_being_posted)
 
-        my_trace                = parent_trace.doing("Checking if posting API for this file is supported")
-        supported_apis          = list(self.controllers.keys())
-        if not posting_api in supported_apis:
-            raise ApodeixiError(my_trace, "The posting API for this file is not supported by the Knowledge Base",
-                                            data = {    'posting_api':                      posting_api,
-                                                        'filename':                         path_of_file_being_posted,
-                                                        'supported apis':                   str(supported_apis)})
-        
-        my_trace                = parent_trace.doing("Checking if posted_kind is supported by posting_api",
-                                                        data = {    'posted_kind':         posted_kind,
-                                                                    'posting_api':          posting_api})
-        controllers_sub_dict    = self.controllers[posting_api]
-        supported_kinds         = list(controllers_sub_dict.keys())
-        if not posted_kind in supported_kinds:
-            raise ApodeixiError(my_trace, "The posted kind is not supported by the posting API",
-                                            data = {    'posted_kind':         posted_kind,
-                                                        'posting_api':          posting_api})
+        my_trace                = parent_trace.doing("Retrieving a PostingController to process the posting")
+        ctrl                    = self.findController(  parent_trace        = my_trace,
+                                                        posting_api         = posting_api, 
+                                                        kind                = posted_kind)
 
-        ctrl                    = controllers_sub_dict[posted_kind](root_trace, self.store)
-
-        response                = ctrl.apply(   parent_trace        = root_trace, 
-                                                excel_filename      = path_of_file_being_posted, 
-                                                excel_sheet         = excel_sheet, 
-                                                ctx_range           = ctx_range)
+        response                = ctrl.apply(   parent_trace                = root_trace, 
+                                                posting_label_handle        = label_handle)
 
         return response
 
     
+    def findController(self, parent_trace, posting_api, kind):
+        '''
+        Retrieves and returns a PostingController object that knows how to process postings for objects
+        of the given `kind` belonging to the given `posting_api`.
+
+        If the Knowledge Base or its store is not configured to support such postings, it raises an ApodeixiError.
+        '''
+        my_trace            = parent_trace.doing("Validating that KnowledgeBase supports the given posting api and kind",
+                                                    data = {    'posting_api':      posting_api,
+                                                                'kind':             kind})
+                                                                
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = parent_trace, 
+                                                                root_dict       = self.controllers, 
+                                                                root_dict_name  = 'Knowledge Base supported controllers',
+                                                                path_list       = [posting_api, kind],
+                                                                valid_types     = [type])
+                                                       
+        if not check:
+            raise ApodeixiError(my_trace, "Knowledge Base does not support the given posting api and kind",
+                                                data = {    'posting_api':      posting_api,
+                                                            'kind':             kind})
+
+        my_trace            = parent_trace.doing("Validating that KnowledgeBase's store supports the given posting api",
+                                                    data = {    'posting_api':      posting_api})
+        store_supported_apis    = self.store.supported_apis(my_trace)
+        if not posting_api in store_supported_apis:
+            raise ApodeixiError(my_trace, "Unable to instantiate a controller from given class. Is it the right type?",
+                                                data = {    'posting_api':                      str(posting_api),
+                                                            'store_supported_apis found':       str(store_supported_apis)})
+
+        klass           = self.controllers[posting_api][kind]
+        my_trace            = parent_trace.doing("Instantiating a PostingController class",
+                                                    data = {    'class':      str(klass)})
         
+        try:
+            
+            ctrl            = klass(my_trace, self.store)
+        except Exception as ex:
+            raise ApodeixiError(my_trace, "Unable to instantiate a controller from given class. Is it the right type?",
+                                                data = {    'controller_class':     str(klass),
+                                                            'exception found':      str(ex)})
+
+        return ctrl

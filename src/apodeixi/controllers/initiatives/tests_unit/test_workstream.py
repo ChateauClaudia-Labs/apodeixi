@@ -20,8 +20,6 @@ class Test_Workstream(ApodeixiUnitTest):
         '''
 
         EXCEL_FILE              = 'workstream_controller_INPUT.xlsx' 
-        #SHEET                   = 'simple burnout'
-        #CTX_RANGE               = 'b2:c20'
 
         MANIFEST_FILE_PREFIX    = 'workstream_controller'
 
@@ -33,9 +31,8 @@ class Test_Workstream(ApodeixiUnitTest):
 
         root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     })
-                                                                                                    #'sheet' : SHEET})
-        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE) #, sheet=SHEET)
-
+                                                                                                    
+        posting_handle          = STORE.buildPostingHandle(root_trace, EXCEL_FILE) 
 
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = 'workstream_controller_explanations_OUTPUT.yaml'
@@ -45,10 +42,10 @@ class Test_Workstream(ApodeixiUnitTest):
         PL                      = Workstream_Controller._MyPostingLabel # Abbreviation for readability purposes
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating workstream", data={'url'  : url})
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating workstream")
 
             controller          = Workstream_Controller(root_trace, STORE)
-            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url)#, CTX_RANGE)
+            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, posting_handle)
 
             NB_MANIFESTS_EXPECTED   = 2
             if len(all_manifests_dict.keys()) != NB_MANIFESTS_EXPECTED:

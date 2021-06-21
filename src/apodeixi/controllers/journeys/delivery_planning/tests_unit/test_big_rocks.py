@@ -21,7 +21,6 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
 
         EXCEL_FILE              = 'simple_burnout_INPUT.xlsx' 
         SHEET                   = 'simple burnout'
-        CTX_RANGE               = 'b2:c20'
 
         MANIFEST_FILE_PREFIX    = 'simple_burnout'
 
@@ -32,8 +31,8 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
                                                                 output_postings_dir     = self.output_data)
         root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     'sheet' : SHEET})
-        url                     = STORE.discoverPostingURL(root_trace, EXCEL_FILE, sheet=SHEET)
-
+                                                                                           
+        posting_handle          = STORE.buildPostingHandle(root_trace, EXCEL_FILE, sheet=SHEET)
 
         MANIFESTS_DIR           = self.output_data
         EXPLANATIONS_OUTPUT     = 'simple_burnout_explanations_OUTPUT.yaml'
@@ -43,10 +42,10 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
         PL                      = big_rocks.BigRocksEstimate_Controller._MyPostingLabel # Abbreviation for readability purposes
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)", data={'url'  : url})
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)")
 
             controller          = big_rocks.BigRocksEstimate_Controller(root_trace, STORE)
-            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, url, CTX_RANGE)
+            all_manifests_dict, label,   = controller._buildAllManifests(root_trace, posting_handle)
 
             NB_MANIFESTS_EXPECTED   = 3
             if len(all_manifests_dict.keys()) != NB_MANIFESTS_EXPECTED:

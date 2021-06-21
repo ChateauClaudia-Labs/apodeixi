@@ -73,9 +73,9 @@ class BigRocksEstimate_Controller(SkeletonController):
         ME                              = BigRocksEstimate_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def _buildAllManifests(self, parent_trace, url, ctx_range):
+    def _buildAllManifests(self, parent_trace, posting_label_handle):
 
-        all_manifests_dict, label              = super()._buildAllManifests(parent_trace, url, ctx_range)
+        all_manifests_dict, label              = super()._buildAllManifests(parent_trace, posting_label_handle)
 
         my_trace                        = parent_trace.doing("Linking big-rock-estimate manifest to UIDs from big-rock manifest "
                                                                 + "in BigRocksEstimate_Controller")
