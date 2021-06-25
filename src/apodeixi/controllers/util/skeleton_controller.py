@@ -209,7 +209,7 @@ class SkeletonController(PostingController):
         '''
         Codifies the schema expectations for the posting label when posting BDD capability hierarchy content. 
         '''
-        _EXCEL_API                  = "excelAPI"
+        _MANIFEST_API               = "manifestAPI"
         _DATA_KIND                  = "data.kind"
         _DATA_RANGE                 = "data.range"
         _DATA_SHEET                 = "data.sheet"
@@ -225,7 +225,7 @@ class SkeletonController(PostingController):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
-            combined_mandatory_fields               = [ ME._EXCEL_API,          ME._DATA_KIND,              # Determine apiVersion
+            combined_mandatory_fields               = [ ME._MANIFEST_API,       ME._DATA_KIND,              # Determine apiVersion
                                                         ME._ORGANIZATION,       ME._ENVIRONMENT,            # Determine namespace
                                                         ME._RECORDED_BY,        ME._ESTIMATED_BY,       ME._ESTIMATED_ON,
                                                         ME._DATA_RANGE]
@@ -251,14 +251,15 @@ class SkeletonController(PostingController):
 
             excel_range                 = posting_label_handle.excel_range
 
-            # Validate that Excel API in posting is one we know how to handle
-            posted_xl_api_version       = self._getField(parent_trace, ME._EXCEL_API)
-            required_xl_api             = StringUtils().rreplace(self.controller.getManifestAPI().apiName(), "io", "xlsx")
-            supported_xl_api_versions   = [required_xl_api + "/" + version for version in self.controller.getSupportedVersions()]
+            # Validate that Manifest API in posting is one we know how to handle
+            posted_manifest_api         = self._getField(parent_trace, ME._MANIFEST_API)
+            #expected_manifest_api       = StringUtils().rreplace(self.controller.getManifestAPI().apiName(), "io", "xlsx")
+            expected_manifest_api               = self.controller.getManifestAPI().apiName()
+            manifest_api_supported_versions   = [expected_manifest_api + "/" + version for version in self.controller.getSupportedVersions()]
 
-            if not posted_xl_api_version in supported_xl_api_versions:
-                raise ApodeixiError(parent_trace, "Non supported Excel API '" + posted_xl_api_version + "'"
-                                                + "\nShould be one of: " + str(supported_xl_api_versions))
+            if not posted_manifest_api in manifest_api_supported_versions:
+                raise ApodeixiError(parent_trace, "Non supported Manifest API '" + posted_manifest_api + "'"
+                                                + "\nShould be one of: " + str(manifest_api_supported_versions))
 
             # Validate that kind of domain object(s) in posting is(are) one that we know how to handle, 
             # and save the findings along the way in the controller's show_your_work for later use

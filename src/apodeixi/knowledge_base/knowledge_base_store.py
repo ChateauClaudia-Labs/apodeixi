@@ -117,11 +117,14 @@ class KnowledgeBaseStore():
         Helper method that concrete derived classes may choose to use as part of implementing `buildPostingHandle`,
         to determine the FilingCoordinates to put into the posting handle.
         '''
-
         path_tokens                     = PathUtils().tokenizePath( parent_trace    = parent_trace,
                                                                     path   = relative_path) 
-                                                            
+
+        my_trace                        = parent_trace.doing("Looking up filing class for given posting API",
+                                                                data = {'posting_api': posting_api})               
         filing_class                    = self.getFilingClass(parent_trace, posting_api)
+        if filing_class == None:
+            raise ApodeixiError(my_trace, "Can't build filing coordinates from a null filing class")
         my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
                                                                 + "within the Knowledge Base")
         filing_coords                   = filing_class().build(parent_trace = my_trace, path_tokens = path_tokens)

@@ -381,7 +381,7 @@ class PostingLabel():
     content is and where it is within the spreadsheet. This metadata must be situated in a dedicated block with the spreadsheet
     and is usually labelled "Posting Label".
 
-    When procesing an Excel posting, Apodeixi will first look at the posting label's "excelAPI" field. That will determine
+    When procesing an Excel posting, Apodeixi will first look at the posting label's "manifestAPI" field. That will determine
     what kind of controller to use when processing the spreadsheet's contents.
 
     The controller will use a helper class, derived from this `PostingLabel` class, to complete reading the posting label

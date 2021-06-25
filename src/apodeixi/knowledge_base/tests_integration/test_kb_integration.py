@@ -13,18 +13,16 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
     def test_big_rocks_posting(self):
 
-        MANIFEST_FILE_PREFIX            = 'big_rocks_posting'
-        posted_kind                     = 'big-rocks'
+        TEST_CASE                       = 'big_rocks_posting'
 
         EXCEL_FILE                      = self.postings_folder + "/journeys/Dec 2020/FusionOpus/Default/" \
-                                            + MANIFEST_FILE_PREFIX + '.delivery-planning.journeys.a6i.xlsx' 
+                                            + 'OPUS_big-rocks.journeys.a6i.xlsx' 
 
-        self._posting_testing_skeleton( store           = self.store, #STORE, 
-                                        posted_kind     = posted_kind, 
-                                        test_case_name  = MANIFEST_FILE_PREFIX,
+        self._posting_testing_skeleton( store           = self.store, 
+                                        test_case_name  = TEST_CASE,
                                         excel_file      = EXCEL_FILE)
 
-    def _posting_testing_skeleton(self, store, posted_kind, test_case_name, excel_file):
+    def _posting_testing_skeleton(self, store, test_case_name, excel_file):
 
         all_manifests_dicts     = []
 
@@ -39,7 +37,6 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
             response            = kbase.post(   parent_trace                = root_trace, 
                                                 path_of_file_being_posted   = excel_file, 
-                                                posted_kind                 = posted_kind,
                                                 excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED   = 3

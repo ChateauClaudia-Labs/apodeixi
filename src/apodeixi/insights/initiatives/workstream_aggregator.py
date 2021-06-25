@@ -23,7 +23,7 @@ class WorkstreamAggregator():
 
         result_df                   = None
 
-        locations_dict              = self.kb_store.searchPostings( parent_trace                    = parent_trace, 
+        handle_list                 = self.kb_store.searchPostings( parent_trace                    = parent_trace, 
                                                                     posting_api                     = POSTING_API,
                                                                     filing_coordinates_filter       = None, 
                                                                     posting_version_filter          = None)

@@ -20,11 +20,13 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         self.derived_data_rootdir   = derived_data_rootdir
 
         self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
-            'delivery-planning.journeys.a6i':       JourneysFilingCoordinates,
-            'milestone.journeys.a6i':               JourneysFilingCoordinates,
-            'workstream.initiatives.a6i':           InitiativesFilingCoordinates,
-            'charter.initiatives.a6i':              InitiativesFilingCoordinates
-
+            'big-rocks.journeys.a6i':                               JourneysFilingCoordinates,
+            #'modernization-milestone.delivery-planning.journeys.a6i':       JourneysFilingCoordinates,
+            'capability-hierarchy.bdd.kernel.a6i':                          None, # TODO
+            'milestone.journeys.a6i':                                       JourneysFilingCoordinates,
+            'workstream.initiatives.a6i':                                   InitiativesFilingCoordinates,
+            'charter.initiatives.a6i':                                      InitiativesFilingCoordinates, 
+            
         }
 
     def supported_apis(self, parent_trace):

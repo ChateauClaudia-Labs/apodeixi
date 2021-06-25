@@ -1,0 +1,28 @@
+--------------------- Products with a posting in the KnowledgeBase filing structure
+
+1.scoringCycle: FY 22; product: ESS; scenario: MTP		big-rocks.journeys.a6i.xlsx
+2.scoringCycle: FY 22; product: FCC; scenario: MTP		big-rocks.journeys.a6i.xlsx
+3.scoringCycle: FY 22; product: FCM; scenario: MTP		210608-big-rocks.journeys.a6i.xlsx
+4.scoringCycle: FY 22; product: FCM; scenario: MTP		210608v4-big-rocks.journeys.a6i.xlsx
+5.scoringCycle: FY 22; product: GPP; scenario: MTP		big-rocks.journeys.a6i.xlsx
+6.scoringCycle: FY 22; product: KON; scenario: MTP		big-rocks.journeys.a6i.xlsx
+7.scoringCycle: FY 22; product: LIQ; scenario: MTP		big-rocks.journeys.a6i.xlsx
+8.scoringCycle: FY 22; product: LPR; scenario: MTP		big-rocks.journeys.a6i.xlsx
+9.scoringCycle: FY 22; product: OPI; scenario: MTP		big-rocks.journeys.a6i.xlsx
+10.scoringCycle: FY 22; product: PHX; scenario: MTP		big-rocks.journeys.a6i.xlsx
+11.scoringCycle: FY 22; product: SUM; scenario: MTP		big-rocks.journeys.a6i.xlsx
+12.scoringCycle: FY 22; product: TI; scenario: MTP		big-rocks.journeys.a6i.xlsx
+
+
+--------------------- Products lacking postings in the KnowledgeBase filing structure
+
+LOB: Corporate; Short Name: CCB; Name: Connected Corporate Banking
+LOB: NACM & Digital; Short Name: FCQ; Name: Credit Quest
+LOB: NACM & Digital; Short Name: MBTLOS; Name: MortgageBot LOS
+LOB: NACM & Digital; Short Name: MBTPOS; Name: MortgageBot POS
+LOB: NACM & Digital; Short Name: MLZ; Name: Malauzai
+LOB: Trade & Capital Markets; Short Name: RISK; Name: Risk
+
+--------------------- 'Illegitimate' products: 
+	they are missing in the Apodeixi config but appear in the KnowledgeBase
+

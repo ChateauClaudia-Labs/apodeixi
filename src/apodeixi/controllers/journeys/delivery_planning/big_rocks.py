@@ -20,8 +20,8 @@ class BigRocksEstimate_Controller(SkeletonController):
         super().__init__(parent_trace, store)
 
         self.MANIFEST_API = ManifestAPI(    parent_trace    = parent_trace,
-                                            domain          = 'journeys', 
                                             subdomain       = 'delivery-planning', 
+                                            domain          = 'journeys', 
                                             api_publisher   = 'a6i',
                                             extension       = 'io')
         self.SUPPORTED_VERSIONS         = ['v1a']

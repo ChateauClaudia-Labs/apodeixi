@@ -20,9 +20,9 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
         TEST_NAME                       = 'test_locate_milestone_postings'
         self._locate_product_postings(POSTING_API, TEST_NAME)
 
-    def test_locate_marathon_postings(self):
-        POSTING_API                     = 'delivery-planning.journeys.a6i'
-        TEST_NAME                       = 'test_locate_marathon_postings'
+    def test_locate_big_rocks_postings(self):
+        POSTING_API                     = 'big-rocks.journeys.a6i'
+        TEST_NAME                       = 'test_locate_big_rocks_postings'
         self._locate_product_postings(POSTING_API, TEST_NAME)
 
     def _locate_product_postings(self, posting_api, test_name):
@@ -66,6 +66,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 
         except ApodeixiError as ex:
             print(ex.trace_message()) 
+            self.assertTrue(1==2)
 
         self._compare_to_expected_txt(  output_txt      = coords_txt, 
                                         test_case_name  = test_name, 
@@ -106,6 +107,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
             
 
         self._compare_to_expected_txt(  output_txt      = coords_txt, 
@@ -122,8 +124,8 @@ if __name__ == "__main__":
         what_to_do = args[1]
         if what_to_do=='locate_milestone_postings':
             T.test_locate_milestone_postings()
-        elif what_to_do=='locate_marathon_postings':
-            T.test_locate_marathon_postings()
+        elif what_to_do=='locate_big_rocks_postings':
+            T.test_locate_big_rocks_postings()
         elif what_to_do=='locate_initiative_milestone_postings':
             T.test_locate_initiative_milestone_postings()
 

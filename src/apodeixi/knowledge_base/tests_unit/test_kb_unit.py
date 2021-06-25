@@ -17,7 +17,6 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
     def test_posting_with_mock_store(self):
 
         MANIFEST_FILE_PREFIX    = 'posting_with_mock_store'
-        posted_kind             = 'big-rocks'
 
         STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
                                                                 input_manifests_dir     = self.input_data, 
@@ -25,15 +24,14 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
                                                                 output_manifests_dir    = self.output_data, 
                                                                 output_postings_dir     = self.output_data)
 
-        EXCEL_FILE                      = MANIFEST_FILE_PREFIX + '_delivery-planning.journeys.a6i.xlsx' 
+        EXCEL_FILE                      = MANIFEST_FILE_PREFIX + '_big-rocks.journeys.a6i.xlsx' 
         
         self._posting_testing_skeleton( store           = STORE, 
-                                        posted_kind     = posted_kind, 
                                         test_case_name  = MANIFEST_FILE_PREFIX,
                                         excel_file      = EXCEL_FILE)
 
 
-    def _posting_testing_skeleton(self, store, posted_kind, test_case_name, excel_file):
+    def _posting_testing_skeleton(self, store, test_case_name, excel_file):
 
         all_manifests_dicts     = []
 
@@ -47,8 +45,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
             kbase               = KnowledgeBase(root_trace, store)
 
             response            = kbase.post(   parent_trace                = root_trace, 
-                                                path_of_file_being_posted   = excel_file, 
-                                                posted_kind                 = posted_kind,
+                                                path_of_file_being_posted   = excel_file,
                                                 excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED   = 3

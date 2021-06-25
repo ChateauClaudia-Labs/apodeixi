@@ -25,7 +25,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         self.output_postings_dir            = output_postings_dir
 
         self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
-            'delivery-planning.journeys.a6i':       UnitTest_FilingCoordinates,
+            'big-rocks.journeys.a6i':       UnitTest_FilingCoordinates,
             '_INPUT':                               UnitTest_FilingCoordinates, # Need spurious api "_INPUT" for unit tests
         }
 
