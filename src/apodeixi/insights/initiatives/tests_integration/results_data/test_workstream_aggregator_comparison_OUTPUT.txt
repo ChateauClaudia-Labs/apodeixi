@@ -1,0 +1,252 @@
+output shape		(40, 17)
+expected shape		(11, 17)
+only in output.0		11
+only in output.1		12
+only in output.2		13
+only in output.3		14
+only in output.4		15
+only in output.5		16
+only in output.6		17
+only in output.7		18
+only in output.8		19
+only in output.9		20
+only in output.10		21
+only in output.11		22
+only in output.12		23
+only in output.13		24
+only in output.14		25
+only in output.15		26
+only in output.16		27
+only in output.17		28
+only in output.18		29
+only in output.19		30
+only in output.20		31
+only in output.21		32
+only in output.22		33
+only in output.23		34
+only in output.24		35
+only in output.25		36
+only in output.26		37
+only in output.27		38
+only in output.28		39
+only in expected		[]
+elt-by-elt comparison.[Baseline Value][0].output		0
+elt-by-elt comparison.[Baseline Value][0].expected		0
+elt-by-elt comparison.[Baseline Value][0] type.output		<class 'str'>
+elt-by-elt comparison.[Baseline Value][0] type.expected		<class 'int'>
+elt-by-elt comparison.[FY 22 Target][0].output		1
+elt-by-elt comparison.[FY 22 Target][0].expected		1
+elt-by-elt comparison.[FY 22 Target][0] type.output		<class 'str'>
+elt-by-elt comparison.[FY 22 Target][0] type.expected		<class 'int'>
+elt-by-elt comparison.[FY 23 Target][0].output		1
+elt-by-elt comparison.[FY 23 Target][0].expected		1
+elt-by-elt comparison.[FY 23 Target][0] type.output		<class 'str'>
+elt-by-elt comparison.[FY 23 Target][0] type.expected		<class 'int'>
+elt-by-elt comparison.[FY 24 Target][0].output		1
+elt-by-elt comparison.[FY 24 Target][0].expected		1
+elt-by-elt comparison.[FY 24 Target][0] type.output		<class 'str'>
+elt-by-elt comparison.[FY 24 Target][0] type.expected		<class 'int'>
+elt-by-elt comparison.[FY 22 Target][1].output		1
+elt-by-elt comparison.[FY 22 Target][1].expected		1
+elt-by-elt comparison.[FY 22 Target][1] type.output		<class 'str'>
+elt-by-elt comparison.[FY 22 Target][1] type.expected		<class 'int'>
+elt-by-elt comparison.[FY 23 Target][1].output		1
+elt-by-elt comparison.[FY 23 Target][1].expected		1
+elt-by-elt comparison.[FY 23 Target][1] type.output		<class 'str'>
+elt-by-elt comparison.[FY 23 Target][1] type.expected		<class 'int'>
+elt-by-elt comparison.[FY 24 Target][1].output		1
+elt-by-elt comparison.[FY 24 Target][1].expected		1
+elt-by-elt comparison.[FY 24 Target][1] type.output		<class 'str'>
+elt-by-elt comparison.[FY 24 Target][1] type.expected		<class 'int'>
+elt-by-elt comparison.[Baseline Value][2].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][2].expected		
+elt-by-elt comparison.[Definition of metric][2].output		Aggregation across all products of the product-specific metric M4
+elt-by-elt comparison.[Definition of metric][2].expected		
+elt-by-elt comparison.[FY 23 Target][2].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][2].expected		
+elt-by-elt comparison.[Granularity][2].output		ELT
+elt-by-elt comparison.[Granularity][2].expected		
+elt-by-elt comparison.[Metric Type][2].output		R
+elt-by-elt comparison.[Metric Type][2].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][2].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][2].expected		
+elt-by-elt comparison.[UID][2].output		M1
+elt-by-elt comparison.[UID][2].expected		
+elt-by-elt comparison.[WUID][2].output		W1
+elt-by-elt comparison.[WUID][2].expected		
+elt-by-elt comparison.[metric][2].output		FusionOperate readiness
+elt-by-elt comparison.[metric][2].expected		
+elt-by-elt comparison.[Baseline Value][3].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][3].expected		
+elt-by-elt comparison.[Definition of metric][3].output		Aggregation across all products of the product-specific metrics M5, M6, M7
+elt-by-elt comparison.[Definition of metric][3].expected		
+elt-by-elt comparison.[FY 23 Target][3].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][3].expected		
+elt-by-elt comparison.[Granularity][3].output		ELT
+elt-by-elt comparison.[Granularity][3].expected		
+elt-by-elt comparison.[Metric Type][3].output		P
+elt-by-elt comparison.[Metric Type][3].expected		
+elt-by-elt comparison.[Q1 FY 22 Target][3].output		TBD 8/31/21
+elt-by-elt comparison.[Q1 FY 22 Target][3].expected		
+elt-by-elt comparison.[Q2 FY22 Target][3].output		TBD 8/31/21
+elt-by-elt comparison.[Q2 FY22 Target][3].expected		
+elt-by-elt comparison.[Q3 FY22 Target][3].output		TBD 8/31/21
+elt-by-elt comparison.[Q3 FY22 Target][3].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][3].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][3].expected		
+elt-by-elt comparison.[UID][3].output		M2
+elt-by-elt comparison.[UID][3].expected		
+elt-by-elt comparison.[WUID][3].output		W1
+elt-by-elt comparison.[WUID][3].expected		
+elt-by-elt comparison.[metric][3].output		Containerization, PaaS, Multi-tenancy
+elt-by-elt comparison.[metric][3].expected		
+elt-by-elt comparison.[Definition of metric][4].output		Aggregation across all products of the product-specific metric M8
+elt-by-elt comparison.[Definition of metric][4].expected		
+elt-by-elt comparison.[Granularity][4].output		ELT
+elt-by-elt comparison.[Granularity][4].expected		
+elt-by-elt comparison.[Metric Type][4].output		P
+elt-by-elt comparison.[Metric Type][4].expected		
+elt-by-elt comparison.[UID][4].output		M3
+elt-by-elt comparison.[UID][4].expected		
+elt-by-elt comparison.[WUID][4].output		W1
+elt-by-elt comparison.[WUID][4].expected		
+elt-by-elt comparison.[metric][4].output		Aggregated # of epics delivered
+elt-by-elt comparison.[metric][4].expected		
+elt-by-elt comparison.[Baseline Value][5].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][5].expected		
+elt-by-elt comparison.[Definition of metric][5].output		Metric computed from the 7 FusionOperate adoption indicators that exist for each growth product that is stacked ranked above a threshold (~8 products). Of the 7 indicators, 3 are for W1 and 4 are for W2.
+ Computation procedure is:
+1. For a given fiscal year, we sum up the numerical targets across 3 W1 FO indicators * ~8 growth products (~24 numbers added). This is the denominator
+2. For the same fiscal year, we measure what the actuals are for these indicators, and add them up (~24 numbers added). This is the numerator
+3. Metric is defined as the ratio, defined as a percent.
+elt-by-elt comparison.[Definition of metric][5].expected		
+elt-by-elt comparison.[FY 23 Target][5].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][5].expected		
+elt-by-elt comparison.[Granularity][5].output		Growth products
+elt-by-elt comparison.[Granularity][5].expected		
+elt-by-elt comparison.[Metric Type][5].output		R
+elt-by-elt comparison.[Metric Type][5].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][5].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][5].expected		
+elt-by-elt comparison.[UID][5].output		M4
+elt-by-elt comparison.[UID][5].expected		
+elt-by-elt comparison.[WUID][5].output		W1
+elt-by-elt comparison.[WUID][5].expected		
+elt-by-elt comparison.[metric][5].output		Roadmap delivery (new)
+elt-by-elt comparison.[metric][5].expected		
+elt-by-elt comparison.[Baseline Value][6].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][6].expected		
+elt-by-elt comparison.[Definition of metric][6].output		Same as above, for for new products instead of growth products.
+elt-by-elt comparison.[Definition of metric][6].expected		
+elt-by-elt comparison.[FY 23 Target][6].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][6].expected		
+elt-by-elt comparison.[Granularity][6].output		New products
+elt-by-elt comparison.[Granularity][6].expected		
+elt-by-elt comparison.[Metric Type][6].output		R
+elt-by-elt comparison.[Metric Type][6].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][6].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][6].expected		
+elt-by-elt comparison.[UID][6].output		M5
+elt-by-elt comparison.[UID][6].expected		
+elt-by-elt comparison.[WUID][6].output		W1
+elt-by-elt comparison.[WUID][6].expected		
+elt-by-elt comparison.[metric][6].output		Roadmap delivery (growth)
+elt-by-elt comparison.[metric][6].expected		
+elt-by-elt comparison.[Baseline Value][7].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][7].expected		
+elt-by-elt comparison.[Definition of metric][7].output		Same as for roadmap delivery, except the sum is only over 1 FO Adoption indicator (the "% containerized" indicator)
+elt-by-elt comparison.[Definition of metric][7].expected		
+elt-by-elt comparison.[FY 23 Target][7].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][7].expected		
+elt-by-elt comparison.[Granularity][7].output		Growth products
+elt-by-elt comparison.[Granularity][7].expected		
+elt-by-elt comparison.[Metric Type][7].output		P
+elt-by-elt comparison.[Metric Type][7].expected		
+elt-by-elt comparison.[Q1 FY 22 Target][7].output		TBD 8/31/21
+elt-by-elt comparison.[Q1 FY 22 Target][7].expected		
+elt-by-elt comparison.[Q2 FY22 Target][7].output		TBD 8/31/21
+elt-by-elt comparison.[Q2 FY22 Target][7].expected		
+elt-by-elt comparison.[Q3 FY22 Target][7].output		TBD 8/31/21
+elt-by-elt comparison.[Q3 FY22 Target][7].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][7].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][7].expected		
+elt-by-elt comparison.[UID][7].output		M6
+elt-by-elt comparison.[UID][7].expected		
+elt-by-elt comparison.[WUID][7].output		W1
+elt-by-elt comparison.[WUID][7].expected		
+elt-by-elt comparison.[metric][7].output		Margin enablement
+elt-by-elt comparison.[metric][7].expected		
+elt-by-elt comparison.[Baseline Value][8].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][8].expected		
+elt-by-elt comparison.[Definition of metric][8].output		Same as for roadmap delivery, except the sum is only over 1 FO Adoption indicator (the "% PaaS" indicator)
+elt-by-elt comparison.[Definition of metric][8].expected		
+elt-by-elt comparison.[FY 23 Target][8].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][8].expected		
+elt-by-elt comparison.[Granularity][8].output		Growth products
+elt-by-elt comparison.[Granularity][8].expected		
+elt-by-elt comparison.[Metric Type][8].output		P
+elt-by-elt comparison.[Metric Type][8].expected		
+elt-by-elt comparison.[Q1 FY 22 Target][8].output		TBD 8/31/21
+elt-by-elt comparison.[Q1 FY 22 Target][8].expected		
+elt-by-elt comparison.[Q2 FY22 Target][8].output		TBD 8/31/21
+elt-by-elt comparison.[Q2 FY22 Target][8].expected		
+elt-by-elt comparison.[Q3 FY22 Target][8].output		TBD 8/31/21
+elt-by-elt comparison.[Q3 FY22 Target][8].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][8].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][8].expected		
+elt-by-elt comparison.[UID][8].output		M7
+elt-by-elt comparison.[UID][8].expected		
+elt-by-elt comparison.[WUID][8].output		W1
+elt-by-elt comparison.[WUID][8].expected		
+elt-by-elt comparison.[metric][8].output		Maintainability enablement
+elt-by-elt comparison.[metric][8].expected		
+elt-by-elt comparison.[Baseline Value][9].output		TBD 8/31/21
+elt-by-elt comparison.[Baseline Value][9].expected		
+elt-by-elt comparison.[Definition of metric][9].output		Same as for roadmap delivery, except the sum is only over 1 FO Adoption indicator (the "% multi-tenant" indicator)
+elt-by-elt comparison.[Definition of metric][9].expected		
+elt-by-elt comparison.[FY 23 Target][9].output		TBD 8/31/21
+elt-by-elt comparison.[FY 23 Target][9].expected		
+elt-by-elt comparison.[Granularity][9].output		Growth products
+elt-by-elt comparison.[Granularity][9].expected		
+elt-by-elt comparison.[Metric Type][9].output		P
+elt-by-elt comparison.[Metric Type][9].expected		
+elt-by-elt comparison.[Q1 FY 22 Target][9].output		TBD 8/31/21
+elt-by-elt comparison.[Q1 FY 22 Target][9].expected		
+elt-by-elt comparison.[Q2 FY22 Target][9].output		TBD 8/31/21
+elt-by-elt comparison.[Q2 FY22 Target][9].expected		
+elt-by-elt comparison.[Q3 FY22 Target][9].output		TBD 8/31/21
+elt-by-elt comparison.[Q3 FY22 Target][9].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][9].output		TBD 8/31/21
+elt-by-elt comparison.[Q4 FY 22 Target][9].expected		
+elt-by-elt comparison.[UID][9].output		M8
+elt-by-elt comparison.[UID][9].expected		
+elt-by-elt comparison.[WUID][9].output		W1
+elt-by-elt comparison.[WUID][9].expected		
+elt-by-elt comparison.[metric][9].output		Scalability enablement
+elt-by-elt comparison.[metric][9].expected		
+elt-by-elt comparison.[Definition of metric][10].output		Metric is separately reported for each of 14 growth products and computed as follows:
+1. Product modernization roadmaps will be defined based on milestones that align to Amplify booking projections. 
+2. A given milestone M will map to some Aha epics E1, E2,, En defining the scope of M. 
+3. Each epic Ei has particular delivery date Ti. 
+4. For a given quarter Q, we define the metric by looking at the subset E_Q of {E1, ...., En} that were initially committed for delivery in Q. Metric is the % of E_Q that was actualy delivered in quarter Q.
+elt-by-elt comparison.[Definition of metric][10].expected		
+elt-by-elt comparison.[FY 23 Target][10].output		1
+elt-by-elt comparison.[FY 23 Target][10].expected		
+elt-by-elt comparison.[Granularity][10].output		Per growth product
+elt-by-elt comparison.[Granularity][10].expected		
+elt-by-elt comparison.[Metric Type][10].output		P
+elt-by-elt comparison.[Metric Type][10].expected		
+elt-by-elt comparison.[Q1 FY 22 Target][10].output		1
+elt-by-elt comparison.[Q1 FY 22 Target][10].expected		
+elt-by-elt comparison.[Q2 FY22 Target][10].output		1
+elt-by-elt comparison.[Q2 FY22 Target][10].expected		
+elt-by-elt comparison.[Q3 FY22 Target][10].output		1
+elt-by-elt comparison.[Q3 FY22 Target][10].expected		
+elt-by-elt comparison.[Q4 FY 22 Target][10].output		1
+elt-by-elt comparison.[Q4 FY 22 Target][10].expected		
+elt-by-elt comparison.[UID][10].output		M9
+elt-by-elt comparison.[UID][10].expected		
+elt-by-elt comparison.[WUID][10].output		W1
+elt-by-elt comparison.[WUID][10].expected		
+elt-by-elt comparison.[metric][10].output		# of EPICs delivered in time and budget
+elt-by-elt comparison.[metric][10].expected		

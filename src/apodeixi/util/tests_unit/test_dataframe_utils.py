@@ -25,8 +25,8 @@ class Test_DataFrameComparator(ApodeixiUnitTest):
 
             my_trace                        = root_trace.doing("Loading and comparing the dataframes")
 
-            df1                             = self.load_csv(INPUT_FOLDER + '/' + TEST_SCENARIO + '_df1_INPUT.csv')
-            df2                             = self.load_csv(INPUT_FOLDER + '/' + TEST_SCENARIO + '_df2_INPUT.csv')
+            df1                             = self.load_csv(my_trace, INPUT_FOLDER + '/' + TEST_SCENARIO + '_df1_INPUT.csv')
+            df2                             = self.load_csv(my_trace, INPUT_FOLDER + '/' + TEST_SCENARIO + '_df2_INPUT.csv')
 
             comparator                      = DataFrameComparator(  df1                 = df1,
                                                                     df2                 = df2, 

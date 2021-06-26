@@ -35,9 +35,9 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
             kbase               = KnowledgeBase(root_trace, store)
 
-            response            = kbase.post(   parent_trace                = root_trace, 
-                                                path_of_file_being_posted   = excel_file, 
-                                                excel_sheet                 = "Sheet1")
+            response            = kbase.postByFile( parent_trace                = root_trace, 
+                                                    path_of_file_being_posted   = excel_file, 
+                                                    excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED   = 3
             if len(response.createdHandles()) != NB_MANIFESTS_EXPECTED:

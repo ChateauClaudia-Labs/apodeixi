@@ -3,170 +3,8 @@ import pandas
 
 from apodeixi.util.a6i_error                    import ApodeixiError
 from apodeixi.xli.interval                      import IntervalUtils, Interval
+from apodeixi.xli.uid_store                     import UID_Store
 from apodeixi.util.dataframe_utils              import DataFrameUtils
-
-class UID_Store:
-    '''
-    Stores UIDs like 'P12.AC3.E45', and is able to generate the next UID for a given prefix.
-    For example, if the store contains P12.AC3.E45 but not P12.AC3.E46, then the next UID for prefix
-    P12.AC3.E would be P12.AC3.E46. If there is no pre-existing UID for that prefix, then the next prefix
-    would be P12.AC3.E1
-    
-    '''
-    class _TokenTree:
-        '''
-        Represents a tree for which the top level of nodes correspond to tokens, 
-        e.g., AV1, AV2, AV3, ...FRA1, FRA2, ..
-        So for each prefix like 'AV' or 'FRA' there is a unique set of integers used in the tokens for
-        that prefix.
-        The children of such top nodes are other _TokenTree objects.
-
-        To avoid accidental infinite loops, a _TokenTree has a maximum height of 100 levels.
-        '''
-        def __init__(self, parent_trace, level):
-            
-            if level > UID_Store._TokenTree.MAX_LEVELS:
-                raise ApodeixiError(parent_trace, 'Illegal attempt to create a _TokenTree at a level exceeding ' 
-                                 + str( UID_Store._TokenTree.MAX_LEVELS))
-            self.level     = level
-            
-            # Keys are acronyms like 'P', and values are arrays of non-negative integers like [1, 2, 3]
-            # indicating that this _TokenTree contains 'P1', 'P2', and P3
-            self.vals      = {} 
-            
-            # A dictionary where the key is a string like 'P12' where 12 belongs to array self.vals['P']
-            # Value for that key 'P12' is another _TokenTree
-            self.children  = {} 
-            
-            
-        MAX_LEVELS = 100
-        
-        def initialize(self, parent_trace, tokens):
-            '''
-            Used in cases where the top level is determined externally
-            '''
-            for t in tokens:
-                acronym, val           = self.parseToken(parent_trace, t)
-                if acronym not in self.vals.keys():
-                    self.vals[acronym] = []
-                self.vals[acronym].append(val)
-                self.children[t]       = UID_Store._TokenTree(parent_trace, self.level + 1)             
-        
-        def _generateHere(self, parent_trace, acronym):
-            if acronym not in self.vals.keys():
-                self.vals[acronym] = []
-            
-            used_numbers           = self.vals[acronym]
-            
-            if len(used_numbers) ==0:
-                nextVal            = 1 # Start at 1, not 0. Though parent might have 0's
-            else:
-                nextVal            = max(used_numbers) + 1
-                
-            used_numbers.append(nextVal)
-            uid                    = acronym + str(nextVal)
-            self.children[uid]     = UID_Store._TokenTree(parent_trace = parent_trace, level = self.level + 1)
-            return uid
-    
-        def generateNextUID(self, parent_trace, branch, acronym):
-            '''
-            @param branch A list of pairs that specify a branch in the _TokenTree. For example:
-                          [['P', 12], ['AC', 3], ['E', 45]]. If the acronym is 'W', it will add a node
-                          [['W', 5]], say, if P12.AC3.E45.W1,2,3,4 already exist.
-                          Returns two uids: a full UID P12.AC3.E45.W5 and the leaf UID W5
-            '''                
-            # Validate acronym is valid
-            REGEX         = '^([a-zA-Z]+)$'
-            m             = _re.match(REGEX, acronym)
-            if m == None or len(m.groups()) != 1:
-                raise ApodeixiError(parent_trace, "Invalid acronym='" + acronym + "': expected something like 'P' or 'AV'.  "
-                                + "Level=" + str(self.level))                
-            
-            if len(branch)==0:
-                # We hit bottom
-                leaf_uid           = self._generateHere(parent_trace, acronym)
-                full_uid           = leaf_uid
-                
-            else:
-                head               = branch[0]
-                tail               = branch[1:]
-                child              = self._findChild(parent_trace, head)
-                tail_uid, leaf_uid = child.generateNextUID(parent_trace, tail, acronym)
-                full_uid           = head + '.' + tail_uid
-                
-            return full_uid, leaf_uid
-                
-        def _findChild(self, parent_trace, head):
-            '''
-            @param head A string like 'PR56'. If it exists in this _TokenTree as a top node return it.
-                        Else raises an error.
-            '''
-            acronym, val  = self.parseToken(parent_trace, head)
-
-            # Some of these checks are theoretically duplicate if the inner state of this object
-            # is consistent as in theory it should be. But being paranoid, we do duplicate
-            # checks since that might also catch bugs with inconsistent state
-            if acronym not in self.vals.keys():
-                raise ApodeixiError(parent_trace, 'Acronym ' + acronym + ' corresponds to no valid child. Level=' 
-                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')')
-            if val not in self.vals[acronym]:
-                raise ApodeixiError(parent_trace, 'Value ' + str(val) + ' corresponds to no valid child. Level=' 
-                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')',
-                                 data = {'acronym': acronym, 'level': str(self.level),
-                                            'self.vals[' + acronym + ']': self.vals[acronym]})
-            if head not in self.children.keys():
-                raise ApodeixiError(parent_trace, 'Token ' + head + ' corresponds to no valid child. Level=' 
-                                 + str(self.level) + ". Happened while doing _findChild(" + head + ')')
-
-            # We got past the checks, so this should not crash
-            return self.children[head]
-            
-        def display(self, parent_trace):
-            '''
-            Used for debugging, to return a dictionary representation of the tree
-            '''
-            result_dict = {}
-            for uid in self.children.keys():
-                child   = self.children[uid]
-                result_dict[uid] = child.display()
-            return result_dict
-        
-        def parseToken(self, parent_trace, token):
-            '''
-            Given a token like 'PR34', it returns the acronym 'PR' and the value 34
-            '''
-            REGEX         = '^([a-zA-Z]+)([0-9]+)$'
-            m             = _re.match(REGEX, token)
-            if m == None or len(m.groups())!= 2:
-                raise ApodeixiError(parent_trace, "Invalid token='" + token + "': expected something like 'P3' or 'AV45'.  "
-                                + "Level=" + str(self.level))
-            acronym       = m.group(1)
-            val           = int(m.group(2))
-            return acronym, val
-        
-    
-    def __init__(self, parent_trace):
-        self.tree     = UID_Store._TokenTree(parent_trace, level=0)
-        return
-    
-    def generateUID(self, parent_trace, parent_UID, acronym):
-        branch        = self._tokenize(parent_trace, parent_UID)
-        return self.tree.generateNextUID(parent_trace, branch, acronym)
-    
-    def initialize(self, parent_trace, tokens):
-        self.tree.initialize(parent_trace, tokens)
-    
-    def _tokenize(self, parent_trace, uid):
-        if uid==None:
-            return []
-        tokens        = uid.split('.')
-        # Something like P3 pr AV456. 
-        REGEX         = '^[a-zA-Z]+[0-9]+$' 
-        for t in tokens:
-            m         = _re.match(REGEX, t)
-            if m == None:
-                raise ApodeixiError(parent_trace, "Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
-        return tokens
 
 class BreakdownTree():
     '''
@@ -329,8 +167,32 @@ class BreakdownTree():
                                             data = {'interval': interval.columns, 'columns': columns})
 
             # Check entity appears in exactly one column. 
-            GIST_OF                     = IntervalUtils().without_comments_in_parenthesis # Abbreviation for readability
-            idxs                        = [idx for idx in range(len(columns)) if GIST_OF(my_trace, columns[idx])==interval.entity_name]
+            
+            def _matches_entity(idx):
+                '''
+                Returns a boolean if the column at index `idx` is the same as the interval's entity name
+
+                If the user entered two columns with the same name, such as "Account", Pandas will re-name the second
+                one to be "Account.1". But that is still a user error for an entity, so we will strip the ".1" suffix
+                for purposes of validating that the user did not enter duplicate entity column names.
+                Also, if the user put comments to itself in the form of parenthesis, we remove that
+                '''
+                GIST_OF                     = IntervalUtils().without_comments_in_parenthesis # Abbreviation for readability
+                raw_col                     = columns[idx]
+                no_parenthesis_col          = GIST_OF(my_trace, raw_col)
+                REGEX                       = "(\.[0-9]+)$"
+                suffix_search               =  _re.search(REGEX, no_parenthesis_col)
+                if suffix_search == None:
+                    cleaned_col             = no_parenthesis_col
+                else:
+                    suffix                  = suffix_search.group(0)
+                    cleaned_len             = len(no_parenthesis_col) - len(suffix)
+                    cleaned_col             = no_parenthesis_col[:cleaned_len]
+                return cleaned_col == interval.entity_name
+
+
+            #idxs                        = [idx for idx in range(len(columns)) if GIST_OF(my_trace, columns[idx])==interval.entity_name]
+            idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
             if len(idxs)>1:
                 raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
             elif len(idxs)==0:
@@ -340,20 +202,35 @@ class BreakdownTree():
             # Check that if interval's entity is blank, all of interval is bank
             blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
             encountered_new_entity      = not interval.entity_name in blank_cols
+            uid_to_overwrite             = None # This will be used later when looking for a docking UID
             if not encountered_new_entity and len(blank_cols) < len(interval.columns):
-                # Create a friendly error message 
-                excel_row_nb            = config.excel_row_nb(my_trace, row[0])
-                excel_sheet             = config.excel_sheet(my_trace)
-                non_black_cols          = [col for col in interval.columns if not col in blank_cols]
-                raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
-                                                + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
-                                                + "\nYou can't leave it blank unless you also clear data you wrote "
-                                                + " in row " + str(excel_row_nb) + " for these " 
-                                                + str(len(non_black_cols)) + " columns:\n['"
-                                                + "', '".join(non_black_cols) + "']")
+                # Before raising an error, attempt to recover: perhaps user entered the entity_name in the previous
+                # row, left the rest of that previous row blank, and then moved to this one. If so, pretend that
+                # the user actually entered that entity_name in the current row
+                # If inference falis, then raise the error
+                
+                if self._can_infer_entity_from_prior_row(my_trace, interval.entity_name, row, all_rows):
+                    encountered_new_entity  = True # Reverse prior impression so we dock values onto the tree
+                    #uid_to_overwrite = TODO
+                    instance_to_overwrite   = self.last_path[interval.entity_name]
+                    uid_to_overwrite        = instance_to_overwrite.UID
+
+                else:
+                    # Create a friendly error message 
+                    excel_row_nb            = config.excel_row_nb(my_trace, row[0])
+                    excel_sheet             = config.excel_sheet(my_trace)
+                    non_black_cols          = [col for col in interval.columns if not col in blank_cols]
+                    raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
+                                                    + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
+                                                    + "\nYou can't leave it blank unless you also clear data you wrote "
+                                                    + " in row " + str(excel_row_nb) + " for these " 
+                                                    + str(len(non_black_cols)) + " columns:\n['"
+                                                    + "', '".join(non_black_cols) + "']"
+                                                    + "\n\n=> Alternatively, consider changing the range in the Posting Label to "
+                                                    + "exclude such rows.\n")
 
             # Check that interval itself has no subentities (as any subentity should be *after* the interval)
-            # Remember to not count interval.entity_name as "illegal", since it is clearly an entity and not a sub-entity/
+            # Remember to not count interval.entity_name as "illegal", since it is clearly an entity and not a sub-entity
             illegal_sub_entities        = set(known_entity_types).intersection(interval.non_entity_cols())    #set(interval[1:])) 
             if len(illegal_sub_entities) > 0:
                 raise ApodeixiError(my_trace, "There shouldn't be subentities inside the interval, but found some: " 
@@ -381,12 +258,41 @@ class BreakdownTree():
             subtree_full_uid                = self.dockEntityData(  parent_trace        = my_trace,
                                                                     full_docking_uid    = docking_uid, 
                                                                     entity_type         = interval.entity_name, 
-                                                                    data_to_attach      = row[1][interval.columns], 
+                                                                    data_to_attach      = row[1][interval.columns],
+                                                                    uid_to_overwrite     = uid_to_overwrite,
                                                                     config              = config)
             return subtree_full_uid
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
             return None
+
+    def _can_infer_entity_from_prior_row(self, parent_trace, entity_column, row, all_rows):
+        '''
+        Helper method to try to "forgive" the user if the user fails to enter a value for an entity_column in a row
+        but entered it in the previous row, leaving blank the rest of the previous row. If so, we pretend that the
+        user intended for that entity_name to be entered in this row
+
+        This methods returns a boolean: True if the entity_name can be defaulted (in which case input `row` is mutated),
+        or False otherwise.
+        '''
+        current_row_nb              = row[0]
+        if current_row_nb == 0:
+            return False # There is no prior row
+
+        prior_row                   = all_rows[current_row_nb -1]
+        prior_entity                = prior_row[1][entity_column]
+        if IntervalUtils().is_blank(prior_entity): # Can't infer it as prior row has no entity set
+            return False
+
+        columns                     = list(prior_row[1].index)
+        entity_idx                  = columns.index(entity_column)
+        non_blanks_to_the_right     = [col for col in columns[entity_idx+1:] if not IntervalUtils().is_blank(prior_row[1][col])]
+        if len(non_blanks_to_the_right) > 0: # Not true user simply switched to current row after entering entity in prior row
+            return False
+        # We got this far implies we can safely infer the entity name
+        row[1][entity_column]       = prior_entity
+        return True
+
 
     def _discover_docking_uid(self, parent_trace, interval, entity_column_idx, original_row_nb, current_row_nb, all_rows, config):
         '''
@@ -421,7 +327,9 @@ class BreakdownTree():
                                             data={'self.entity_type': self.entity_type,
                                                     'entity_column_idx': entity_column_idx})
             if interval.entity_name != self.entity_type:
-                raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'") 
+                raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'."
+                                    + "  You should have a column called '" + str(self.entity_type)
+                                    + "' with a non-blank value") 
             else:
                 return self.parent_UID
 
@@ -444,11 +352,11 @@ class BreakdownTree():
                 excel_original_row_nb   = config.excel_row_nb(my_trace, original_row_nb)
                 excel_current_row_nb    = config.excel_row_nb(my_trace, current_row_nb)
                 excel_sheet             = config.excel_sheet(my_trace)
-                ancestor_entities       = [columns[idx] for idx in ancestor_entities_idx ]
+                ancestor_entities       = [columns[idx] for idx in ancestor_entities_idxs]
                 msg                     = "You left blank columns \n['" + "', '".join(ancestor_entities) + "']" \
                                             + "\nfor excel rows " + str(excel_current_row_nb) + "-" + str(excel_original_row_nb) + "." \
                                             + "\nThat is not allowed since you have non-blank data in column '" \
-                                            + str(columns[entity_column_idx]) + "' at excel row " + str(excel_original_row) + "'"
+                                            + str(columns[entity_column_idx]) + "' at excel row " + str(excel_original_row_nb) + "'"
                 raise ApodeixiError(my_trace, msg)
             else: # Try our lack in the preceding row
                 return self._discover_docking_uid(  parent_trace            = my_trace,
@@ -464,7 +372,7 @@ class BreakdownTree():
             docking_uid                 = parent_entity_instance.UID
             return docking_uid
 
-    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, config):
+    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, uid_to_overwrite, config):
         '''
         Method to attach a descendent to the tree. When an entity A links 1:n with an entity B,
         this method can be used to "attach" an instance 'bi' of B to an instance 'a' of A.
@@ -478,7 +386,10 @@ class BreakdownTree():
         @param full_docking_uid A string like 'A23.BW2.C2' identifying uniquely an _EntityInstance node in this tree
                                 If null we assume we are docking at the top of this tree
         @param entity_type      A string for the kind of entity to be added under the full_docking_uid
-        @param data_to_attach: A Pandas Series   
+        @param data_to_attach A Pandas Series   
+        @uid_to_overwrite    A string. If set to None (normal when creating), a new UID will be generated
+            for the data_to_attach. Otherwise whatever exists at `uic_to_overwrite` will be replaced by 
+            `data_to_attach`
         @return the full UID of the _EntityInstance node that was created and attached to this BreakdownTree
         '''
         my_trace                = parent_trace.doing("Looking for an acronym for '" + entity_type + "'",
@@ -511,10 +422,16 @@ class BreakdownTree():
                                                                     'acronym is for'        : entity_type,
                                                                     'full_docking_uid'      : full_docking_uid},
                                                         origination = {
-                                                                    'signaled_from'         : __file__})        
-        full_uid, leaf_uid      = self.uid_store.generateUID(   parent_trace    = my_trace,
-                                                                acronym         = acronym_for_attachment, 
-                                                                parent_UID      = full_docking_uid)
+                                                                    'signaled_from'         : __file__})  
+
+        if uid_to_overwrite == None:
+            full_uid, leaf_uid      = self.uid_store.generateUID(   parent_trace    = my_trace,
+                                                                    acronym         = acronym_for_attachment, 
+                                                                    parent_UID      = full_docking_uid)
+        else:
+            full_uid                = uid_to_overwrite
+            leaf_uid                = full_uid.split('.')[-1]
+
         new_node                = BreakdownTree._EntityInstance(    uid_store   = self.uid_store, 
                                                                     name        = data_to_attach[entity_type],
                                                                     uid         = full_uid,

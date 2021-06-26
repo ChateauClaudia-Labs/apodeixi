@@ -79,6 +79,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                     entity_type         = ENTITY_TO_DOCK, 
                                     data_to_attach      = DATA_TO_ATTACH, 
                                     parent_trace        = my_trace,
+                                    uid_to_overwrite    = None,
                                     config              = config)
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
@@ -102,7 +103,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
-                                    data_to_attach      = DATA_TO_ATTACH, 
+                                    data_to_attach      = DATA_TO_ATTACH,
+                                    uid_to_overwrite    = None, 
                                     parent_trace        = my_trace,
                                     config              = config)
             result_dict             = tree.as_dicts()

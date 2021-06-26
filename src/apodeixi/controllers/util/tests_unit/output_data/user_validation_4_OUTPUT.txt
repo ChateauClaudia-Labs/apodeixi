@@ -1,0 +1,41 @@
+==================    This test verifies that the following user validation works:
+
+User let blank the entity name in a row with data for that entity, and the software can't correct it
+
+================     Below is the error message the user would get:
+
+******** Functional Trace ********
+
+Problem:	Did you forget to set 'Institution' in excel row 7 of worksheet 'Properties'?
+You can't leave it blank unless you also clear data you wrote  in row 7 for these 2 columns:
+['State', 'Zipcode']
+
+=> Alternatively, consider changing the range in the Posting Label to exclude such rows.
+
+Here are the functional activities that led to the problem:
+
+---->	activity	Running Mock_Controller
+
+
+---->	activity	Parsing data for 1 manifest
+
+            kind                : properties
+            excel_range         : B2:I100
+
+---->	activity	Creating BreakoutTree from Excel
+
+            path                : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_4_INPUT.xlsx
+
+---->	activity	Processing DataFrame
+
+            tree.entity_type    : Asset Class
+            columns             : ['Asset Class', 'FDIC Insurance', 'Taxable to non Residents', 'Institution', 'State', 'Zipcode', 'Account', 'Currency']
+
+---->	activity	Processing fragment
+
+            excel row           : 7
+            interval            : ['Institution', 'State', 'Zipcode']
+
+---->	activity	Validating inputs are well-formed
+
+            known_entity_types  : ['Asset Class', 'Institution', 'Account']

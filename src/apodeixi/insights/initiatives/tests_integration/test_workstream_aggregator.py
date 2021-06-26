@@ -22,11 +22,27 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
             aggregator                  = WorkstreamAggregator(         parent_trace                = root_trace,
                                                                         initiative_UID              = INITIATIVE, 
-                                                                        knowledge_base_store        = self.store)
+                                                                        knowledge_base              = self.kb)
 
-            result_df                   = aggregator.aggregateMetrics(  parent_trace                = root_trace, 
+            result_df, errors           = aggregator.aggregateMetrics(  parent_trace                = root_trace, 
                                                                         filing_coordinates_filter   = None, 
                                                                         posting_version_filter      = None)
+
+            explanation_txt             = "++++++++++++++++++++ Successes +++++++++++++++\n"
+            if not result_df is None:
+                explanation_txt         += "\nresult_df.shape = " + str(result_df.shape)
+
+
+            explanation_txt             += "\n\n======================= Errors while aggregating metrics ============= "  
+            error_idxs                  = list(errors.keys())
+            error_idxs.sort()     
+            for idx in error_idxs:
+                explanation_txt              += "\n\n============= Error processinng handle #" + str(idx) + "\n"  
+                explanation_txt              += errors[idx].trace_message()     
+
+            self._compare_to_expected_txt(  output_txt                  = explanation_txt, 
+                                            test_case_name              = TEST_NAME + "_explanations", 
+                                            save_output_txt             = True)                                          
 
             self._compare_to_expected_df(   parent_trace                = root_trace,
                                             output_df                   = result_df, 

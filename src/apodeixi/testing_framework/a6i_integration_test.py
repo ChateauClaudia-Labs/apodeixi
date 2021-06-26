@@ -6,7 +6,7 @@ from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonT
 
 from apodeixi.util.a6i_error                            import FunctionalTrace , ApodeixiError
 
-#from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
+from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
 
 from apodeixi.util.apodeixi_config                      import ApodeixiConfig
@@ -34,6 +34,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         self.store                  = File_KnowledgeBaseStore(  postings_rootdir        = self.postings_folder,
                                                                 derived_data_rootdir    = self.manifests_folder)
+        my_trace                    = root_trace.doing("Starting KnowledgeBase")
+        self.kb                     = KnowledgeBase(my_trace, self.store)
 
 
     def tearDown(self):

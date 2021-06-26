@@ -1,0 +1,17 @@
+==================    This test verifies that the following user validation works:
+
+User puts a non-supported manifest API in posting label
+
+================     Below is the error message the user would get:
+
+******** Functional Trace ********
+
+Problem:	Non supported Manifest API 'NON-EXISTENT.mock.a6i.io/v1'
+Should be one of: ['account.mock.a6i.io/v1']
+Here are the functional activities that led to the problem:
+
+---->	activity	Running Mock_Controller
+
+
+---->	activity	Parsing posting label
+

@@ -120,8 +120,8 @@ class ExcelTableReader:
         
     def read(self, parent_trace, horizontally=True):
        
-        my_trace                                        = parent_trace.doing("Parsing excel range",
-                                                                                data = {"excel_range": str(self.excel_range)})        
+        my_trace                = parent_trace.doing("Parsing excel range",
+                                                         data = {"excel_range": str(self.excel_range)})        
         first_column, last_column, first_row, last_row  = ExcelTableReader.__parse_range(my_trace, self.excel_range)
         
 
@@ -137,18 +137,43 @@ class ExcelTableReader:
             else:
                 header = None 
             nrows  = last_row - first_row +1 # First row is data, not header, so nrows is 1 bigger
-        df                                             = _pd.read_excel(io         = self.excel_fullpath, #path, 
-                                                                       sheet_name = self.excel_sheet, #sheet,
-                                                                       header     = header, 
-                                                                       usecols    = first_column + ':' + last_column, 
-                                                                       nrows      = nrows)
-        
+        my_trace                = parent_trace.doing("Loading Excel spreadsheet",
+                                                        data = {"excel_fullpath": str(self.excel_fullpath)})
+        try:
+            df                  = _pd.read_excel(   io         = self.excel_fullpath,
+                                                    sheet_name = self.excel_sheet,
+                                                    header     = header, 
+                                                    usecols    = first_column + ':' + last_column, 
+                                                    nrows      = nrows)
+        except PermissionError as ex:
+            raise ApodeixiError(my_trace, "Was not allowed to access excel file. Perhaps you have it open?",
+                                        data = {"excel_fullpath": str(self.excel_fullpath),
+                                                "error":         str(ex)},
+                                        origination = {'concrete class': str(self.__class__.__name__), 
+                                                                        'signaled_from': __file__})
+        except ValueError as ex:
+            error_msg           = str(ex)
+            if error_msg.startswith("Worksheet named '") and error_msg.endswith("' not found"):
+                raise ApodeixiError(my_trace, "Did you forget to define a Posting Label in the Excel spreadsheet? Got this error:"
+                                                + "\n\n" + error_msg)
+            else:
+                raise ApodeixiError(my_trace, "Found an error while reading the Excel file",
+                                                data = {'error':    error_msg})
+
+
+        my_trace                = parent_trace.doing("Validating data loaded from Excel is not empty")
         if len(df.columns)==0:
-            raise ValueError ("Incorrectly formatted Excel range was given: '" + self.excel_range 
-                              + "'. It spans no columns with data")
+            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+                              + "'. It spans no columns with data",
+                              data = {"excel_fullpath": str(self.excel_fullpath)},
+                              origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
         if len(df.index)==0:
-            raise ValueError ("Incorrectly formatted Excel range was given: '" + self.excel_range 
-                              + "'. It spans no rows with data")
+            raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
+                              + "'. It spans no rows with data",
+                              data = {"excel_fullpath": str(self.excel_fullpath)},
+                              origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
             
         if self.horizontally==False:
             df = self.__rotate(df)

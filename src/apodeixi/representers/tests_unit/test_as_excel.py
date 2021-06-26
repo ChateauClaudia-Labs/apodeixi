@@ -35,13 +35,14 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
         worksheet_info_dict     = {}
         ws_info_expected        = None
         try:
-
-            data_df             = self.load_csv(INPUT_FOLDER + '/' + INPUT_FILE)
+            root_trace          = FunctionalTrace(parent_trace=None).doing("Testing generating an Excel from a manifest")
+            my_trace            = root_trace.doing("Loading input CSV file for test")
+            data_df             = self.load_csv(my_trace, INPUT_FOLDER + '/' + INPUT_FILE)
 
             # data_df.columns are ['UID', 'jobs-to-be-done', 'Stakeholders', 'UID-1', 'Capabilities', 'UID-2', 'Feature', 'UID-3', 'Story']
             # Make editable any column not starting with "UID"
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Testing generating an Excel from a manifest")
+            
             config              = Manifest_Config(  name_list           = [MANIFEST_NAME],    
                                                     viewport_width      = 100,  
                                                     viewport_height     = 40,   

@@ -386,7 +386,7 @@ class SkeletonController(PostingController):
                         different_lists = True
 
                 if len(missing_lists) > 0:
-                    raise ApodeixieError(parent_trace, "Posting label lacks values for some fields",
+                    raise ApodeixiError(parent_trace, "Posting label lacks values for some fields",
                                                         data = {'missing fields': ','.join(missing_lists)})
                 if different_lists:
                     msg_dict            = {}

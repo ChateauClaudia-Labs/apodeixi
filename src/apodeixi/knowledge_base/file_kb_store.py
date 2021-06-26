@@ -83,6 +83,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             for currentdir, dirs, files in _os.walk(self.postings_rootdir):
                 #for subdir in dirs:
                 for a_file in files:
+                    if a_file.startswith("~"):
+                        continue # Skip such files, they are temporary Excel locks
                     loop_trace          = my_trace.doing("Scanning directory", data = {'currentdir': currentdir, 'file': a_file})
                     try:
                         handle      = self.buildPostingHandle(  parent_trace        = loop_trace,

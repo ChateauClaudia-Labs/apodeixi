@@ -114,14 +114,23 @@ class GreedyIntervalSpec(IntervalSpec):
     
     Then this class returns the list containing just one interval: [Q, R, A, T, Y, U, F, G, W]
     '''
-    def __init__(self, parent_trace, entity_name = None):
+    def __init__(self, parent_trace, entity_name = None, mandatory_columns = []):
         super().__init__(entity_name)
+        self.mandatory_columns          = mandatory_columns
 
     def buildIntervals(self, parent_trace, linear_space):
         '''
         '''
         if self.entity_name == None:
-            self.entity_name                = IntervalUtils().infer_first_entity(parent_trace, linear_space)
+            self.entity_name            = IntervalUtils().infer_first_entity(parent_trace, linear_space)
+
+        my_trace                        = parent_trace.doing("Validating mandatory columns are present")
+
+        missing_cols                    = [col for col in self.mandatory_columns if not col in linear_space]
+        if len(missing_cols) > 0:
+            raise ApodeixiError(my_trace, "Posting lacks some mandatory columns",
+                                                data = {    'Missing columns':    missing_cols,
+                                                            'Posted columns':     linear_space})
 
         return [Interval(parent_trace, linear_space, self.entity_name)]
 
@@ -139,15 +148,24 @@ class MinimalistIntervalSpec(IntervalSpec):
     * ['UID.1', 'Breakdown 1']
     * ['UID.2', 'Breakdown 2']
     '''
-    def __init__(self, parent_trace, entity_name = None):
+    def __init__(self, parent_trace, entity_name = None, mandatory_columns = []):
 
         super().__init__(entity_name)
+        self.mandatory_columns          = mandatory_columns
 
     def buildIntervals(self, parent_trace, linear_space):
         '''
         '''
         if self.entity_name == None:
             self.entity_name                = IntervalUtils().infer_first_entity(parent_trace, linear_space)
+
+        my_trace                        = parent_trace.doing("Validating mandatory columns are present")
+
+        missing_cols                    = [col for col in self.mandatory_columns if not col in linear_space]
+        if len(missing_cols) > 0:
+            raise ApodeixiError(my_trace, "Posting lacks some mandatory columns",
+                                                data = {    'Missing columns':    missing_cols,
+                                                            'Posted columns':     linear_space})
 
         interval_columns                = []
         interval_entity                 = None

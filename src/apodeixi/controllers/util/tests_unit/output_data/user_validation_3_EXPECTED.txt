@@ -1,0 +1,31 @@
+==================    This test verifies that the following user validation works:
+
+User removed or renamed an entity column for a secondary entity.
+
+================     Below is the error message the user would get:
+
+******** Functional Trace ********
+
+Problem:	Posting lacks some mandatory columns
+
+            Missing columns     : ['Institution']
+            Posted columns      : ['Asset Class', 'FDIC Insurance', 'Taxable to non Residents', 'REMOVED ENTITY', 'State', 'Zipcode', 'Account', 'Currency']
+
+Here are the functional activities that led to the problem:
+
+---->	activity	Running Mock_Controller
+
+
+---->	activity	Parsing data for 1 manifest
+
+            kind                : properties
+            excel_range         : B2:I100
+
+---->	activity	Creating BreakoutTree from Excel
+
+            path                : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_3_INPUT.xlsx
+
+---->	activity	Sanity check that user complied with right schema
+
+            posting's path      : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_3_INPUT.xlsx
+            excel range examined: B2:I100

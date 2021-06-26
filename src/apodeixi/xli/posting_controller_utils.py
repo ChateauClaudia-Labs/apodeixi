@@ -50,6 +50,8 @@ class PostingController():
                                                         data = {"path": path, "excel range": excel_range})
         df                      = r.read(my_trace)
 
+        cols=list(df.columns)
+
         # Clean up df's columns by removing anything in parenthesis
         GIST_OF                 = IntervalUtils().without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
         df.columns              = [GIST_OF(parent_trace, col) for col in df.columns]
@@ -488,7 +490,8 @@ class PostingLabel():
         # Check context has the right number of rows (which are columns in Excel, since we transposed)
         if len(label_df.index) != 1:
             raise ApodeixiError(parent_trace, "Bad Excel range provided: " + excel_range
-                            + "\nShould contain exactly two columns: keys and values")
+                            + "\nShould contain exactly two columns: keys and values", 
+                            origination = {'signaled_from' : __file__})
 
         # Check that that context has no column that appears more than once, as that would corrupt the logic below
         # which assumes exactly 1 occurrence of each column (if not, logic will attribute that there is a "Pandas Series" value
@@ -501,7 +504,8 @@ class PostingLabel():
             duplicate_msgs = [col + " (appears " + str(count_dict[col]) + " times)" for col in duplicates]
             raise ApodeixiError(parent_trace, "Bad Posting Label in Excel range: " + excel_range
                             + "\nSome fields appear more than once",
-                            data = {'Duplicate fields': ', '.join(duplicate_msgs)})
+                            data = {'Duplicate fields': ', '.join(duplicate_msgs)}, 
+                            origination = {'signaled_from' : __file__})
         
         appearances, sightings = self._fields_found(    expected_fields         = self.mandatory_fields, 
                                                         optional_fields         = self.optional_fields, 
@@ -521,12 +525,14 @@ class PostingLabel():
                 missing_txt += "\nPerhaps you have a typo, since these other fields are not valid: " \
                                 + ", ".join(["'" + field + "'" for field in spurious_fields])
             raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' lacks at least one mandatory fields: "
-                            + missing_txt)
+                            + missing_txt,
+                            origination = {'signaled_from' : __file__})
 
         if len(spurious_fields) > 0:
             spurious_txt = ", ".join(["'" + field + "'" for field in spurious_fields])
             raise ApodeixiError(parent_trace, "PostingLabel in range '" + excel_range + "' has these invalid fields: "
-                            + spurious_txt)
+                            + spurious_txt,
+                            origination = {'signaled_from' : __file__})
 
         ctx = {}
 

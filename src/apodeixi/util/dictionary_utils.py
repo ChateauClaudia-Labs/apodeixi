@@ -52,7 +52,7 @@ class DictionaryUtils():
                                                 data = {'valid_types': valid_types},
                                                 origination = {'signaled_from': __file__})
         current_dict                = root_dict
-        current_dict_description    = root_dict_name
+        current_dict_description    = str(root_dict_name)
         explanation                 = ''
         for idx in range(len(path_list)):
             link                    = path_list[idx]
@@ -74,7 +74,7 @@ class DictionaryUtils():
             elif valid_types != None: # We are at a leaf and caller gave us types to validate against. 
                 if not type(child) in valid_types:
                     explanation         = "'" + current_dict_description + "[" + str(link) + "]' is of type '" + str(type(child)) \
-                                            + "' but it was supposed to be one of " + ",".join(valid_types)
+                                            + "' but it was supposed to be one of " + ",".join([str(vt) for vt in valid_types])
 
             # We survived to live another cycle of the loop. Initialize state for that next cycle
             current_dict_description    = current_dict_description + "[" + str(link) + "]"

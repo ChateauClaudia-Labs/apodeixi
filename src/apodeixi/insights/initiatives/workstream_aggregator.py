@@ -1,12 +1,16 @@
+import pandas                                   as _pd
+
 from apodeixi.util.a6i_error                    import ApodeixiError
+
+from apodeixi.representers                      import AsDataframe_Representer
 
 class WorkstreamAggregator():
     '''
     Class to aggregate milestones across multiple workstreams for a particular strategic initiative
     '''
-    def __init__(self, parent_trace, initiative_UID, knowledge_base_store):
+    def __init__(self, parent_trace, initiative_UID, knowledge_base):
         self.initiative_UID         = initiative_UID
-        self.kb_store               = knowledge_base_store
+        self.kb                     = knowledge_base
 
 
     def aggregateMetrics(self, parent_trace, filing_coordinates_filter=None, posting_version_filter=None):
@@ -23,9 +27,38 @@ class WorkstreamAggregator():
 
         result_df                   = None
 
-        handle_list                 = self.kb_store.searchPostings( parent_trace                    = parent_trace, 
+        my_trace                    = parent_trace.doing("Searching postings for given API",
+                                                            data = {'posting_api':      POSTING_API})
+        handle_list                 = self.kb.store.searchPostings( parent_trace                    = my_trace, 
                                                                     posting_api                     = POSTING_API,
                                                                     filing_coordinates_filter       = None, 
                                                                     posting_version_filter          = None)
 
-        return result_df
+        my_trace                    = parent_trace.doing("Posting " + str(len(handle_list)) + " handles in batch")
+        successes, errors           = self.kb.postInBatch(my_trace, handle_list)
+
+        my_trace                    = parent_trace.doing("Loading manifests")
+        df_list                     = []
+        for idx in successes.keys():
+            loop_trace              = my_trace.doing("Processing response to posting handle #" + str(idx))
+            response                = successes[idx]
+            for handle              in response.createdHandles():
+                if handle.kind != 'workstream-metric':
+                    continue # We are only aggregating metrics here
+                inner_loop_trace    = loop_trace.doing("Retrieving manifest for manifest handle " + str(handle),
+                                                        origination = {    
+                                                                    'concrete class': str(self.__class__.__name__), 
+                                                                    'signaled_from': __file__})
+                manifest_dict       = self.kb.store.retrieveManifest(inner_loop_trace, handle)
+
+                content_dict        = manifest_dict['assertion']['metric']
+
+                rep                 = AsDataframe_Representer()
+                contents_path       = 'assertion.metric'
+                df                  = rep.dict_2_df(parent_trace, content_dict, contents_path)
+                df['WUID']          = manifest_dict['metadata']['labels']['workstreamUID']
+                df_list.append(df)
+        
+        result_df                   = _pd.concat(df_list)
+
+        return result_df, errors

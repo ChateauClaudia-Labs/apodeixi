@@ -8,6 +8,7 @@ from io                     import StringIO
 
 from apodeixi.util.formatting_utils                 import DictionaryFormatter
 from apodeixi.util.dataframe_utils                  import DataFrameUtils, DataFrameComparator
+from apodeixi.util.a6i_error                        import ApodeixiError
 
 class ApodeixiSkeletonTest(unittest.TestCase):  
     '''
@@ -36,11 +37,17 @@ class ApodeixiSkeletonTest(unittest.TestCase):
             old_dir                                         = ''
         _os.environ['APODEIXI_CONFIG_DIRECTORY']            = old_dir
 
-    def load_csv(self, path):
+    def load_csv(self, parent_trace, path):
         '''
         Helper method to load a "clean DataFrame" from a CSV file, correcting for spurious columns and NAs
         '''
-        data_df             = _pd.read_csv(path)
+        try:
+            data_df             = _pd.read_csv(path)
+        except FileNotFoundError as ex:
+            raise ApodeixiError(parent_trace, "Can't load CSV file because it doesn't exist",
+                                    data = {'path':             path,
+                                            'error':            str(ex)})
+
         data_df             = data_df.fillna('')
         SPURIOUS_COL        = 'Unnamed: 0'
         if SPURIOUS_COL in data_df.columns:
@@ -174,10 +181,10 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # slightly change formats (e.g., strings for numbers become Numpy numbers) 
         # and we want to apply the same such changes as were applied to the expected output,
         # to avoid frivolous differences that don't deserve to cause this test to fail
-        loaded_output_df            = self.load_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
+        loaded_output_df            = self.load_csv(parent_trace, OUTPUT_FOLDER + '/' + OUTPUT_FILE)
 
         # Retrieve expected output
-        expected_df                 = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
+        expected_df                 = self.load_csv(parent_trace, OUTPUT_FOLDER + '/' + EXPECTED_FILE)
 
         EXPECTED_COLUMNS            = [col for col in expected_df.columns if not col in columns_to_ignore]  
 
@@ -196,8 +203,13 @@ class ApodeixiSkeletonTest(unittest.TestCase):
                                                                             flatten         = True)
         with open(OUTPUT_FOLDER + '/'  + OUTPUT_COMPARISON_FILE, 'w', encoding="utf8") as file:
             file            .write(df_comparison_nice)
-        with open(OUTPUT_FOLDER + '/'  + EXPECTED_COMPARISON_FILE, 'r', encoding="utf8") as file:
-            expected_df_comparison  = file.read()    
-
+        try:
+            with open(OUTPUT_FOLDER + '/'  + EXPECTED_COMPARISON_FILE, 'r', encoding="utf8") as file:
+                expected_df_comparison  = file.read()    
+        except FileNotFoundError as ex:
+            raise ApodeixiError(parent_trace, "Can't load comparison file because it doesn't exist",
+                                    data = {'file':             EXPECTED_COMPARISON_FILE,
+                                            'path':             OUTPUT_FOLDER + '/'  + EXPECTED_COMPARISON_FILE,
+                                            'error':            str(ex)})
         self.assertEqual(df_comparison_nice,       expected_df_comparison)
         self.assertTrue(check)

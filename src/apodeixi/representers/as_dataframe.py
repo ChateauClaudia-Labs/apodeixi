@@ -65,10 +65,16 @@ class AsDataframe_Representer:
         # Create the dictionary of everything except what is in the path  
         my_trace             = parent_trace.doing('Splitting manifest', data = {'path_tokens': path_tokens})
         content_dict, non_content_dict = self._split_out(my_trace, manifest_dict, path_tokens)
-        
+
+        df                  = self.dict_2_df(parent_trace, content_dict, contents_path)
+        return df, non_content_dict
+
+
+    def dict_2_df(self, parent_trace, content_dict, contents_path):
+
         my_trace            = parent_trace.doing('Converting content to DataFrame')
         intervals, rows     = self._build_df_rows(  parent_trace    = my_trace,
-                                                    content_dict    = content_dict, 
+                                                    content_dict    = content_dict,
                                                     parent_path     = contents_path,
                                                     parent_uid      = None)
         
@@ -79,7 +85,7 @@ class AsDataframe_Representer:
         df                  =  _pd.DataFrame(columns=all_columns, data=rows)
         df                  = df.fillna('')
 
-        return df, non_content_dict
+        return df
     
     def _split_out(self, parent_trace, manifest_dict, splitting_path):
         '''
@@ -145,7 +151,7 @@ class AsDataframe_Representer:
         * The list of columns for such a DataFrame-to-be
         * The list of rows (as dictionaries)
         
-        The keys of `contect_dict` are expected to be "incremental UID pairs" for the entity type given by the
+        The keys of `content_dict` are expected to be "incremental UID pairs" for the entity type given by the
         last token in `parent_path`. 
         
         For example, if `parent_path` is "S1.Workstream", then the entity type is "Workstream".

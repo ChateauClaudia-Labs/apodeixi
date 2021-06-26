@@ -40,7 +40,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Testing computation of column widths")
 
-            data_df             = self.load_csv(INPUT_FOLDER + '/' + INPUT_FILE)
+            data_df             = self.load_csv(root_trace, INPUT_FOLDER + '/' + INPUT_FILE)
 
             calc                = ColumnWidthCalculator(    data_df             = data_df, 
                                                             viewport_width      = viewport_width, 
@@ -62,11 +62,11 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             # Load the output we just saved, which we'll use for regression comparison since in Pandas the act of loading will
             # slightly change formats and we want to apply the same such changes as were applied to the expected output,
             # to avoid frivolous differences that don't deserve to cause this test to fail
-            loaded_output_df    = self.load_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
+            loaded_output_df    = self.load_csv(root_trace, OUTPUT_FOLDER + '/' + OUTPUT_FILE)
 
 
             # Now load the expected output. 
-            expected_df         = self.load_csv(OUTPUT_FOLDER + '/' + EXPECTED_FILE)
+            expected_df         = self.load_csv(root_trace, OUTPUT_FOLDER + '/' + EXPECTED_FILE)
 
             check, comparison_dict = self._compare_dataframes(  df1         = loaded_output_df, 
                                                                 df1_name    = "output",

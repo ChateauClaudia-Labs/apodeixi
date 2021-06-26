@@ -1,0 +1,33 @@
+==================    This test verifies that the following user validation works:
+
+User has a typo in the worksheets in the posting label
+
+================     Below is the error message the user would get:
+
+******** Functional Trace ********
+
+Problem:	Did you forget to define a Posting Label in the Excel spreadsheet? Got this error:
+
+Worksheet named 'Bar' not found
+Here are the functional activities that led to the problem:
+
+---->	activity	Running Mock_Controller
+
+
+---->	activity	Parsing data for 1 manifest
+
+            kind                : hierarchy
+            excel_range         : B2:I100
+
+---->	activity	Creating BreakoutTree from Excel
+
+            path                : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_8_INPUT.xlsx
+
+---->	activity	Loading Excel posting data into a DataFrame
+
+            path                : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_8_INPUT.xlsx
+            excel range         : B2:I100
+
+---->	activity	Loading Excel spreadsheet
+
+            excel_fullpath      : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_8_INPUT.xlsx
