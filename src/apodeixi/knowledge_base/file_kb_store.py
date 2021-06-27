@@ -2,10 +2,11 @@ import os                                               as _os
 import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
+from apodeixi.knowledge_base.kb_environment             import File_KB_Environment
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, InitiativesFilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils
 from apodeixi.util.path_utils                           import PathUtils
-from apodeixi.util.a6i_error                            import ApodeixiError
+from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 class File_KnowledgeBaseStore(KnowledgeBaseStore):
     '''
@@ -13,19 +14,26 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
     (one for postings and one for all derived data, including manifests)
     and follows a structure based on filing schemes of the KB_ProcessingRules.
     '''
-    def __init__(self, postings_rootdir, derived_data_rootdir):
+    def __init__(self, postings_rootdir, manifests_roodir):
         super().__init__()
 
-        self.postings_rootdir       = postings_rootdir
-        self.derived_data_rootdir   = derived_data_rootdir
+        _BASE_ENVIRONMENT           = '_BASE_ENVIRONMENT'
+        root_trace                  = FunctionalTrace(None).doing("Creating KB's store's base environment")
+        self._base_env              = File_KB_Environment(parent_trace            = root_trace, 
+                                                                    name                    = _BASE_ENVIRONMENT, 
+                                                                    store                   = self, 
+                                                                    parent_environment      = None,
+                                                                    postings_rootdir        = postings_rootdir,
+                                                                    manifests_roodir        = manifests_roodir)  
+          
+        self._current_env           = self._base_env
 
         self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
             'big-rocks.journeys.a6i':                               JourneysFilingCoordinates,
-            #'modernization-milestone.delivery-planning.journeys.a6i':       JourneysFilingCoordinates,
-            'capability-hierarchy.bdd.kernel.a6i':                          None, # TODO
-            'milestone.journeys.a6i':                                       JourneysFilingCoordinates,
-            'workstream.initiatives.a6i':                                   InitiativesFilingCoordinates,
-            'charter.initiatives.a6i':                                      InitiativesFilingCoordinates, 
+            'milestone.journeys.a6i':                               JourneysFilingCoordinates,
+            'capability-hierarchy.bdd.kernel.a6i':                  None, # TODO
+            'workstream.initiatives.a6i':                           InitiativesFilingCoordinates,
+            'charter.initiatives.a6i':                              InitiativesFilingCoordinates, 
             
         }
 
@@ -45,13 +53,40 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         klass                           = self.filing_rules[posting_api]
         return klass
 
-    def getStoreURL(self, parent_trace):
+    def getPostingsURL(self, parent_trace):
         '''
-        Returns a string that can be used to locate this Knowledge Base store
-        '''
-        kb_store_url                    = self.postings_rootdir    
-        return kb_store_url
+        Returns a string that can be used to locate the postings area in the Knowledge Base store's current environment
+        '''   
+        current_kb_env_url              = self._current_env.postingsURL(parent_trace)
+        return current_kb_env_url
 
+    def current_environment(self, parent_trace):
+        return self._current_env
+
+    def base_environment(self, parent_trace):
+        return self._base_env
+
+    def activate(self, parent_trace, environment_name):
+        '''
+        Switches the store's current environment to be the one identified by the `environment_name`, unless
+        no such environment exists in which case it raises an ApodeixiError
+        '''
+        if environment_name == self._base_env.name(parent_trace):
+            next_env                    = self._base_env
+        else:
+            next_env                    = self._current_env.findSubEnvironment(parent_trace, environment_name)
+        
+        if next_env != None:
+            self._current_env           = next_env
+        else:
+            raise ApodeixiError(parent_trace, "Can't activiate an environment that does not exist",
+                                                    data = {"environment_name": str(environment_name)})
+
+    def deactivate(self, parent_trace):
+        '''
+        Switches the store's current environment to be the base environment.
+        '''
+        self._current_env               = self._base_env
 
     def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
@@ -80,7 +115,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         my_trace                    = parent_trace.doing("Scanning existing filing coordinates")
         if True:
             scanned_handles         = []
-            for currentdir, dirs, files in _os.walk(self.postings_rootdir):
+            for currentdir, dirs, files in _os.walk(self._current_env.postingsURL(my_trace)):
                 #for subdir in dirs:
                 for a_file in files:
                     if a_file.startswith("~"):
@@ -111,7 +146,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         version             = ManifestUtils().get_manifest_version(parent_trace, manifest_dict)
         if version != None and len(str(version).strip()) > 0:
             suffix = '.' + str(version)
-        manifest_dir        = self.derived_data_rootdir + "/" + namespace  + "/" + name
+        manifest_dir        = self._current_env.manifestsURL(parent_trace) + "/" + namespace  + "/" + name
         PathUtils().create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
         manifest_file       = kind + suffix + ".yaml"
         my_trace            = parent_trace.doing("Persisting manifest", 
@@ -137,7 +172,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         matching_manifests      = [] # List of dictionaries, one per manifest
         matching_filenames      = [] # List of filename strings. Will be 1-1 lined up with matching_manifests
 
-        folder                  = self.derived_data_rootdir + '/' + manifest_handle.namespace + '/' + manifest_handle.name
+        folder                  = self._current_env.manifestsURL(parent_trace) + '/' \
+                                        + manifest_handle.namespace + '/' + manifest_handle.name
 
         manifests, filenames    = self._getMatchingManifests(   parent_trace    = parent_trace, 
                                                                 folder          = folder, 

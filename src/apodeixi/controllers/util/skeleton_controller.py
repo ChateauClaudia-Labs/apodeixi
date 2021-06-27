@@ -112,7 +112,7 @@ class SkeletonController(PostingController):
         '''
         result                  = []
         excel_filename          = posting_label_handle.excel_filename
-        kb_store_url            = posting_label_handle.kb_store_url
+        kb_postings_url         = posting_label_handle.kb_postings_url
         filing_coords           = posting_label_handle.filing_coords
 
         for manifest_nb, kind, excel_range, excel_sheet in self.show_your_work.manifest_metas():

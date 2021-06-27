@@ -7,22 +7,22 @@ class PostingLabelHandle():
 
     It is not meant to be created directly - it should be created only by the KnowledgeBase store, and then passed around as needed.
     '''
-    def __init__(self, parent_trace, posting_api, kb_store_url, filing_coords, excel_filename, excel_sheet, excel_range):
+    def __init__(self, parent_trace, posting_api, kb_postings_url, filing_coords, excel_filename, excel_sheet, excel_range):
         self.excel_filename         = excel_filename
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
 
         self.posting_api            = posting_api 
         self.filing_coords          = filing_coords 
-        self.kb_store_url           = kb_store_url 
+        self.kb_postings_url        = kb_postings_url 
 
     def getPostingAPI(self, parent_trace):
         return self.posting_api
 
     def getFullPath(self, parent_trace):
 
-        parsed_tokens                   = self.filing_coords.path_tokens(parent_trace)
-        excel_path       = self.kb_store_url  +  '/' + '/'.join(parsed_tokens)
+        parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
+        excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
         return excel_path + "/" + self.excel_filename
 
     def buildDataHandle(self, parent_trace, manifest_nb, kind, excel_sheet, excel_range):
@@ -34,7 +34,7 @@ class PostingLabelHandle():
         data_handle             = PostingDataHandle(    parent_trace        = parent_trace,
                                                         manifest_nb         = manifest_nb,
                                                         kind                = kind,
-                                                        kb_store_url        = self.kb_store_url,
+                                                        kb_postings_url     = self.kb_postings_url,
                                                         filing_coords       = self.filing_coords,
                                                         excel_filename      = self.excel_filename,
                                                         excel_sheet         = excel_sheet,
@@ -47,10 +47,10 @@ class PostingDataHandle():
 
     It is not meant to be created directly - it should be created only by the PostingLabelHandle, and then passed around as needed.
     '''
-    def __init__(self, parent_trace, manifest_nb, kind, kb_store_url, filing_coords, excel_filename, excel_sheet, excel_range):
+    def __init__(self, parent_trace, manifest_nb, kind, kb_postings_url, filing_coords, excel_filename, excel_sheet, excel_range):
         self.excel_filename         = excel_filename
 
-        self.kb_store_url           = kb_store_url
+        self.kb_postings_url        = kb_postings_url
         self.filing_coords          = filing_coords
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
@@ -59,7 +59,7 @@ class PostingDataHandle():
 
     def getFullPath(self, parent_trace):
         parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
-        excel_path                  = self.kb_store_url  +  '/' + '/'.join(parsed_tokens)
+        excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
         return excel_path + "/" + self.excel_filename
 
 class ManifestUtils():

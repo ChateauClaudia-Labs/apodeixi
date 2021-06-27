@@ -60,12 +60,12 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         klass                           = self.filing_rules[posting_api]
         return klass
 
-    def getStoreURL(self, parent_trace):
+    def getPostingsURL(self, parent_trace):
         '''
-        Returns a string that can be used to locate this Knowledge Base store
+        Returns a string that can be used to locate postings in this Knowledge Base store
         '''
-        kb_store_url                    = _os.path.dirname(self.input_postings_dir)    
-        return kb_store_url
+        kb_postings_url                    = _os.path.dirname(self.input_postings_dir)    
+        return kb_postings_url
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''

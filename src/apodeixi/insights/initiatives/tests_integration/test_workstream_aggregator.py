@@ -4,7 +4,6 @@ from apodeixi.testing_framework.a6i_integration_test            import ApodeixiI
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                             import DictionaryFormatter 
 
-#from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
 from apodeixi.insights.initiatives.workstream_aggregator        import WorkstreamAggregator
 
 class Test_WorkstreamAggregator(ApodeixiIntegrationTest):

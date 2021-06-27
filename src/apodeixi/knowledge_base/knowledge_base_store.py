@@ -32,23 +32,24 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-    def getStoreURL(self, parent_trace):
+    def getPostingsURL(self, parent_trace):
         '''
         Abstract method.
 
-        Returns a string that can be used to locate this Knowledge Base store
+        Returns a string that can be used to locate the postings area in the Knowledge Base store's current environment
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getFilingClass' in concrete class",
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getPostingsURL' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
     def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
-        Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
+        Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 
+        the path provided.
         '''
-        kb_store_url                    = self.getStoreURL(parent_trace) 
+        kb_postings_url                 = self.getPostingsURL(parent_trace) #self.getStoreURL(parent_trace
         relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
-                                                                    root_dir        = kb_store_url,
+                                                                    root_dir        = kb_postings_url,
                                                                     full_path       = excel_posting_path)
 
         posting_api                     = self._filename_2_api(parent_trace, filename)
@@ -62,7 +63,7 @@ class KnowledgeBaseStore():
         # Now build the posting label handle
         posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,
                                                                     posting_api         = posting_api,
-                                                                    kb_store_url        = kb_store_url, 
+                                                                    kb_postings_url     = kb_postings_url, 
                                                                     filing_coords       = filing_coords,
                                                                     excel_filename      = filename, 
                                                                     excel_sheet         = sheet, 

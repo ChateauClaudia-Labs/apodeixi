@@ -33,7 +33,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         self.manifests_folder       = self.config.get_KB_ManifestsRootFolder(root_trace)
 
         self.store                  = File_KnowledgeBaseStore(  postings_rootdir        = self.postings_folder,
-                                                                derived_data_rootdir    = self.manifests_folder)
+                                                                manifests_roodir    = self.manifests_folder)
         my_trace                    = root_trace.doing("Starting KnowledgeBase")
         self.kb                     = KnowledgeBase(my_trace, self.store)
 

@@ -83,7 +83,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
         try:
             root_trace                      = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
             kb                              = File_KnowledgeBaseStore(  postings_rootdir       = self.postings_folder,
-                                                                        derived_data_rootdir    = None)
+                                                                        manifests_roodir    = None)
 
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" # and coords.scenario == "MTP"
