@@ -142,8 +142,8 @@ class DictionaryUtils():
         @param path_list A list such as ['S1', 'W2', 'milestones', 3, 'date'] corresponding to a "branch filter to apply. 
                         Wildcard "*", which is then taken to me: all the keys at that level pass the filter (in effect, 
                         multiple branches)
-        @param filter_lambda A function that takes as input the value of the `root_dict`'s leaf at the branch, and returns the value 
-                that should replace it in the returned dictionary.
+        @param filter_lambda A function that takes as input the value of the `root_dict`'s leaf at the branch, and returns 
+                a boolean. The leaf is included in the returned dictionary only if this boolean is True.
         '''
         new_dict                    = {}
         
@@ -214,9 +214,15 @@ class DictionaryUtils():
     def set_val(self, parent_trace, root_dict, root_dict_name, path_list, val):
         '''
         Thinking of `root_dict` dictionary as a tree, and of `path_list` as a branch, this method adds the branch to the
-        tree if it no longer exists, and then sets the value of the leaf node to be val.
+        tree if it does not exist, and then sets the value of the leaf node to be val.
         
         '''
+        if root_dict == None or type(root_dict) != dict:
+            raise ApodeixiError(parent_trace, "Can't set a value to a non-dictionary",
+                                            data = {'root_dict_name':   root_dict_name, 
+                                                    'type(root_dict)':  str(type(root_dict)),
+                                                    'path_list':        str(path_list)})
+
         if path_list == None or type(path_list) != list or len(path_list) == 0:
             raise ApodeixiError(parent_trace, "Can't set a value at path that is not a non-empty list",
                                             data = {'root_dict_name': root_dict_name, 'path_list': str(path_list)})
@@ -241,3 +247,4 @@ class DictionaryUtils():
                             path_list       = sub_path,
                             val             = val)  
         return
+

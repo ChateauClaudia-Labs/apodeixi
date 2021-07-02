@@ -1,4 +1,5 @@
 import os                                               as _os
+import shutil                                           as _shutil
 import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
@@ -65,6 +66,42 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
     def base_environment(self, parent_trace):
         return self._base_env
+
+    def removeEnvironment(self, parent_trace, name):
+        '''
+        Removes the environment with the given name, if one exists, in which case returns 0.
+        If no such environment exists then it returns -1.
+        '''
+        ME                          = File_KB_Environment
+
+        root_dir                    = _os.path.dirname(self.base_environment(parent_trace).manifestsURL(parent_trace))
+        envs_dir                    = root_dir + "/" + ME.ENVS_FOLDER
+        PathUtils().create_path_if_needed(parent_trace, envs_dir)
+
+        self._validate_environment_name(parent_trace    = parent_trace, name = name)
+
+        sub_env_name                = name.strip()
+        try:
+            if _os.path.isdir(envs_dir):
+                _shutil.rmtree(envs_dir)
+            else:
+                return -1
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Encountered a problem deleting environment",
+                                data = {"environment name": name, "exception": ex})
+        
+    def _validate_environment_name(self, parent_trace, name):
+        my_trace                    = parent_trace.doing("Checking environment's name is a str")
+        if not type(name) == str:
+            raise ApodeixiError(my_trace, "Can't create an environment with a name that is not a string",
+                                        data = {'name': str(name), 'type(name)': str(type(name))})
+
+        my_trace                    = parent_trace.doing("Checking environment's name not blank")
+        env_name                = name.strip()
+        if len(env_name) == 0:
+            raise ApodeixiError(my_trace, "Can't create a sub environment with a name that is blank",
+                                        data = {'sub_env_name': str(env_name)})
+
 
     def activate(self, parent_trace, environment_name):
         '''

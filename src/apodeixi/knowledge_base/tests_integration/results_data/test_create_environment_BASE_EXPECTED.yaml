@@ -1,0 +1,30 @@
+manifests:
+  Cloud initiative-breakdown.yaml: ''
+  Opus-investment-committment.yaml: ''
+  Opus-marathon-plan.yaml: ''
+  my-corp.production:
+    default.dec-2020.w0.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    default.dec-2020.w1.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    default.dec-2020.w3.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    default.dec-2020.w4.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    default.dec-2020.w5.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    default.dec-2020.w6.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    default.dec-2020.w7.s1:
+      workstream-metric.1.yaml: ''
+      workstream-milestone.1.yaml: ''
+    modernization.default.dec-2020.fusionopus:
+      big-rock-estimate.1.yaml: ''
+      big-rock.1.yaml: ''
+      investment.1.yaml: ''

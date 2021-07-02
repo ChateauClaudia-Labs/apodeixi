@@ -3,6 +3,7 @@ import sys                                              as _sys
 from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
+from apodeixi.util.path_utils              			    import FolderHierarchy
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 
@@ -22,8 +23,12 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
 
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Running " + TEST_CASE)
+
+            my_trace            = root_trace.doing("Removing previously created environment, if any",
+                                                        data = {'environment name': ENVIRONMENT_NAME})
+            stat                = self.store.removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
             
-            my_trace            = root_trace.doing("Creating an enfironment", 
+            my_trace            = root_trace.doing("Creating an environment", 
                                                     data={  'environment_name'    : ENVIRONMENT_NAME},
                                                     origination = { 'signaled_from' : __file__,
                                                                     'concrete class': str(self.__class__.__name__)})
@@ -33,11 +38,25 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
             my_trace            = root_trace.doing("Activiting environment '" + ENVIRONMENT_NAME + "'")
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
 
+            hierarchy_env       = self.store.current_environment(my_trace).folder_hierarchy(root_trace)
+            # TODO: add some data to environment, maybe calling a controller on some posting
+
+            self._compare_to_expected_yaml( output_dict         = hierarchy_env.to_dict(),
+                                            test_case_name      = ENVIRONMENT_NAME, 
+                                            save_output_dict    = True)
             my_trace            = root_trace.doing("Deactiviting environment '" + ENVIRONMENT_NAME + "'")
             self.store.deactivate(parent_trace = my_trace)
 
+            hierarchy_base      = self.store.current_environment(my_trace).folder_hierarchy(root_trace)
+            # TODO: ensure that we can get hierarchies for the base environment as well, not just the other ones
+
+            self._compare_to_expected_yaml( output_dict         = hierarchy_base.to_dict(),
+                                            test_case_name      = TEST_CASE + "_BASE", 
+                                            save_output_dict    = True)            
+
         except ApodeixiError as ex:
             print(ex.trace_message()) 
+            self.assertTrue(1==2)
 
         # TODO - Fail until we complete the test
         self.assertTrue(1==2)                 

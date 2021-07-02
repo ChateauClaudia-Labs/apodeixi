@@ -1,7 +1,8 @@
 import os                                               as _os
 
+
 from apodeixi.util.a6i_error                            import ApodeixiError
-from apodeixi.util.path_utils                           import PathUtils
+from apodeixi.util.path_utils                           import PathUtils, FolderHierarchy
 
 class KB_Environment():
     '''
@@ -106,27 +107,20 @@ class File_KB_Environment(KB_Environment):
 
     def addSubEnvironment(self, parent_trace, name):
         ME                          = File_KB_Environment
+
         root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
         envs_dir                    = root_dir + "/" + ME.ENVS_FOLDER
         PathUtils().create_path_if_needed(parent_trace, envs_dir)
 
-        my_trace                    = parent_trace.doing("Checking sub environment's name is a str")
-        if not type(name) == str:
-            raise ApodeixiError("Can't create an environment with a name that is not a string",
-                                        data = {'name': str(name), 'type(name)': str(type(name))})
+        self._store._validate_environment_name(parent_trace    = parent_trace, name = name)
 
-        my_trace                    = parent_trace.doing("Checking sub environment's name not blank")
         sub_env_name                = name.strip()
-        if len(sub_env_name) == 0:
-            raise ApodeixiError("Can't create a sub environment with a name that is blank",
-                                        data = {'sub_env_name': str(sub_env_name)})
-
         my_trace                    = parent_trace.doing("Checking sub environment's name is available")
         if sub_env_name in list(_os.listdir(envs_dir)):
-            raise ApodeixiError("Can't create a environment with a name that is already used for another environment",
+            raise ApodeixiError(my_trace, "Can't create a environment with a name that is already used for another environment",
                                         data = {'sub_env_name': str(sub_env_name)})
         if sub_env_name in self._children.keys():
-            raise ApodeixiError("Can't create a sub environment with a name that is already used for another environment",
+            raise ApodeixiError(my_trace, "Can't create a sub environment with a name that is already used for another environment",
                                         data = {'sub_env_name': str(sub_env_name)})
 
         my_trace                    = parent_trace.doing("Creating sub environment's folders",
@@ -146,3 +140,21 @@ class File_KB_Environment(KB_Environment):
                                                             manifests_roodir        = subenv_manifests_rootdir)
 
         self._children[sub_env_name] = sub_env
+
+    def folder_hierarchy(self, parent_trace):
+        '''
+        Returns a FolderHierarchy object that describes the current contents of this environment
+        '''
+        ME                          = File_KB_Environment
+
+        if self == self._store.base_environment(parent_trace):
+            my_dir                      = self._store.base_environment(parent_trace).manifestsURL(parent_trace)
+        else:        
+            root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
+            my_dir                      = root_dir + "/" + ME.ENVS_FOLDER + "/" + self._name
+
+
+        hierarchy                   = FolderHierarchy.build(    parent_trace        = parent_trace, 
+                                                                rootdir             = my_dir, 
+                                                                filter              = None)
+        return hierarchy
