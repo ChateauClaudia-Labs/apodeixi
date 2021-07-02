@@ -4,6 +4,7 @@ from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle
+from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.util.formatting_utils                     import StringUtils
 
 
@@ -83,6 +84,11 @@ class SkeletonController(PostingController):
         if True:            
             label                           = self.getPostingLabel(my_trace)
             label.read(my_trace, posting_label_handle)     
+
+            # If we used a 'TBD' filing coordinates in the posting handle because the 'real' filing coordinates
+            # were not known when the posting was submitted, this is the time to fill out that 'TBD' placeholder
+            if type(posting_label_handle.filing_coords) == TBD_FilingCoordinates:
+                posting_label_handle.filing_coords.inferFilingCoords( my_trace, label)
 
         MY_PL                               = SkeletonController._MyPostingLabel
 
@@ -310,14 +316,7 @@ class SkeletonController(PostingController):
 
             return self._getField(parent_trace, ME._POSTING_VERSION)
 
-        def _getField(self, parent_trace, fieldname):
-            if self.ctx==None:
-                raise ApodeixiError(parent_trace, "PostingLabel's context is not yet initialized, so can't read '" + fieldname + "'")
-            
-            if not fieldname in self.ctx.keys():
-                raise ApodeixiError(parent_trace, "PostingLabel's context does not contain '" + fieldname + "'")
-            
-            return self.ctx[fieldname]
+
 
         def _initialize_show_your_work(self, parent_trace, posting_label_handle):
             '''

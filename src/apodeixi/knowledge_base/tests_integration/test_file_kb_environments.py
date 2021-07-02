@@ -18,7 +18,9 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
 
         ENVIRONMENT_NAME                = TEST_CASE + "_ENV"
 
-
+        POSTING_FULLPATH                = self.input_data + "/" + TEST_CASE + "_big-rocks.journeys.a6i.xlsx" 
+        POSTING_LABEL_SHEET             = "Sheet1"
+                    
         all_manifests_dicts     = []
 
         try:
@@ -32,35 +34,42 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
                                                     data={  'environment_name'    : ENVIRONMENT_NAME},
                                                     origination = { 'signaled_from' : __file__,
                                                                     'concrete class': str(self.__class__.__name__)})
-
             self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME)
 
-            my_trace            = root_trace.doing("Activiting environment '" + ENVIRONMENT_NAME + "'")
+            my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
+            self._assert_current_environment(   parent_trace    = my_trace,
+                                                test_case_name  = ENVIRONMENT_NAME + "_Step_0")
 
-            hierarchy_env       = self.store.current_environment(my_trace).folder_hierarchy(root_trace)
-            # TODO: add some data to environment, maybe calling a controller on some posting
+            my_trace            = root_trace.doing("Making a posting in environment '" + ENVIRONMENT_NAME + "'")
+            self.kb.postByFile(     parent_trace                = my_trace, 
+                                    path_of_file_being_posted   = POSTING_FULLPATH,
+                                    excel_sheet                 = POSTING_LABEL_SHEET)
+            self._assert_current_environment(   parent_trace    = my_trace,
+                                                test_case_name  = ENVIRONMENT_NAME + "_Step_1")
 
-            self._compare_to_expected_yaml( output_dict         = hierarchy_env.to_dict(),
-                                            test_case_name      = ENVIRONMENT_NAME, 
-                                            save_output_dict    = True)
-            my_trace            = root_trace.doing("Deactiviting environment '" + ENVIRONMENT_NAME + "'")
+            my_trace            = root_trace.doing("Deactivating environment '" + ENVIRONMENT_NAME + "'")
             self.store.deactivate(parent_trace = my_trace)
 
-            hierarchy_base      = self.store.current_environment(my_trace).folder_hierarchy(root_trace)
-            # TODO: ensure that we can get hierarchies for the base environment as well, not just the other ones
-
-            self._compare_to_expected_yaml( output_dict         = hierarchy_base.to_dict(),
-                                            test_case_name      = TEST_CASE + "_BASE", 
-                                            save_output_dict    = True)            
+            self._assert_current_environment(   parent_trace    = my_trace,
+                                                test_case_name  = TEST_CASE + "_BASE") 
 
         except ApodeixiError as ex:
             print(ex.trace_message()) 
             self.assertTrue(1==2)
+           
 
-        # TODO - Fail until we complete the test
-        self.assertTrue(1==2)                 
+    def _assert_current_environment(self, parent_trace, test_case_name):     
+        '''
+        Helper method to validate current environment's folder hierarchy is as expected
+        '''
+        hierarchy_env       = self.store.current_environment(parent_trace).folder_hierarchy(parent_trace        = parent_trace,
+                                                                                            include_timestamps  = False)
+        # TODO: add some data to environment, maybe calling a controller on some posting
 
+        self._compare_to_expected_yaml( output_dict         = hierarchy_env.to_dict(),
+                                        test_case_name      = test_case_name, 
+                                        save_output_dict    = True)
                                                                        
 
 if __name__ == "__main__":

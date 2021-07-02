@@ -1,0 +1,19 @@
+test_create_environment_ENV:
+  manifests:
+    my-corp.production:
+      modernization.default.dec-2020.fusionopus:
+        big-rock-estimate.1.yaml: '
+
+          Size (in bytes):  1272
+
+          '
+        big-rock.1.yaml: '
+
+          Size (in bytes):  1426
+
+          '
+        investment.1.yaml: '
+
+          Size (in bytes):  1320
+
+          '

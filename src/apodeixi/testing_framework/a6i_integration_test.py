@@ -24,6 +24,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # So instead we rely on the inspect package
         me__file__                  = inspect.getfile(self.__class__)
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
+        self.input_data             = _os.path.join(_os.path.dirname(me__file__), 'input_data') # Works ! :-) Thanks inspect!
+        # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
         self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
         root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",

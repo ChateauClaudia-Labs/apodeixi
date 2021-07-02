@@ -1,3 +1,5 @@
+from apodeixi.knowledge_base.filing_coordinates                 import TBD_FilingCoordinates
+
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
@@ -21,9 +23,12 @@ class PostingLabelHandle():
 
     def getFullPath(self, parent_trace):
 
-        parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
-        excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
-        return excel_path + "/" + self.excel_filename
+        if type(self.filing_coords) == TBD_FilingCoordinates: # Filing Coords haven't been set yet, so use place holder
+            return self.filing_coords.getFullPath()
+        else:
+            parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
+            excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
+            return excel_path + "/" + self.excel_filename
 
     def buildDataHandle(self, parent_trace, manifest_nb, kind, excel_sheet, excel_range):
         '''
@@ -58,9 +63,12 @@ class PostingDataHandle():
         self.kind                   = kind
 
     def getFullPath(self, parent_trace):
-        parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
-        excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
-        return excel_path + "/" + self.excel_filename
+        if type(self.filing_coords) == TBD_FilingCoordinates: # Filing Coords' tokens don't correspond to the path
+            return self.filing_coords.getFullPath()
+        else:
+            parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
+            excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
+            return excel_path + "/" + self.excel_filename
 
 class ManifestUtils():
     def __init__(self):

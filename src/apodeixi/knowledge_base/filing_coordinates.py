@@ -23,6 +23,14 @@ class FilingCoordinates():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__}) 
 
+    def infer_from_label(self, parent_trace, posting_label):
+        '''
+        In situations where the FilingCoordinates are not known until after the PostingLabel is constructed,
+        this is used to infer the properties of the FilingCoords from the PostingLabel
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'infer_from_label' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__}) 
     def path_tokens(self, parent_trace):
         '''
         Abstract method. Returns a list of strings, corresponding to the path tokens implicit by this FilingCoordinates instance.
@@ -95,6 +103,20 @@ class JourneysFilingCoordinates(FilingCoordinates):
         self.product                = path_tokens[2]
         self.scenario               = path_tokens[3]
         return self
+
+    def infer_from_label(self, parent_trace, posting_label):
+        '''
+        In situations where the FilingCoordinates are not known until after the PostingLabel is constructed,
+        this is used to infer the properties of the FilingCoords from the PostingLabel
+        '''
+        _PRODUCT                    = "product"
+        _SCENARIO                   = "scenario"
+        _SCORING_CYCLE              = "scoringCycle"
+
+        self.scoringCycle           = posting_label._getField(parent_trace, _SCORING_CYCLE)
+        self.product                = posting_label._getField(parent_trace, _PRODUCT)
+        self.scenario               = posting_label._getField(parent_trace, _SCENARIO)
+        return self        
 
     def path_tokens(self, parent_trace):
         '''
@@ -177,9 +199,29 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         if len(path_tokens) == 4:
             self.scenario           = path_tokens[3]
         else:
-            self.scenarion          = None
+            self.scenario           = None
 
         return self
+
+    def infer_from_label(self, parent_trace, posting_label):
+        '''
+        In situations where the FilingCoordinates are not known until after the PostingLabel is constructed,
+        this is used to infer the properties of the FilingCoords from the PostingLabel
+        '''
+        _WORKSTREAM_UID             = "workstreamUID"
+        _SCENARIO                   = "scenario"
+        _SCORING_CYCLE              = "scoringCycle"
+
+        self.scoringCycle           = posting_label._getField(parent_trace, _SCORING_CYCLE)
+        self.workstream_UID         = posting_label._getField(parent_trace, _WORKSTREAM_UID)
+        scenario               = posting_label._getField(parent_trace, _SCENARIO)
+
+        if len(scenario.strip(' ')) == 0:
+            self.scenario           = None
+        else:
+            self.scenario           = scenario
+        
+        return self 
 
     def path_tokens(self, parent_trace):
         '''
@@ -226,3 +268,41 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         output_txt += "\nor \n\t['"+ InitiativesFilingCoordinates.INITIATIVES + "', <scoringCycle>, <workstream_UID>, <scenario>]"
 
         return output_txt
+
+class TBD_FilingCoordinates(FilingCoordinates):
+    '''
+    FilingCoordinates class used temporarily in situations where the real FilingCoordinates class to use
+    is meant to be inferred from the data in a PostingLabel (i.e., it can only be set *after* reading
+    a PostingLabel, not before, so before reading the PostingLabel this "TBD" coordinates are used
+    as a place holder)
+    '''
+    def __init__(self, fullpath, posting_api):
+        super().__init__()
+
+        self._fullpath               = fullpath
+        self._posting_api            = posting_api
+
+        # This will be set later, by the inferFilingCoords methods
+        self._inferred_coords        = None
+        return
+
+    def getFullPath(self):
+        return self._fullpath
+
+    def inferFilingCoords(self, parent_trace, posting_label):
+        '''
+        After a PostingLabel is read with self as the posting handle, we can read from the Posting Label
+        what the "real" FilingCoords should have been, and the caller can use this method to get
+        such "inferred" FilingCoordinates and replace self (a "TBD" FilingCoords) with the "real" one
+        '''
+        my_trace                        = parent_trace.doing("Looking up filing class for given posting API",
+                                                                data = {'posting_api': self._posting_api})               
+        filing_class                    = posting_label.controller.store.getFilingClass(parent_trace, self._posting_api)
+        if filing_class == None:
+            raise ApodeixiError(my_trace, "Can't build filing coordinates from a null filing class")
+        my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
+                                                                + "within the Knowledge Base")
+        filing_coords                   = filing_class().infer_from_label(  parent_trace    = my_trace, 
+                                                                            posting_label   = posting_label)
+        self._inferred_coords           = filing_coords
+

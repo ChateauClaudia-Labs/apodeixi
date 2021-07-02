@@ -141,7 +141,7 @@ class File_KB_Environment(KB_Environment):
 
         self._children[sub_env_name] = sub_env
 
-    def folder_hierarchy(self, parent_trace):
+    def folder_hierarchy(self, parent_trace, include_timestamps = True):
         '''
         Returns a FolderHierarchy object that describes the current contents of this environment
         '''
@@ -156,5 +156,6 @@ class File_KB_Environment(KB_Environment):
 
         hierarchy                   = FolderHierarchy.build(    parent_trace        = parent_trace, 
                                                                 rootdir             = my_dir, 
-                                                                filter              = None)
+                                                                filter              = None,
+                                                                include_timestamps  = include_timestamps)
         return hierarchy

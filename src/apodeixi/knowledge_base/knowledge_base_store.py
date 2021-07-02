@@ -2,6 +2,7 @@ import os                                           as _os
 import yaml                                         as _yaml
 
 from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, PostingLabelHandle
+from apodeixi.knowledge_base.filing_coordinates     import TBD_FilingCoordinates
 from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.a6i_error                        import ApodeixiError
 
@@ -47,18 +48,27 @@ class KnowledgeBaseStore():
         Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 
         the path provided.
         '''
-        kb_postings_url                 = self.getPostingsURL(parent_trace) #self.getStoreURL(parent_trace
-        relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
-                                                                    root_dir        = kb_postings_url,
-                                                                    full_path       = excel_posting_path)
+        kb_postings_url                     = self.getPostingsURL(parent_trace) #self.getStoreURL(parent_trace
+        if PathUtils().is_parent(           parent_trace                = parent_trace,
+                                            parent_dir                  = kb_postings_url, 
+                                            path                        = excel_posting_path):
 
-        posting_api                     = self._filename_2_api(parent_trace, filename)
-                                                   
-        my_trace                        = parent_trace.doing("Building the filing coordinates",
-                                                                data = {"relative_path": str(relative_path)})
-        filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
-                                                                    posting_api         = posting_api, 
-                                                                    relative_path       = relative_path)
+            relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
+                                                                        root_dir        = kb_postings_url,
+                                                                        full_path       = excel_posting_path)
+
+            posting_api                     = self._filename_2_api(parent_trace, filename)
+                                   
+            my_trace                        = parent_trace.doing("Building the filing coordinates",
+                                                                    data = {"relative_path": str(relative_path)})
+            filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
+                                                                        posting_api         = posting_api, 
+                                                                        relative_path       = relative_path)
+        else: # Posting wasn't submitted from the "right" folder, so coordinates will have be inferred later when label is read
+            filename                        = PathUtils().tokenizePath(parent_trace, excel_posting_path)[-1]
+            posting_api                     = self._filename_2_api(parent_trace, filename)
+            filing_coords                   = TBD_FilingCoordinates( fullpath            = excel_posting_path,
+                                                                    posting_api         = posting_api)
 
         # Now build the posting label handle
         posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,
@@ -108,7 +118,7 @@ class KnowledgeBaseStore():
                 posting_api          = api
                 break
         if posting_api == None:
-            raise ApodeixiError(parent_trace, "Filename is not for as API supported by the Knowledge Base store",
+            raise ApodeixiError(parent_trace, "Filename is not for an API supported by the Knowledge Base store",
                                             data    = {    'filename':             filename,
                                                             'supported apis':       str(supported_apis)})
         return posting_api

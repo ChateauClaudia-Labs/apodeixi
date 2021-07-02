@@ -607,6 +607,15 @@ class PostingLabel():
 
         return appearances_in_label, sightings
 
+    def _getField(self, parent_trace, fieldname):
+        if self.ctx==None:
+            raise ApodeixiError(parent_trace, "PostingLabel's context is not yet initialized, so can't read '" + fieldname + "'")
+        
+        if not fieldname in self.ctx.keys():
+            raise ApodeixiError(parent_trace, "PostingLabel's context does not contain '" + fieldname + "'")
+        
+        return self.ctx[fieldname]
+
 class PostingConfig():
     '''
     Helper class serving as a container for various configurations settings impacting how a BreakdownTree is to be

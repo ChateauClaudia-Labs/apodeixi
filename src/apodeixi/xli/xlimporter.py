@@ -159,8 +159,15 @@ class ExcelTableReader:
             else:
                 raise ApodeixiError(my_trace, "Found an error while reading the Excel file",
                                                 data = {'error':    error_msg})
-
-
+        except FileNotFoundError as ex:
+            error_msg           = str(ex)
+            if error_msg.startswith("Worksheet named '") and error_msg.endswith("' not found"):
+                raise ApodeixiError(my_trace, "Is your Posting Label right in the Excel spreadsheet? Got this error:"
+                                                + "\n\n" + error_msg)
+            else:
+                raise ApodeixiError(my_trace, "Found an error while reading the Excel file",
+                                                data = {'error':    error_msg})
+                                                
         my_trace                = parent_trace.doing("Validating data loaded from Excel is not empty")
         if len(df.columns)==0:
             raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 

@@ -25,7 +25,10 @@ class Test_FolderHierarchy(ApodeixiUnitTest):
             def filter(filename):
                 return not filename.endswith(".pyc")
 
-            hierarchy                       = FolderHierarchy.build(root_trace, ROOT_DIR, filter = filter)
+            hierarchy                       = FolderHierarchy.build(parent_trace        = root_trace, 
+                                                                    rootdir             = ROOT_DIR, 
+                                                                    filter              = filter,
+                                                                    include_timestamps  = False)
 
             self._compare_to_expected_yaml( output_dict         = hierarchy.to_dict(),
                                             test_case_name      = TEST_SCENARIO, 

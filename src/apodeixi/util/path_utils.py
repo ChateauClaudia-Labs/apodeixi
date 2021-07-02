@@ -1,5 +1,6 @@
 import os                                           as _os
 from pathlib                                        import Path
+import time                                         as _time
 
 import traceback                                    as _traceback
 from io                                             import StringIO
@@ -132,14 +133,43 @@ class PathUtils():
 class FileMetadata():
     '''
     Helper class to encapsulates properties about a file (notably, its filename) that should be 
-    collected when building a FolderHierarhcy
+    collected when building a FolderHierarchy
+
+    @param filename A string, corresponding to the name of the file (without any parent directories)
+
+    @param file_size An int, corresponding to the number of bytes that the file uses
+
+    @param created_on A float, corresponding to the number of seconds from the start of the epoch
+                (in most systems, January 1, 1970 00:00:00 UTC) to the moment the file was created. 
+                May be set to None if the datum is not of interest.
+
+    @param last_accessed_on A float, corresponding to the number of seconds from the start of the epoch
+                (in most systems, January 1, 1970 00:00:00 UTC) to the moment the file was last accessed.
+                May be set to None if the datum is not of interest.
+
+    @param last_modified_on A float, corresponding to the number of seconds from the start of the epoch
+                (in most systems, January 1, 1970 00:00:00 UTC) to the moment the file was last modified.
+                May be set to None if the datum is not of interest.
+
     '''
-    def __init__(self, filename):
+    def __init__(self, filename, file_size, created_on, last_accessed_on, last_modified_on):
         self.filename               = filename
+        self.file_size              = file_size
+        self.created_on             = created_on
+        self.last_accessed_on       = last_accessed_on
+        self.last_modified_on       = last_modified_on
 
     def __str__(self):
-        #return str(self.filename)
-        return ""
+        msg     = "\nSize (in bytes):  "   + str(self.file_size)
+        if self.created_on != None:
+            msg     += "\nCreated on:       "   + _time.asctime(_time.localtime(self.created_on))
+        if self.last_modified_on != None:
+            msg     += "\nLast modified on: "   + _time.asctime(_time.localtime(self.last_modified_on))
+        if self.last_accessed_on != None:
+            msg     += "\nLast accessed on: "   + _time.asctime(_time.localtime(self.last_accessed_on))
+       
+        msg += "\n"
+        return msg
 
 class FolderHierarchy():
     '''
@@ -159,7 +189,7 @@ class FolderHierarchy():
     def __init__(self, hierarchy_dict):
         self.hierarchy_dict                 = hierarchy_dict
 
-    def build(parent_trace, rootdir, filter=None):
+    def build(parent_trace, rootdir, filter=None, include_timestamps=True):
         '''
         Constructs and returns a new FolderHierarchy structure.
 
@@ -184,8 +214,22 @@ class FolderHierarchy():
                         relative_path           = PathUtils().relativize(loop_trace, path_to_parent, currentdir)
                         branch_tokens           = PathUtils().tokenizePath(loop_trace, relative_path[0] + "/" + a_file)
                         
-                        file_meta                   = FileMetadata(a_file)
-                        inner_trace                 = loop_trace.doing("Adding value to dict",
+                        full_path               = currentdir + "/" + a_file
+                        if include_timestamps:
+                            creation_time           = _os.path.getctime(full_path)
+                            access_time             = _os.path.getatime(full_path)
+                            modification_time       = _os.path.getmtime(full_path)
+                        else:
+                            creation_time           = None
+                            access_time             = None
+                            modification_time       = None
+                        file_size               = _os.path.getsize(full_path)
+                        file_meta               = FileMetadata(     filename                = a_file, 
+                                                                    file_size               = file_size, 
+                                                                    created_on              = creation_time, 
+                                                                    last_accessed_on        = access_time, 
+                                                                    last_modified_on        = modification_time)
+                        inner_trace              = loop_trace.doing("Adding value to dict",
                                                             data = {"path_list": str(branch_tokens),
                                                                         "val": str(file_meta)},
                                                             origination = {'signaled_from': __file__})

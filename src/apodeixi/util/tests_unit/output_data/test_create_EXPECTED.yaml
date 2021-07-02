@@ -1,51 +1,231 @@
 util:
-  __init__.py: ''
-  a6i_error.py: ''
-  apodeixi_config.py: ''
-  dataframe_utils.py: ''
-  dictionary_utils.py: ''
-  excel_writer_utils.py: ''
-  formatting_utils.py: ''
-  list_utils.py: ''
-  path_utils.py: ''
+  __init__.py: '
+
+    Size (in bytes):  0
+
+    '
+  a6i_error.py: '
+
+    Size (in bytes):  10033
+
+    '
+  apodeixi_config.py: '
+
+    Size (in bytes):  12897
+
+    '
+  dataframe_utils.py: '
+
+    Size (in bytes):  14247
+
+    '
+  dictionary_utils.py: '
+
+    Size (in bytes):  15670
+
+    '
+  excel_writer_utils.py: '
+
+    Size (in bytes):  1369
+
+    '
+  formatting_utils.py: '
+
+    Size (in bytes):  13769
+
+    '
+  list_utils.py: '
+
+    Size (in bytes):  9349
+
+    '
+  path_utils.py: '
+
+    Size (in bytes):  14300
+
+    '
   tests_unit:
-    __init__.py: ''
+    __init__.py: '
+
+      Size (in bytes):  0
+
+      '
     input_data:
       .ipynb_checkpoints:
-        test_notebook_run_INPUT-checkpoint.ipynb: ''
-      test_compare_dataframes_df1_INPUT.csv: ''
-      test_compare_dataframes_df2_INPUT.csv: ''
-      test_notebook_run_INPUT.ipynb: ''
-      test_path_utils_INPUT.txt: ''
+        test_notebook_run_INPUT-checkpoint.ipynb: '
+
+          Size (in bytes):  3035
+
+          '
+      test_compare_dataframes_df1_INPUT.csv: '
+
+        Size (in bytes):  1097
+
+        '
+      test_compare_dataframes_df2_INPUT.csv: '
+
+        Size (in bytes):  1044
+
+        '
+      test_notebook_run_INPUT.ipynb: '
+
+        Size (in bytes):  3169
+
+        '
+      test_path_utils_INPUT.txt: '
+
+        Size (in bytes):  0
+
+        '
     output_data:
-      a6i_error_EXPECTED.txt: ''
-      a6i_error_OUTPUT.txt: ''
-      functional_trace_EXPECTED.txt: ''
-      functional_trace_OUTPUT.txt: ''
+      a6i_error_EXPECTED.txt: '
+
+        Size (in bytes):  376
+
+        '
+      a6i_error_OUTPUT.txt: '
+
+        Size (in bytes):  376
+
+        '
+      functional_trace_EXPECTED.txt: '
+
+        Size (in bytes):  667
+
+        '
+      functional_trace_OUTPUT.txt: '
+
+        Size (in bytes):  667
+
+        '
       notebooks:
-        test_notebook_run_executed_notebook.ipynb: ''
-      test_a6i_config_EXPECTED.txt: ''
-      test_a6i_config_OUTPUT.txt: ''
-      test_compare_dataframes_comparison_EXPECTED.txt: ''
-      test_compare_dataframes_comparison_OUTPUT.txt: ''
-      test_create_EXPECTED.yaml: ''
-      test_create_OUTPUT.yaml: ''
-      test_fy_quarter_EXPECTED.txt: ''
-      test_fy_quarter_OUTPUT.txt: ''
-      test_get_products_EXPECTED.txt: ''
-      test_get_products_OUTPUT.txt: ''
-      test_merge_lists_EXPECTED.txt: ''
-      test_merge_lists_OUTPUT.txt: ''
-      test_notebook_run_EXPECTED.yaml: ''
-      test_notebook_run_OUTPUT.yaml: ''
-      test_path_utils_EXPECTED.txt: ''
-      test_path_utils_OUTPUT.txt: ''
-    test_a6i_error.py: ''
-    test_apodeixi_config.py: ''
-    test_dataframe_utils.py: ''
-    test_folder_hierarchy.py: ''
-    test_formatting_utils.py: ''
-    test_list_utils.py: ''
-    test_path_utils.py: ''
-    test_time_buckets.py: ''
-  time_buckets.py: ''
+        test_notebook_run_executed_notebook.ipynb: '
+
+          Size (in bytes):  4012
+
+          '
+      test_a6i_config_EXPECTED.txt: '
+
+        Size (in bytes):  2067
+
+        '
+      test_a6i_config_OUTPUT.txt: '
+
+        Size (in bytes):  2067
+
+        '
+      test_compare_dataframes_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  960
+
+        '
+      test_compare_dataframes_comparison_OUTPUT.txt: '
+
+        Size (in bytes):  960
+
+        '
+      test_create_EXPECTED.yaml: '
+
+        Size (in bytes):  3657
+
+        '
+      test_create_OUTPUT.yaml: '
+
+        Size (in bytes):  3657
+
+        '
+      test_fy_quarter_EXPECTED.txt: '
+
+        Size (in bytes):  2193
+
+        '
+      test_fy_quarter_OUTPUT.txt: '
+
+        Size (in bytes):  2193
+
+        '
+      test_get_products_EXPECTED.txt: '
+
+        Size (in bytes):  1871
+
+        '
+      test_get_products_OUTPUT.txt: '
+
+        Size (in bytes):  1871
+
+        '
+      test_merge_lists_EXPECTED.txt: '
+
+        Size (in bytes):  461
+
+        '
+      test_merge_lists_OUTPUT.txt: '
+
+        Size (in bytes):  461
+
+        '
+      test_notebook_run_EXPECTED.yaml: '
+
+        Size (in bytes):  3359
+
+        '
+      test_notebook_run_OUTPUT.yaml: '
+
+        Size (in bytes):  3359
+
+        '
+      test_path_utils_EXPECTED.txt: '
+
+        Size (in bytes):  906
+
+        '
+      test_path_utils_OUTPUT.txt: '
+
+        Size (in bytes):  906
+
+        '
+    test_a6i_error.py: '
+
+      Size (in bytes):  2857
+
+      '
+    test_apodeixi_config.py: '
+
+      Size (in bytes):  2991
+
+      '
+    test_dataframe_utils.py: '
+
+      Size (in bytes):  4074
+
+      '
+    test_folder_hierarchy.py: '
+
+      Size (in bytes):  2201
+
+      '
+    test_formatting_utils.py: '
+
+      Size (in bytes):  4631
+
+      '
+    test_list_utils.py: '
+
+      Size (in bytes):  3453
+
+      '
+    test_path_utils.py: '
+
+      Size (in bytes):  5875
+
+      '
+    test_time_buckets.py: '
+
+      Size (in bytes):  4969
+
+      '
+  time_buckets.py: '
+
+    Size (in bytes):  5197
+
+    '
