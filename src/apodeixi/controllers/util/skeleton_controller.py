@@ -41,6 +41,10 @@ class SkeletonController(PostingController):
             self.store.persistManifest(root_trace, manifest_dict)
             response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict)
 
+        my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
+                                                            + "creating manifests",
+                                                            data = {"excel_filename": excel_filename})
+        self.store.archivePosting(my_trace, posting_label_handle)
         # TODO - Finish the remaining phases of the controller, after creating the manifests. Namely:
         # TODO  1. Move the Excel spreadsheet to a "prior" area
         # TODO  2. Generate the Excel spreadsheet that can be used for updates. This probably must be in the derived controller class

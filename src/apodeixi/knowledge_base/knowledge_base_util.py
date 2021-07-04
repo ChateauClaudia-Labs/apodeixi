@@ -18,6 +18,16 @@ class PostingLabelHandle():
         self.filing_coords          = filing_coords 
         self.kb_postings_url        = kb_postings_url 
 
+    def copy(self, parent_trace):
+        new_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
+                                                posting_api         = self.posting_api, 
+                                                kb_postings_url     = self.kb_postings_url, 
+                                                filing_coords       = self.filing_coords, 
+                                                excel_filename      = self.excel_filename, 
+                                                excel_sheet         = self.excel_sheet, 
+                                                excel_range         = self.excel_range)
+        return new_handle                                              
+        
     def getPostingAPI(self, parent_trace):
         return self.posting_api
 

@@ -4,6 +4,7 @@ from apodeixi.testing_framework.a6i_integration_test            import ApodeixiI
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                             import DictionaryFormatter 
 
+from apodeixi.knowledge_base.kb_environment                     import KB_Environment_Config
 from apodeixi.insights.initiatives.workstream_aggregator        import WorkstreamAggregator
 
 class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
@@ -15,15 +16,28 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
         TEST_NAME                       = 'test_workstream_aggregator'
         INITIATIVE                      = 'S1'
-
+        ENVIRONMENT_NAME                = TEST_NAME + "_ENV"
         try:
             root_trace                  = FunctionalTrace(None).doing("Testing Workstream Aggregators")
 
-            aggregator                  = WorkstreamAggregator(         parent_trace                = root_trace,
+            my_trace                    = root_trace.doing("Removing previously created environment, if any",
+                                                        data = {'environment name': ENVIRONMENT_NAME})
+            stat                        = self.store.removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
+
+            my_trace                    = root_trace.doing("Creating a sub-environment to do postings in")
+            env_config                  = KB_Environment_Config(
+                                                root_trace, 
+                                                read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                                use_timestamps      = False)
+            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
+            self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
+
+            my_trace                    = root_trace.doing("Running WorkstreamAggregator")
+            aggregator                  = WorkstreamAggregator(         parent_trace                = my_trace,
                                                                         initiative_UID              = INITIATIVE, 
                                                                         knowledge_base              = self.kb)
 
-            result_df, errors           = aggregator.aggregateMetrics(  parent_trace                = root_trace, 
+            result_df, errors           = aggregator.aggregateMetrics(  parent_trace                = my_trace, 
                                                                         filing_coordinates_filter   = None, 
                                                                         posting_version_filter      = None)
 

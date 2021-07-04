@@ -1,3 +1,5 @@
+import datetime                                         as _datetime
+import apodeixi.knowledge_base.knowledge_base_util      as kb_util
 from apodeixi.util.a6i_error                            import ApodeixiError
 
 class FilingCoordinates():
@@ -306,3 +308,88 @@ class TBD_FilingCoordinates(FilingCoordinates):
                                                                             posting_label   = posting_label)
         self._inferred_coords           = filing_coords
 
+    def path_tokens(self, parent_trace):
+        '''
+        Returns a list of strings, corresponding to the path tokens implicit by this FilingCoordinates instance.
+        '''
+        if self._inferred_coords != None:
+            return self._inferred_coords.path_tokens(parent_trace)
+        else:
+            raise ApodeixiError(parent_trace, "Path tokens are not available because coordinate haven't yet been inferred",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__}) 
+
+class ArchiveFilingCoordinates(FilingCoordinates):
+    '''
+    Helper class to hold the properties that are used to organize archived Excel postings in a KnowledgeBaseStore. 
+
+    It wraps the original FilingCoordinates object that was used to post the Excel posting, adding additional
+    coordinates. In effect, this means archived filing structures are a sub-structure of the original 
+    posting structure. Additionally, the archival coordinates are unique to a posting event. For example,
+    repeately posting the same Excel file would result in different archived coordinates even if the
+    original posting's coordinates are the same.
+
+    In "file system" language, the equivalent way to say the above is: the archived file resides in a folder
+    dedicated to the posting event as a subfolder of some subfolder of the folder containing the original posting.
+
+    @param posting_label_handle A PostingLabelHandle object that uniquely identifies the submitted posting that 
+                    we are supposed to archive. 
+    '''
+    def __init__(self, parent_trace, posting_label_handle, use_timestamps):
+        super().__init__()
+        
+        if posting_label_handle == None or type(posting_label_handle) != kb_util.PostingLabelHandle:
+            raise ApodeixiError(parent_trace, "Need the submitted posting's PostingLabelHandle in order to archive" 
+                                                + " posting, but instead got a '" + str(type(posting_label_handle)) + "'")
+        original_coords                  = posting_label_handle.filing_coords
+        
+        if original_coords == None or not issubclass(type(original_coords), FilingCoordinates):
+            raise ApodeixiError(parent_trace, "Need the submitted posting's FilingCoordinates in order to archive" 
+                                                + " posting, but instead got a '" + str(type(original_coords)) + "'")
+
+        self.original_coords        = original_coords
+
+        dt                          = _datetime.datetime.today()
+        # This will look like '210703.102746 Posting' for a posting done on the 3rd of July of 2021 at 10:27 am (and 46 sec)
+        # Intention is for this folder name to be unique for this posting event, even if other postings (for the same
+        # or different Excel files) happen the same day with the same filing coords
+        if use_timestamps:
+            self.archive_folder         = dt.strftime("%y%m%d.%H%M%S") + " Posting"
+        else:
+            self.archive_folder         = "(Timestamp omitted)" + " Posting"
+        return
+
+    ARCHIVED_POSTINGS               = "_ARCHIVE"
+
+
+    def path_tokens(self, parent_trace):
+        '''
+        Returns a list of strings, corresponding to the path tokens implicit by this FilingCoordinates instance.
+        '''
+        ME                          = ArchiveFilingCoordinates
+        original_tokens             = self.original_coords.path_tokens(parent_trace)
+        archival_tokens             = original_tokens.copy()
+        archival_tokens.extend([ME.ARCHIVED_POSTINGS, self.archive_folder])
+
+        return archival_tokens
+
+    def to_dict(self, parent_trace):
+        '''
+        Returns a dictionary representation of self built only from scalars. Useful to display in test output files.
+        '''
+        original_dict                       = self.original_coords.to_dict(parent_trace)
+        archival_dict                       = original_dict.copy()
+        archival_dict["archive_folder"]     = self.archive_folder
+
+        return archival_dict
+
+    def __format__(self, format_spec):
+        msg     = self.original_coords.__format(format_spec)
+        msg     += "archive_folder: "      + str(self.archive_folder) 
+
+        return msg
+
+    def __str__(self):
+        msg     = self.original_coords.__str__()
+        msg     += "." + str(self.archive_folder)
+        return msg

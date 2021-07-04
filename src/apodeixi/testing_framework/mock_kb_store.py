@@ -122,7 +122,13 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         if len(matching_filenames) == 0:
             return None
         # By now we know there is exaclty one match - that must be the manifest we are after
-        return matching_manifests[0]
+
+        manifest_filename                   = matching_filenames[0]
+        if manifest_filename in output_filenames:
+            manifest_path                   = self.output_manifests_dir + "/" + manifest_filename
+        else:
+            manifest_path                   = self.input_manifests_dir + "/" + manifest_filename
+        return matching_manifests[0], manifest_path
 
 
 
@@ -165,6 +171,14 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
                 matching_manifests.append(manifest_dict)
 
         return matching_manifests, matching_filenames
+
+    def archivePosting(self, parent_trace, posting_label_handle):
+        '''
+        Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
+        to this posting event and returns a FilingCoordinates object to identify that folder.       
+        '''
+        return None # No-op for this store class
+
 
     def _getFilenames(self, parent_trace, folder):
         '''

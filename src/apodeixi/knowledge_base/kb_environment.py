@@ -4,6 +4,37 @@ import os                                               as _os
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils, FolderHierarchy
 
+class KB_Environment_Config():
+    '''
+    Configuration class used by the KB_Environment to hold some settings affecting environment
+    functionality
+
+    @param read_misses_policy A string determining how to handle I/O situations when a piece of data
+            does not exist in the current environment. Possibilities are:
+            * 'FAILOVER_READS_TO_PARENT': Causes the store to search for the missing information in the parent
+                environment, and if found, it will be copied to the current environment
+            * 'FAIL_ON_READ_MISSES': Causes the store to fail when the datum is not found. Exact failure 
+                semantics depends on each I/O service. For example, some may raise an ApodeixiError while
+                others might return  None. Refer to the documentation of each I/O read method.
+    @param use_timestamps A boolean. If True (the default), then all "observability" records, such as
+                logs and archival folder names, will include a timestamp. If False, such timestamp
+                information is omitted. A typical use case for setting this to False is regression testing,
+                to ensure that the output data is always the same.
+    '''
+    def __init__(self, parent_trace, read_misses_policy, use_timestamps=True):
+        ME                                  = KB_Environment_Config
+        if not read_misses_policy in ME.READ_MISSES_POLICIES:
+            raise ApodeixiError(parent_trace, "The read misses policy that was provided is not supported",
+                                data = {"read_misses_policy": str(read_misses_policy),
+                                        "supported policies": str(READ_MISSES_POLICIES)})
+
+        self.read_misses_policy             = read_misses_policy
+        self.use_timestamps                 = use_timestamps
+
+    FAILOVER_READS_TO_PARENT                = 'FAILOVER_READS_TO_PARENT'
+    FAIL_ON_READ_MISSES                     = 'FAIL_ON_READ_MISSES'
+    READ_MISSES_POLICIES = [FAILOVER_READS_TO_PARENT, FAIL_ON_READ_MISSES]
+
 class KB_Environment():
     '''
     Abstract class.
@@ -37,8 +68,16 @@ class KB_Environment():
     and are part of "doubly linked list": each node points to its parent, and also each node has a dictionary
     of its children, whose keys are the names (of type str) of the child environments.
     '''
-    def __init__(self, parent_trace, name, store, parent_environment):
+    def __init__(self, parent_trace, name, store, parent_environment, config):
+
+        if not type(config)==KB_Environment_Config:
+            raise ApodeixiError(parent_trace, "Unsupported config provided when creating environment",
+                                                data = {"config type expected":         str(KB_Environment_Config),
+                                                        "config type provided":         str(type(config)),
+                                                        "environment name":             str(name)})
+
         self._parent_environment             = parent_environment
+        self._config                         = config
         self._store                          = store
         self._name                           = name
         self._children                       = {}
@@ -64,14 +103,21 @@ class KB_Environment():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def name(self, parent_trace):
+        return self._name
+
+    def config(self, parent_trace):
+        return self._config
+
 class File_KB_Environment(KB_Environment):
     '''
     '''
-    def __init__(self, parent_trace, name, store, parent_environment, postings_rootdir, manifests_roodir):
+    def __init__(self, parent_trace, name, store, parent_environment, config, postings_rootdir, manifests_roodir):
         super().__init__(   parent_trace            = parent_trace, 
                             name                    = name, 
                             store                   = store, 
-                            parent_environment      = parent_environment)
+                            parent_environment      = parent_environment,
+                            config                  = config)
 
         self._postings_rootdir                      = postings_rootdir
         self._manifests_roodir                      = manifests_roodir
@@ -105,7 +151,14 @@ class File_KB_Environment(KB_Environment):
         # If we get this far it means we never found it
         return False
 
-    def addSubEnvironment(self, parent_trace, name):
+    def addSubEnvironment(self, parent_trace, name, env_config):
+        '''
+        Creates a new File_KB_Environment with name `name` and using self as the parent environment.
+
+        @param name A string, used as the unique name of this environment among all environments in the store
+        @param env_config A KB_Environment_Config object that will be set as the configuration of the newly
+                    created sub-environment
+        '''
         ME                          = File_KB_Environment
 
         root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
@@ -136,6 +189,7 @@ class File_KB_Environment(KB_Environment):
                                                             name                    = sub_env_name, 
                                                             store                   = self._store, 
                                                             parent_environment      = self,
+                                                            config                  = env_config,
                                                             postings_rootdir        = subenv_postings_rootdir,
                                                             manifests_roodir        = subenv_manifests_rootdir)
 

@@ -27,6 +27,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 
     def _locate_product_postings(self, posting_api, test_name):
         coords_txt                          = ''
+        
         try:
             root_trace                      = FunctionalTrace(None).doing("Testing File Knowledge Base::locate product postings")
 

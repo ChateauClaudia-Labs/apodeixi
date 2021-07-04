@@ -48,7 +48,7 @@ class KnowledgeBaseStore():
         Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 
         the path provided.
         '''
-        kb_postings_url                     = self.getPostingsURL(parent_trace) #self.getStoreURL(parent_trace
+        kb_postings_url                     = self.getPostingsURL(parent_trace)
         if PathUtils().is_parent(           parent_trace                = parent_trace,
                                             parent_dir                  = kb_postings_url, 
                                             path                        = excel_posting_path):
@@ -159,7 +159,12 @@ class KnowledgeBaseStore():
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
-        Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.
+        Returns a dict and a string.
+        
+        The dict represents the unique manifest in the store that is identified by the `manifest handle`.
+
+        The string represents the full path for the manifest.
+
         If none exists, it returns None.
 
         @param manifest_handle A ManifestHandle instance that uniquely identifies the manifest we seek to retrieve.
@@ -194,6 +199,25 @@ class KnowledgeBaseStore():
                                                                                 'signaled_from': __file__})
 
 
+    def archivePosting(self, parent_trace, posting_label_handle):
+        '''
+        Abstract methods.
 
+        Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
+        to this posting event and returns a FilingCoordinates object to identify that folder.       
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'archivePosting' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+        
+    def logPostEvent(self, parent_trace, controller_response):
+        '''
+        Abstract methods.
+
+        Used to record in the store information about a posting event that has been completed.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'logPostEvent' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
         
  

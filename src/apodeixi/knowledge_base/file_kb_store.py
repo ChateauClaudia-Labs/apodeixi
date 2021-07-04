@@ -3,8 +3,10 @@ import shutil                                           as _shutil
 import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
-from apodeixi.knowledge_base.kb_environment             import File_KB_Environment
-from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, InitiativesFilingCoordinates
+from apodeixi.knowledge_base.kb_environment             import File_KB_Environment, KB_Environment_Config
+from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, \
+                                                                InitiativesFilingCoordinates, \
+                                                                ArchiveFilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
@@ -20,10 +22,15 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         _BASE_ENVIRONMENT           = '_BASE_ENVIRONMENT'
         root_trace                  = FunctionalTrace(None).doing("Creating KB's store's base environment")
+        env_config                  = KB_Environment_Config(
+                                            root_trace, 
+                                            read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                            use_timestamps      = True)
         self._base_env              = File_KB_Environment(parent_trace            = root_trace, 
                                                                     name                    = _BASE_ENVIRONMENT, 
                                                                     store                   = self, 
                                                                     parent_environment      = None,
+                                                                    config                  = env_config,
                                                                     postings_rootdir        = postings_rootdir,
                                                                     manifests_roodir        = manifests_roodir)  
           
@@ -37,6 +44,22 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             'charter.initiatives.a6i':                              InitiativesFilingCoordinates, 
             
         }
+
+    def _failover_reads_to_parent(self, parent_trace):
+        '''
+        Returns a boolean to determine if parent environment should be used to retrieve data that is not
+        present in the current environment.
+
+        It is used by the I/O read services of the store whenever a read operation results in a "miss": if the
+        current environment lacks the data in question, the I/O read service will search in the parent 
+        environment and, if it finds it, will copy it to the current environment. 
+        '''
+        if self._current_env._parent_environment == None: # Can't failover to a non-existent parent
+            return False
+        if self._current_env._config.read_misses_policy == KB_Environment_Config.FAILOVER_READS_TO_PARENT:
+            return True
+        else:
+            return False
 
     def supported_apis(self, parent_trace):
         '''
@@ -64,6 +87,9 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
     def current_environment(self, parent_trace):
         return self._current_env
 
+    def parent_environment(self, parent_trace):
+        return self._current_env._parent_environment
+
     def base_environment(self, parent_trace):
         return self._base_env
 
@@ -81,9 +107,10 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         self._validate_environment_name(parent_trace    = parent_trace, name = name)
 
         sub_env_name                = name.strip()
+        dir_to_remove               = envs_dir + "/" + sub_env_name
         try:
-            if _os.path.isdir(envs_dir):
-                _shutil.rmtree(envs_dir)
+            if _os.path.isdir(dir_to_remove):
+                _shutil.rmtree(dir_to_remove)
             else:
                 return -1
         except Exception as ex:
@@ -125,6 +152,23 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         '''
         self._current_env               = self._base_env
 
+    def _copy_posting(self, parent_trace, from_handle, to_environment, overwrite=False):
+        src_path                        = from_handle.getFullPath(parent_trace)
+
+        to_handle                       = from_handle.copy(parent_trace)
+        to_handle.kb_postings_url       = self.current_environment(parent_trace).postingsURL(parent_trace)
+        to_path                         = to_handle.getFullPath(parent_trace)
+        to_dir                          = _os.path.dirname(to_path)
+
+        if not _os.path.exists(to_path) or overwrite == True:
+            my_trace                    = parent_trace.doing("Copying a posting file",
+                                            data = {"src_path":     src_path,
+                                                    "to_dir":       to_dir})
+            PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
+            _shutil.copy2(src = src_path, dst = to_dir)
+
+
+
     def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
@@ -144,15 +188,46 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
                             If set to None then no filtering is done.n.
         '''
         ME                          = File_KnowledgeBaseStore
+
+        if self._failover_reads_to_parent(parent_trace):
+            # Search in parent first, and copy anything found to the current environment
+
+            my_trace                = parent_trace.doing("Searching in parent environment")
+            # Temporarily switch to the environment in which to search
+            original_env            = self.current_environment(my_trace)
+            self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
+            parent_handles          = self.searchPostings(
+                                                my_trace,
+                                                posting_api                 = posting_api,
+                                                filing_coordinates_filter   = filing_coordinates_filter,
+                                                posting_version_filter      = posting_version_filter)
+            # Now that search in parent environment is done, reset back to original environment
+            self.activate(my_trace, original_env.name(my_trace))
+
+            # Populate current environment with anything found in the parent environment, but only if it is not
+            # already in current environment
+            my_trace                = parent_trace.doing("Copying postings from parent environment",
+                                                data = {"parent environment name":  
+                                                                    self.parent_environment(my_trace).name(my_trace),
+                                                        "current environment name":     
+                                                                    self.current_environment(my_trace).name(my_trace)})
+            for handle in parent_handles:
+                self._copy_posting(my_trace,    from_handle         = handle, 
+                                                to_environment      = self.current_environment(my_trace),
+                                                overwrite           = False)
+
         # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
         if posting_version_filter != None:
             raise ApodeixiError(parent_trace, "Apologies, but filtering postings by version is not yet implemented in "
                                                 + "File_KnowledgeBaseStore. Aborting the effort to searchPostings.")
 
-        my_trace                    = parent_trace.doing("Scanning existing filing coordinates")
+
+        my_trace                    = parent_trace.doing("Scanning existing filing coordinates",
+                                                data = {"environment":  
+                                                        self.current_environment(parent_trace).name(parent_trace)})
         if True:
             scanned_handles         = []
-            for currentdir, dirs, files in _os.walk(self._current_env.postingsURL(my_trace)):
+            for currentdir, dirs, files in _os.walk(self.current_environment(my_trace).postingsURL(my_trace)):
                 #for subdir in dirs:
                 for a_file in files:
                     if a_file.startswith("~"):
@@ -201,8 +276,14 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
-        Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.
-        If none exists, it returns None.
+        Returns a dict and a string.
+        
+        The dict represents the unique manifest in the store that is identified by the `manifest handle`.
+        
+        The string represents the full pathname for the manifest.
+
+        If none exists, it returns None. That said, before giving up and returning None, based on the environment
+        configuration this method will attempt to find the manifest in the parent environment.
 
         @param manifest_handle A ManifestHandle instance that uniquely identifies the manifest we seek to retrieve.
         '''
@@ -226,9 +307,38 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
                                                         'concrete class': str(self.__class__.__name__), 
                                                         'signaled_from': __file__})
         if len(matching_filenames) == 0:
-            return None
+            # Not found, so normally we should return None. But before giving up, look in parent environment
+            # if we have been configured to fail over the parent environment whenver we can't find something
+            if self._failover_reads_to_parent(parent_trace):
+                # Search in parent first, and copy anything found to the current environment
+
+                my_trace                = parent_trace.doing("Searching in parent environment")
+                # Temporarily switch to the parent environment, and try again
+                original_env            = self.current_environment(my_trace)
+                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
+
+                manifest, manifest_path = self.retrieveManifest(parent_trace, manifest_handle)
+                # Now that search in parent environment is done, reset back to original environment
+                self.activate(my_trace, original_env.name(my_trace))
+
+                # Populate current environment with anything found in the parent environment, but only if it is not
+                # already in current environment
+                if manifest != None:
+                    my_trace            = parent_trace.doing("Copying manifest from parent environment",
+                                                    data = {"parent environment name":  
+                                                                        self.parent_environment(my_trace).name(my_trace),
+                                                            "current environment name":     
+                                                                        self.current_environment(my_trace).name(my_trace)})
+                self._copy_posting(my_trace,    from_handle         = handle, 
+                                                to_environment      = self.current_environment(my_trace),
+                                                overwrite           = False)
+            else:
+                return None
         # By now we know there is exaclty one match - that must be the manifest we are after
-        return matching_manifests[0]
+
+        manifest_path                   = folder + "/" + matching_filenames[0]
+        return matching_manifests[0], manifest_path
+
 
     def _getMatchingManifests(self, parent_trace, folder, manifest_handle):
         '''
@@ -275,5 +385,35 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         return matches
 
+    def archivePosting(self, parent_trace, posting_label_handle):
+        '''
+        Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
+        to this posting event and returns a FilingCoordinates object to identify that folder.       
+        '''
+        submitted_posting_path              = posting_label_handle.getFullPath(parent_trace)
+        submitted_posting_coords            = posting_label_handle.filing_coords
+        filename                            = posting_label_handle.excel_filename
+
+        env_config                          = self.current_environment(parent_trace).config(parent_trace)
+        archival_folder_coords              = ArchiveFilingCoordinates(
+                                                            parent_trace            = parent_trace, 
+                                                            posting_label_handle    = posting_label_handle,
+                                                            use_timestamps          = env_config.use_timestamps)
+
+        archival_folder_path_tokens         = archival_folder_coords.path_tokens(parent_trace)
+        archival_folder_path                = posting_label_handle.kb_postings_url +  '/' + '/'.join(archival_folder_path_tokens)
+
+        PathUtils().create_path_if_needed(parent_trace, archival_folder_path)
+
+        if PathUtils().is_parent(           parent_trace                = parent_trace,
+                                            parent_dir                  = self.getPostingsURL(parent_trace), 
+                                            path                        = submitted_posting_path):
+            # In this case the posting was submitted in the current environment, so move it
+            _os.rename(src = submitted_posting_path, dst = archival_folder_path + "/" + filename)
+        else:
+            # In this case the posting was submitted from outside the current environment, so archive it but don't move it
+            _shutil.copy2(src = submitted_posting_path, dst = archival_folder_path)
+        
+        return archival_folder_coords
 
 

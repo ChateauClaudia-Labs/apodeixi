@@ -6,6 +6,7 @@ from apodeixi.util.a6i_error                            import ApodeixiError, Fu
 from apodeixi.util.path_utils              			    import FolderHierarchy
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
+from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
 
 class Test_File_KB_Environments(ApodeixiIntegrationTest):
 
@@ -34,7 +35,11 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
                                                     data={  'environment_name'    : ENVIRONMENT_NAME},
                                                     origination = { 'signaled_from' : __file__,
                                                                     'concrete class': str(self.__class__.__name__)})
-            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME)
+            env_config                  = KB_Environment_Config(
+                                                root_trace, 
+                                                read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                                use_timestamps      = False)
+            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
 
             my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
@@ -42,9 +47,9 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
                                                 test_case_name  = ENVIRONMENT_NAME + "_Step_0")
 
             my_trace            = root_trace.doing("Making a posting in environment '" + ENVIRONMENT_NAME + "'")
-            self.kb.postByFile(     parent_trace                = my_trace, 
-                                    path_of_file_being_posted   = POSTING_FULLPATH,
-                                    excel_sheet                 = POSTING_LABEL_SHEET)
+            response            = self.kb.postByFile(   parent_trace                = my_trace, 
+                                                        path_of_file_being_posted   = POSTING_FULLPATH,
+                                                        excel_sheet                 = POSTING_LABEL_SHEET)
             self._assert_current_environment(   parent_trace    = my_trace,
                                                 test_case_name  = ENVIRONMENT_NAME + "_Step_1")
 

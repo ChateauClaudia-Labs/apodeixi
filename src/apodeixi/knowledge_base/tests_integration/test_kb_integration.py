@@ -5,6 +5,7 @@ from apodeixi.util.formatting_utils                     import DictionaryFormatt
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
+from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
 
 class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
@@ -14,44 +15,56 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
     def test_big_rocks_posting(self):
 
         TEST_CASE                       = 'big_rocks_posting'
-
+        
         EXCEL_FILE                      = self.postings_folder + "/journeys/Dec 2020/FusionOpus/Default/" \
                                             + 'OPUS_big-rocks.journeys.a6i.xlsx' 
 
-        self._posting_testing_skeleton( store           = self.store, 
+        self._posting_testing_skeleton( #store           = self.store, 
                                         test_case_name  = TEST_CASE,
                                         excel_file      = EXCEL_FILE)
 
-    def _posting_testing_skeleton(self, store, test_case_name, excel_file):
+    def _posting_testing_skeleton(self, test_case_name, excel_file): #store, test_case_name, excel_file):
 
-        all_manifests_dicts     = []
-
+        all_manifests_dicts                     = []
+        ENVIRONMENT_NAME                        = test_case_name + "_ENV"
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Posting excel file", 
+            root_trace                          = FunctionalTrace(parent_trace=None).doing("Posting excel file", 
                                                                                 data={  'excel_file'    : excel_file},
                                                                                 origination = {
                                                                                         'signaled_from' : __file__,
                                                                                         'concrete class': str(self.__class__.__name__)})
 
-            kbase               = KnowledgeBase(root_trace, store)
+            #kbase                               = KnowledgeBase(root_trace, store)
+            my_trace                    = root_trace.doing("Removing previously created environment, if any",
+                                                        data = {'environment name': ENVIRONMENT_NAME})
+            stat                        = self.store.removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
+            
+            my_trace                    = root_trace.doing("Creating a sub-environment to do postings in")
+            env_config                  = KB_Environment_Config(
+                                                root_trace, 
+                                                read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                                use_timestamps      = False)
+            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
+            self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
 
-            response            = kbase.postByFile( parent_trace                = root_trace, 
-                                                    path_of_file_being_posted   = excel_file, 
-                                                    excel_sheet                 = "Sheet1")
+            #response                            = kbase.postByFile( parent_trace                = root_trace, 
+            response                            = self.kb.postByFile(   parent_trace                = root_trace, 
+                                                                        path_of_file_being_posted   = excel_file, 
+                                                                        excel_sheet                 = "Sheet1")
 
-            NB_MANIFESTS_EXPECTED   = 3
+            NB_MANIFESTS_EXPECTED               = 3
             if len(response.createdHandles()) != NB_MANIFESTS_EXPECTED:
                 raise ApodeixiError(root_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
                                     + str(len(all_manifests_dicts)))
 
             # Retrieve the manifests created
-            manifest_dict           = {}
+            manifest_dict                       = {}
             for handle in response.createdHandles():
-                loop_trace          = root_trace.doing("Retrieving manifest for handle " + str(handle),
+                loop_trace                      = root_trace.doing("Retrieving manifest for handle " + str(handle),
                                                         origination = {    
                                                                     'concrete class': str(self.__class__.__name__), 
                                                                     'signaled_from': __file__})
-                manifest_dict       = store.retrieveManifest(loop_trace, handle)
+                manifest_dict, manifest_path    = self.store.retrieveManifest(loop_trace, handle)
                 self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
 
             return
