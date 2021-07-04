@@ -19,9 +19,23 @@ class KB_Environment_Config():
     @param use_timestamps A boolean. If True (the default), then all "observability" records, such as
                 logs and archival folder names, will include a timestamp. If False, such timestamp
                 information is omitted. A typical use case for setting this to False is regression testing,
-                to ensure that the output data is always the same.
+                to ensure that the output data is always the same.\
+    @param path_mask A function that takes as tring argument and returns a string. Normally it is None, but
+                it is used in situations (such as in regression testing) when observability should not
+                report the paths "as is", but with a mask. For example, this can be used in regression
+                tests to hide the user-dependent portion of paths, so that logs would otherwise display a path
+                like:
+
+                'C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/big_rocks_posting_ENV/excel-postings'
+
+                instead display a "masked" path where the user-specific prefix is masked, so that only the
+                logical portion of the path (logical as in: it is the structure mandated by the KnowledgeStore)
+                is displayed. In the above example, that might become:
+
+                '<KNOWLEDGE_BASE>/envs/big_rocks_posting_ENV/excel-postings'
+
     '''
-    def __init__(self, parent_trace, read_misses_policy, use_timestamps=True):
+    def __init__(self, parent_trace, read_misses_policy, use_timestamps=True, path_mask=None):
         ME                                  = KB_Environment_Config
         if not read_misses_policy in ME.READ_MISSES_POLICIES:
             raise ApodeixiError(parent_trace, "The read misses policy that was provided is not supported",
@@ -30,6 +44,7 @@ class KB_Environment_Config():
 
         self.read_misses_policy             = read_misses_policy
         self.use_timestamps                 = use_timestamps
+        self.path_mask                      = path_mask
 
     FAILOVER_READS_TO_PARENT                = 'FAILOVER_READS_TO_PARENT'
     FAIL_ON_READ_MISSES                     = 'FAIL_ON_READ_MISSES'

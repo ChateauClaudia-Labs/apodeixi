@@ -36,7 +36,7 @@ class KnowledgeBase():
         Handles a posting request expressed as an Excel file, with optional information on the worksheet and cells
         where the posting label can be found within the Excel file.
 
-        Returns a PostResponse object
+        Returns a PostResponse object, as well as a string corresponding the log made for this posting
         '''
 
         my_trace                = root_trace.doing("Inferring the posting handle from filename",
@@ -54,7 +54,7 @@ class KnowledgeBase():
         '''
         Handles a posting request expressed as an Posting Label handle.
 
-        Returns a PostResponse object
+        Returns a PostResponse object, as well as a string corresponding the log made for this posting
         '''
         my_trace                = parent_trace.doing("Posting by label",
                                                         data = {'fullPath':         label_handle.getFullPath(parent_trace)})
@@ -68,7 +68,8 @@ class KnowledgeBase():
         response                = ctrl.apply(   parent_trace                = my_trace, 
                                                     posting_label_handle    = label_handle)
 
-        return response
+        log_txt                 = ctrl.log_txt
+        return response, log_txt
 
     def postInBatch(self, parent_trace, label_handle_list):
         '''
@@ -77,8 +78,8 @@ class KnowledgeBase():
         Returns two dictionaries, one for successes and one for errors. 
         Both are indexed with the integer index of a PostingLabelHandle in `label_handle_list`.
 
-        For the success dictionary, the values are the PostingResponse objects obtained from processing the
-        correspoding PostingLabelHandle.
+        For the success dictionary, the values are the PostResponse objects obtained from processing the
+        corresponding PostingLabelHandle.
         
         For the success dictionary, the values are the ApodeixiError raised whhile processing the
         correspoding PostingLabelHandle.
@@ -94,7 +95,7 @@ class KnowledgeBase():
                                                             'excel_filename'    : handle.getFullPath(parent_trace)})
             
             try:
-                response        = self.postByLabel(loop_trace, handle)
+                response, log   = self.postByLabel(loop_trace, handle)
                 successes[idx]  = response
             except ApodeixiError as ex:
                 errors[idx]     = ex

@@ -43,23 +43,23 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
             env_config                  = KB_Environment_Config(
                                                 root_trace, 
                                                 read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                                use_timestamps      = False)
+                                                use_timestamps      = False,
+                                                path_mask           = self._path_mask)
             self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
-
-            #response                            = kbase.postByFile( parent_trace                = root_trace, 
-            response                            = self.kb.postByFile(   parent_trace                = root_trace, 
+ 
+            response, log_txt                    = self.kb.postByFile(   parent_trace                = root_trace, 
                                                                         path_of_file_being_posted   = excel_file, 
                                                                         excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED               = 3
-            if len(response.createdHandles()) != NB_MANIFESTS_EXPECTED:
+            if len(response.createdManifests()) != NB_MANIFESTS_EXPECTED:
                 raise ApodeixiError(root_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
                                     + str(len(all_manifests_dicts)))
 
             # Retrieve the manifests created
             manifest_dict                       = {}
-            for handle in response.createdHandles():
+            for handle in response.createdManifests():
                 loop_trace                      = root_trace.doing("Retrieving manifest for handle " + str(handle),
                                                         origination = {    
                                                                     'concrete class': str(self.__class__.__name__), 
@@ -67,6 +67,11 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                 manifest_dict, manifest_path    = self.store.retrieveManifest(loop_trace, handle)
                 self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
 
+            # Check log is right
+            self._compare_to_expected_txt(  output_txt          = log_txt,
+                                            test_case_name      = test_case_name + "_LOG", 
+                                            save_output_txt     = True)
+                                            
             return
         except ApodeixiError as ex:
             print(ex.trace_message())                  

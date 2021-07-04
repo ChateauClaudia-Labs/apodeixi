@@ -7,7 +7,7 @@ from apodeixi.knowledge_base.kb_environment             import File_KB_Environme
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, \
                                                                 InitiativesFilingCoordinates, \
                                                                 ArchiveFilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
@@ -25,7 +25,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         env_config                  = KB_Environment_Config(
                                             root_trace, 
                                             read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                            use_timestamps      = True)
+                                            use_timestamps      = True,
+                                            path_mask           = None)
         self._base_env              = File_KB_Environment(parent_trace            = root_trace, 
                                                                     name                    = _BASE_ENVIRONMENT, 
                                                                     store                   = self, 
@@ -388,7 +389,8 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
     def archivePosting(self, parent_trace, posting_label_handle):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
-        to this posting event and returns a FilingCoordinates object to identify that folder.       
+        to this posting event and returns a PostingLabelHandle to identify the Excel file in this newly
+        created archival folder.       
         '''
         submitted_posting_path              = posting_label_handle.getFullPath(parent_trace)
         submitted_posting_coords            = posting_label_handle.filing_coords
@@ -413,7 +415,62 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
         else:
             # In this case the posting was submitted from outside the current environment, so archive it but don't move it
             _shutil.copy2(src = submitted_posting_path, dst = archival_folder_path)
+
+
+        archival_handle     = PostingLabelHandle(       parent_trace        = parent_trace,
+                                                        posting_api         = posting_label_handle.posting_api,
+                                                        kb_postings_url     = self.getPostingsURL(parent_trace), 
+                                                        filing_coords       = archival_folder_coords,
+                                                        excel_filename      = filename, 
+                                                        excel_sheet         = posting_label_handle.excel_sheet, 
+                                                        excel_range         = posting_label_handle.excel_range)        
         
-        return archival_folder_coords
+        return archival_handle
+
+    def logPostEvent(self, parent_trace, controller_response):
+        '''
+        Used to record in the store information about a posting event that has been completed.
+        '''
+        archival_list                       = controller_response.archivedPostings()
+        if len(archival_list) != 1:
+            raise ApodeixiError(parent_trace, "Can't log post event because it lacks a unique archival record",
+                                                    data = {"Nb of archivals for this posting": str(len(archival_list))})
+        original_handle, archival_handle    = archival_list[0]
+
+        archival_path                       = archival_handle.getFullPath(parent_trace)
+        log_folder                          = _os.path.dirname(archival_path)
+
+        env_config                          = self.current_environment(parent_trace).config(parent_trace)
+        path_mask                           = env_config.path_mask
+
+        log_txt                             = ""
+        for handle in controller_response.createdManifests():
+            log_txt                         += "\nCREATED MANIFEST:        " + str(handle) + "\n"
+
+        for handle in controller_response.updatedManifests():
+            log_txt                         += "\nUPDATED MANIFEST:        " + str(handle) + "\n"
+
+        for handle in controller_response.deletedManifests():
+            log_txt                         += "\nDELETED MANIFEST:        " + str(handle) + "\n"
+
+        for handle1, handle2 in controller_response.archivedPostings():
+            log_txt                         += "\nARCHIVED POSTING FROM:   " + handle1.display(parent_trace, path_mask)
+            log_txt                         += "\n             TO:         " + handle2.display(parent_trace, path_mask) + "\n"
+
+        for form_request in controller_response.optionalForms():
+            log_txt                         += "\nPUBLISHED OPTIONAL FORM: " + str(form_request) + "\n"
+
+        for form_request in controller_response.mandatoryForms():
+            log_txt                         += "\nPUBLISHED MANDATORY FORM: " + str(form_request) + "\n"
 
 
+        LOG_FILENAME                        = "POST_EVENT_LOG.txt"
+        try:
+            with open(log_folder + "/" + LOG_FILENAME, 'w') as file:
+                file.write(str(log_txt))
+
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Encountered problem saving log for post event",
+                                    data = {"Exception found": str(ex)})
+
+        return log_txt

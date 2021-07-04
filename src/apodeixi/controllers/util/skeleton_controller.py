@@ -18,11 +18,14 @@ class SkeletonController(PostingController):
     def __init__(self, parent_trace, store):
         super().__init__(parent_trace, store)
 
+        # Internally computed data, maintained to assist with testing and debugging.
+        self.log_txt                = None
+
     def apply(self, parent_trace, posting_label_handle):
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 
-        Returns a PostingResponse.
+        Returns a PostResponse.
 
         '''
         excel_filename              = posting_label_handle.excel_filename
@@ -44,10 +47,13 @@ class SkeletonController(PostingController):
         my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
                                                             + "creating manifests",
                                                             data = {"excel_filename": excel_filename})
-        self.store.archivePosting(my_trace, posting_label_handle)
+        archival_handle             = self.store.archivePosting(my_trace, posting_label_handle)
+        response.recordArchival(my_trace, posting_label_handle, archival_handle)
         # TODO - Finish the remaining phases of the controller, after creating the manifests. Namely:
         # TODO  1. Move the Excel spreadsheet to a "prior" area
         # TODO  2. Generate the Excel spreadsheet that can be used for updates. This probably must be in the derived controller class
+
+        self.log_txt                = self.store.logPostEvent(my_trace, response)
 
         return response
 

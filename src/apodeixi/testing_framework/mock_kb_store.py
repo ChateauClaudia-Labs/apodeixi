@@ -130,9 +130,6 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
             manifest_path                   = self.input_manifests_dir + "/" + manifest_filename
         return matching_manifests[0], manifest_path
 
-
-
-
     def _getMatchingManifests(self, parent_trace, folder, manifest_handle):
         '''
         Returns two lists of the same length:
@@ -178,6 +175,12 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         to this posting event and returns a FilingCoordinates object to identify that folder.       
         '''
         return None # No-op for this store class
+
+    def logPostEvent(self, parent_trace, controller_response):
+        '''
+        Used to record in the store information about a posting event that has been completed.
+        '''
+        return # No-op for this store class
 
 
     def _getFilenames(self, parent_trace, folder):

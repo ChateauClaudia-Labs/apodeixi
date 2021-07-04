@@ -6,6 +6,11 @@ test_create_environment_ENV:
           Default:
             _ARCHIVE:
               (Timestamp omitted) Posting:
+                POST_EVENT_LOG.txt: '
+
+                  Size (in bytes):  1686
+
+                  '
                 test_create_environment_big-rocks.journeys.a6i.xlsx: '
 
                   Size (in bytes):  25146

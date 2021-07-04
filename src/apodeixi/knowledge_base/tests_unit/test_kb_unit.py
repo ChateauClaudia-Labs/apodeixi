@@ -44,18 +44,18 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
 
             kbase                               = KnowledgeBase(root_trace, store)
 
-            response                            = kbase.postByFile( parent_trace                = root_trace, 
+            response, log_txt                   = kbase.postByFile( parent_trace                = root_trace, 
                                                                     path_of_file_being_posted   = excel_file,
                                                                     excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED               = 3
-            if len(response.createdHandles()) != NB_MANIFESTS_EXPECTED:
+            if len(response.createdManifests()) != NB_MANIFESTS_EXPECTED:
                 raise ApodeixiError(root_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
                                     + str(len(all_manifests_dicts)))
 
             # Retrieve the manifests created
             manifest_dict                       = {}
-            for handle in response.createdHandles():
+            for handle in response.createdManifests():
                 loop_trace                      = root_trace.doing("Retrieving manifest for handle " + str(handle),
                                                         origination = {    
                                                                     'concrete class': str(self.__class__.__name__), 

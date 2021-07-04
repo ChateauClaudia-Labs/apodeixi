@@ -67,8 +67,12 @@ class KnowledgeBaseStore():
         else: # Posting wasn't submitted from the "right" folder, so coordinates will have be inferred later when label is read
             filename                        = PathUtils().tokenizePath(parent_trace, excel_posting_path)[-1]
             posting_api                     = self._filename_2_api(parent_trace, filename)
-            filing_coords                   = TBD_FilingCoordinates( fullpath            = excel_posting_path,
-                                                                    posting_api         = posting_api)
+
+            env_config                      = self.current_environment(parent_trace).config(parent_trace)
+            path_mask                       = env_config.path_mask            
+            filing_coords                   = TBD_FilingCoordinates(fullpath            = excel_posting_path,
+                                                                    posting_api         = posting_api,
+                                                                    path_mask           = path_mask)
 
         # Now build the posting label handle
         posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,

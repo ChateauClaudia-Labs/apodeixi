@@ -19,13 +19,21 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         super().setUp()
 
         # Remember it before we change it to use a test configuration, and then restore it in the tearDown method
-        self.original_config_directory                           = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
+        self.original_config_directory                      = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 
         # Here we want the location of this class, not its concrete derived class,
         # since the location of the Apodexei config to be used for tests is globally unique
         # So we use __file__ 
         _os.environ['APODEIXI_CONFIG_DIRECTORY']            = _os.path.join(_os.path.dirname(__file__), 'config') 
 
+        def _path_mask(path):
+            tokens                                          = path.split('apodeixi')
+            masked_path                                     = '<MASKED>/apodeixi' + "/".join(tokens[1:])
+            return masked_path
+
+        # Used by derived classes to mask some paths that are logged out so that regressino output is
+        # deterministic
+        self._path_mask                                     = _path_mask
 
     def tearDown(self):
         super().tearDown()
@@ -80,6 +88,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
             data_df[col] = data_df.apply(lambda row: CLEANED(row[col]), axis=1)
         return data_df
 
+    
     def _compare_to_expected_yaml(self, output_dict, test_case_name, data_dir, save_output_dict=False):
         '''
         Utility method for derived classes that create YAML files and need to check they match an expected output

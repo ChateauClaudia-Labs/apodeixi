@@ -278,18 +278,29 @@ class TBD_FilingCoordinates(FilingCoordinates):
     a PostingLabel, not before, so before reading the PostingLabel this "TBD" coordinates are used
     as a place holder)
     '''
-    def __init__(self, fullpath, posting_api):
+    def __init__(self, fullpath, posting_api, path_mask):
         super().__init__()
 
-        self._fullpath               = fullpath
-        self._posting_api            = posting_api
+        self._fullpath              = fullpath
+        self._posting_api           = posting_api
+        self._path_mask             = path_mask
 
         # This will be set later, by the inferFilingCoords methods
-        self._inferred_coords        = None
+        self._inferred_coords       = None
         return
 
     def getFullPath(self):
         return self._fullpath
+
+    def inferred_coords(self, parent_trace):
+        '''
+        Returns the inferred coordinates, if they have already been inferred. Otherwise raises an ApodeixiError
+        '''
+        if self._inferred_coords != None:
+            return self._inferred_coords
+        else:
+            raise ApodeixiError(parent_trace, "Coordinates have not yet been inferred - they are still TBD."
+                                                + " Possibly this is being called too early in the processing?")
 
     def inferFilingCoords(self, parent_trace, posting_label):
         '''
@@ -319,6 +330,13 @@ class TBD_FilingCoordinates(FilingCoordinates):
                                             origination = {'concrete class': str(self.__class__.__name__), 
                                                             'signaled_from': __file__}) 
 
+    def __str__(self):
+        path            = str(self._fullpath)
+        if self._path_mask != None:
+            path        = self._path_mask(path)
+        msg             = "TBD - Submitted from: " + str(path)
+        return msg
+
 class ArchiveFilingCoordinates(FilingCoordinates):
     '''
     Helper class to hold the properties that are used to organize archived Excel postings in a KnowledgeBaseStore. 
@@ -346,6 +364,9 @@ class ArchiveFilingCoordinates(FilingCoordinates):
         if original_coords == None or not issubclass(type(original_coords), FilingCoordinates):
             raise ApodeixiError(parent_trace, "Need the submitted posting's FilingCoordinates in order to archive" 
                                                 + " posting, but instead got a '" + str(type(original_coords)) + "'")
+
+        if type(original_coords) == TBD_FilingCoordinates:
+            original_coords         = original_coords.inferred_coords(parent_trace)
 
         self.original_coords        = original_coords
 
@@ -391,5 +412,5 @@ class ArchiveFilingCoordinates(FilingCoordinates):
 
     def __str__(self):
         msg     = self.original_coords.__str__()
-        msg     += "." + str(self.archive_folder)
+        msg     += "." + ArchiveFilingCoordinates.ARCHIVED_POSTINGS + "." + str(self.archive_folder)
         return msg

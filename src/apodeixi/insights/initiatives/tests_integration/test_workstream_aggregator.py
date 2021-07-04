@@ -28,7 +28,8 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
             env_config                  = KB_Environment_Config(
                                                 root_trace, 
                                                 read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                                use_timestamps      = False)
+                                                use_timestamps      = False,
+                                                path_mask           = self._path_mask)
             self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
 

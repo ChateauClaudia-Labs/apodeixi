@@ -28,6 +28,32 @@ class PostingLabelHandle():
                                                 excel_range         = self.excel_range)
         return new_handle                                              
         
+    def display(self, parent_trace, path_mask):
+        '''
+        Returns a string friendly representation of this PostingLabelHandle
+
+        @param path_mask A function that takes a string and returns a string. If not None, it is used to
+                        modify how the self.kb_postings_url is displayed. Typically this is used in regression
+                        tests, to hide user-specific portions of the url path so that regression output is
+                        deterministic.
+        '''
+        url                     = self.kb_postings_url
+        if path_mask != None:
+            try:
+                url             = path_mask(url)
+            except Exception as ex:
+                raise ApodeixiError(parent_trace, "Found a problem when applyingy mask to Knowledge Base's postings url",
+                                        data = {    "KB postings url":  elf.kb_postings_url,
+                                                    "Error":            str(ex)})
+        msg = "" \
+            + "\n\t\t posting_api     = '" + self.posting_api + "'" \
+            + "\n\t\t kb_postings_url = '" + url + "'" \
+            + "\n\t\t filing_coords   = '" + str(self.filing_coords) + "'" \
+            + "\n\t\t excel_filename  = '" + self.excel_filename + "'" \
+            + "\n\t\t excel_sheet     = '" + self.excel_sheet + "'" \
+            + "\n\t\t excel_range     = '" + str(self.excel_range) + "'" 
+        return msg
+
     def getPostingAPI(self, parent_trace):
         return self.posting_api
 
@@ -144,11 +170,13 @@ class ManifestHandle():
         return not self.__eq__(other)
 
     def __str__(self):
-        msg = "<apiVersion = '" + self.apiVersion + "'" \
-                + "'; namespace = '" + self.namespace \
-                + "'; kind = '" + self.kind \
-                + "'; name = '" + self.name \
-                + "'; version = '" + str(self.version) + "'>"
+        msg = "" \
+            + "\n\t\t apiVersion     = '" + str(self.apiVersion) + "'" \
+            + "\n\t\t namespace      = '" + str(self.namespace) + "'" \
+            + "\n\t\t kind           = '" + str(self.kind) + "'" \
+            + "\n\t\t name           = '" + str(self.name) + "'" \
+            + "\n\t\t version        = '" + str(self.version) + "'" \
+
         return msg
 
     def inferHandle(parent_trace, manifest_dict):
@@ -195,26 +223,66 @@ class Response():
     '''
     Abstract class used to represent the schema response from the KnowledgeBase to a request.
 
-    @param manifest_handles_dict A dictionary explaining what changed as a consequence of processing this request.
-                                    Keys are Response.CREATE, Response.UPDATE, and Response.DELETE. Values are lists
+    @internal manifest_handles_dict A dictionary explaining what changed as a consequence of processing this request
+                                    in the manifests section of the store.
+                                    Keys are Response.CREATED, Response.UPDATED, and Response.DELETED. 
+                                    Values are lists
                                     (possibly empty) with ManifestHandle objects, one for each manifest that was either
                                     created, updated or deleted by the request in quesion.
+    @internal posting_handles_dict A dictionary explaining what changed as a consequence of processing this request
+                                    in the postings section of the store. 
+                                    Keys are: Response.ARCHIVED. 
+                                    Values are lists (possibly empty) of a 2-sized list of
+                                    PostingLabelHandle objects, such as [handle_1, handle_2] where handle_1 was the
+                                    handle for the posting submitted and has now been removed, and handle_2 for the 
+                                    archived copy of the posting that has been created. In cases where the posting
+                                    was submitted from outside the store (e.g., as from some random location in
+                                    the file system external to the store), then handle1 is set to None.
+    @interfal form_requests_dict A dictionary explaining the next steps that a user might need to take as a consequence
+                                    of having just finished processing this request.
+                                    Keys are: Response.OPTIONAL_FORMS, Response.MANDATORY_FORMS.
+                                    Values are lists (possibly empty) with FormRequest objects, one for each
+                                    (future) posting that the user may want to do as follow-up to this request. For example,
+                                    typically the FormRequests under Response.OPTIONAL_FORMS are for making updates
+                                    to the same posting just submitted in this request (i.e., same posting APIs). By contrast, the FormRequests
+                                    under Response.MANDATORY_FORMS typically are for other posting APIs where the 
+                                    KnowledgeBase has detected that previously provided information (if any) is now
+                                    inconsistent or incomplete as a result of having processed this request. For example,
+                                    if the user just updated a posting for a Big Rocks plan by adding another rock,
+                                    it may be that the user is asked in Response.MANDATORY_FORMS to update the
+                                    Milestones manifests to indicate the milestone containing that new rock.
     '''
     def __init__(self):
-        self.manifest_handles_dict          = {Response.CREATE: [], Response.UPDATE: [], Response.DELETE: []}
+        self.manifest_handles_dict          = {Response.CREATED: [], Response.UPDATED: [], Response.DELETED: []}
+        self.posting_handles_dict           = {Response.ARCHIVED: []}
+        self.form_requests_dict             = {Response.OPTIONAL_FORMS: [], Response.MANDATORY_FORMS: []}
 
-    CREATE                      = 'CREATE' 
-    UPDATE                      = 'UPDATE' 
-    DELETE                      = 'DELETE'         
+    CREATED                                 = 'CREATED' 
+    UPDATED                                 = 'UPDATED' 
+    DELETED                                 = 'DELETED'  
 
-    def createdHandles(self):
-        return self.manifest_handles_dict[Response.CREATE]
+    ARCHIVED                                = 'ARCHIVED'   
 
-    def updatedHandles(self):
-        return self.manifest_handles_dict[Response.UPDATE]
+    OPTIONAL_FORMS                          = 'OPTIONAL_FORMS'  
+    MANDATORY_FORMS                         = 'MANDATORY_FORMS'  
 
-    def deletedHandles(self):
-        return self.manifest_handles_dict[Response.DELETE]
+    def createdManifests(self):
+        return self.manifest_handles_dict[Response.CREATED]
+
+    def updatedManifests(self):
+        return self.manifest_handles_dict[Response.UPDATED]
+
+    def deletedManifests(self):
+        return self.manifest_handles_dict[Response.DELETED]
+
+    def archivedPostings(self):
+        return self.posting_handles_dict[Response.ARCHIVED]
+
+    def optionalForms(self):
+        return self.form_requests_dict[Response.OPTIONAL_FORMS]
+
+    def mandatoryForms(self):
+        return self.form_requests_dict[Response.MANDATORY_FORMS]
 
 class PostResponse(Response):
     '''
@@ -230,35 +298,11 @@ class PostResponse(Response):
         @param manifest_dict A dictionary representation of a manifest. It must have 'metadata.name', 'metadata.namespace' and 'kind'
                                 since those are mandatory fields for all manifests.
         '''
-        '''
-        if not type(manifest_dict) == dict:
-            raise ApodeixiError(parent_trace, "Can't record manifest creation because manifest was not passed as a dictionary. "
-                                                "Instead was given a " + str(type(manifest_dict)))
-        NAME                        = 'name'
-        NAMESPACE                   = 'namespace'
-        KIND                        = 'kind'
-        METADATA                    = 'metadata'
-        REQUIRED_KEYS               = [METADATA, KIND]
-
-        REQUIRED_METADATA_SUBKEYS   = [NAME, NAMESPACE]
-
-        missed_keys                 = [key for key in REQUIRED_KEYS if not key in manifest_dict.keys()]
-        if len(missed_keys) > 0:
-            raise ApodeixiError(parent_trace, "Can't record manifest creation because these mandatory fields were absent in the "
-                                                "manifest: " + str(missed_keys))
-
-        metadata_dict               = manifest_dict[METADATA]
-        missed_metadata_subkeys     = [key for key in REQUIRED_METADATA_SUBKEYS if not key in metadata_dict.keys()]
-        if len(missed_metadata_subkeys) > 0:
-            raise ApodeixiError(parent_trace, "Can't record manifest creation because these mandatory fields were absent in the "
-                                                "manifest's metadata: " + str(missed_metadata_subkeys))
-
-        handle                  = ManifestHandle(   namespace   = metadata_dict[NAMESPACE], 
-                                                    name        = metadata_dict[NAME], 
-                                                    kind        = manifest_dict[KIND])
-        '''
         handle                  = ManifestHandle.inferHandle(parent_trace, manifest_dict)
-        self.manifest_handles_dict[Response.CREATE].append(handle)
+        self.manifest_handles_dict[Response.CREATED].append(handle)
+
+    def recordArchival(self, parent_trace, original_handle, archival_handle):
+        self.posting_handles_dict[Response.ARCHIVED].append([original_handle, archival_handle])
 
 class PostingVersion():
     '''

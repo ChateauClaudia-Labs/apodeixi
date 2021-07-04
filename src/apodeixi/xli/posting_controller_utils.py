@@ -27,7 +27,7 @@ class PostingController():
         '''
         Main entry point to the controller. Retrieves an Excel, parses its content, creates the YAML manifest and saves it.
 
-        Returns a PostingResponse.
+        Returns a PostResponse.
 
         It is an abstract method that must be implemented by derived classes.
         '''

@@ -176,7 +176,7 @@ class ManifestLayout(Excel_Layout):
         2. The first layout's row is the header for the columns in content_df (the "headers")
         3. The subsequent N-1 rows in the layout are for the "body", i.e., the rows of content_df, required to be exactly N-1 
         4. All body cells are by default read-only, unless they lie in a column in `editable_cols
-        5. All olumn headers are by default read-only, unless the column appears in the `editable_headers` list
+        5. All column headers are by default read-only, unless the column appears in the `editable_headers` list
         6. The layout starts at cell [x_offset, y_offset] and extends to the right and below that cell.
 
         As a side effect, calling this method will destroy any pre-existing blocks
