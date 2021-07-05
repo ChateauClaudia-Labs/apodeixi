@@ -1,9 +1,14 @@
+import os                                           as _os
+
 from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
-from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
+from apodeixi.representers.as_dataframe             import AsDataframe_Representer
+from apodeixi.representers.as_excel                 import Manifest_Representer
+from apodeixi.text_layout.excel_layout              import ManifestConfig_Table, ManifestConfig
 
+from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
 
 class BigRocksEstimate_Controller(SkeletonController):
@@ -158,14 +163,66 @@ class BigRocksEstimate_Controller(SkeletonController):
         
         return manifest_dict
 
-    def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
+    def generateForm(self, parent_trace, form_request):
         '''
-        Helper function that is amenable to unit testing (i.e., does not require a KnowledgeBase structure for I/O).
+        Generates and saves an Excel spreadsheet that the caller can complete and then submit
+        as a posting
 
-        Used to generate an Excel spreadsheet that represents the current state of the manifest, inclusive of UIDs.
-        Such Excel spreadsheet is what the user would need to post in order to make changes to the manifest, since pre-existing
-        UIDs must be repected.
+        Returns a RequestFormResponse object, as well as a string corresponding the log made during the processing.
         '''
+        my_trace                            = parent_trace.doing("Loading manifests to include in form")
+        df_dict                             = {} # Keys will be manifest's kind, values the DataFrame representation of manifest
+        for handle in form_request.manifestHandles(my_trace):
+            loop_trace                      = my_trace.doing("Loading manifest as a DataFrame",
+                                                                data = {"handle": handle.display(my_trace)})
+            manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, handle)
+            kind                            = manifest_dict['kind']
+            posting_config                  = self.getPostingConfig(loop_trace, kind, 0)
+            entity_yaml_field               = posting_config.entity_as_yaml_fieldname()
+            content_dict                    = manifest_dict['assertion'][entity_yaml_field]
+            rep                             = AsDataframe_Representer()
+            contents_path                   = 'assertion.' + entity_yaml_field
+            df                              = rep.dict_2_df(parent_trace, content_dict, contents_path)
+            df_dict[kind]                   = df
+
+        my_trace                            = parent_trace.doing("Creating Excel layouts for manifests")
+
+        full_path                           = self.store.getPostingsURL(my_trace) \
+                                                + "/" + form_request.getRelativePath(my_trace)
+        output_folder, filename             = _os.path.split(full_path)
+        sheet                               = "Big Rocks"
+        config_table        = ManifestConfig_Table()
+        x_offset            = 1
+        y_offset            = 1
+        for kind in df_dict.keys():
+            loop_trace                      = my_trace.doing("Creating layout configurations for manifest '"
+                                                                + str(kind) + "'")
+            data_df                         = df_dict[kind]
+            editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
+            config              = ManifestConfig(   manifest_name       = kind,    
+                                                    viewport_width      = 100,  
+                                                    viewport_height     = 40,   
+                                                    max_word_length     = 20, 
+                                                    editable_cols       = editable_cols,   
+                                                    editable_headers    = [],   
+                                                    x_offset            = x_offset,    
+                                                    y_offset            = y_offset)
+            x_offset                        += x_offset + data_df.shape[1] # Put next manifest to the right of this one
+            config_table.addManifestConfig(loop_trace, config)
+
+        
+
+        rep                 = Manifest_Representer(config_table)
+
+        status              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
+                                                    content_df_dict = df_dict, 
+                                                    excel_folder    = output_folder, 
+                                                    excel_filename  = filename, 
+                                                    sheet           = sheet)        
+
+        raise ApodeixiError(parent_trace, "Not yet implemented -- generateForm",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
 
     class _BigRocksConfig(PostingConfig):
         '''
@@ -186,6 +243,10 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                     )
 
             self.interval_spec          = interval_spec_big_rocks
+
+        def entity_as_yaml_fieldname(self):
+            ME                          = BigRocksEstimate_Controller._BigRocksConfig
+            return PostingController.format_as_yaml_fieldname(ME._ENTITY_NAME)
 
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
@@ -232,6 +293,10 @@ class BigRocksEstimate_Controller(SkeletonController):
 
             self.interval_spec                  = interval_spec_big_rocks_estimates
 
+        def entity_as_yaml_fieldname(self):
+            ME                          = BigRocksEstimate_Controller._BigRocksEstimatesConfig
+            return PostingController.format_as_yaml_fieldname(ME._ENTITY_NAME)
+
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
             Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
@@ -276,6 +341,10 @@ class BigRocksEstimate_Controller(SkeletonController):
             interval_spec_period    = GreedyIntervalSpec(None) 
 
             self.interval_spec      = interval_spec_period
+
+        def entity_as_yaml_fieldname(self):
+            ME                          = BigRocksEstimate_Controller._InvestmentConfig
+            return PostingController.format_as_yaml_fieldname(ME._ENTITY_NAME)
 
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''

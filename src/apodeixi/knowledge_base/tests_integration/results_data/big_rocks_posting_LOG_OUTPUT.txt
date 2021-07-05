@@ -34,3 +34,25 @@ ARCHIVED POSTING FROM:
 		 excel_filename  = 'OPUS_big-rocks.journeys.a6i.xlsx'
 		 excel_sheet     = 'Sheet1'
 		 excel_range     = 'B2:C1000'
+
+PUBLISHED OPTIONAL FORM: 
+		 posting_api     = 'big-rocks.journeys.a6i'
+		 filing_coords   = 'Dec 2020.FusionOpus.Default'
+		 *** A ManifestHandle ***
+			 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+			 namespace      = 'my-corp.production'
+			 kind           = 'big-rock'
+			 name           = 'modernization.default.dec-2020.fusionopus'
+			 version        = '1'
+		 *** A ManifestHandle ***
+			 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+			 namespace      = 'my-corp.production'
+			 kind           = 'big-rock-estimate'
+			 name           = 'modernization.default.dec-2020.fusionopus'
+			 version        = '1'
+		 *** A ManifestHandle ***
+			 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+			 namespace      = 'my-corp.production'
+			 kind           = 'investment'
+			 name           = 'modernization.default.dec-2020.fusionopus'
+			 version        = '1'

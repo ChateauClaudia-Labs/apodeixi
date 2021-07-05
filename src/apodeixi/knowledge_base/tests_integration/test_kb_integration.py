@@ -71,6 +71,17 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
             self._compare_to_expected_txt(  output_txt          = log_txt,
                                             test_case_name      = test_case_name + "_LOG", 
                                             save_output_txt     = True)
+
+            # At this point the posting seems good.
+            # So as the next step, try to generate to forms suggested by the response to the posting
+            for form_request in response.optionalForms() + response.mandatoryForms():
+                fr_response, fr_log_txt         = self.kb.requestForm(  parent_trace    = root_trace, 
+                                                                        form_request    = form_request)  
+
+            # Check log is right
+            self._compare_to_expected_txt(  output_txt          = fr_log_txt,
+                                            test_case_name      = test_case_name + "_FORM_REQUEST_LOG", 
+                                            save_output_txt     = True)              
                                             
             return
         except ApodeixiError as ex:

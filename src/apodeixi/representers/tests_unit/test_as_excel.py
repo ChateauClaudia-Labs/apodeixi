@@ -6,7 +6,7 @@ from apodeixi.util.formatting_utils             import DictionaryFormatter
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.representers.as_excel             import Manifest_Representer
-from apodeixi.text_layout.excel_layout          import Manifest_Config #, ManifestLayout
+from apodeixi.text_layout.excel_layout          import ManifestConfig, ManifestConfig_Table
 
 
 class Test_Manifest_Representer(ApodeixiUnitTest):
@@ -43,7 +43,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             # Make editable any column not starting with "UID"
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             
-            config              = Manifest_Config(  name_list           = [MANIFEST_NAME],    
+            config              = ManifestConfig(   manifest_name       = MANIFEST_NAME,    
                                                     viewport_width      = 100,  
                                                     viewport_height     = 40,   
                                                     max_word_length     = 20, 
@@ -51,8 +51,10 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                     editable_headers    = [],   
                                                     x_offset            = 0,    
                                                     y_offset            = 0)
+            config_table        = ManifestConfig_Table()
+            config_table.addManifestConfig(my_trace, config)
 
-            rep                 = Manifest_Representer(config)
+            rep                 = Manifest_Representer(config_table)
 
             status              = rep.dataframe_to_xl(  parent_trace    = root_trace, 
                                                         content_df_dict = {MANIFEST_NAME: data_df}, 

@@ -11,10 +11,10 @@ class Manifest_Representer:
     '''
     Class that can represent an Apodeixi manifest as an Excel spreadsheet
 
-    @param An Manifest_Config object
+    @param An ManifestConfig_Table object
     '''
-    def __init__(self, config):
-        self.config             = config
+    def __init__(self, config_table):
+        self.config_table       = config_table
 
         # Some intermediate values computed in the course of processing, which are saved as state to facilitate debugging
         self.widths_dict        = None
@@ -44,12 +44,14 @@ class Manifest_Representer:
         worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
 
         for name in content_df_dict.keys():
+            loop_trace          = my_trace.doing("Populating Excel content for manifest '" + str(name) + "'")
             df                  = content_df_dict[name]
-            layout              = self.config.layouts_dict[name]
-            self._populate_content(my_trace, df, layout, workbook, worksheet)
+            config              = self.config_table.getManifestConfig(loop_trace, name)
+            layout              = config.layout
+            self._populate_content(loop_trace, df, config, layout, workbook, worksheet)
         
-        # Now we must unprotect a large area outside the cells we pasted
-        self._unprotect_free_space(my_trace, worksheet)
+            # Now we must unprotect a large area outside the cells we pasted
+            self._unprotect_free_space(my_trace, config = config, worksheet = worksheet)
 
         # Before we close the workbook, remember some of the worksheet's formatting info in  simple-types-only dictionaries
         # to support regression testing
@@ -63,26 +65,25 @@ class Manifest_Representer:
     def _populate_posting_label(self, parent_trace):
         raise ApodeixiError(parent_trace, "Not impelemented")
 
-    def _populate_content(self, parent_trace, content_df, layout, workbook, worksheet):
+    def _populate_content(self, parent_trace, content_df, config, layout, workbook, worksheet):
         '''
         Helper method to write the block in Excel that comes from the manifest's content (as opposed to the Posting Label data).
         Returns the layout against which the `content_df` was pasted.
         '''
-        #layout                  = self.config.layout
         my_trace                = parent_trace.doing("Building out the layout")
         if True:
-            layout.build(parent_trace, content_df,  editable_cols       = self.config.editable_cols, 
-                                                    editable_headers    = self.config.editable_headers, 
-                                                    x_offset            = self.config.x_offset, 
-                                                    y_offset            = self.config.y_offset)
+            layout.build(parent_trace, content_df,  editable_cols       = config.editable_cols, 
+                                                    editable_headers    = config.editable_headers, 
+                                                    x_offset            = config.x_offset, 
+                                                    y_offset            = config.y_offset)
             layout.validate(my_trace)
             span                = layout.getSpan(my_trace) # Useful to carry around for debugging
             inner_trace         = my_trace.doing("Computing optimal column widths", data = {'layout span': str(span)})
             # Compute optimal widths for the columns
             calc                = ColumnWidthCalculator(    data_df             = content_df, 
-                                                            viewport_width      = self.config.viewport_width, 
-                                                            viewport_height     = self.config.viewport_height, 
-                                                            max_word_length     = self.config.max_word_length)
+                                                            viewport_width      = config.viewport_width, 
+                                                            viewport_height     = config.viewport_height, 
+                                                            max_word_length     = config.max_word_length)
             
             # Dictionary - keys are columns of content_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
             widths_dict         = calc.calc(inner_trace) 
@@ -100,8 +101,8 @@ class Manifest_Representer:
                 col             = columns[idx]
                 loop_trace      = my_trace.doing("Processing column '" + col + "'")
                 width           = int(widths_dict[col]['width']) # Cast to int to avoid errors if width is e.g. 20.0
-                x               = self.config.x_offset + idx
-                y               = self.config.y_offset
+                x               = config.x_offset + idx
+                y               = config.y_offset
                 fmt_dict        = layout.getFormat(loop_trace, x, y)
                 fmt             = workbook.add_format(fmt_dict)
                 worksheet.set_column(x, x, width)
@@ -116,24 +117,24 @@ class Manifest_Representer:
                 for idx in range(len(columns)):
                     col             = columns[idx]
                     loop_trace      = my_trace.doing("Processing column = '" + col + "' row = '" + str(row_nb) + "'")
-                    x               = self.config.x_offset + idx 
-                    y               = self.config.y_offset + 1 + row_nb # An extra '1' because of the headers
+                    x               = config.x_offset + idx 
+                    y               = config.y_offset + 1 + row_nb # An extra '1' because of the headers
                     fmt_dict        = layout.getFormat(loop_trace, x, y)
                     fmt             = workbook.add_format(fmt_dict)
                     worksheet.write(y, x, row_content[col], fmt)
 
-    def _unprotect_free_space(self, my_trace, worksheet):
+    def _unprotect_free_space(self, my_trace, config, worksheet):
         '''
         Scans a large range of cells (limit is hard coded) and unprotects any cell that is not in any layout
         '''
         LIMIT                           = 500
-        layouts                         = [self.config.layouts_dict[k] for k in self.config.layouts_dict.keys()]
 
         # Recall that layout.getSpan return [[xmin, ymin], [xmax, ymax]]
-        global_xmin                     = min([layout.getSpan(my_trace)[0][0] for layout in layouts])
-        global_ymin                     = min([layout.getSpan(my_trace)[0][1] for layout in layouts])
-        global_xmax                     = max([layout.getSpan(my_trace)[1][0] for layout in layouts])
-        global_ymax                     = max([layout.getSpan(my_trace)[1][1] for layout in layouts])
+        layout                          = config.layout
+        global_xmin                     = layout.getSpan(my_trace)[0][0]
+        global_ymin                     = layout.getSpan(my_trace)[0][1]
+        global_xmax                     = layout.getSpan(my_trace)[1][0]
+        global_ymax                     = layout.getSpan(my_trace)[1][1]
 
         # Outside the global area, unprotect entire ranges. If global span is A1:F20, we unprotect G1:ZZ500 and A21:ZZ500, kind of
         distant_columns = xl_range( 0,                          global_xmax + 1,    
@@ -144,18 +145,6 @@ class Manifest_Representer:
 
         worksheet.unprotect_range(distant_columns)
         worksheet.unprotect_range(distant_rows)
-        
-        # With the global area, unprotect any empty space not in any layout (e.g., if pasting multiple
-        # manifests, there will be empty space between them)
-        for x in range(global_xmin, global_xmax + 1):
-            for y in range(global_ymin,global_ymax + 1):
-                hits = [layout.name for layout in layouts if layout.contains(my_trace, x, y)]
-                if len(hits) == 0: # We never pasted this point, so unprotect it
-                    cell                = xl_rowcol_to_cell(y, x)
-                    worksheet.unprotect_range(cell)
-
-
-
 
 class XL_WorksheetInfo():
     '''

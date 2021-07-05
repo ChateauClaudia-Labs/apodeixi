@@ -101,6 +101,28 @@ class KnowledgeBase():
                 errors[idx]     = ex
 
         return successes, errors
+
+    def requestForm(self, parent_trace, form_request):
+        '''
+        Handles the request for getting a posting form that the caller can complete and then submit
+        as a posting
+
+        Returns a RequestFormResponse object, as well as a string corresponding the log made during the processing.
+        '''
+        my_trace                = parent_trace.doing("Requestiong a form",
+                                                data = {'posting_api':     form_request.getPostingAPI(parent_trace)})
+
+        posting_api             = form_request.getPostingAPI(my_trace)
+
+        ctrl                    = self.findController(  parent_trace        = my_trace,
+                                                        posting_api         = posting_api)
+
+        my_trace                = parent_trace.doing("Applying controller to process the posting")
+        response                = ctrl.generateForm(    parent_trace            = my_trace, 
+                                                        form_request            = form_request)
+
+        log_txt                 = ctrl.log_txt
+        return response, log_txt
         
     def findController(self, parent_trace, posting_api):
         '''

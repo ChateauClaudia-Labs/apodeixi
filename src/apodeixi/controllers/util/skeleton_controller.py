@@ -49,9 +49,10 @@ class SkeletonController(PostingController):
                                                             data = {"excel_filename": excel_filename})
         archival_handle             = self.store.archivePosting(my_trace, posting_label_handle)
         response.recordArchival(my_trace, posting_label_handle, archival_handle)
-        # TODO - Finish the remaining phases of the controller, after creating the manifests. Namely:
-        # TODO  1. Move the Excel spreadsheet to a "prior" area
-        # TODO  2. Generate the Excel spreadsheet that can be used for updates. This probably must be in the derived controller class
+
+        manifest_handles            = [h for h in response.createdManifests() + response.updatedManifests()]
+        form_request                = posting_label_handle.createUpdateForm(my_trace, manifest_handles)
+        response.recordOptionalForm(my_trace, form_request)
 
         self.log_txt                = self.store.logPostEvent(my_trace, response)
 

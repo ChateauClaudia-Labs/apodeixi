@@ -272,7 +272,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             with open(manifest_dir + "/" + manifest_file, 'w') as file:
                 _yaml.dump(manifest_dict, file)
             
-            handle          = ManifestHandle.inferHandle(my_trace, manifest_dict)
+            handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
     def retrieveManifest(self, parent_trace, manifest_handle):
@@ -369,7 +369,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
             with open(folder + '/' + filename, 'r') as file:
                 manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
             #manifest_dict       = _yaml.load(filename, Loader=_yaml.FullLoader)
-            inferred_handle     = ManifestHandle.inferHandle(my_trace, manifest_dict)
+            inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
             if inferred_handle == manifest_handle:
                 matching_filenames.append(filename)
                 matching_manifests.append(manifest_dict)
@@ -445,23 +445,23 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         log_txt                             = ""
         for handle in controller_response.createdManifests():
-            log_txt                         += "\nCREATED MANIFEST:        " + str(handle) + "\n"
+            log_txt                         += "\nCREATED MANIFEST:        " + handle.display(parent_trace) + "\n"
 
         for handle in controller_response.updatedManifests():
-            log_txt                         += "\nUPDATED MANIFEST:        " + str(handle) + "\n"
+            log_txt                         += "\nUPDATED MANIFEST:        " + handle.display(parent_trace) + "\n"
 
         for handle in controller_response.deletedManifests():
-            log_txt                         += "\nDELETED MANIFEST:        " + str(handle) + "\n"
+            log_txt                         += "\nDELETED MANIFEST:        " + handle.display(parent_trace) + "\n"
 
         for handle1, handle2 in controller_response.archivedPostings():
             log_txt                         += "\nARCHIVED POSTING FROM:   " + handle1.display(parent_trace, path_mask)
             log_txt                         += "\n             TO:         " + handle2.display(parent_trace, path_mask) + "\n"
 
         for form_request in controller_response.optionalForms():
-            log_txt                         += "\nPUBLISHED OPTIONAL FORM: " + str(form_request) + "\n"
+            log_txt                         += "\nPUBLISHED OPTIONAL FORM: " + form_request.display(parent_trace) + "\n"
 
         for form_request in controller_response.mandatoryForms():
-            log_txt                         += "\nPUBLISHED MANDATORY FORM: " + str(form_request) + "\n"
+            log_txt                         += "\nPUBLISHED MANDATORY FORM: " + form_request.display(parent_trace) + "\n"
 
 
         LOG_FILENAME                        = "POST_EVENT_LOG.txt"

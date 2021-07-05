@@ -82,6 +82,27 @@ class PostingLabelHandle():
                                                         excel_range         = excel_range)
         return data_handle
 
+    def createUpdateForm(self, parent_trace, manifest_handles):
+        '''
+        Creates and returns a FormRequest that can be used by the user to request an Excel spreadsheet with 
+        which to later update the data that is being submitted in this posting. The intention is that as this
+        posting is processed, after processing the user will have the opportunity (possibly days or weeks later)
+        to ammend it by submitting an "update" posting. For that the user will need an Excel spreadsheet
+        that the KnowledgeBase understands is an update to a prior posting, so to obtain such a spreadsheet
+        the user can give the KnowledgeBase the FormRequest object returned by this function.
+        '''
+        coords                  = self.filing_coords
+        if type(coords) == TBD_FilingCoordinates:
+            my_trace            = parent_trace.doing("Replacing TBD coordinates by the inferred ones")
+            coords              = coords.inferred_coords(my_trace)
+
+        form_request            = FormRequest(  parent_trace            = parent_trace, 
+                                                posting_api             = self.posting_api, 
+                                                filing_coords           = coords,
+                                                manifest_handle_list    = manifest_handles)
+        return form_request
+
+
 class PostingDataHandle():
     '''
     Object with all the information needed to identify and retrieve the content for a particulra manifest in a posting.
@@ -148,38 +169,7 @@ class ManifestUtils():
         manifest_version                    = metadata_dict[_VERSION] 
         return manifest_version
     
-class ManifestHandle():
-    '''
-    Object that uniquely identifies a manifest in an Apodeixi knowledge base
-    '''
-    def __init__(self, apiVersion, kind, namespace, name, version):
-        self.apiVersion     = apiVersion
-        self.kind           = kind
-        self.namespace      = namespace
-        self.name           = name
-        self.version        = version
-        
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.__dict__ == other.__dict__
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __str__(self):
-        msg = "" \
-            + "\n\t\t apiVersion     = '" + str(self.apiVersion) + "'" \
-            + "\n\t\t namespace      = '" + str(self.namespace) + "'" \
-            + "\n\t\t kind           = '" + str(self.kind) + "'" \
-            + "\n\t\t name           = '" + str(self.name) + "'" \
-            + "\n\t\t version        = '" + str(self.version) + "'" \
-
-        return msg
-
-    def inferHandle(parent_trace, manifest_dict):
+    def inferHandle(self, parent_trace, manifest_dict):
         '''
         Figures out and returns the ManifestHandle implied by the given manifest_dict. If the manifest_dict is not well
         formed it raises an error.
@@ -218,6 +208,36 @@ class ManifestHandle():
                                                     kind        = manifest_dict[KIND],
                                                     version     = metadata_dict[VERSION])
         return handle
+
+class ManifestHandle():
+    '''
+    Object that uniquely identifies a manifest in an Apodeixi knowledge base
+    '''
+    def __init__(self, apiVersion, kind, namespace, name, version):
+        self.apiVersion     = apiVersion
+        self.kind           = kind
+        self.namespace      = namespace
+        self.name           = name
+        self.version        = version
+        
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def display(self, parent_trace, indentation=""):
+        msg = "" \
+            + "\n\t\t" + indentation + " apiVersion     = '" + str(self.apiVersion) + "'" \
+            + "\n\t\t" + indentation + " namespace      = '" + str(self.namespace) + "'" \
+            + "\n\t\t" + indentation + " kind           = '" + str(self.kind) + "'" \
+            + "\n\t\t" + indentation + " name           = '" + str(self.name) + "'" \
+            + "\n\t\t" + indentation + " version        = '" + str(self.version) + "'" \
+
+        return msg
 
 class Response():
     '''
@@ -298,11 +318,14 @@ class PostResponse(Response):
         @param manifest_dict A dictionary representation of a manifest. It must have 'metadata.name', 'metadata.namespace' and 'kind'
                                 since those are mandatory fields for all manifests.
         '''
-        handle                  = ManifestHandle.inferHandle(parent_trace, manifest_dict)
+        handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
         self.manifest_handles_dict[Response.CREATED].append(handle)
 
     def recordArchival(self, parent_trace, original_handle, archival_handle):
         self.posting_handles_dict[Response.ARCHIVED].append([original_handle, archival_handle])
+
+    def recordOptionalForm(self, parent_trace, form_request):
+        self.form_requests_dict[Response.OPTIONAL_FORMS].append(form_request)
 
 class PostingVersion():
     '''
@@ -314,4 +337,57 @@ class PostingVersion():
     
     def nextVersion(self, posting_version):
         return PostingVersion(posting_version.version_nb + 1)
+
+class FormRequest():
+    '''
+    Object that allows the user to request a form (i.e., an Excel spreadsheet) to the Knowledge Base.
+    Upon receiving such a request, the Knowledge Base would:
+
+    * Create an Excel spreadsheet in an area of the Knowledge Base's store determined by this FormRequest
+    * The spreadsheet would have a pre-populated Posting Label area as determined by this FormRequest
+    * The spreadsheet would be for a posting API determined by this FormRequest
+
+    As a result, the use can subsequently enter any missing data in the spreadsheet and submit it to
+    the Knowledge Base as a posting.
+    
+    Thus, the FormRequest corresponds to a unique PostingLabelHandle that will eventually be created as a 
+    result of the user posting the form obtained from the KnowledgeBase through this FormRequest.
+    '''
+    def __init__(self, parent_trace, posting_api, filing_coords, manifest_handle_list):
+
+        self._posting_api           = posting_api 
+        self._filing_coords         = filing_coords 
+        self._manifest_handle_list  = manifest_handle_list
+       
+    def display(self, parent_trace):
+        '''
+        Returns a string friendly representation of this FormRequest
+        '''
+        msg = "" \
+            + "\n\t\t posting_api     = '" + self._posting_api + "'" \
+            + "\n\t\t filing_coords   = '" + str(self._filing_coords) + "'" 
+        
+        for handle in self._manifest_handle_list:
+            msg += "\n\t\t *** A ManifestHandle ***"
+            msg += handle.display(parent_trace, indentation="\t")
+
+        return msg
+
+    def getPostingAPI(self, parent_trace):
+        return self._posting_api
+
+    def getFilingCoords(self, parent_trace):
+        return self._filing_coords
+
+    def manifestHandles(self, parent_trace):
+        return self._manifest_handle_list
+
+    def getRelativePath(self, parent_trace):
+        '''
+        Returns the relative path within the Knowledge Store's postings area where the form (an Excel spreadsheet)
+        should reside
+        '''
+        parsed_tokens               = self._filing_coords.path_tokens(parent_trace)
+        excel_path                  = '/'.join(parsed_tokens)
+        return excel_path + "/" + self._posting_api + ".xlsx"
 

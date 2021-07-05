@@ -87,7 +87,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         if True:
             with open(self.output_manifests_dir + '/' + manifest_file, 'w') as file:
                 _yaml.dump(manifest_dict, file)
-            handle          = ManifestHandle.inferHandle(my_trace, manifest_dict)
+            handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
     def retrieveManifest(self, parent_trace, manifest_handle):
@@ -162,7 +162,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
             with open(folder + '/' + filename, 'r') as file:
                 manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
             #manifest_dict       = _yaml.load(filename, Loader=_yaml.FullLoader)
-            inferred_handle     = ManifestHandle.inferHandle(my_trace, manifest_dict)
+            inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
             if inferred_handle == manifest_handle:
                 matching_filenames.append(filename)
                 matching_manifests.append(manifest_dict)

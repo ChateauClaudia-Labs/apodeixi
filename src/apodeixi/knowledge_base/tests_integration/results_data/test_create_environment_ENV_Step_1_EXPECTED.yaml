@@ -8,7 +8,7 @@ test_create_environment_ENV:
               (Timestamp omitted) Posting:
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  1686
+                  Size (in bytes):  2602
 
                   '
                 test_create_environment_big-rocks.journeys.a6i.xlsx: '

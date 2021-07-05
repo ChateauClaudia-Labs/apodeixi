@@ -79,18 +79,28 @@ class Excel_Layout():
         hits = self._locate_block(parent_trace, x, y)
         return len(hits) > 0
 
+
     def getFormat(self, parent_trace, x, y):
+        '''
+        Identifies the the unique Excel_Block that as been configured for cell [x, y], and then returns
+        that Excel_Block's format.
+
+        Raises an ApodeixiError if there is not a unique Excel_Block containing [x, y]
+        '''
         hits = self._locate_block(parent_trace, x, y)
         if len(hits) == 0:
             raise ApodeixiError(parent_trace, "Can't retrieve format because layout '" + self.name 
                                                 + "' does not contain [" + str(x) + ", " + str(y) + "]",
                                                 origination ={'signaled_from': __file__,})
         if len(hits) > 1:
-            multiple.append('[' + str(x) + ', '+ str(y) + ']')  
+            raise ApodeixiError(parent_trace, "Can't retrieve format because layout '" + self.name 
+                                                + "' has multiple blocks containing [" + str(x) + ", " + str(y) + "]",
+                                                origination ={'signaled_from': __file__,})
 
         block   = hits[0] # The unique block containing [x,y]
         return block.fmt
-        
+
+
     def getSpan(self, parent_trace):
         '''
         Returns a list of lists, in the format [[xmin, ymin], [xmax, ymax]] representing the coordinates of the
@@ -107,9 +117,8 @@ class Excel_Layout():
         return [[xmin, ymin], [xmax, ymax]]
 
 class ManifestLayout(Excel_Layout):
-    
     '''
-    Class to assist in the construction of an Excel_Layout for a manifest. It enforces the appropriate Excel formatting
+    Class to assist in the construction of an Excel_Layout for one manifest. It enforces the appropriate Excel formatting
     and provides a simplifying API allowing only two types of Excel_Blocks: header rows and body column groups, each of them
     either read-only or writable
     '''
@@ -139,8 +148,10 @@ class ManifestLayout(Excel_Layout):
         '''
         Adds an Excel_Block that can serve as a header
 
-        @param xInterval A list of two integers, like [2, 5] to delimit the column perimeter for the block
-        @param y        An integer, like 0, for the row in which this headers are supposed to be placed
+        @param xInterval A list of two integers, like [2, 5] to delimit the column perimeter for the block. Note
+                        that Excel columns start at 1 (not at 0)
+        @param y        An integer, like 1, for the row in which this headers are supposed to be placed. Excel rows
+                        start at 1 (not at 0)
         @param mode A string. Either "r" or "w", to indicate whether the block will be read-only or writable.
         '''
         if mode=='r':
@@ -151,10 +162,9 @@ class ManifestLayout(Excel_Layout):
             raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
                                                 origination ={'signaled_from': __file__,})
 
-
     def addBody(self, parent_trace, xInterval, yInterval, mode):
         '''
-        Adds an Excel_Block that can serve as a header
+        Adds an Excel_Block that can serve as a header. Note: Excel columns and rows start at 1 (not at 0)
 
         @param xInterval A list of two integers, like [4, 4] to delimit the column perimeter for the block
         @param yInterval A list of two integers, like [2, 6] to delimit the row perimeter for the block
@@ -199,7 +209,7 @@ class ManifestLayout(Excel_Layout):
                                             mode        = header_mode)
 
             self.addBody(parent_trace,      xInterval   = [idx + x_offset, idx + x_offset], 
-                                            yInterval   = [1 + y_offset, nb_rows, + y_offset], 
+                                            yInterval   = [1 + y_offset, nb_rows + y_offset], 
                                             mode        = body_mode)
 
 class AsExcel_Config():
@@ -221,12 +231,11 @@ class AsExcel_Config():
         
         self.layouts_dict           = {} # To be set by derived classes. Key is a name for a manifest, value is its Excel_Layout object
        
-class Manifest_Config(AsExcel_Config):
+class ManifestConfig(AsExcel_Config):
     '''
-    @param name_list A list of strings, each of them the name of a manifest that will be pasted on the same Excel worksheet.
-                    It is a list because we may paste multiple
+    @param manifest_name A string representing the name of a manifest that will be pasted on the same Excel worksheet.
     '''
-    def __init__(self, name_list,    viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+    def __init__(self, manifest_name,    viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   editable_headers    = [],   x_offset        = 0,    y_offset = 0):
         super().__init__(viewport_width, viewport_height, max_word_length)
 
@@ -236,6 +245,38 @@ class Manifest_Config(AsExcel_Config):
         self.x_offset               = x_offset
         self.y_offset               = y_offset
 
-        self.layouts_dict            = {}
-        for name in name_list:
-            self.layouts_dict[name]  = ManifestLayout(name)
+        self.layout                 =  ManifestLayout(manifest_name)
+
+    def getName(self, parent_trace):
+        return self.layout.name
+
+class ManifestConfig_Table():
+    '''
+    Encapsulates set of ManifestConfig objects, identified by their name
+    '''
+    def __init__(self):
+        self.config_dict            = {}
+        return
+    
+    def addManifestConfig(self, parent_trace, config):
+        '''
+        @param config A ManifestConfig object
+        '''
+        if type(config) != ManifestConfig:
+            raise ApodeixiError(parent_trace, "Expected a ManifestConfig, but instead was given a " + str(type(config)))
+    
+        name                        = config.getName(parent_trace)
+        self.config_dict[name]      = config
+
+    def getManifestConfig(self, parent_trace, name):
+        '''
+        Returns a ManifestConfig object uniquely identified by the given `name`, and raises an ApodeixiError if none
+        exists
+
+        @param name The unique name of the ManifestConfig in self
+        '''
+        if not name in self.config_dict.keys():
+            raise ApodeixiError(parent_trace, "No ManifestConfig exists with name '" + str(name) + "'")
+    
+        return self.config_dict[name]
+

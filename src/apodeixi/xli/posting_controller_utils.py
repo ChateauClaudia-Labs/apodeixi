@@ -32,7 +32,21 @@ class PostingController():
         It is an abstract method that must be implemented by derived classes.
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'apply' in concrete class",
-                                            origination = {'signaled_from': __file__})
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
+
+    def generateForm(self, parent_trace, form_request):
+        '''
+        Generates and saves an Excel spreadsheet that the caller can complete and then submit
+        as a posting
+
+        Returns a RequestFormResponse object, as well as a string corresponding the log made during the processing.
+
+        It is an abstract method that must be implemented by derived classes.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'generateForm' in concrete class",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
 
     def _xl_2_tree(self, parent_trace, data_handle, config):
         '''
@@ -654,7 +668,8 @@ class PostingConfig():
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'preflightPostingValidation' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+                                                                'signaled_from': __file__})
+
 
     def excel_row_nb(self, parent_trace, dataframe_row_nb):
         show_your_work          = self.controller.show_your_work  

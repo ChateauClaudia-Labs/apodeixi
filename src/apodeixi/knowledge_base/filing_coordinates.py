@@ -300,7 +300,9 @@ class TBD_FilingCoordinates(FilingCoordinates):
             return self._inferred_coords
         else:
             raise ApodeixiError(parent_trace, "Coordinates have not yet been inferred - they are still TBD."
-                                                + " Possibly this is being called too early in the processing?")
+                                                + " Possibly this is being called too early in the processing?",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__}) 
 
     def inferFilingCoords(self, parent_trace, posting_label):
         '''

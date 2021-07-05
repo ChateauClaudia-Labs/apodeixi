@@ -237,7 +237,7 @@ class BreakdownTree():
                                                 + str(illegal_sub_entities))
 
         columns                             = list(row[1].index)            
-        parent_entity                       = None
+        
         my_trace                            = parent_trace.doing("Discovering parent entity",
                                                                     origination = {'signaled_from': __file__})
         if encountered_new_entity: 

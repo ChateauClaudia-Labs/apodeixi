@@ -152,15 +152,6 @@ class MilestonesController(SkeletonController):
         
         return manifest_dict
 
-    def _genExcel(self, parent_trace, url, ctx_range, manifests_dir, manifest_file):
-        '''
-        Helper function that is amenable to unit testing (i.e., does not require a KnowledgeBase structure for I/O).
-
-        Used to generate an Excel spreadsheet that represents the current state of the manifest, inclusive of UIDs.
-        Such Excel spreadsheet is what the user would need to post in order to make changes to the manifest, since pre-existing
-        UIDs must be repected.
-        '''
-
     class _MilestonesConfig(PostingConfig):
         '''
         Codifies the schema and integrity expectations for modernization milestones
