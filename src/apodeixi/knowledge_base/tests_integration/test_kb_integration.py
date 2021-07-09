@@ -121,19 +121,19 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
         * A string with Excel formatting information for the main worksheet of the generated form
         '''
         # Check the layout for the generated form is right
-        layout_output_nice                          = ""
-        for manifest_handle in form_request.manifestHandles(parent_trace):
-
-            kind                                    = manifest_handle.kind
+        layout_output_nice                  = ""
+        manifest_handles_dict               = form_request.manifestHandles(parent_trace)
+        for key in manifest_handles_dict.keys():
+            manifest_handle                         = manifest_handles_dict[key]
             layout_output_dict                      = {}
 
-            layout_output_dict['layout span']       = fr_rep.span_dict[kind]
-            widths_dict                             = fr_rep.widths_dict_dict[kind]
+            layout_output_dict['layout span']       = fr_rep.span_dict[key]
+            widths_dict                             = fr_rep.widths_dict_dict[key]
             layout_output_dict['column widths']     = DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, 
                                                                                 a_dict = widths_dict)
             layout_output_dict['total width']       = sum([widths_dict[k]['width'] for k in widths_dict.keys()])
 
-            layout_output_nice          += "************** Layout information for Manifest '" + kind + "' **********\n\n"
+            layout_output_nice          += "************** Layout information for Manifest '" + key + "' **********\n\n"
 
             layout_output_nice          += DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, 
                                                                             a_dict = layout_output_dict)

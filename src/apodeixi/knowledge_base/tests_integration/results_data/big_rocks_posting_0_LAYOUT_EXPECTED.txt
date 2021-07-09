@@ -1,11 +1,11 @@
-************** Layout information for Manifest 'big-rock' **********
+************** Layout information for Manifest 'big-rock.0' **********
 
 layout span		[[1, 1], [2, 6]]
 column widths		UID		{'width': 3.0, 'nb_lines': 1}
 big-rock		{'width': 50.0, 'nb_lines': 2}
 
 total width		53.0
-************** Layout information for Manifest 'big-rock-estimate' **********
+************** Layout information for Manifest 'big-rock-estimate.1' **********
 
 layout span		[[4, 1], [6, 6]]
 column widths		UID		{'width': 3, 'nb_lines': 1}
@@ -13,7 +13,7 @@ effort		{'width': 6, 'nb_lines': 1}
 bigRock		{'width': 7, 'nb_lines': 1}
 
 total width		16
-************** Layout information for Manifest 'investment' **********
+************** Layout information for Manifest 'investment.2' **********
 
 layout span		[[8, 1], [10, 6]]
 column widths		UID		{'width': 3, 'nb_lines': 1}

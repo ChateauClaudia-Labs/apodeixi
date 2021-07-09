@@ -76,19 +76,32 @@ class SkeletonController(PostingController):
         Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
         '''
         my_trace                            = parent_trace.doing("Loading manifests to include in form")
-        df_dict                             = {} # Keys will be manifest's kind, values the DataFrame representation of manifest
-        for handle in form_request.manifestHandles(my_trace):
+        label                               = self.getPostingLabel(my_trace)
+        label_editable_fields               = None
+        df_dict                             = {} 
+        manifest_handles_dict               = form_request.manifestHandles(my_trace)
+        for key in manifest_handles_dict.keys():
+            manifest_handle                 = manifest_handles_dict[key]
             loop_trace                      = my_trace.doing("Loading manifest as a DataFrame",
-                                                                data = {"handle": handle.display(my_trace)})
-            manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, handle)
+                                                                data = {"handle": manifest_handle.display(my_trace)})
+            manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, manifest_handle)
+            proposed_editable_fields        = label.infer(my_trace, manifest_dict)
+            if label_editable_fields == None: # Initialize them
+                label_editable_fields             = proposed_editable_fields
+            elif proposed_editable_fields != label_editable_fields: 
+                raise ApodeixiError(loop_trace, "Can't generate form since manifests disagree on which fields should be"
+                                                + " editable in the PostingLabel of the form being requested") 
             kind                            = manifest_dict['kind']
-            posting_config                  = self.getPostingConfig(loop_trace, kind, 0)
+            posting_config                  = self.getPostingConfig(loop_trace, 
+                                                                    kind, 
+                                                                    form_request.manifest_nb(loop_trace, key)) 
             entity_yaml_field               = posting_config.entity_as_yaml_fieldname()
             content_dict                    = manifest_dict['assertion'][entity_yaml_field]
             rep                             = AsDataframe_Representer()
             contents_path                   = 'assertion.' + entity_yaml_field
             df                              = rep.dict_2_df(parent_trace, content_dict, contents_path)
-            df_dict[kind]                   = df
+            df_dict[key]                    = df
+
 
         my_trace                            = parent_trace.doing("Creating Excel layouts for manifests")
 
@@ -119,15 +132,14 @@ class SkeletonController(PostingController):
         my_trace                            = parent_trace.doing("Inferring posting label", 
                                                                 origination = {'signaled_from': __file__})
           
-        label                               = self.getPostingLabel(my_trace)
-        editable_fields                     = label.infer(my_trace, manifest_dict)  
+ 
         
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
         label_config                        = PostingLabelXLConfig( viewport_width      = 100,  
                                                                     viewport_height     = 40,   
                                                                     max_word_length     = 20, 
-                                                                    editable_fields     = editable_fields,   
+                                                                    editable_fields     = label_editable_fields,   
                                                                     x_offset            = 1,    
                                                                     y_offset            = 1)
         config_table.setPostingLabelXLConfig(my_trace, label_config)
@@ -247,14 +259,6 @@ class SkeletonController(PostingController):
                                                         excel_range         = excel_range)
             result.append(data_handle)
         return result
-
-
-    def _build_manifest_url(posting_url, manifest_excel_sheet):
-        posting_excel_sheet                 = posting_url.split(":")[-1]
-        excel_path_length                   = len(posting_url) - len(posting_excel_sheet) - 1 # Subtract 1 for the ":" delimeter
-        excel_path                          = posting_url[0:excel_path_length]
-        manifest_url                        = excel_path + ":" + manifest_excel_sheet
-        return manifest_url
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
@@ -452,15 +456,6 @@ class SkeletonController(PostingController):
 
             dt  = self._getField(parent_trace, ME._ESTIMATED_ON)
             return dt
-
-        '''
-        def postingVersion(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = SkeletonController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._POSTING_VERSION)
-        '''
-
 
         def _initialize_show_your_work(self, parent_trace, posting_label_handle):
             '''

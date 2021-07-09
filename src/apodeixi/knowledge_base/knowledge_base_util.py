@@ -90,6 +90,8 @@ class PostingLabelHandle():
         to ammend it by submitting an "update" posting. For that the user will need an Excel spreadsheet
         that the KnowledgeBase understands is an update to a prior posting, so to obtain such a spreadsheet
         the user can give the KnowledgeBase the FormRequest object returned by this function.
+
+        @param manifest_handles A list of ManifestHandle objects
         '''
         coords                  = self.filing_coords
         if type(coords) == TBD_FilingCoordinates:
@@ -371,6 +373,8 @@ class FormRequest():
     
     Thus, the FormRequest corresponds to a unique PostingLabelHandle that will eventually be created as a 
     result of the user posting the form obtained from the KnowledgeBase through this FormRequest.
+
+    manifest_handle_list: a list of ManifestHandle objects
     '''
     def __init__(self, parent_trace, posting_api, filing_coords, manifest_handle_list):
 
@@ -399,7 +403,35 @@ class FormRequest():
         return self._filing_coords
 
     def manifestHandles(self, parent_trace):
-        return self._manifest_handle_list
+        '''
+        Return a dictionary whose keys are strings that uniquely identify each ManifestHandle in this FormRequest,
+        and the values are the corresponding ManifestHandle
+        '''
+        result_dict                         = {}
+        for idx in range(len(self._manifest_handle_list)):
+            manifest_handle                 = self._manifest_handle_list[idx]
+            kind                            = manifest_handle.kind
+            manifest_key                    = str(kind) + "." + str(idx)
+            result_dict[manifest_key]       = manifest_handle
+
+        return result_dict
+
+    def manifest_nb(self, parent_trace, manifest_key):
+        '''
+        @param manifest_key A string that uniquely identifies a ManifestHandle, which must be a key in the dictionary
+                returned by self.manifestHandles
+
+        @returns An int that is unique to this ManifestHandle in this RequestForm
+        '''
+        keys                = list(self.manifestHandles(parent_trace))
+        if manifest_key in keys: # We can rely on manifest key looking like 'big-rocks.3'
+            s               = manifest_key.split('.')
+            return int(s[1])
+        else:
+            raise ApodeixiError(parent_trace, 'No manifest_nb correspond to the given manifest_key',
+                                                data = {'invalid manifest key provided': str(manifest_key),
+                                                        'valid manifest keys': str(keys)})
+
 
     def getRelativePath(self, parent_trace):
         '''

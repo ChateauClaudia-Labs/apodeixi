@@ -671,7 +671,6 @@ class PostingLabel():
                                                                                                 int, float])
         self.ctx[fieldname]         = val
                                                                         
-
 class PostingConfig():
     '''
     Helper class serving as a container for various configurations settings impacting how a BreakdownTree is to be
