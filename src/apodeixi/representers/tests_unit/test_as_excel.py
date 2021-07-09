@@ -22,21 +22,16 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
         OUTPUT_FOLDER           = self.output_data
         EXCEL_FILE              = NAME + '_MANIFEST.xlsx'
         SHEET                   = 'Manifest'
-        OUTPUT_FILE             = NAME + '_OUTPUT.txt'
-        EXPECTED_FILE           = NAME + '_EXPECTED.txt'
+        OUTPUT_FILE             = NAME
+ 
+        WS_INFO_FILE     = NAME + '_worksheet_info'
 
-        WS_INFO_OUTPUT_FILE     = NAME + '_worksheet_info_OUTPUT.txt'
-        WS_INFO_EXPECTED_FILE   = NAME + '_worksheet_info_EXPECTED.txt'
-
-        PL_WS_INFO_OUTPUT_FILE     = NAME + '_posting_label_ws_info_OUTPUT.txt'
-        PL_WS_INFO_EXPECTED_FILE   = NAME + '_posting_label_ws_info_EXPECTED.txt'
+        PL_WS_INFO_FILE     = NAME + '_posting_label_ws_info'
 
         MANIFEST_NAME           = 'Manifest for ' + NAME
         output_dict             = {}
-        expected                = None # Make it different than output so we don't accidentally pass the test if processing aborts
 
         worksheet_info_dict     = {}
-        ws_info_expected        = None
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Testing generating an Excel from a manifest")
             my_trace            = root_trace.doing("Loading input CSV file for test")
@@ -88,30 +83,23 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             output_dict['total width']      = sum([widths_dict[k]['width'] for k in widths_dict.keys()])
 
             output_nice         = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = output_dict)
-            with open(OUTPUT_FOLDER + '/' + OUTPUT_FILE, 'w') as file:
-                file            .write(output_nice)
+
+            self._compare_to_expected_txt(  output_txt      = output_nice,
+                                        test_case_name      = OUTPUT_FILE, 
+                                        save_output_txt     = True) 
+
             ws_info_nice         = self._nice_ws_info(root_trace, worksheet_info)
-            with open(OUTPUT_FOLDER + '/' + WS_INFO_OUTPUT_FILE, 'w') as file:
-                file            .write(ws_info_nice)
+            self._compare_to_expected_txt(  output_txt      = ws_info_nice,
+                                        test_case_name      = WS_INFO_FILE, 
+                                        save_output_txt     = True)
 
             pl_ws_info_nice         = self._nice_ws_info(root_trace, posting_label_ws_info)
-            with open(OUTPUT_FOLDER + '/' + PL_WS_INFO_OUTPUT_FILE, 'w') as file:
-                file            .write(pl_ws_info_nice)
-
-            # Load expected output
-            with open(OUTPUT_FOLDER + '/' + EXPECTED_FILE, 'r') as file:
-                expected        = file.read()
-            with open(OUTPUT_FOLDER + '/' + WS_INFO_EXPECTED_FILE, 'r') as file:
-                ws_info_expected        = file.read()
-            with open(OUTPUT_FOLDER + '/' + PL_WS_INFO_EXPECTED_FILE, 'r') as file:
-                pl_ws_info_expected        = file.read()
+            self._compare_to_expected_txt(  output_txt      = pl_ws_info_nice,
+                                        test_case_name      = PL_WS_INFO_FILE, 
+                                        save_output_txt     = True)
 
         except ApodeixiError as ex:
             print(ex.trace_message())                                                                                        
-
-        self.assertEqual(output_nice,       expected)
-        self.assertEqual(ws_info_nice,      ws_info_expected)
-        self.assertEqual(pl_ws_info_nice,   pl_ws_info_expected)
 
     def _nice_ws_info(self, parent_trace, worksheet_info):
         nice_format                     = ''
