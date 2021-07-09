@@ -1,13 +1,7 @@
-import os                                           as _os
-
 from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
-from apodeixi.knowledge_base.knowledge_base_util    import PostingLabelHandle, FormRequestResponse
-from apodeixi.representers.as_dataframe             import AsDataframe_Representer
-from apodeixi.representers.as_excel                 import Manifest_Representer
-from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, PostingLabelXLConfig
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
@@ -33,7 +27,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         self.SUPPORTED_VERSIONS         = ['v1a']
         self.SUPPORTED_KINDS            = ['big-rock-estimate', 'investment', 'big-rock']
 
-    GENERATED_FORM_WORKSHEET            = "Big Rocks"
+    #GENERATED_FORM_WORKSHEET            = "Big Rocks"
 
     def getManifestAPI(self):
         return self.MANIFEST_API
@@ -165,102 +159,6 @@ class BigRocksEstimate_Controller(SkeletonController):
             assertion[MY_PL._SCORING_MATURITY]          = scoring_maturity
         
         return manifest_dict
-
-    def generateForm(self, parent_trace, form_request):
-        '''
-        Generates and saves an Excel spreadsheet that the caller can complete and then submit
-        as a posting
-
-        Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
-        '''
-        my_trace                            = parent_trace.doing("Loading manifests to include in form")
-        df_dict                             = {} # Keys will be manifest's kind, values the DataFrame representation of manifest
-        for handle in form_request.manifestHandles(my_trace):
-            loop_trace                      = my_trace.doing("Loading manifest as a DataFrame",
-                                                                data = {"handle": handle.display(my_trace)})
-            manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, handle)
-            kind                            = manifest_dict['kind']
-            posting_config                  = self.getPostingConfig(loop_trace, kind, 0)
-            entity_yaml_field               = posting_config.entity_as_yaml_fieldname()
-            content_dict                    = manifest_dict['assertion'][entity_yaml_field]
-            rep                             = AsDataframe_Representer()
-            contents_path                   = 'assertion.' + entity_yaml_field
-            df                              = rep.dict_2_df(parent_trace, content_dict, contents_path)
-            df_dict[kind]                   = df
-
-        my_trace                            = parent_trace.doing("Creating Excel layouts for manifests")
-
-        full_path                           = self.store.getPostingsURL(my_trace) \
-                                                + "/" + form_request.getRelativePath(my_trace)
-        output_folder, filename             = _os.path.split(full_path)
-        sheet                               = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET
-        config_table                        = AsExcel_Config_Table()
-        x_offset                            = 1
-        y_offset                            = 1
-        for kind in df_dict.keys():
-            loop_trace                      = my_trace.doing("Creating layout configurations for manifest '"
-                                                                + str(kind) + "'")
-            data_df                         = df_dict[kind]
-            editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            config                          = ManifestXLConfig( manifest_name       = kind,    
-                                                                viewport_width      = 100,  
-                                                                viewport_height     = 40,   
-                                                                max_word_length     = 20, 
-                                                                editable_cols       = editable_cols,   
-                                                                editable_headers    = [],   
-                                                                x_offset            = x_offset,    
-                                                                y_offset            = y_offset)
-            # Put next manifest to the right of this one, separated by an empty column
-            x_offset                        += data_df.shape[1] + 1 
-            config_table.addManifestXLConfig(loop_trace, config)
-
-        my_trace                            = parent_trace.doing("Inferring posting label", 
-                                                                origination = {'signaled_from': __file__})
-          
-        label                               = self.getPostingLabel(my_trace)
-        editable_fields                     = label.infer(my_trace, manifest_dict)  
-        
-        my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
-        
-        label_config                        = PostingLabelXLConfig( viewport_width      = 100,  
-                                                                    viewport_height     = 40,   
-                                                                    max_word_length     = 20, 
-                                                                    editable_fields     = editable_fields,   
-                                                                    x_offset            = 1,    
-                                                                    y_offset            = 1)
-        config_table.setPostingLabelXLConfig(my_trace, label_config)
-
-        my_trace                            = parent_trace.doing("Creating Excel spreadsheet requested") 
-        rep                                 = Manifest_Representer(config_table)
-        status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
-                                                                    content_df_dict = df_dict, 
-                                                                    label_dict      = label.ctx,
-                                                                    excel_folder    = output_folder, 
-                                                                    excel_filename  = filename, 
-                                                                    sheet           = sheet)  
-        if status != Manifest_Representer.SUCCESS:
-            raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
-
-        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
-        POSTING_LABEL_SHEET                 = "Posting Label"
-        POSTING_LABEL_RANGE                 = "B2:C100"
-        response_handle                     = PostingLabelHandle(   
-                                                    parent_trace            = my_trace,
-                                                    excel_filename        = filename,
-                                                    excel_sheet            = POSTING_LABEL_SHEET,
-                                                    excel_range            = POSTING_LABEL_RANGE,
-                                                    posting_api            = form_request.getPostingAPI(my_trace), 
-                                                    filing_coords          = form_request.getFilingCoords(my_trace), 
-                                                    kb_postings_url        = self.store.getPostingsURL(my_trace))
-
-        response                            = FormRequestResponse()
-        response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
-
-        self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
-        self.representer                    = rep
-        return response
-
-
 
     class _BigRocksConfig(PostingConfig):
         '''
