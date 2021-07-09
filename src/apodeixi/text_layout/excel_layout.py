@@ -25,11 +25,15 @@ class Excel_Layout():
     @param name A string used to give a unique name to this layout (e.g., "Roadmap" would be the name for the
                 layout used to display an Apodeixi Roadmap manifest, say)
     @param blocks A list of Excel_Block objects
+    @param is_transposed A boolean which defaults to False. If True, then the layout is transposed before it
+                        is applied to Excel. I.e., a point (x, y) on this Excel_Layout object would be displayed
+                        at cell (y, x) in Excel
     '''
-    def __init__(self, name):
+    def __init__(self, name, is_transposed = False):
         
-        self.blocks     = []
-        self.name       = name
+        self.blocks             = []
+        self.name               = name
+        self.is_transposed      = is_transposed
         return
     
     def validate(self, parent_trace):
@@ -116,7 +120,7 @@ class Excel_Layout():
 
         return [[xmin, ymin], [xmax, ymax]]
 
-class ManifestLayout(Excel_Layout):
+class PostingLayout(Excel_Layout):
     '''
     Class to assist in the construction of an Excel_Layout for one manifest. It enforces the appropriate Excel formatting
     and provides a simplifying API allowing only two types of Excel_Blocks: header rows and body column groups, each of them
@@ -155,9 +159,9 @@ class ManifestLayout(Excel_Layout):
         @param mode A string. Either "r" or "w", to indicate whether the block will be read-only or writable.
         '''
         if mode=='r':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = ManifestLayout.HEADER_R_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = PostingLayout.HEADER_R_FMT))
         elif mode=='w':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = ManifestLayout.HEADER_W_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = PostingLayout.HEADER_W_FMT))
         else:
             raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
                                                 origination ={'signaled_from': __file__,})
@@ -171,29 +175,30 @@ class ManifestLayout(Excel_Layout):
         @param mode A string. Either "r" or "w", to indicate whether the block will be read-only or writable.
         '''
         if mode=='r':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = ManifestLayout.BODY_R_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = PostingLayout.BODY_R_FMT))
         elif mode=='w':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = ManifestLayout.BODY_W_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = PostingLayout.BODY_W_FMT))
         else:
             raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
                                                 origination ={'signaled_from': __file__,})
 
-    def build(self, parent_trace, content_df, editable_cols=[], editable_headers=[], x_offset=0, y_offset=0):
+    def build(self, parent_trace,   columns, nb_rows, editable_cols=[], editable_headers=[], 
+                                    x_offset=0, y_offset=0, has_headers=True):
         '''
         Builds out this layout, by adding blocks as appropriate to end up with an N * M layout such that:
         
-        1. M is the number of columns in content_df
-        2. The first layout's row is the header for the columns in content_df (the "headers")
-        3. The subsequent N-1 rows in the layout are for the "body", i.e., the rows of content_df, required to be exactly N-1 
+        1. M is the number of columns
+        2. The first layout's row is the header for the columns (the "headers"), but only if `has_headers` is True
+        3. The subsequent N-1 rows (or N rows, if `has_headers` is False) in the layout are for the "body", 
+           where N is nb_rows
         4. All body cells are by default read-only, unless they lie in a column in `editable_cols
         5. All column headers are by default read-only, unless the column appears in the `editable_headers` list
         6. The layout starts at cell [x_offset, y_offset] and extends to the right and below that cell.
 
         As a side effect, calling this method will destroy any pre-existing blocks
+
         '''
         self.blocks                     = []
-        columns                         = list(content_df.columns)
-        nb_rows                         = len(content_df.index)
         for idx in range(len(columns)):
             col                         = columns[idx]
             header_mode                 = 'r'
@@ -204,12 +209,17 @@ class ManifestLayout(Excel_Layout):
             if editable_cols != None and col in editable_cols:
                 body_mode               = 'w'
 
-            self.addHeader(parent_trace,    xInterval   = [idx + x_offset, idx + x_offset], 
-                                            y           = y_offset, 
-                                            mode        = header_mode)
+
+            if has_headers:
+                self.addHeader(parent_trace,    xInterval   = [idx + x_offset, idx + x_offset], 
+                                                y           = y_offset, 
+                                                mode        = header_mode)
+                next_y_offset           = y_offset + 1
+            else:
+                next_y_offset           = y_offset
 
             self.addBody(parent_trace,      xInterval   = [idx + x_offset, idx + x_offset], 
-                                            yInterval   = [1 + y_offset, nb_rows + y_offset], 
+                                            yInterval   = [next_y_offset, nb_rows + y_offset], 
                                             mode        = body_mode)
 
 class AsExcel_Config():
@@ -231,7 +241,7 @@ class AsExcel_Config():
         
         self.layouts_dict           = {} # To be set by derived classes. Key is a name for a manifest, value is its Excel_Layout object
        
-class ManifestConfig(AsExcel_Config):
+class ManifestXLConfig(AsExcel_Config):
     '''
     @param manifest_name A string representing the name of a manifest that will be pasted on the same Excel worksheet.
     '''
@@ -245,38 +255,98 @@ class ManifestConfig(AsExcel_Config):
         self.x_offset               = x_offset
         self.y_offset               = y_offset
 
-        self.layout                 =  ManifestLayout(manifest_name)
+        self.layout                 =  PostingLayout(manifest_name)
 
     def getName(self, parent_trace):
         return self.layout.name
 
-class ManifestConfig_Table():
+    def buildLayout(self, parent_trace, content_df):
+        columns                         = list(content_df.columns)
+        nb_rows                         = len(content_df.index)
+        self.layout.build(parent_trace, columns             = columns,
+                                        nb_rows             = nb_rows,
+                                        editable_cols       = self.editable_cols, 
+                                        editable_headers    = self.editable_headers, 
+                                        x_offset            = self.x_offset, 
+                                        y_offset            = self.y_offset,
+                                        has_headers         = True)
+
+class PostingLabelXLConfig(AsExcel_Config):
     '''
-    Encapsulates set of ManifestConfig objects, identified by their name
+
+    '''
+    def __init__(self, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+                        editable_fields   = [],   x_offset        = 0,    y_offset = 0):
+        super().__init__(viewport_width, viewport_height, max_word_length)
+
+        ME                          = PostingLabelXLConfig
+        self.editable_fields        = editable_fields
+        self.x_offset               = x_offset
+        self.y_offset               = y_offset
+
+        self.layout                 =  PostingLayout(ME._POSTING_LABEL)
+        self.layout.is_transposed   = True
+
+    _POSTING_LABEL              = "Posting Label"
+
+    def buildLayout(self, parent_trace, label_df):
+        ME                          = PostingLabelXLConfig
+        fields                      = label_df.columns
+
+        self.layout.build(parent_trace, columns             = fields,
+                                        nb_rows             = 2,
+                                        editable_cols       = self.editable_fields, 
+                                        editable_headers    = [], 
+                                        x_offset            = self.x_offset, 
+                                        y_offset            = self.y_offset,
+                                        has_headers         = True)
+
+class AsExcel_Config_Table():
+    '''
+    Encapsulates set of AsExcel_Config objects, identified by their name
     '''
     def __init__(self):
-        self.config_dict            = {}
+        self.manifest_config_dict           = {}
+        self.posting_label_config           = None
         return
     
-    def addManifestConfig(self, parent_trace, config):
+    def addManifestXLConfig(self, parent_trace, config):
         '''
-        @param config A ManifestConfig object
+        @param config A ManifestXLConfig object for a manifest
         '''
-        if type(config) != ManifestConfig:
-            raise ApodeixiError(parent_trace, "Expected a ManifestConfig, but instead was given a " + str(type(config)))
+        if type(config) != ManifestXLConfig:
+            raise ApodeixiError(parent_trace, "Expected a ManifestXLConfig, but instead was given a " + str(type(config)))
     
-        name                        = config.getName(parent_trace)
-        self.config_dict[name]      = config
+        name                                = config.getName(parent_trace)
+        self.manifest_config_dict[name]     = config
 
-    def getManifestConfig(self, parent_trace, name):
+    def getManifestXLConfig(self, parent_trace, name):
         '''
-        Returns a ManifestConfig object uniquely identified by the given `name`, and raises an ApodeixiError if none
-        exists
+        Returns a ManifestXLConfig object for the manifest that is uniquely identified by the given `name`, and 
+        raises an ApodeixiError if none exists
 
-        @param name The unique name of the ManifestConfig in self
+        @param name The unique name of the ManifestXLConfig in self
         '''
-        if not name in self.config_dict.keys():
-            raise ApodeixiError(parent_trace, "No ManifestConfig exists with name '" + str(name) + "'")
+        if not name in self.manifest_config_dict.keys():
+            raise ApodeixiError(parent_trace, "No ManifestXLConfig exists with name '" + str(name) + "'")
     
-        return self.config_dict[name]
+        return self.manifest_config_dict[name]
 
+    def manifest_configs(self):
+        return self.manifest_config_dict.values()
+
+    def setPostingLabelXLConfig(self, parent_trace, config):
+        '''
+        @param config A PostingLabelXLConfig object for a posting label
+        '''
+        if type(config) != PostingLabelXLConfig:
+            raise ApodeixiError(parent_trace, "Expected a PostingLabelXLConfig, but instead was given a " + str(type(config)))
+    
+        self.posting_label_config     = config
+
+    def getPostingLabelXLConfig(self, parent_trace):
+        '''
+        Returns the PostingLabelXLConfig object for this object.
+
+        '''
+        return self.posting_label_config

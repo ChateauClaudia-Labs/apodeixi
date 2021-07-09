@@ -4,9 +4,10 @@ from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
+from apodeixi.knowledge_base.knowledge_base_util    import PostingLabelHandle, FormRequestResponse
 from apodeixi.representers.as_dataframe             import AsDataframe_Representer
 from apodeixi.representers.as_excel                 import Manifest_Representer
-from apodeixi.text_layout.excel_layout              import ManifestConfig_Table, ManifestConfig
+from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, PostingLabelXLConfig
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
@@ -168,7 +169,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         Generates and saves an Excel spreadsheet that the caller can complete and then submit
         as a posting
 
-        Returns a RequestFormResponse object, as well as a string corresponding the log made during the processing.
+        Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
         '''
         my_trace                            = parent_trace.doing("Loading manifests to include in form")
         df_dict                             = {} # Keys will be manifest's kind, values the DataFrame representation of manifest
@@ -191,15 +192,15 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                 + "/" + form_request.getRelativePath(my_trace)
         output_folder, filename             = _os.path.split(full_path)
         sheet                               = "Big Rocks"
-        config_table        = ManifestConfig_Table()
-        x_offset            = 1
-        y_offset            = 1
+        config_table                        = AsExcel_Config_Table()
+        x_offset                            = 1
+        y_offset                            = 1
         for kind in df_dict.keys():
             loop_trace                      = my_trace.doing("Creating layout configurations for manifest '"
                                                                 + str(kind) + "'")
             data_df                         = df_dict[kind]
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            config              = ManifestConfig(   manifest_name       = kind,    
+            config              = ManifestXLConfig( manifest_name       = kind,    
                                                     viewport_width      = 100,  
                                                     viewport_height     = 40,   
                                                     max_word_length     = 20, 
@@ -207,22 +208,57 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                     editable_headers    = [],   
                                                     x_offset            = x_offset,    
                                                     y_offset            = y_offset)
-            x_offset                        += x_offset + data_df.shape[1] # Put next manifest to the right of this one
-            config_table.addManifestConfig(loop_trace, config)
+            # Put next manifest to the right of this one, separated by an empty column
+            x_offset                        += data_df.shape[1] + 1 
+            config_table.addManifestXLConfig(loop_trace, config)
 
+        my_trace                            = parent_trace.doing("Inferring posting label", 
+                                                                origination = {'signaled_from': __file__})
+          
+        label                               = self.getPostingLabel(my_trace)
+        editable_fields                     = label.infer(my_trace, manifest_dict)  
         
+        my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
+        
+        label_config            = PostingLabelXLConfig( viewport_width      = 100,  
+                                                        viewport_height     = 40,   
+                                                        max_word_length     = 20, 
+                                                        editable_fields     = editable_fields,   
+                                                        x_offset            = 1,    
+                                                        y_offset            = 1)
+        config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-        rep                 = Manifest_Representer(config_table)
+ 
 
-        status              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
-                                                    content_df_dict = df_dict, 
-                                                    excel_folder    = output_folder, 
-                                                    excel_filename  = filename, 
-                                                    sheet           = sheet)        
 
-        raise ApodeixiError(parent_trace, "Not yet implemented -- generateForm",
-                                            origination = {'concrete class': str(self.__class__.__name__), 
-                                                            'signaled_from': __file__})
+        rep                                 = Manifest_Representer(config_table)
+
+        status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
+                                                                    content_df_dict = df_dict, 
+                                                                    label_dict      = label.ctx,
+                                                                    excel_folder    = output_folder, 
+                                                                    excel_filename  = filename, 
+                                                                    sheet           = sheet)   
+        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
+
+        POSTING_LABEL_SHEET                 = "Posting Label"
+        POSTING_LABEL_RANGE                 = "B2:C100"
+        response_handle                     = PostingLabelHandle(   
+                                                    parent_trace            = my_trace,
+                                                    excel_filename        = filename,
+                                                    excel_sheet            = POSTING_LABEL_SHEET,
+                                                    excel_range            = POSTING_LABEL_RANGE,
+                                                    posting_api            = form_request.getPostingAPI(my_trace), 
+                                                    filing_coords          = form_request.getFilingCoords(my_trace), 
+                                                    kb_postings_url        = self.store.getPostingsURL(my_trace))
+
+        response                            = FormRequestResponse()
+        response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
+
+        self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
+        return response
+
+
 
     class _BigRocksConfig(PostingConfig):
         '''
@@ -396,6 +432,36 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                         ME._PLAN_TYPE,      ME._VARIANT,    
                                                         ME._SCORING_CYCLE,  ME._SCORING_MATURITY],
                                 date_fields         = [])
+
+        def infer(self, parent_trace, manifest_dict):
+            '''
+            Builds out the properties of a PostingLabel so that it can be used in a post request to update a
+            manifest given by the `manifest_dict`
+
+            Returns a list of the fields that may be editable
+
+            @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
+                                a manifest YAML file into a dict)
+            '''
+            editable_fields     = super().infer(parent_trace, manifest_dict)
+
+            ME = BigRocksEstimate_Controller._MyPostingLabel
+            def _infer(fieldname, path_list):
+                self._inferField(   parent_trace            = parent_trace, 
+                                    fieldname               = fieldname, 
+                                    path_list               = path_list, 
+                                    manifest_dict           = manifest_dict)
+
+            _infer(ME._PRODUCT,             ["metadata",    "labels",       ME._PRODUCT             ])
+            _infer(ME._JOURNEY,             ["metadata",    "labels",       ME._JOURNEY,            ])
+            _infer(ME._PLAN_TYPE,           ["assertion",                   ME._PLAN_TYPE           ])
+            _infer(ME._VARIANT,             ["assertion",                   ME._VARIANT             ])
+            _infer(ME._SCENARIO,            ["assertion",                   ME._SCENARIO            ])
+            _infer(ME._SCORING_CYCLE,       ["assertion",                   ME._SCORING_CYCLE       ])
+            _infer(ME._SCORING_MATURITY,    ["assertion",                   ME._SCORING_MATURITY    ])
+
+            editable_fields.extend([ME._SCORING_MATURITY])
+            return editable_fields
 
         def product(self, parent_trace):
             # Shortcut to reference class static variables

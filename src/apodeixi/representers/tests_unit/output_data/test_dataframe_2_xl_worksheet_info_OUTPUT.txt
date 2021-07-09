@@ -16,12 +16,12 @@ escapes		re.compile('["&<>\n]')
 internal_fh		False
 xf_format_indices		{'True:#FFFFFF:0:2:0:0:0:0:Calibri:0:11:0:0:0:#FFFFFF:0:0:0:0:#FFFFFF:True:#FFFFFF:0:#FFFFFF:0:#808080:0:2:1:0:0:True:0:0:General:True:0': 1, '0:0:0:2:0:0:0:0:Calibri:0:11:0:0:0:0:0:0:0:0:0:0:0:0:0:0:#F2F2F2:0:0:1:0:0:True:0:0:General:True:0': 2, '0:0:0:2:0:0:0:0:Calibri:0:11:0:0:0:0:0:0:0:0:0:0:0:0:0:0:#EBF1DE:0:0:1:0:0:True:0:0:General:False:0': 3}
 dxf_format_indices		{}
-xf_index		1
+xf_index		None
 dxf_index		None
 num_format		General
 num_format_index		0
-font_index		1
-has_font		1
+font_index		0
+has_font		0
 has_dxf_font		0
 bold		True
 underline		0
@@ -48,15 +48,15 @@ text_wrap		True
 text_v_align		1
 text_justlast		0
 rotation		0
-fg_color		#808080
-bg_color		0
-pattern		1
-has_fill		1
+fg_color		0
+bg_color		#808080
+pattern		0
+has_fill		0
 has_dxf_fill		0
-fill_index		2
+fill_index		0
 fill_count		0
-border_index		1
-has_border		1
+border_index		0
+has_border		0
 has_dxf_border		0
 border_count		0
 bottom		0
@@ -646,7 +646,7 @@ escapes		re.compile('["&<>\n]')
 internal_fh		False
 xf_format_indices		{'True:#FFFFFF:0:2:0:0:0:0:Calibri:0:11:0:0:0:#FFFFFF:0:0:0:0:#FFFFFF:True:#FFFFFF:0:#FFFFFF:0:#808080:0:2:1:0:0:True:0:0:General:True:0': 1, '0:0:0:2:0:0:0:0:Calibri:0:11:0:0:0:0:0:0:0:0:0:0:0:0:0:0:#F2F2F2:0:0:1:0:0:True:0:0:General:True:0': 2, '0:0:0:2:0:0:0:0:Calibri:0:11:0:0:0:0:0:0:0:0:0:0:0:0:0:0:#EBF1DE:0:0:1:0:0:True:0:0:General:False:0': 3}
 dxf_format_indices		{}
-xf_index		2
+xf_index		None
 dxf_index		None
 num_format		General
 num_format_index		0
@@ -678,12 +678,12 @@ text_wrap		True
 text_v_align		1
 text_justlast		0
 rotation		0
-fg_color		#F2F2F2
-bg_color		0
-pattern		1
-has_fill		1
+fg_color		0
+bg_color		#F2F2F2
+pattern		0
+has_fill		0
 has_dxf_fill		0
-fill_index		3
+fill_index		0
 fill_count		0
 border_index		0
 has_border		0

@@ -181,7 +181,7 @@ class DictionaryUtils():
 
         return new_dict
 
-    def get_val(self, parent_trace, root_dict, root_dict_name, path_list):
+    def get_val(self, parent_trace, root_dict, root_dict_name, path_list, valid_types = None):
         '''
         Thinking of `root_dict` dictionary as a tree, and of `path_list` as a branch, this method returns the
         value of the leaf node of the branch.
@@ -197,7 +197,7 @@ class DictionaryUtils():
                                                                     root_dict           = root_dict, 
                                                                     root_dict_name      = root_dict_name, 
                                                                     path_list           = path_list, 
-                                                                    valid_types         = None)  
+                                                                    valid_types         = valid_types)  
         if not check:
             raise ApodeixiError(parent_trace, "Can't get value for a path that does not exist",
                                                 data = {'root_dict_name': root_dict_name, 'path_list': str(path_list),

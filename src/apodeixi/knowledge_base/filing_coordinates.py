@@ -416,3 +416,83 @@ class ArchiveFilingCoordinates(FilingCoordinates):
         msg     = self.original_coords.__str__()
         msg     += "." + ArchiveFilingCoordinates.ARCHIVED_POSTINGS + "." + str(self.archive_folder)
         return msg
+
+
+class LogFilingCoordinates(FilingCoordinates):
+    '''
+    Helper class to hold the properties that are used to organize archived Excel postings in a KnowledgeBaseStore. 
+
+    It wraps the original FilingCoordinates object that was used to post the Excel posting, adding additional
+    coordinates. In effect, this means log filing structures are a sub-structure of the original 
+    posting structure. Additionally, the log coordinates are unique to an event. For example,
+    repeately posting the same Excel file would result in different archived coordinates even if the
+    original posting's coordinates are the same.
+
+    In "file system" language, the equivalent way to say the above is: the log file resides in a folder
+    dedicated to the event as a subfolder of some subfolder of the folder where the original event's posting
+    is to reside.
+
+    @param form_request A FormRequest object that uniquely identifies the submitted posting that 
+                    we are supposed to archive. 
+    '''
+    def __init__(self, parent_trace, form_request, use_timestamps):
+        super().__init__()
+        
+        if form_request == None or type(form_request) != kb_util.FormRequest:
+            raise ApodeixiError(parent_trace, "Need the submitted posting's FormRequest in order to archive" 
+                                                + " posting, but instead got a '" + str(type(form_request)) + "'")
+        original_coords                  = form_request.getFilingCoords(parent_trace)
+        
+        if original_coords == None or not issubclass(type(original_coords), FilingCoordinates):
+            raise ApodeixiError(parent_trace, "Need the submitted posting's FilingCoordinates in order to archive" 
+                                                + " posting, but instead got a '" + str(type(original_coords)) + "'")
+
+        if type(original_coords) == TBD_FilingCoordinates:
+            original_coords         = original_coords.inferred_coords(parent_trace)
+
+        self.original_coords        = original_coords
+
+        dt                          = _datetime.datetime.today()
+        # This will look like '210703.102746 Posting' for a posting done on the 3rd of July of 2021 at 10:27 am (and 46 sec)
+        # Intention is for this folder name to be unique for this posting event, even if other postings (for the same
+        # or different Excel files) happen the same day with the same filing coords
+        if use_timestamps:
+            self.archive_folder         = dt.strftime("%y%m%d.%H%M%S") + " Posting"
+        else:
+            self.archive_folder         = "(Timestamp omitted)" + " Posting"
+        return
+
+    ARCHIVED_POSTINGS               = "_ARCHIVE"
+
+
+    def path_tokens(self, parent_trace):
+        '''
+        Returns a list of strings, corresponding to the path tokens implicit by this FilingCoordinates instance.
+        '''
+        ME                          = LogFilingCoordinates
+        original_tokens             = self.original_coords.path_tokens(parent_trace)
+        archival_tokens             = original_tokens.copy()
+        archival_tokens.extend([ME.ARCHIVED_POSTINGS, self.archive_folder])
+
+        return archival_tokens
+
+    def to_dict(self, parent_trace):
+        '''
+        Returns a dictionary representation of self built only from scalars. Useful to display in test output files.
+        '''
+        original_dict                       = self.original_coords.to_dict(parent_trace)
+        archival_dict                       = original_dict.copy()
+        archival_dict["archive_folder"]     = self.archive_folder
+
+        return archival_dict
+
+    def __format__(self, format_spec):
+        msg     = self.original_coords.__format(format_spec)
+        msg     += "archive_folder: "      + str(self.archive_folder) 
+
+        return msg
+
+    def __str__(self):
+        msg     = self.original_coords.__str__()
+        msg     += "." + LogFilingCoordinates.ARCHIVED_POSTINGS + "." + str(self.archive_folder)
+        return msg

@@ -6,7 +6,7 @@ from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStor
 from apodeixi.knowledge_base.kb_environment             import File_KB_Environment, KB_Environment_Config
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, \
                                                                 InitiativesFilingCoordinates, \
-                                                                ArchiveFilingCoordinates
+                                                                ArchiveFilingCoordinates, LogFilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
@@ -386,6 +386,7 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         return matches
 
+
     def archivePosting(self, parent_trace, posting_label_handle):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
@@ -471,6 +472,48 @@ class File_KnowledgeBaseStore(KnowledgeBaseStore):
 
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Encountered problem saving log for post event",
+                                    data = {"Exception found": str(ex)})
+
+        return log_txt
+
+
+    def _get_log_folder(self, parent_trace, form_request):
+        '''
+        Helper method to get the log folder corresponding to a FormRequest
+        '''
+        env_config                          = self.current_environment(parent_trace).config(parent_trace)
+        log_coords                          = LogFilingCoordinates(
+                                                            parent_trace            = parent_trace, 
+                                                            form_request            = form_request, 
+                                                            use_timestamps          = env_config.use_timestamps)
+
+        log_folder                          = self.getPostingsURL(parent_trace) \
+                                                +  '/' + '/'.join(log_coords.path_tokens(parent_trace))
+
+        PathUtils().create_path_if_needed(parent_trace, log_folder)
+        return log_folder
+
+    def logFormRequestEvent(self, parent_trace, form_request, controller_response):
+        '''
+        Used to record in the store information about a request form event that has been completed.
+        '''
+        log_folder                          = self._get_log_folder(parent_trace, form_request)
+
+        env_config                          = self.current_environment(parent_trace).config(parent_trace)
+        path_mask                           = env_config.path_mask
+
+        log_txt                             = ""
+        for handle in controller_response.createdForms():
+            log_txt                         += "\nCREATED FORM:        " + handle.display(parent_trace, path_mask) + "\n"
+
+        LOG_FILENAME                        = "FORM_REQUEST_EVENT_LOG.txt"
+        try:
+            #with open(log_folder + "/" + LOG_FILENAME, 'w') as file:
+            with open(log_folder + "/" + LOG_FILENAME, 'a') as file:
+                file.write(str(log_txt))
+
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Encountered problem saving log for form request event",
                                     data = {"Exception found": str(ex)})
 
         return log_txt

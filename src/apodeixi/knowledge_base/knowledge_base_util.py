@@ -274,7 +274,7 @@ class Response():
     '''
     def __init__(self):
         self.manifest_handles_dict          = {Response.CREATED: [], Response.UPDATED: [], Response.DELETED: []}
-        self.posting_handles_dict           = {Response.ARCHIVED: []}
+        self.posting_handles_dict           = {Response.ARCHIVED: [], Response.CREATED: []}
         self.form_requests_dict             = {Response.OPTIONAL_FORMS: [], Response.MANDATORY_FORMS: []}
 
     CREATED                                 = 'CREATED' 
@@ -296,7 +296,10 @@ class Response():
         return self.manifest_handles_dict[Response.DELETED]
 
     def archivedPostings(self):
-        return self.posting_handles_dict[Response.ARCHIVED]
+        return self.posting_handles_dict[Response.ARCHIVED]   
+        
+    def createdForms(self):
+        return self.posting_handles_dict[Response.CREATED]
 
     def optionalForms(self):
         return self.form_requests_dict[Response.OPTIONAL_FORMS]
@@ -326,6 +329,22 @@ class PostResponse(Response):
 
     def recordOptionalForm(self, parent_trace, form_request):
         self.form_requests_dict[Response.OPTIONAL_FORMS].append(form_request)
+
+class FormRequestResponse(Response):
+    '''
+    Data structure used as a response to a FormRequest request on the knowledge base
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def recordCreation(self, parent_trace, response_handle):
+        '''
+        Used to enrich the content of this FormRequestResponse by recording that a form was created
+
+        @param response_handle A PostingLabelHandle for the form that was created
+        '''
+        self.posting_handles_dict[Response.CREATED].append(response_handle)
+
 
 class PostingVersion():
     '''

@@ -1,6 +1,7 @@
 import re                                       as _re
 import math                                     as _math
 from collections                                import Counter
+import datetime                                 as _datetime
 
 from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader
 from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree
@@ -40,7 +41,7 @@ class PostingController():
         Generates and saves an Excel spreadsheet that the caller can complete and then submit
         as a posting
 
-        Returns a RequestFormResponse object, as well as a string corresponding the log made during the processing.
+        Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
 
         It is an abstract method that must be implemented by derived classes.
         '''
@@ -567,6 +568,21 @@ class PostingLabel():
         self.ctx                = ctx 
         self.sightings  = sightings
 
+    def infer(self, parent_trace, manifest_dict):
+        '''
+        Builds out the properties of a PostingLabel so that it can be used in a post request to update a
+        manifest given by the `manifest_dict`.
+
+        Returns a list of the fields that may be editable
+
+        @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
+                            a manifest YAML file into a dict)
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'infer' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__})        
+        
+
     def _fields_found(self, expected_fields, optional_fields, label_df):
         '''
         Helper method that "sort of" looks to see if all the expected_fields appear in the columns of label_df.
@@ -629,6 +645,32 @@ class PostingLabel():
             raise ApodeixiError(parent_trace, "PostingLabel's context does not contain '" + fieldname + "'")
         
         return self.ctx[fieldname]
+
+    def _inferField(self, parent_trace, fieldname, path_list, manifest_dict):
+        '''
+        Populates the `fieldname` field of `self.ctx` identified by extracting a property from `manifest_dict`
+        which is identified by the `path_list`
+
+        @param fieldname A string, corresponding to a valid entry in self.ctx for this PostingLabel object
+        @param  path_list A list of strings, corresponding to the successive keys (like a "path") to navigate
+                    the nested dict structure of `manifest_dict`
+        @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
+                    a manifest YAML file into a dict)
+        '''
+        my_trace                    = parent_trace.doing("Retrieving field value from manifest dictionary",
+                                            data = {    "fieldname":        str(fieldname),
+                                                        "path_list":        str(path_list)})
+        if self.ctx == None:
+            raise ApodeixiError(my_trace, "Can't infer field from manifest because ctx has not been initialized")
+            
+        val                         = DictionaryUtils().get_val(        parent_trace        = my_trace,
+                                                                        root_dict           = manifest_dict,
+                                                                        root_dict_name      = "manifest", 
+                                                                        path_list           = path_list, 
+                                                                        valid_types         = [str, _datetime.datetime, 
+                                                                                                int, float])
+        self.ctx[fieldname]         = val
+                                                                        
 
 class PostingConfig():
     '''

@@ -45,6 +45,11 @@ class ColumnWidthCalculator:
     '''
     def __init__(self, data_df, viewport_width=200, viewport_height=40, max_word_length=20):
         self.data_df                = data_df
+
+        # Ensure that columns are strings, in case they are integers (can happen if caller is using a transpose,
+        # so caller's row indices become column headers by the time this function is called)
+        self.data_df.columns        = [str(col) for col in self.data_df.columns]
+
         self.viewport_width         = viewport_width
         self.viewport_height        = viewport_height
         

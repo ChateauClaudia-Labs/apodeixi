@@ -83,6 +83,7 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                                             test_case_name      = test_case_name + "_FORM_REQUEST_LOG", 
                                             save_output_txt     = True)              
                                             
+            self.assertTrue(1==2) # TODO - Finish the test case with more output from the requested forms
             return
         except ApodeixiError as ex:
             print(ex.trace_message())                  

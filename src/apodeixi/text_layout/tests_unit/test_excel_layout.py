@@ -4,9 +4,9 @@ import pandas                                   as _pd
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.text_layout.excel_layout          import ManifestLayout
+from apodeixi.text_layout.excel_layout          import PostingLayout
 
-class Test_ManifestLayout(ApodeixiUnitTest):
+class Test_PostingLayout(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
@@ -18,7 +18,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Testing layout validation")
             outputs             = []
-            layout              = ManifestLayout("good-layout")
+            layout              = PostingLayout("good-layout")
 
             layout.addHeader(   root_trace, xInterval=[1,9], y=1,               mode='r')
             layout.addBody(     root_trace, xInterval=[1,1], yInterval=[2, 19], mode='r')
@@ -39,7 +39,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
                 outputs.append(ex.trace_message())
             # Check an empty layout validates NOT OK
             try:
-                bad_layout = ManifestLayout("empty blocks list")
+                bad_layout = PostingLayout("empty blocks list")
                 outputs.append("====================== Validating " + bad_layout.name)
                 bad_layout.validate(root_trace)
                 outputs.append("Test failure: should have thrown exception for '" + bad_layout.name + "', but didn't")
@@ -47,7 +47,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
                 outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             # Check an incomplete layout validates NOT OK
             try:
-                bad_layout = ManifestLayout("with gaps")
+                bad_layout = PostingLayout("with gaps")
                 outputs.append("====================== Validating " + bad_layout.name)
                 bad_layout.addHeader(   root_trace, xInterval=[1,3], y=1,               mode='r')
                 bad_layout.addBody(     root_trace, xInterval=[1,1], yInterval=[2, 3], mode='r')                
@@ -57,7 +57,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
                 outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             # Check an layout with overlapping blocks validates NOT OK
             try:
-                bad_layout = ManifestLayout("with overlaps")
+                bad_layout = PostingLayout("with overlaps")
                 outputs.append("====================== Validating " + bad_layout.name)
                 bad_layout.addHeader(   root_trace, xInterval=[1,4], y=1,               mode='r')
                 bad_layout.addHeader(   root_trace, xInterval=[3,5], y=1,               mode='r')
@@ -79,7 +79,7 @@ class Test_ManifestLayout(ApodeixiUnitTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_ManifestLayout()
+        T = Test_PostingLayout()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='validate_layout':

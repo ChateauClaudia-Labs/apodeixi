@@ -1,0 +1,8 @@
+
+CREATED FORM:        
+		 posting_api     = 'big-rocks.journeys.a6i'
+		 kb_postings_url = '<MASKED>/apodeixi/test-knowledge-base/envs/big_rocks_posting_ENV/excel-postings'
+		 filing_coords   = 'Dec 2020.FusionOpus.Default'
+		 excel_filename  = 'big-rocks.journeys.a6i.xlsx'
+		 excel_sheet     = 'Posting Label'
+		 excel_range     = 'B2:C100'

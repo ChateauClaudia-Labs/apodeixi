@@ -107,7 +107,7 @@ class KnowledgeBase():
         Handles the request for getting a posting form that the caller can complete and then submit
         as a posting
 
-        Returns a RequestFormResponse object, as well as a string corresponding the log made during the processing.
+        Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
         '''
         my_trace                = parent_trace.doing("Requestiong a form",
                                                 data = {'posting_api':     form_request.getPostingAPI(parent_trace)})

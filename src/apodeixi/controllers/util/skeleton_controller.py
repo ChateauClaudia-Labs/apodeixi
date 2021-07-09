@@ -236,7 +236,7 @@ class SkeletonController(PostingController):
         _ESTIMATED_BY               = 'estimatedBy'
         _ESTIMATED_ON               = 'estimatedOn'
 
-        _POSTING_VERSION            = "postingVersion"
+        #_POSTING_VERSION            = "postingVersion"
 
         def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
             # Shortcut to reference class static variables
@@ -289,6 +289,35 @@ class SkeletonController(PostingController):
                     raise ApodeixiError(parent_trace, "Non supported domain object kind '" + kind + "'"
                                                     + "\nShould be one of: " + str(supported_data_kinds))
 
+        def infer(self, parent_trace, manifest_dict):
+            '''
+            Builds out the properties of a PostingLabel so that it can be used in a post request to update a
+            manifest given by the `manifest_dict`
+
+            Returns a list of the fields that may be editable
+
+            @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
+                                a manifest YAML file into a dict)
+            '''
+            self.ctx                        = {}
+            
+            ME = SkeletonController._MyPostingLabel
+            def _infer(fieldname, path_list):
+                self._inferField(   parent_trace            = parent_trace, 
+                                    fieldname               = fieldname, 
+                                    path_list               = path_list, 
+                                    manifest_dict           = manifest_dict)
+
+            _infer(ME._MANIFEST_API,        ["apiVersion"                                       ])
+            _infer(ME._ORGANIZATION,        ["metadata",    "labels",       ME._ORGANIZATION    ])
+            _infer(ME._ENVIRONMENT,         ["metadata",    "labels",       ME._ENVIRONMENT     ])
+            _infer(ME._RECORDED_BY,         ["assertion",                   ME._RECORDED_BY     ])
+            _infer(ME._ESTIMATED_BY,        ["assertion",                   ME._ESTIMATED_BY    ])
+            _infer(ME._ESTIMATED_ON,        ["assertion",                   ME._ESTIMATED_ON    ])
+
+            editable_fields = [ME._RECORDED_BY, ME._ESTIMATED_BY, ME._ESTIMATED_ON]
+            return editable_fields
+
         def environment(self, parent_trace):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
@@ -321,12 +350,13 @@ class SkeletonController(PostingController):
             dt  = self._getField(parent_trace, ME._ESTIMATED_ON)
             return dt
 
+        '''
         def postingVersion(self, parent_trace):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
             return self._getField(parent_trace, ME._POSTING_VERSION)
-
+        '''
 
 
         def _initialize_show_your_work(self, parent_trace, posting_label_handle):

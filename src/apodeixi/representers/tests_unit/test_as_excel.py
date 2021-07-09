@@ -6,7 +6,7 @@ from apodeixi.util.formatting_utils             import DictionaryFormatter
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.representers.as_excel             import Manifest_Representer
-from apodeixi.text_layout.excel_layout          import ManifestConfig, ManifestConfig_Table
+from apodeixi.text_layout.excel_layout          import ManifestXLConfig, AsExcel_Config_Table, PostingLabelXLConfig
 
 
 class Test_Manifest_Representer(ApodeixiUnitTest):
@@ -43,7 +43,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             # Make editable any column not starting with "UID"
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             
-            config              = ManifestConfig(   manifest_name       = MANIFEST_NAME,    
+            config              = ManifestXLConfig(   manifest_name       = MANIFEST_NAME,    
                                                     viewport_width      = 100,  
                                                     viewport_height     = 40,   
                                                     max_word_length     = 20, 
@@ -51,13 +51,24 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                     editable_headers    = [],   
                                                     x_offset            = 0,    
                                                     y_offset            = 0)
-            config_table        = ManifestConfig_Table()
-            config_table.addManifestConfig(my_trace, config)
+            config_table        = AsExcel_Config_Table()
+            config_table.addManifestXLConfig(my_trace, config)
+
+            my_trace            = root_trace.doing("Creating Excel layout for Posting Label")
+            label_dict          = {"TBD": "In test_as_excel.py"}
+            label_config        = PostingLabelXLConfig( viewport_width      = 100,  
+                                                            viewport_height     = 40,   
+                                                            max_word_length     = 20,  
+                                                            editable_fields     = [],   
+                                                            x_offset            = 1,    
+                                                            y_offset            = 1)
+            config_table.setPostingLabelXLConfig(my_trace, label_config)
 
             rep                 = Manifest_Representer(config_table)
 
             status              = rep.dataframe_to_xl(  parent_trace    = root_trace, 
                                                         content_df_dict = {MANIFEST_NAME: data_df}, 
+                                                        label_dict      = label_dict,
                                                         excel_folder    = OUTPUT_FOLDER, 
                                                         excel_filename  = EXCEL_FILE, 
                                                         sheet           = SHEET)
@@ -65,9 +76,11 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             worksheet_info                      = rep.worksheet_info
 
             output_dict['status']           = status
-            output_dict['layout span']      = rep.span
-            output_dict['column widths']    = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = rep.widths_dict)
-            output_dict['total width']      = sum([rep.widths_dict[k]['width'] for k in rep.widths_dict.keys()])
+            output_dict['layout span']      = rep.span_dict[MANIFEST_NAME]
+            widths_dict                     = rep.widths_dict_dict[MANIFEST_NAME]
+            output_dict['column widths']    = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, 
+                                                                                a_dict = widths_dict)
+            output_dict['total width']      = sum([widths_dict[k]['width'] for k in widths_dict.keys()])
 
             output_nice         = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = output_dict)
             with open(OUTPUT_FOLDER + '/' + OUTPUT_FILE, 'w') as file:
