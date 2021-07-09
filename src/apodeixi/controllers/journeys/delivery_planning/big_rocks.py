@@ -33,6 +33,8 @@ class BigRocksEstimate_Controller(SkeletonController):
         self.SUPPORTED_VERSIONS         = ['v1a']
         self.SUPPORTED_KINDS            = ['big-rock-estimate', 'investment', 'big-rock']
 
+    GENERATED_FORM_WORKSHEET            = "Big Rocks"
+
     def getManifestAPI(self):
         return self.MANIFEST_API
 
@@ -191,7 +193,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         full_path                           = self.store.getPostingsURL(my_trace) \
                                                 + "/" + form_request.getRelativePath(my_trace)
         output_folder, filename             = _os.path.split(full_path)
-        sheet                               = "Big Rocks"
+        sheet                               = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET
         config_table                        = AsExcel_Config_Table()
         x_offset                            = 1
         y_offset                            = 1
@@ -200,14 +202,14 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                 + str(kind) + "'")
             data_df                         = df_dict[kind]
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            config              = ManifestXLConfig( manifest_name       = kind,    
-                                                    viewport_width      = 100,  
-                                                    viewport_height     = 40,   
-                                                    max_word_length     = 20, 
-                                                    editable_cols       = editable_cols,   
-                                                    editable_headers    = [],   
-                                                    x_offset            = x_offset,    
-                                                    y_offset            = y_offset)
+            config                          = ManifestXLConfig( manifest_name       = kind,    
+                                                                viewport_width      = 100,  
+                                                                viewport_height     = 40,   
+                                                                max_word_length     = 20, 
+                                                                editable_cols       = editable_cols,   
+                                                                editable_headers    = [],   
+                                                                x_offset            = x_offset,    
+                                                                y_offset            = y_offset)
             # Put next manifest to the right of this one, separated by an empty column
             x_offset                        += data_df.shape[1] + 1 
             config_table.addManifestXLConfig(loop_trace, config)
@@ -220,27 +222,26 @@ class BigRocksEstimate_Controller(SkeletonController):
         
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
-        label_config            = PostingLabelXLConfig( viewport_width      = 100,  
-                                                        viewport_height     = 40,   
-                                                        max_word_length     = 20, 
-                                                        editable_fields     = editable_fields,   
-                                                        x_offset            = 1,    
-                                                        y_offset            = 1)
+        label_config                        = PostingLabelXLConfig( viewport_width      = 100,  
+                                                                    viewport_height     = 40,   
+                                                                    max_word_length     = 20, 
+                                                                    editable_fields     = editable_fields,   
+                                                                    x_offset            = 1,    
+                                                                    y_offset            = 1)
         config_table.setPostingLabelXLConfig(my_trace, label_config)
 
- 
-
-
+        my_trace                            = parent_trace.doing("Creating Excel spreadsheet requested") 
         rep                                 = Manifest_Representer(config_table)
-
         status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
                                                                     content_df_dict = df_dict, 
                                                                     label_dict      = label.ctx,
                                                                     excel_folder    = output_folder, 
                                                                     excel_filename  = filename, 
-                                                                    sheet           = sheet)   
-        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
+                                                                    sheet           = sheet)  
+        if status != Manifest_Representer.SUCCESS:
+            raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
 
+        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
         POSTING_LABEL_SHEET                 = "Posting Label"
         POSTING_LABEL_RANGE                 = "B2:C100"
         response_handle                     = PostingLabelHandle(   
@@ -256,6 +257,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
 
         self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
+        self.representer                    = rep
         return response
 
 

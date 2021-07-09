@@ -28,6 +28,9 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
         WS_INFO_OUTPUT_FILE     = NAME + '_worksheet_info_OUTPUT.txt'
         WS_INFO_EXPECTED_FILE   = NAME + '_worksheet_info_EXPECTED.txt'
 
+        PL_WS_INFO_OUTPUT_FILE     = NAME + '_posting_label_ws_info_OUTPUT.txt'
+        PL_WS_INFO_EXPECTED_FILE   = NAME + '_posting_label_ws_info_EXPECTED.txt'
+
         MANIFEST_NAME           = 'Manifest for ' + NAME
         output_dict             = {}
         expected                = None # Make it different than output so we don't accidentally pass the test if processing aborts
@@ -55,7 +58,8 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             config_table.addManifestXLConfig(my_trace, config)
 
             my_trace            = root_trace.doing("Creating Excel layout for Posting Label")
-            label_dict          = {"TBD": "In test_as_excel.py"}
+            label_dict          = {"Testing from": "test_as_excel.py", 
+                                    "Verifying": "Correct population of Excel with respect to data, layout and formatting"}
             label_config        = PostingLabelXLConfig( viewport_width      = 100,  
                                                             viewport_height     = 40,   
                                                             max_word_length     = 20,  
@@ -73,7 +77,8 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                         excel_filename  = EXCEL_FILE, 
                                                         sheet           = SHEET)
 
-            worksheet_info                      = rep.worksheet_info
+            worksheet_info                      = rep.worksheet_info_dict[SHEET]
+            posting_label_ws_info               = rep.worksheet_info_dict[Manifest_Representer.POSTING_LABEL_SHEET]
 
             output_dict['status']           = status
             output_dict['layout span']      = rep.span_dict[MANIFEST_NAME]
@@ -89,21 +94,28 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             with open(OUTPUT_FOLDER + '/' + WS_INFO_OUTPUT_FILE, 'w') as file:
                 file            .write(ws_info_nice)
 
+            pl_ws_info_nice         = self._nice_ws_info(root_trace, posting_label_ws_info)
+            with open(OUTPUT_FOLDER + '/' + PL_WS_INFO_OUTPUT_FILE, 'w') as file:
+                file            .write(pl_ws_info_nice)
+
             # Load expected output
             with open(OUTPUT_FOLDER + '/' + EXPECTED_FILE, 'r') as file:
                 expected        = file.read()
             with open(OUTPUT_FOLDER + '/' + WS_INFO_EXPECTED_FILE, 'r') as file:
                 ws_info_expected        = file.read()
+            with open(OUTPUT_FOLDER + '/' + PL_WS_INFO_EXPECTED_FILE, 'r') as file:
+                pl_ws_info_expected        = file.read()
 
         except ApodeixiError as ex:
             print(ex.trace_message())                                                                                        
 
         self.assertEqual(output_nice,       expected)
-        self.assertEqual(ws_info_nice,  ws_info_expected)
+        self.assertEqual(ws_info_nice,      ws_info_expected)
+        self.assertEqual(pl_ws_info_nice,   pl_ws_info_expected)
 
     def _nice_ws_info(self, parent_trace, worksheet_info):
         nice_format                     = ''
-        nice_format += "\n======================== Column information =========================="
+        nice_format += "\n======================== Column information ==========================\n"
         nice_format += DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, a_dict = worksheet_info.colinfo)
 
         fmt_dict                        = worksheet_info.format_dict

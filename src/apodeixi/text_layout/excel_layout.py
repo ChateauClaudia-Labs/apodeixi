@@ -131,11 +131,11 @@ class PostingLayout(Excel_Layout):
 
     WHITE                   = '#FFFFFF'
     DARK_GREEN              = '#375623'
-    LIGHT_GREEN             = '#EBF1DE'
+    LIGHT_GREEN             = '#E5EDD3' # '#EBF1DE'
     DARK_GREY               = '#808080'
-    LIGHT_GREY              = '#F2F2F2'
+    LIGHT_GREY              = '#E8E8E8' # '#F2F2F2'
 
-    ROOT_FMT                = {'text_wrap': True, 'valign': 'top'}
+    ROOT_FMT                = {'text_wrap': True, 'valign': 'top', 'border': True, 'border_color': WHITE}
     HEADER_CONTRIB          = {'bold': True, 'font_color': WHITE, 'align': 'center','border_color': WHITE, 
                             'right': True}
     R_CONTRIB               = {'locked': True}

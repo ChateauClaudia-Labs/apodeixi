@@ -104,10 +104,18 @@ class KnowledgeBase():
 
     def requestForm(self, parent_trace, form_request):
         '''
-        Handles the request for getting a posting form that the caller can complete and then submit
-        as a posting
+        Handles the request for getting a form (i.e., an Excel spreadsheet) that the caller can complete
+        and later submit in a post request to the Knowledge Base.
+        
+        Therefore, this method will create and save an Excel spreadsheet in a location in the KnowledgeBase
+        postings' area determined by the `form_request` parameter.
 
-        Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
+        It then returns a FormRequestResponse object, as well as a couple of objects to help with debugging or
+        regression testing:
+        
+        * a string corresponding the log made during the processing
+        * the Manifest_Representer object that was used to create the form
+
         '''
         my_trace                = parent_trace.doing("Requestiong a form",
                                                 data = {'posting_api':     form_request.getPostingAPI(parent_trace)})
@@ -122,7 +130,8 @@ class KnowledgeBase():
                                                         form_request            = form_request)
 
         log_txt                 = ctrl.log_txt
-        return response, log_txt
+        representer             = ctrl.representer
+        return response, log_txt, representer
         
     def findController(self, parent_trace, posting_api):
         '''

@@ -16,63 +16,83 @@ class Manifest_Representer:
         self.config_table       = config_table
 
         # Some intermediate values computed in the course of processing, which are saved as state to facilitate debugging
-        self.widths_dict_dict   = {}
-        self.span_dict          = {}
-        self.worksheet_info     = None
+        self.widths_dict_dict       = {}
+        self.span_dict              = {}
+        self.worksheet_info_dict    = {}
 
         return
 
+    POSTING_LABEL_SHEET     = "Posting Label"
+    SUCCESS                 = "Success"
 
     def dataframe_to_xl(self, parent_trace, content_df_dict, label_dict, excel_folder, excel_filename, sheet):
-    
+        '''
+        '''
         my_trace                = parent_trace.doing("Creating Excel workbook",
                                                         data = {'folder': excel_folder, 'filename': excel_filename, 'sheet': sheet})
         workbook                = xlsxwriter.Workbook(excel_folder + '/' + excel_filename)
 
-        self._write_posting_label(my_trace, workbook, label_dict, excel_folder, excel_filename)
+        inner_trace             = parent_trace.doing("Creating Posting Label")
+        self._write_posting_label(inner_trace, workbook, label_dict)
 
+        inner_trace             = parent_trace.doing("Creating worksheet '" + str(sheet) + ";")
+        self._write_dataframes(inner_trace, workbook, content_df_dict, sheet)
+
+        workbook.close()
+
+        return Manifest_Representer.SUCCESS
+
+    def _write_dataframes(self, parent_trace, workbook, content_df_dict, sheet):
+        '''
+        Creates and populates a worksheet containing multiple manfiests, each inputed as a DataFrame
+
+        @content_df_dict A dict object, whose keys are strings representing the name of a dataset, and the
+                        values are the manifests expressed as a Pandas DataFrame
+        '''
         worksheet               = workbook.add_worksheet(sheet) 
         
         # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
         worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
 
         for name in content_df_dict.keys():
-            loop_trace          = my_trace.doing("Populating Excel content for manifest '" + str(name) + "'")
+            loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
             df                  = content_df_dict[name]
             config              = self.config_table.getManifestXLConfig(loop_trace, name)
             #layout              = config.layout
-            self._populate_content(loop_trace, df, config, workbook, worksheet)
+            self._populate_worksheet(loop_trace, df, config, workbook, worksheet)
         
         # Now we must unprotect a large area outside the cells we pasted
-        self._unprotect_free_space(my_trace, worksheet = worksheet)
+        self._unprotect_free_space(parent_trace, worksheet = worksheet)
 
-        # Before we close the workbook, remember some of the worksheet's formatting info in  simple-types-only dictionaries
-        # to support regression testing
-        self.worksheet_info     = XL_WorksheetInfo()
-        self.worksheet_info.build(worksheet)
+        self._remember_formatting(worksheet, sheet)
 
-        #self._write_posting_label(my_trace, workbook, label_dict, excel_folder, excel_filename)
-
-        workbook.close()
-
-        return "Success"
-
-    def _write_posting_label(self, parent_trace, workbook, label_dict, excel_folder, excel_filename):
-        my_trace                = parent_trace.doing("Creating Posting Label",
-                                                       data = {'folder': excel_folder, 'filename': excel_filename})
-
-        label_config            = self.config_table.getPostingLabelXLConfig(my_trace)
+    def _write_posting_label(self, parent_trace, workbook, label_dict):
+        '''
+        Creates and populates a PostingLabel worksheet
+        '''
+        ME                      = Manifest_Representer
+        label_config            = self.config_table.getPostingLabelXLConfig(parent_trace)
 
         tmp_dict                = {}
         for key in label_dict.keys():
             tmp_dict[key] = [label_dict[key]]
         label_df         = _pd.DataFrame(tmp_dict)
-        POSTING_LABEL_SHEET     = "Posting Label"
-        posting_labelworksheet  = workbook.add_worksheet(POSTING_LABEL_SHEET) 
+        
+        posting_label_worksheet  = workbook.add_worksheet(ME.POSTING_LABEL_SHEET) 
         # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
-        posting_labelworksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
-        self._populate_content(my_trace, label_df, label_config, workbook, posting_labelworksheet)
+        posting_label_worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
+        self._populate_worksheet(parent_trace, label_df, label_config, workbook, posting_label_worksheet)
 
+        self._remember_formatting(posting_label_worksheet, ME.POSTING_LABEL_SHEET)
+
+    def _remember_formatting(self, worksheet, sheet):
+        '''
+        Remembers some of the worksheet's formatting info in  simple-types-only dictionaries
+        to support regression testing
+        '''
+        worksheet_info                      = XL_WorksheetInfo()
+        worksheet_info.build(worksheet)
+        self.worksheet_info_dict[sheet]     = worksheet_info
 
     def _set_column_width(self, parent_trace, worksheet, xl_x, column_width, layout):
         '''
@@ -93,7 +113,7 @@ class Manifest_Representer:
         fmt             = workbook.add_format(fmt_dict)
         worksheet.write(xl_y, xl_x, val, fmt)
 
-    def _populate_content(self, parent_trace, content_df, config, workbook, worksheet):
+    def _populate_worksheet(self, parent_trace, content_df, config, workbook, worksheet):
         '''
         Helper method to write the block in Excel that comes from the manifest's content (as opposed to the Posting Label data).
         Returns the layout against which the `content_df` was pasted.

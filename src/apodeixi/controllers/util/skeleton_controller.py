@@ -20,6 +20,7 @@ class SkeletonController(PostingController):
 
         # Internally computed data, maintained to assist with testing and debugging.
         self.log_txt                = None
+        self.representer            = None
 
     def apply(self, parent_trace, posting_label_handle):
         '''
