@@ -75,49 +75,85 @@ class SkeletonController(PostingController):
 
         Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
         '''
-        my_trace                            = parent_trace.doing("Loading manifests to include in form")
-        label                               = self.getPostingLabel(my_trace)
-        label_editable_fields               = None
-        df_dict                             = {} 
-        manifest_handles_dict               = form_request.manifestHandles(my_trace)
-        for key in manifest_handles_dict.keys():
-            manifest_handle                 = manifest_handles_dict[key]
-            loop_trace                      = my_trace.doing("Loading manifest as a DataFrame",
-                                                                data = {"handle": manifest_handle.display(my_trace)})
-            manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, manifest_handle)
-            proposed_editable_fields        = label.infer(my_trace, manifest_dict)
-            if label_editable_fields == None: # Initialize them
-                label_editable_fields             = proposed_editable_fields
-            elif proposed_editable_fields != label_editable_fields: 
-                raise ApodeixiError(loop_trace, "Can't generate form since manifests disagree on which fields should be"
-                                                + " editable in the PostingLabel of the form being requested") 
-            kind                            = manifest_dict['kind']
-            posting_config                  = self.getPostingConfig(loop_trace, 
-                                                                    kind, 
-                                                                    form_request.manifest_nb(loop_trace, key)) 
-            entity_yaml_field               = posting_config.entity_as_yaml_fieldname()
-            content_dict                    = manifest_dict['assertion'][entity_yaml_field]
-            rep                             = AsDataframe_Representer()
-            contents_path                   = 'assertion.' + entity_yaml_field
-            df                              = rep.dict_2_df(parent_trace, content_dict, contents_path)
-            df_dict[key]                    = df
-
+        ME                                  = SkeletonController
+        my_trace                            = parent_trace.doing("Loading manifests requested in the form")
+        if True:
+            manifest_handles_dict               = form_request.manifestHandles(my_trace)
+            manifestInfo_dict                   = {}
+            contents_df_dict                    = {} # needed for Manifest_Representer
+            for key in manifest_handles_dict.keys():
+                manifest_handle                 = manifest_handles_dict[key]
+                loop_trace                      = my_trace.doing("Loading manifest",
+                                                                    data = {"handle": manifest_handle.display(my_trace)})
+                manifest_info                   = ME._ManifestInfo( parent_trace            = loop_trace,
+                                                                    key                     = key,
+                                                                    manifest_handle         = manifest_handle, 
+                                                                    form_request            = form_request, 
+                                                                    controller              = self)
+                manifestInfo_dict[key]          = manifest_info
+                # This other dictionary of dataframes is needed for Manifest_Representer
+                data_df                         = manifest_info.getManifestContents(my_trace)
+                contents_df_dict[key]           = data_df
 
         my_trace                            = parent_trace.doing("Creating Excel layouts for manifests")
+        config_table                        = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
+                                                                                manifestInfo_dict   = manifestInfo_dict)
 
-        full_path                           = self.store.getPostingsURL(my_trace) \
-                                                + "/" + form_request.getRelativePath(my_trace)
-        output_folder, filename             = _os.path.split(full_path)
-        sheet                               = SkeletonController.GENERATED_FORM_WORKSHEET
+        my_trace                            = parent_trace.doing("Creating Excel layouts for posting label")
+        label, label_config                 = self._build_labelXLconfig(my_trace, manifestInfo_dict)
+        config_table.setPostingLabelXLConfig(my_trace, label_config)
+
+        my_trace                            = parent_trace.doing("Writing out the Excel spreadsheet requested")
+        if True:
+            full_path                           = self.store.getPostingsURL(my_trace) \
+                                                    + "/" + form_request.getRelativePath(my_trace)
+
+            output_folder, filename             = _os.path.split(full_path)
+            sheet                               = SkeletonController.GENERATED_FORM_WORKSHEET
+
+            rep                                 = Manifest_Representer(config_table)
+            status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
+                                                                        content_df_dict = contents_df_dict, 
+                                                                        label_dict      = label.ctx,
+                                                                        excel_folder    = output_folder, 
+                                                                        excel_filename  = filename, 
+                                                                        sheet           = sheet)  
+            if status != Manifest_Representer.SUCCESS:
+                raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
+
+        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
+        if True:
+            response_handle                     = PostingLabelHandle(   
+                                                        parent_trace            = my_trace,
+                                                        excel_filename        = filename,
+                                                        excel_sheet            = SkeletonController.POSTING_LABEL_SHEET,
+                                                        excel_range            = SkeletonController.POSTING_LABEL_RANGE,
+                                                        posting_api            = form_request.getPostingAPI(my_trace), 
+                                                        filing_coords          = form_request.getFilingCoords(my_trace), 
+                                                        kb_postings_url        = self.store.getPostingsURL(my_trace))
+
+            response                            = FormRequestResponse()
+            response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
+
+            self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
+            self.representer                    = rep
+            return response
+
+    def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):
+        '''
+        Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
+        all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
+        '''
         config_table                        = AsExcel_Config_Table()
         x_offset                            = 1
         y_offset                            = 1
-        for kind in df_dict.keys():
-            loop_trace                      = my_trace.doing("Creating layout configurations for manifest '"
-                                                                + str(kind) + "'")
-            data_df                         = df_dict[kind]
+        for key in manifestInfo_dict:
+            loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
+                                                                + str(key) + "'")
+            manifest_info                   = manifestInfo_dict[key]
+            data_df                         = manifest_info.getManifestContents(parent_trace)
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            config                          = ManifestXLConfig( manifest_name       = kind,    
+            config                          = ManifestXLConfig( manifest_name       = key,    
                                                                 viewport_width      = 100,  
                                                                 viewport_height     = 40,   
                                                                 max_word_length     = 20, 
@@ -128,12 +164,35 @@ class SkeletonController(PostingController):
             # Put next manifest to the right of this one, separated by an empty column
             x_offset                        += data_df.shape[1] + 1 
             config_table.addManifestXLConfig(loop_trace, config)
+        return config_table
+
+    def _build_labelXLconfig(self, parent_trace, manifestInfo_dict):
+        '''
+        Helper method used as part of processing a FormRequest
+
+        It creates a PostingLabelXLConfig object that should be used in the generation of the
+        Excel spreadsheet (the "form") that was requested by the FormRequest. In the process it also creates a 
+        PostingLabel object.
+
+        It returns a pair: the PostingLabel, and the PostingLabelXLConfig
+        '''
+        label                               = self.getPostingLabel(parent_trace)
+        label_editable_fields               = None
+        for key in manifestInfo_dict.keys():
+            loop_trace                      = parent_trace.doing("Checking label editable fields for manifest '" 
+                                                                + str(key) + "'")
+            manifest_info                   = manifestInfo_dict[key]
+            manifest_dict                   = manifest_info.getManifestDict(loop_trace)
+            proposed_editable_fields        = label.infer(loop_trace, manifest_dict)
+            if label_editable_fields == None: # Initialize them
+                label_editable_fields             = proposed_editable_fields
+            elif proposed_editable_fields != label_editable_fields: 
+                raise ApodeixiError(loop_trace, "Can't generate form since manifests disagree on which fields should be"
+                                                + " editable in the PostingLabel of the form being requested") 
 
         my_trace                            = parent_trace.doing("Inferring posting label", 
                                                                 origination = {'signaled_from': __file__})
-          
- 
-        
+
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
         label_config                        = PostingLabelXLConfig( viewport_width      = 100,  
@@ -142,36 +201,77 @@ class SkeletonController(PostingController):
                                                                     editable_fields     = label_editable_fields,   
                                                                     x_offset            = 1,    
                                                                     y_offset            = 1)
-        config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-        my_trace                            = parent_trace.doing("Creating Excel spreadsheet requested") 
-        rep                                 = Manifest_Representer(config_table)
-        status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
-                                                                    content_df_dict = df_dict, 
-                                                                    label_dict      = label.ctx,
-                                                                    excel_folder    = output_folder, 
-                                                                    excel_filename  = filename, 
-                                                                    sheet           = sheet)  
-        if status != Manifest_Representer.SUCCESS:
-            raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
+        return label, label_config
+    
+    class _ManifestInfo():
+        '''
+        Helper data structure to group related information about a manifest that is gradually built or used in the process
+        of handling a FormRequest that includes such manifest
 
-        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
+        @param controller A an object of a class derived from SkeletonController, which contains this _Manifest_info
+                class as an inner class
+        '''
+        def __init__(self, parent_trace, key, manifest_handle, form_request, controller):
+            self._key                       = key
+            self._manifest_handle           = manifest_handle  
+            self._controller                = controller
+            self._form_request              = form_request
+
+            # These are build later 
+            self._manifest_dict             = self._retrieveManifest(parent_trace)
+            self._contents_df               = self._buildManifestContent(parent_trace)
+            return
+
+        def _retrieveManifest(self, parent_trace):
+            '''
+            Loads the YAML manifest and returns a dict representing it
+            '''
+            manifest_handles_dict           = self._form_request.manifestHandles(parent_trace)
+
+            if self._key == None or not self._key in manifest_handles_dict.keys():
+                raise ApodeixiError(parent_trace, "Key does not identify any ManifestHandle in the FormRequest",
+                                                    data = {"key": self._key})
+
+            manifest_handle                 = manifest_handles_dict[self._key]
+            my_trace                        = parent_trace.doing("Loading manifest as a DataFrame",
+                                                                 data = {"handle": manifest_handle.display(parent_trace)})
+            manifest_dict, manifest_path    = self._controller.store.retrieveManifest(my_trace, manifest_handle)
+            return manifest_dict
+            
+        def getManifestDict(self, parent_trace):
+            self._abort_if_null_manifest(parent_trace)
+            return self._manifest_dict
+
+        def getManifestContents(self, parent_trace):
+            self._abort_if_null_manifest(parent_trace)
+            return self._contents_df
+
+        def _buildManifestContent(self, parent_trace):
+            '''
+            Returns a DataFrame, corresponding to the manifest's contents of
+            '''
+            self._abort_if_null_manifest(parent_trace)
+
+            kind                            = self._manifest_dict['kind']
+            posting_config                  = self._controller.getPostingConfig(parent_trace, 
+                                                                    kind, 
+                                                                    self._form_request.manifest_nb(parent_trace, self._key)) 
+            entity                          = posting_config.entity_as_yaml_fieldname()
+
+            content_dict                    = self._manifest_dict['assertion'][entity]
+            rep                             = AsDataframe_Representer()
+            contents_path                   = 'assertion.' + entity
+            contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path)
         
-        response_handle                     = PostingLabelHandle(   
-                                                    parent_trace            = my_trace,
-                                                    excel_filename        = filename,
-                                                    excel_sheet            = SkeletonController.POSTING_LABEL_SHEET,
-                                                    excel_range            = SkeletonController.POSTING_LABEL_RANGE,
-                                                    posting_api            = form_request.getPostingAPI(my_trace), 
-                                                    filing_coords          = form_request.getFilingCoords(my_trace), 
-                                                    kb_postings_url        = self.store.getPostingsURL(my_trace))
+            return contents_df
 
-        response                            = FormRequestResponse()
-        response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
+        def _abort_if_null_manifest(self, parent_trace):
+            if self._manifest_dict == None:
+                raise ApodeixiError(parent_trace, "_ManifestInfo has a null manifest - did you forget to retrieve it "
+                                                + "ahead of this point in the processing?",
+                                                data = {"manifest key": str(self._key)})
 
-        self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
-        self.representer                    = rep
-        return response
 
     def nextVersion(self, parent_trade, manifest_nb):
         '''
