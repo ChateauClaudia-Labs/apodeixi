@@ -26,39 +26,47 @@ class Manifest_Representer:
     POSTING_LABEL_SHEET     = "Posting Label"
     SUCCESS                 = "Success"
 
-    def dataframe_to_xl(self, parent_trace, content_df_dict, label_dict, excel_folder, excel_filename, sheet):
+    def dataframe_to_xl(self, parent_trace, content_df_dict, label_dict, excel_folder, excel_filename):
         '''
         '''
         my_trace                = parent_trace.doing("Creating Excel workbook",
-                                                        data = {'folder': excel_folder, 'filename': excel_filename, 'sheet': sheet})
+                                                        data = {'folder': excel_folder, 'filename': excel_filename})
         workbook                = xlsxwriter.Workbook(excel_folder + '/' + excel_filename)
 
         inner_trace             = parent_trace.doing("Creating Posting Label")
         self._write_posting_label(inner_trace, workbook, label_dict)
 
-        inner_trace             = parent_trace.doing("Creating worksheet '" + str(sheet) + ";")
-        self._write_dataframes(inner_trace, workbook, content_df_dict, sheet)
+        inner_trace             = parent_trace.doing("Writing manifest's data")
+        self._write_dataframes(inner_trace, workbook, content_df_dict)
 
         workbook.close()
 
         return Manifest_Representer.SUCCESS
 
-    def _write_dataframes(self, parent_trace, workbook, content_df_dict, sheet):
+    def _write_dataframes(self, parent_trace, workbook, content_df_dict):
         '''
-        Creates and populates a worksheet containing multiple manfiests, each inputed as a DataFrame
+        Creates and populates one or more worksheets, each containing data for one or more manifests.
+        Each manifest's data is inputed as a DataFrame.
+
+        The worksheet onto which a manifest's data is laid out is the worksheet whose name is listed in
+        self.config_table[key] where key is a string identifying a manifest (i.e., a dataset). These
+        `key' strings are the same as the dictionary keys in content_df_dict.
 
         @content_df_dict A dict object, whose keys are strings representing the name of a dataset, and the
                         values are the manifests expressed as a Pandas DataFrame
         '''
-        worksheet               = workbook.add_worksheet(sheet) 
-        
-        # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
-        worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
 
+        manifest_worksheet_list = []
         for name in content_df_dict.keys():
             loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
             df                  = content_df_dict[name]
             config              = self.config_table.getManifestXLConfig(loop_trace, name)
+            worksheet               = workbook.get_worksheet_by_name(config.sheet)
+            if worksheet == None:
+                worksheet               = workbook.add_worksheet(config.sheet) 
+                # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
+                worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
+                manifest_worksheet_list.append(worksheet)
             self._populate_worksheet(loop_trace, df, config, workbook, worksheet)
             self._write_text_label( parent_trace    = loop_trace, 
                                     workbook        = workbook,
@@ -66,10 +74,11 @@ class Manifest_Representer:
                                     xl_config       = config, 
                                     text            = name)
         
-        # Now we must unprotect a large area outside the cells we pasted
-        self._unprotect_free_space(parent_trace, worksheet = worksheet)
-
-        self._remember_formatting(worksheet, sheet)
+        # Now we must unprotect a large area outside the cells we pasted, which may span multiple
+        # manifests per worksheet, potentially
+        for worksheet in manifest_worksheet_list:
+            self._unprotect_free_space(parent_trace, worksheet = worksheet)
+            self._remember_formatting(worksheet, worksheet.get_name())
 
     def _write_posting_label(self, parent_trace, workbook, label_dict):
         '''
@@ -78,12 +87,13 @@ class Manifest_Representer:
         ME                      = Manifest_Representer
         label_config            = self.config_table.getPostingLabelXLConfig(parent_trace)
 
+
         tmp_dict                = {}
         for key in label_dict.keys():
             tmp_dict[key] = [label_dict[key]]
         label_df         = _pd.DataFrame(tmp_dict)
         
-        posting_label_worksheet  = workbook.add_worksheet(ME.POSTING_LABEL_SHEET) 
+        posting_label_worksheet  = workbook.add_worksheet(label_config.sheet) 
         # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
         posting_label_worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
         self._populate_worksheet(parent_trace, label_df, label_config, workbook, posting_label_worksheet)

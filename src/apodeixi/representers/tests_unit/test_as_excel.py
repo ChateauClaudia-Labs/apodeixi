@@ -41,7 +41,8 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             # Make editable any column not starting with "UID"
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             
-            config              = ManifestXLConfig(   manifest_name       = MANIFEST_NAME,    
+            config              = ManifestXLConfig( sheet               = SHEET,
+                                                    manifest_name       = MANIFEST_NAME,    
                                                     viewport_width      = 100,  
                                                     viewport_height     = 40,   
                                                     max_word_length     = 20, 
@@ -55,7 +56,8 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             my_trace            = root_trace.doing("Creating Excel layout for Posting Label")
             label_dict          = {"Testing from": "test_as_excel.py", 
                                     "Verifying": "Correct population of Excel with respect to data, layout and formatting"}
-            label_config        = PostingLabelXLConfig( viewport_width      = 100,  
+            label_config        = PostingLabelXLConfig(     sheet               = Manifest_Representer.POSTING_LABEL_SHEET,
+                                                            viewport_width      = 100,  
                                                             viewport_height     = 40,   
                                                             max_word_length     = 20,  
                                                             editable_fields     = [],   
@@ -69,8 +71,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                         content_df_dict = {MANIFEST_NAME: data_df}, 
                                                         label_dict      = label_dict,
                                                         excel_folder    = OUTPUT_FOLDER, 
-                                                        excel_filename  = EXCEL_FILE, 
-                                                        sheet           = SHEET)
+                                                        excel_filename  = EXCEL_FILE)
 
             worksheet_info                      = rep.worksheet_info_dict[SHEET]
             posting_label_ws_info               = rep.worksheet_info_dict[Manifest_Representer.POSTING_LABEL_SHEET]

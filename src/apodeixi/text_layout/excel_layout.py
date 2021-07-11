@@ -225,13 +225,13 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
+    def __init__(self, sheet, viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
-        Configuration for laying out an Apodeixi object, such as a manifest, into a rectangular area in 
+        Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
         Excel
         
-        @param layout          An Excel_Layout object describing the real estate and formatting in which to place 
-                               the data.
+        @param sheet        A string, corresponding to the name of the worksheet in the Excel spreadsheet onto
+                            which the data object is to be laid out.
         @param viewport_width  Horizontal length of visible screen allocated to this element (in number of characters)
         @param viewport_height Vertical length of visible screen allocated to this element (in number of characters)
         @param max_word_length Integer for the size of a string after which it is considered a "ridiculously long"
@@ -241,6 +241,7 @@ class AsExcel_Config():
         @param y_offset An int, giving the location of the upper row for the layout. Smallest value is 0, corresponding
                             to what in Excel is row "1"
         '''
+        self.sheet                  = sheet
         self.viewport_width         = viewport_width
         self.viewport_height        = viewport_height
         self.max_word_length        = max_word_length
@@ -285,9 +286,9 @@ class ManifestXLConfig(AsExcel_Config):
                             can change 'Subtask' but not 'Theme' or 'Task'    
 
     '''
-    def __init__(self, manifest_name,    viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+    def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   editable_headers    = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(viewport_width, viewport_height, max_word_length, x_offset, y_offset)
+        super().__init__(sheet, viewport_width, viewport_height, max_word_length, x_offset, y_offset)
 
         self.editable_cols          = editable_cols
         self.editable_headers       = editable_headers
@@ -327,9 +328,9 @@ class PostingLabelXLConfig(AsExcel_Config):
                             by Excel to change 'jill.the.architect@magicorp.com ' but not 
                             'delivery-plans.journeys.a6i.io/v2.1' or 'OpusPlus'    
     '''
-    def __init__(self, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+    def __init__(self, sheet, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                         editable_fields   = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(viewport_width, viewport_height, max_word_length, x_offset, y_offset)
+        super().__init__(sheet, viewport_width, viewport_height, max_word_length, x_offset, y_offset)
 
         ME                          = PostingLabelXLConfig
         self.editable_fields        = editable_fields

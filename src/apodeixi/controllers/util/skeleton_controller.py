@@ -109,15 +109,13 @@ class SkeletonController(PostingController):
                                                     + "/" + form_request.getRelativePath(my_trace)
 
             output_folder, filename             = _os.path.split(full_path)
-            sheet                               = SkeletonController.GENERATED_FORM_WORKSHEET
-
+            
             rep                                 = Manifest_Representer(config_table)
             status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
                                                                         content_df_dict = contents_df_dict, 
                                                                         label_dict      = label.ctx,
                                                                         excel_folder    = output_folder, 
-                                                                        excel_filename  = filename, 
-                                                                        sheet           = sheet)  
+                                                                        excel_filename  = filename)  
             if status != Manifest_Representer.SUCCESS:
                 raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
 
@@ -153,7 +151,8 @@ class SkeletonController(PostingController):
             manifest_info                   = manifestInfo_dict[key]
             data_df                         = manifest_info.getManifestContents(parent_trace)
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            config                          = ManifestXLConfig( manifest_name       = key,    
+            config                          = ManifestXLConfig( sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                                manifest_name       = key,    
                                                                 viewport_width      = 100,  
                                                                 viewport_height     = 40,   
                                                                 max_word_length     = 20, 
@@ -195,7 +194,8 @@ class SkeletonController(PostingController):
 
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
-        label_config                        = PostingLabelXLConfig( viewport_width      = 100,  
+        label_config                        = PostingLabelXLConfig( sheet               = SkeletonController.POSTING_LABEL_SHEET,
+                                                                    viewport_width      = 100,  
                                                                     viewport_height     = 40,   
                                                                     max_word_length     = 20, 
                                                                     editable_fields     = label_editable_fields,   
