@@ -103,6 +103,11 @@ class Manifest_Representer:
         `xl_config` would go. Used, for example, to put a title like "Posting Label" in an Excel cell right above
         where the posting label data would be laid out
 
+        If there is no space (e.g., if the xl_config would lay out the data starting at row 0, so any text label
+        would go on "inexistent" row -1), then this method
+        does not raise an error but the changes it makes to the behind-the-scenes Excel formatting state will not
+        be visible to the user.
+
         @param xl_config An object derived from AsExcel_Config, defining where a piece of data (e.g., a manifest,
                             posting label, or other) is to be laid out in an Excel spreadsheet.
         '''
