@@ -46,7 +46,8 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                     viewport_width      = 100,  
                                                     viewport_height     = 40,   
                                                     max_word_length     = 20, 
-                                                    editable_cols       = editable_cols,   
+                                                    editable_cols       = editable_cols, 
+                                                    hidden_cols         = [],  
                                                     editable_headers    = [],   
                                                     x_offset            = 0,    
                                                     y_offset            = 0)

@@ -19,6 +19,7 @@ class Manifest_Representer:
         # Some intermediate values computed in the course of processing, which are saved as state to facilitate debugging
         self.widths_dict_dict       = {}
         self.span_dict              = {}
+        self.hidden_cols_dict       = {}
         self.worksheet_info_dict    = {}
 
         return
@@ -172,12 +173,18 @@ class Manifest_Representer:
             xl_x = layout_y and xl_y = layout_x.
 
         Otherwise, xl_x = layout_x and xl_y = layout_y
+
+        @param config An AsExcel_Config object specifying how the data in `content_df` should be laid out on 
+                        the worksheet
         '''
         layout                  = config.layout
         is_transposed           = layout.is_transposed
 
         my_trace                = parent_trace.doing("Building out the layout")
+
         if True:
+            displayable_cols    = [col for col in content_df.columns if not col in config.hidden_cols]
+            displayable_df      = content_df[displayable_cols]
             config.buildLayout(parent_trace, content_df)
 
             #layout              = config.layout
@@ -188,29 +195,30 @@ class Manifest_Representer:
             if is_transposed:
                 # Besides transposing, reset index so layout headers become a column, so they get included in 
                 # calculation of widths (else they are ignored, being an index in the transpose)
-                xl_df           = content_df.transpose().reset_index() 
+                xl_df           = displayable_df.transpose().reset_index() 
                 
             else:
-                xl_df           = content_df
-            calc                = ColumnWidthCalculator(    data_df             = xl_df, #content_df, 
+                xl_df           = displayable_df
+            calc                = ColumnWidthCalculator(    data_df             = xl_df, 
                                                             viewport_width      = config.viewport_width, 
                                                             viewport_height     = config.viewport_height, 
                                                             max_word_length     = config.max_word_length)
             
-            # Dictionary - keys are columns of content_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
+            # Dictionary - keys are columns of displayable_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
             widths_dict         = calc.calc(inner_trace) 
 
             # Remember these to support debugging
             name                            = layout.name
             self.widths_dict_dict[name]     = widths_dict
             self.span_dict[name]            = span
+            self.hidden_cols_dict[name]     = config.hidden_cols
 
         
         # Now we start laying out content on the worksheet. 
         # Start by re-sizing the columns.
         if True:
             my_trace            = parent_trace.doing("Setting column widths")
-            xl_columns          = xl_df.columns #content_df.columns
+            xl_columns          = xl_df.columns 
             for xl_idx in range(len(xl_columns)): # GOTCHA: Loop is in "Excel space"
                 col             = xl_columns[xl_idx]
                 loop_trace      = my_trace.doing("Processing XL column '" + col + "'")
@@ -224,7 +232,7 @@ class Manifest_Representer:
         # Now populate headers
         if True:
             my_trace            = parent_trace.doing("Populating headers", data = {'layout span': str(span)})
-            columns             = content_df.columns
+            columns             = displayable_df.columns
             for layout_idx in range(len(columns)): # GOTCHA: Loop is in "Layout space"
                 col             = columns[layout_idx]
                 loop_trace      = my_trace.doing("Processing layout column '" + col + "'")
@@ -242,7 +250,7 @@ class Manifest_Representer:
         # Now lay out the content
         my_trace                = parent_trace.doing("Populating content", data = {'layout span': str(span)})
         if True:
-            for row in content_df.iterrows(): # GOTCHA: Loop is in "Layout space"
+            for row in displayable_df.iterrows(): # GOTCHA: Loop is in "Layout space"
                 row_nb      = row[0]
                 row_content = row[1]
                 for layout_idx in range(len(columns)):

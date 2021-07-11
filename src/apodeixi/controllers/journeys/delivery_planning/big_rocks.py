@@ -2,6 +2,7 @@ from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
+from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLConfig
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
@@ -74,6 +75,48 @@ class BigRocksEstimate_Controller(SkeletonController):
         '''
         ME                              = BigRocksEstimate_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
+
+    def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):
+        '''
+        Overwrites parent's implementation
+
+        Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
+        all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
+        '''
+        config_table                        = AsExcel_Config_Table()
+        x_offset                            = 1
+        y_offset                            = 1
+        for key in manifestInfo_dict:
+            loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
+                                                                + str(key) + "'")
+            manifest_info                   = manifestInfo_dict[key]
+            data_df                         = manifest_info.getManifestContents(parent_trace)
+            editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
+            if key == 'big-rock.0':
+                hidden_cols                 = []
+                right_margin                = 0
+            elif key == 'big-rock-estimate.1':
+                hidden_cols                 = ['UID', 'bigRock']
+                right_margin                = 1
+            elif key == 'investment.2':
+                hidden_cols                 = ['UID']
+                right_margin                = 1
+            else:
+                raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
+            config                          = ManifestXLConfig( sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                                manifest_name       = key,    
+                                                                viewport_width      = 100,  
+                                                                viewport_height     = 40,   
+                                                                max_word_length     = 20, 
+                                                                editable_cols       = editable_cols,
+                                                                hidden_cols         = hidden_cols,   
+                                                                editable_headers    = [],   
+                                                                x_offset            = x_offset,    
+                                                                y_offset            = y_offset)
+            # Put next manifest to the right of this one, separated by an empty column
+            x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
+            config_table.addManifestXLConfig(loop_trace, config)
+        return config_table
 
     def _buildAllManifests(self, parent_trace, posting_label_handle):
 
@@ -159,6 +202,7 @@ class BigRocksEstimate_Controller(SkeletonController):
             assertion[MY_PL._SCORING_MATURITY]          = scoring_maturity
         
         return manifest_dict
+
 
     class _BigRocksConfig(PostingConfig):
         '''

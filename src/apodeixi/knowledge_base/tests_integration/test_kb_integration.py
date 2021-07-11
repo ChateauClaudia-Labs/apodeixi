@@ -128,6 +128,7 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
             layout_output_dict                      = {}
 
             layout_output_dict['layout span']       = fr_rep.span_dict[key]
+            layout_output_dict['hidden columns']    = fr_rep.hidden_cols_dict[key]
             widths_dict                             = fr_rep.widths_dict_dict[key]
             layout_output_dict['column widths']     = DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, 
                                                                                 a_dict = widths_dict)

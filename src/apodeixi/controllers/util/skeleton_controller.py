@@ -156,7 +156,8 @@ class SkeletonController(PostingController):
                                                                 viewport_width      = 100,  
                                                                 viewport_height     = 40,   
                                                                 max_word_length     = 20, 
-                                                                editable_cols       = editable_cols,   
+                                                                editable_cols       = editable_cols,
+                                                                hidden_cols         = [],   
                                                                 editable_headers    = [],   
                                                                 x_offset            = x_offset,    
                                                                 y_offset            = y_offset)

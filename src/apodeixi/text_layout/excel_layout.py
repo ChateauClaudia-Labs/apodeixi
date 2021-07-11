@@ -225,13 +225,16 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, sheet, viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
+    def __init__(self, sheet, hidden_cols = [], 
+                    viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
         Excel
         
         @param sheet        A string, corresponding to the name of the worksheet in the Excel spreadsheet onto
                             which the data object is to be laid out.
+        @param hidden_cols  A list of strings, possibly empty, corresponding to cloumn's in the manifest's tabular
+                            display that should not be shown.
         @param viewport_width  Horizontal length of visible screen allocated to this element (in number of characters)
         @param viewport_height Vertical length of visible screen allocated to this element (in number of characters)
         @param max_word_length Integer for the size of a string after which it is considered a "ridiculously long"
@@ -240,6 +243,7 @@ class AsExcel_Config():
                             corresponding to what in Excel is column "A"
         @param y_offset An int, giving the location of the upper row for the layout. Smallest value is 0, corresponding
                             to what in Excel is row "1"
+        
         '''
         self.sheet                  = sheet
         self.viewport_width         = viewport_width
@@ -248,15 +252,15 @@ class AsExcel_Config():
 
         self.x_offset               = x_offset
         self.y_offset               = y_offset
-        
-        self.layouts_dict           = {} # To be set by derived classes. Key is a name for a manifest, value is its Excel_Layout object
-       
+
+        self.hidden_cols            = hidden_cols
+               
 class ManifestXLConfig(AsExcel_Config):
     '''
     The configuration for laying out and formatting a manifest's data on an Excel spreadsheet
 
     @param manifest_name A string representing the name of a manifest that will be pasted on the same Excel worksheet.
-    @param editable_columns A list of strings, corresponding to the columns in the manifest's tabular display that
+    @param editable_cols A list of strings, corresponding to the columns in the manifest's tabular display that
                             can be edited. All other columns will be protected by Excel (user can't change them)
                             
                             For example, if the manifest is represented by a DataFrame like
@@ -271,6 +275,9 @@ class ManifestXLConfig(AsExcel_Config):
                             but not any value in other columns: 'Usability', 'Define spec', 'Scalability'
                             and 'Parallelize calculations' will be protected in Excel and the user won't be able
                             to modify the value of those cells.
+
+    @param hidden_cols  A list of strings, possibly empty, corresponding to cloumn's in the manifest's tabular
+                            display that should not be shown.
 
     @param editable_headers A list of strings, corresponding to the column headers in the manifest's tabular display that
                             can be edited. All other headers will be protected by Excel (user can't change them)
@@ -287,10 +294,12 @@ class ManifestXLConfig(AsExcel_Config):
 
     '''
     def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
-                                editable_cols   = [],   editable_headers    = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, viewport_width, viewport_height, max_word_length, x_offset, y_offset)
+                                editable_cols   = [],   hidden_cols = [], editable_headers    = [],   
+                                x_offset        = 0,    y_offset = 0):
+        super().__init__(sheet, hidden_cols, viewport_width, viewport_height, max_word_length, x_offset, y_offset)
 
         self.editable_cols          = editable_cols
+        
         self.editable_headers       = editable_headers
 
 
@@ -330,7 +339,9 @@ class PostingLabelXLConfig(AsExcel_Config):
     '''
     def __init__(self, sheet, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                         editable_fields   = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, viewport_width, viewport_height, max_word_length, x_offset, y_offset)
+        super().__init__(sheet, hidden_cols = [], 
+                            viewport_width = viewport_width, viewport_height = viewport_height, 
+                            max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
         ME                          = PostingLabelXLConfig
         self.editable_fields        = editable_fields
