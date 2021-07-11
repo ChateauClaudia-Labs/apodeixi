@@ -296,7 +296,9 @@ class ManifestXLConfig(AsExcel_Config):
     def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], editable_headers    = [],   
                                 x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols, viewport_width, viewport_height, max_word_length, x_offset, y_offset)
+        super().__init__(sheet, hidden_cols = hidden_cols, 
+                            viewport_width = viewport_width, viewport_height = viewport_height, 
+                            max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
         self.editable_cols          = editable_cols
         

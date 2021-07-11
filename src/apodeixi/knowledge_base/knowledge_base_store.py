@@ -202,7 +202,6 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-
     def archivePosting(self, parent_trace, posting_label_handle):
         '''
         Abstract methods.

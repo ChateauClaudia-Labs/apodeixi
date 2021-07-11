@@ -147,9 +147,6 @@ class File_KB_Environment(KB_Environment):
     def manifestsURL(self, parent_trace):
         return self._manifests_roodir
 
-    def name(self, parent_trace):
-        return self._name
-
     def findSubEnvironment(self, parent_trace, name):
         '''
         Searches for a descendent environment with the given name (so a child environment or a 
