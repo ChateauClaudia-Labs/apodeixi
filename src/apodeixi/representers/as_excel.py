@@ -4,6 +4,7 @@ from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
+from apodeixi.text_layout.excel_layout      import PostingLayout
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 
 class Manifest_Representer:
@@ -58,8 +59,12 @@ class Manifest_Representer:
             loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
             df                  = content_df_dict[name]
             config              = self.config_table.getManifestXLConfig(loop_trace, name)
-            #layout              = config.layout
             self._populate_worksheet(loop_trace, df, config, workbook, worksheet)
+            self._write_text_label( parent_trace    = loop_trace, 
+                                    workbook        = workbook,
+                                    worksheet       = worksheet, 
+                                    xl_config       = config, 
+                                    text            = name)
         
         # Now we must unprotect a large area outside the cells we pasted
         self._unprotect_free_space(parent_trace, worksheet = worksheet)
@@ -83,7 +88,30 @@ class Manifest_Representer:
         posting_label_worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
         self._populate_worksheet(parent_trace, label_df, label_config, workbook, posting_label_worksheet)
 
+        # Write the title above the PostingLabel
+        self._write_text_label( parent_trace    = parent_trace, 
+                                workbook        = workbook,
+                                worksheet       = posting_label_worksheet, 
+                                xl_config       = label_config, 
+                                text            = ME.POSTING_LABEL_SHEET)
+
         self._remember_formatting(posting_label_worksheet, ME.POSTING_LABEL_SHEET)
+
+    def _write_text_label(self, parent_trace, workbook, worksheet, xl_config, text):
+        '''
+        Writes a string (parameter `text`) right above the area in the worksheet where the data defined by
+        `xl_config` would go. Used, for example, to put a title like "Posting Label" in an Excel cell right above
+        where the posting label data would be laid out
+
+        @param xl_config An object derived from AsExcel_Config, defining where a piece of data (e.g., a manifest,
+                            posting label, or other) is to be laid out in an Excel spreadsheet.
+        '''
+        title_x             = xl_config.x_offset
+        title_y             = xl_config.y_offset - 1
+        title               = text
+        fmt_dict            ={'bold': True, 'font_color': PostingLayout.DARK_BLUE}
+        fmt                 = workbook.add_format(fmt_dict)
+        worksheet.write(title_y, title_x, title, fmt)
 
     def _remember_formatting(self, worksheet, sheet):
         '''

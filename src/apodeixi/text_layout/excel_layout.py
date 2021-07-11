@@ -135,6 +135,8 @@ class PostingLayout(Excel_Layout):
     DARK_GREY               = '#808080'
     LIGHT_GREY              = '#E8E8E8' # '#F2F2F2'
 
+    DARK_BLUE               = '#0070C0'
+
     ROOT_FMT                = {'text_wrap': True, 'valign': 'top', 'border': True, 'border_color': WHITE}
     HEADER_CONTRIB          = {'bold': True, 'font_color': WHITE, 'align': 'center','border_color': WHITE, 
                             'right': True}
@@ -223,7 +225,7 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, viewport_width=100, viewport_height=40, max_word_length=20):
+    def __init__(self, viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi object, such as a manifest, into a rectangular area in 
         Excel
@@ -234,26 +236,62 @@ class AsExcel_Config():
         @param viewport_height Vertical length of visible screen allocated to this element (in number of characters)
         @param max_word_length Integer for the size of a string after which it is considered a "ridiculously long"
                                word" not deserving efforts widen columns enough to make it appear in a single line.
+        @param x_offset An int, giving the location of the left-most column for the layout. Smallest value is 0,
+                            corresponding to what in Excel is column "A"
+        @param y_offset An int, giving the location of the upper row for the layout. Smallest value is 0, corresponding
+                            to what in Excel is row "1"
         '''
         self.viewport_width         = viewport_width
         self.viewport_height        = viewport_height
         self.max_word_length        = max_word_length
+
+        self.x_offset               = x_offset
+        self.y_offset               = y_offset
         
         self.layouts_dict           = {} # To be set by derived classes. Key is a name for a manifest, value is its Excel_Layout object
        
 class ManifestXLConfig(AsExcel_Config):
     '''
+    The configuration for laying out and formatting a manifest's data on an Excel spreadsheet
+
     @param manifest_name A string representing the name of a manifest that will be pasted on the same Excel worksheet.
+    @param editable_columns A list of strings, corresponding to the columns in the manifest's tabular display that
+                            can be edited. All other columns will be protected by Excel (user can't change them)
+                            
+                            For example, if the manifest is represented by a DataFrame like
+
+                                Theme       |           Task            |   Subtask
+                                -----------------------------------------------------------------
+                                Usability   | Define spec               | Interview users
+                                Scalability | Parallelize calculations  | Refactor calculation code    
+
+                            then if `editable_columns` = ['Subtask'], this means that the user
+                            can change 'Interview users' and 'Refactor calculation code', 
+                            but not any value in other columns: 'Usability', 'Define spec', 'Scalability'
+                            and 'Parallelize calculations' will be protected in Excel and the user won't be able
+                            to modify the value of those cells.
+
+    @param editable_headers A list of strings, corresponding to the column headers in the manifest's tabular display that
+                            can be edited. All other headers will be protected by Excel (user can't change them)
+                            
+                            For example, if the manifest is represented by a DataFrame like
+
+                                Theme       |           Task            |   Subtask
+                                -----------------------------------------------------------------
+                                Usability   | Define spec               | Interview users
+                                Scalability | Parallelize calculations  | Refactor calcuation code    
+
+                            then if `editable_headers` = ['Subtask'], this means that the user
+                            can change 'Subtask' but not 'Theme' or 'Task'    
+
     '''
     def __init__(self, manifest_name,    viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   editable_headers    = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(viewport_width, viewport_height, max_word_length)
+        super().__init__(viewport_width, viewport_height, max_word_length, x_offset, y_offset)
 
         self.editable_cols          = editable_cols
-        self.editable_cols          = editable_cols
         self.editable_headers       = editable_headers
-        self.x_offset               = x_offset
-        self.y_offset               = y_offset
+
 
         self.layout                 =  PostingLayout(manifest_name)
 
@@ -273,16 +311,28 @@ class ManifestXLConfig(AsExcel_Config):
 
 class PostingLabelXLConfig(AsExcel_Config):
     '''
+    The configuration for laying out and formatting a Posting Label data on an Excel spreadsheet
 
+    @param editable_fields A list of strings, corresponding to the fields in the Posting Label that should be
+                            editable. Any field not listed here will be protected, i.e., Excel won't allow the
+                            user to change it.
+
+                            For example, if the posting label looks like
+
+                                manifest API    | delivery-plans.journeys.a6i.io/v2.1
+                                product         | OpusPlus
+                                recordedBy      | jill.the.architect@magicorp.com    
+
+                            then if `editable_fields` = ['recordedBy'], this means that the user will be allowed
+                            by Excel to change 'jill.the.architect@magicorp.com ' but not 
+                            'delivery-plans.journeys.a6i.io/v2.1' or 'OpusPlus'    
     '''
     def __init__(self, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                         editable_fields   = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(viewport_width, viewport_height, max_word_length)
+        super().__init__(viewport_width, viewport_height, max_word_length, x_offset, y_offset)
 
         ME                          = PostingLabelXLConfig
         self.editable_fields        = editable_fields
-        self.x_offset               = x_offset
-        self.y_offset               = y_offset
 
         self.layout                 =  PostingLayout(ME._POSTING_LABEL)
         self.layout.is_transposed   = True
