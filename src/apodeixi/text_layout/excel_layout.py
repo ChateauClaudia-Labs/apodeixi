@@ -130,10 +130,10 @@ class PostingLayout(Excel_Layout):
         super().__init__(name)
 
     WHITE                   = '#FFFFFF'
-    DARK_GREEN              = '#375623'
-    LIGHT_GREEN             = '#E5EDD3' # '#EBF1DE'
+    DARK_GREEN              = '#548235'
+    LIGHT_GREEN             = '#E2EFDA' # '#E5EDD3' # '#EBF1DE'
     DARK_GREY               = '#808080'
-    LIGHT_GREY              = '#E8E8E8' # '#F2F2F2'
+    LIGHT_GREY              = '#F2F2F2' # '#E8E8E8' 
 
     DARK_BLUE               = '#0070C0'
 
