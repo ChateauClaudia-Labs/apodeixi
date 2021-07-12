@@ -116,6 +116,8 @@ class SkeletonController(PostingController):
                                                                         label_dict      = label.ctx,
                                                                         excel_folder    = output_folder, 
                                                                         excel_filename  = filename)  
+
+            self.store._remember_posting_write(parent_trace, form_request.getRelativePath(my_trace))
             if status != Manifest_Representer.SUCCESS:
                 raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
 
@@ -128,7 +130,7 @@ class SkeletonController(PostingController):
                                                         excel_range            = SkeletonController.POSTING_LABEL_RANGE,
                                                         posting_api            = form_request.getPostingAPI(my_trace), 
                                                         filing_coords          = form_request.getFilingCoords(my_trace), 
-                                                        kb_postings_url        = self.store.getPostingsURL(my_trace))
+                                                        )
 
             response                            = FormRequestResponse()
             response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
@@ -345,7 +347,6 @@ class SkeletonController(PostingController):
         '''
         result                  = []
         excel_filename          = posting_label_handle.excel_filename
-        kb_postings_url         = posting_label_handle.kb_postings_url
         filing_coords           = posting_label_handle.filing_coords
 
         for manifest_nb, kind, excel_range, excel_sheet in self.show_your_work.manifest_metas():
@@ -380,9 +381,10 @@ class SkeletonController(PostingController):
                                                             data = {    "manifest_nb":  str(manifest_nb),
                                                                         "kind":         str(kind)})
         next_version                = self.nextVersion(my_trace,manifest_nb)
-        path                        = posting_data_handle.getFullPath(my_trace)
+        
+        relative_path                   = posting_data_handle.getRelativePath(my_trace)
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
-                                                                data = {'path': path}, 
+                                                                data = {"relative_path": relative_path},
                                                                 origination = {'signaled_from': __file__})
         if True:
             config                      = self.getPostingConfig(    parent_trace        = my_trace, 

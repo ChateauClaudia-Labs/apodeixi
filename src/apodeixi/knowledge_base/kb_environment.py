@@ -124,6 +124,20 @@ class KB_Environment():
     def config(self, parent_trace):
         return self._config
 
+    def parent(self, parent_trace):
+        return self._parent_environment
+
+    def children_names(self, parent_trace):
+        return self._children.keys()
+
+    def child(self, parent_trace, child_name):
+        if child_name in self._children.keys():
+            return self._children[child_name]
+
+    def removeChild(self, parent_trace, child_name):
+        if child_name in self._children.keys():
+            self._children.pop(child_name)
+
 class File_KB_Environment(KB_Environment):
     '''
     '''
@@ -159,13 +173,13 @@ class File_KB_Environment(KB_Environment):
                 return child_env
             descendent_env = child_env.findSubEnvironment(parent_trace, name)
             if descendent_env != None:
-                return True
+                return descendent_env
         # If we get this far it means we never found it
-        return False
+        return None
 
     def addSubEnvironment(self, parent_trace, name, env_config):
         '''
-        Creates a new File_KB_Environment with name `name` and using self as the parent environment.
+        Creates and returns a new File_KB_Environment with name `name` and using self as the parent environment.
 
         @param name A string, used as the unique name of this environment among all environments in the store
         @param env_config A KB_Environment_Config object that will be set as the configuration of the newly
@@ -206,6 +220,7 @@ class File_KB_Environment(KB_Environment):
                                                             manifests_roodir        = subenv_manifests_rootdir)
 
         self._children[sub_env_name] = sub_env
+        return sub_env
 
     def folder_hierarchy(self, parent_trace, include_timestamps = True):
         '''

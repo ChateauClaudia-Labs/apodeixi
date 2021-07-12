@@ -3,6 +3,7 @@ import xlsxwriter
 from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 
 from apodeixi.util.a6i_error                import ApodeixiError
+from apodeixi.util.path_utils               import PathUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
 from apodeixi.text_layout.excel_layout      import PostingLayout
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
@@ -32,6 +33,8 @@ class Manifest_Representer:
         '''
         my_trace                = parent_trace.doing("Creating Excel workbook",
                                                         data = {'folder': excel_folder, 'filename': excel_filename})
+        
+        PathUtils().create_path_if_needed(my_trace, excel_folder)
         workbook                = xlsxwriter.Workbook(excel_folder + '/' + excel_filename)
 
         inner_trace             = parent_trace.doing("Creating Posting Label")

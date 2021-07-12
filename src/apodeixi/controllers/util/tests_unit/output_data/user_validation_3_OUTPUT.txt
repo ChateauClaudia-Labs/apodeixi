@@ -23,9 +23,7 @@ Here are the functional activities that led to the problem:
 
 ---->	activity	Creating BreakoutTree from Excel
 
-            path                : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_3_INPUT.xlsx
+            relative_path       : input_data/user_validation_3_INPUT.xlsx
 
 ---->	activity	Sanity check that user complied with right schema
 
-            posting's path      : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_3_INPUT.xlsx
-            excel range examined: B2:I100

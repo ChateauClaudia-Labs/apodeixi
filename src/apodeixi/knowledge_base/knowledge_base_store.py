@@ -5,14 +5,61 @@ from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, Posti
 from apodeixi.knowledge_base.filing_coordinates     import TBD_FilingCoordinates
 from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.a6i_error                        import ApodeixiError
+from apodeixi.xli.xlimporter                        import ExcelTableReader
 
 class KnowledgeBaseStore():
     '''
     Abstract class used to encapsulate the common services that a KnowledgeBase depends on from a "store" in which the
     KnowledgeBase can persist and retrieve manifests, postings, and any other persistent Apodeixi domain object.
+
+    The KnowledgeBaseStore's API includes transactional support, which means that the I/O operations on the store
+    depend on whether the store is in the midst of a transaction or not.
+
+    When not in the midst of a transaction, I/O operations apply to the persistent area of the store, i.e., the
+    "official system of record" of what is contained in the store.
+
+    By contrast, during a transaction behavior is dependent on each concrete class implementation. For derived
+    classes that support transactional isolation, I/O during a transaction's lifetime is done in a separate
+    isolation area, disjoint from the persistent area of the store.
     '''
     def __init__(self):
         return
+
+    def beginTransaction(self, parent_trace):
+        '''
+        Abstract method. 
+        
+        Starts an isolation state in which all subsequent I/O is done in an isolation area
+        dedicated to this transaction, and not applied back to the store's persistent area until the
+        transaction is committed..
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'beginTransaction' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
+    def commitTransaction(self, parent_trace):
+        '''
+        Abstract method. 
+        
+        Finalizes a transaction previously started by beginTransaction, by cascading any I/O previously done in
+        the transaction's isolation area to the store's persistent area.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'commitTransaction' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
+    def abortTransaction(self, parent_trace):
+        '''
+        Abstract method. 
+        
+        Aborts a transaction previously started by beginTransaction, by deleting transaction's isolation area,
+        effectively ignoring any I/O previously done during the transaction's lifetime, and leaving the
+        KnowledgeBaseStore in a state such that any immediately following I/O operation would be done 
+        directly to the store's persistent area.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'abortTransaction' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
 
     def supported_apis(self, parent_trace):
         '''
@@ -77,13 +124,56 @@ class KnowledgeBaseStore():
         # Now build the posting label handle
         posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,
                                                                     posting_api         = posting_api,
-                                                                    kb_postings_url     = kb_postings_url, 
                                                                     filing_coords       = filing_coords,
                                                                     excel_filename      = filename, 
                                                                     excel_sheet         = sheet, 
                                                                     excel_range         = excel_range)
 
         return posting_handle
+
+    def loadPostingLabel(self, parent_trace, posting_label_handle):
+        '''
+        Loads and returns a DataFrame based on the `posting_label_handle` provided
+        '''
+        excel_range             = posting_label_handle.excel_range
+
+        excel_range             = excel_range.upper()
+        path                    = self._getPostingFullPath(parent_trace, posting_label_handle)
+        sheet                   = posting_label_handle.excel_sheet
+        reader                  = ExcelTableReader(path, sheet, excel_range, horizontally=False)
+        my_trace                = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
+                                                data = {"path": path, "excel range": excel_range})
+        label_df                = reader.read(my_trace)
+        return label_df
+
+    def loadPostingData(self, parent_trace, data_handle, config):
+        '''
+        Loads and returns a DataFrame based on the `posting_data_handle` provided
+
+        @param config PostingConfig
+        '''
+        path                    = self._getPostingFullPath(parent_trace, data_handle)
+        sheet                   = data_handle.excel_sheet
+        excel_range             = data_handle.excel_range
+        r                       = ExcelTableReader(path, sheet,excel_range = excel_range, 
+                                                    horizontally = config.horizontally)
+        my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
+                                                        data = {"path": path, "excel range": excel_range})
+        df                      = r.read(my_trace)
+        return df
+
+    def _getPostingFullPath(self, parent_trace, posting_handle):
+        '''
+        It returns a string, corresponding to the full path to the posting referenced by the `posting_handle`.
+        '''
+        if type(posting_handle.filing_coords) == TBD_FilingCoordinates: # Filing Coords haven't been set yet, so use place holder
+            return posting_handle.filing_coords.getFullPath()
+        else:
+            parsed_tokens               = posting_handle.filing_coords.path_tokens(parent_trace)
+            kb_postings_url             = self.getPostingsURL(parent_trace)
+            excel_path                  = kb_postings_url  +  '/' + '/'.join(parsed_tokens)
+            return excel_path + "/" + posting_handle.excel_filename       
+        
 
     def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''

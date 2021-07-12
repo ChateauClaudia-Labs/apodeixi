@@ -9,45 +9,29 @@ class PostingLabelHandle():
 
     It is not meant to be created directly - it should be created only by the KnowledgeBase store, and then passed around as needed.
     '''
-    def __init__(self, parent_trace, posting_api, kb_postings_url, filing_coords, excel_filename, excel_sheet, excel_range):
+    def __init__(self, parent_trace, posting_api, filing_coords, excel_filename, excel_sheet, excel_range):
         self.excel_filename         = excel_filename
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
 
         self.posting_api            = posting_api 
         self.filing_coords          = filing_coords 
-        self.kb_postings_url        = kb_postings_url 
 
     def copy(self, parent_trace):
         new_handle      = PostingLabelHandle(   parent_trace        = parent_trace, 
                                                 posting_api         = self.posting_api, 
-                                                kb_postings_url     = self.kb_postings_url, 
                                                 filing_coords       = self.filing_coords, 
                                                 excel_filename      = self.excel_filename, 
                                                 excel_sheet         = self.excel_sheet, 
                                                 excel_range         = self.excel_range)
         return new_handle                                              
         
-    def display(self, parent_trace, path_mask):
+    def display(self, parent_trace):
         '''
         Returns a string friendly representation of this PostingLabelHandle
-
-        @param path_mask A function that takes a string and returns a string. If not None, it is used to
-                        modify how the self.kb_postings_url is displayed. Typically this is used in regression
-                        tests, to hide user-specific portions of the url path so that regression output is
-                        deterministic.
         '''
-        url                     = self.kb_postings_url
-        if path_mask != None:
-            try:
-                url             = path_mask(url)
-            except Exception as ex:
-                raise ApodeixiError(parent_trace, "Found a problem when applyingy mask to Knowledge Base's postings url",
-                                        data = {    "KB postings url":  elf.kb_postings_url,
-                                                    "Error":            str(ex)})
         msg = "" \
             + "\n\t\t posting_api     = '" + self.posting_api + "'" \
-            + "\n\t\t kb_postings_url = '" + url + "'" \
             + "\n\t\t filing_coords   = '" + str(self.filing_coords) + "'" \
             + "\n\t\t excel_filename  = '" + self.excel_filename + "'" \
             + "\n\t\t excel_sheet     = '" + self.excel_sheet + "'" \
@@ -57,13 +41,13 @@ class PostingLabelHandle():
     def getPostingAPI(self, parent_trace):
         return self.posting_api
 
-    def getFullPath(self, parent_trace):
+    def getRelativePath(self, parent_trace):
 
         if type(self.filing_coords) == TBD_FilingCoordinates: # Filing Coords haven't been set yet, so use place holder
             return self.filing_coords.getFullPath()
         else:
             parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
-            excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
+            excel_path                  = '/'.join(parsed_tokens)
             return excel_path + "/" + self.excel_filename
 
     def buildDataHandle(self, parent_trace, manifest_nb, kind, excel_sheet, excel_range):
@@ -75,7 +59,6 @@ class PostingLabelHandle():
         data_handle             = PostingDataHandle(    parent_trace        = parent_trace,
                                                         manifest_nb         = manifest_nb,
                                                         kind                = kind,
-                                                        kb_postings_url     = self.kb_postings_url,
                                                         filing_coords       = self.filing_coords,
                                                         excel_filename      = self.excel_filename,
                                                         excel_sheet         = excel_sheet,
@@ -111,22 +94,21 @@ class PostingDataHandle():
 
     It is not meant to be created directly - it should be created only by the PostingLabelHandle, and then passed around as needed.
     '''
-    def __init__(self, parent_trace, manifest_nb, kind, kb_postings_url, filing_coords, excel_filename, excel_sheet, excel_range):
+    def __init__(self, parent_trace, manifest_nb, kind, filing_coords, excel_filename, excel_sheet, excel_range):
         self.excel_filename         = excel_filename
 
-        self.kb_postings_url        = kb_postings_url
         self.filing_coords          = filing_coords
         self.excel_sheet            = excel_sheet
         self.excel_range            = excel_range
         self.manifest_nb            = manifest_nb
         self.kind                   = kind
 
-    def getFullPath(self, parent_trace):
+    def getRelativePath(self, parent_trace):
         if type(self.filing_coords) == TBD_FilingCoordinates: # Filing Coords' tokens don't correspond to the path
             return self.filing_coords.getFullPath()
         else:
             parsed_tokens               = self.filing_coords.path_tokens(parent_trace)
-            excel_path                  = self.kb_postings_url  +  '/' + '/'.join(parsed_tokens)
+            excel_path                  = '/'.join(parsed_tokens)
             return excel_path + "/" + self.excel_filename
 
 class ManifestUtils():

@@ -28,7 +28,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 ---->	activity	Doing a cycle of loop to process one of 10 label handles
 
             idx                 : 2
-            excel_filename      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w2/w2-workstream.initiatives.a6i.xlsx
+            excel_filename      : initiatives/FY 22/s1.w2/w2-workstream.initiatives.a6i.xlsx
 
 ---->	activity	Applying controller to process the posting
 
@@ -45,13 +45,11 @@ Here are the functional activities that led to the problem (stack trace at the b
 
 ---->	activity	Creating BreakoutTree from Excel
 
-            path                : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w2/w2-workstream.initiatives.a6i.xlsx
+            relative_path       : initiatives/FY 22/s1.w2/w2-workstream.initiatives.a6i.xlsx
             signaled_from       : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\skeleton_controller.py
 
 ---->	activity	Sanity check that user complied with right schema
 
-            posting's path      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w2/w2-workstream.initiatives.a6i.xlsx
-            excel range examined: B2:I100
 
 ------------------------------------------------------------	Technical Stack Trace
 
@@ -84,7 +82,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 ---->	activity	Doing a cycle of loop to process one of 10 label handles
 
             idx                 : 3
-            excel_filename      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w3/w3-workstream.initiatives.a6i.xlsx
+            excel_filename      : initiatives/FY 22/s1.w3/w3-workstream.initiatives.a6i.xlsx
 
 ---->	activity	Applying controller to process the posting
 
@@ -101,7 +99,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 
 ---->	activity	Creating BreakoutTree from Excel
 
-            path                : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w3/w3-workstream.initiatives.a6i.xlsx
+            relative_path       : initiatives/FY 22/s1.w3/w3-workstream.initiatives.a6i.xlsx
             signaled_from       : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\skeleton_controller.py
 
 ---->	activity	Processing DataFrame
@@ -149,7 +147,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 ---->	activity	Doing a cycle of loop to process one of 10 label handles
 
             idx                 : 8
-            excel_filename      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w8/w8-workstream.initiatives.a6i.xlsx
+            excel_filename      : initiatives/FY 22/s1.w8/w8-workstream.initiatives.a6i.xlsx
 
 ---->	activity	Applying controller to process the posting
 
@@ -161,6 +159,12 @@ Here are the functional activities that led to the problem (stack trace at the b
 ---->	activity	Parsing posting label
 
             signaled_from       : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\skeleton_controller.py
+
+---->	activity	Searching in parent environment
+
+
+---->	activity	Searching in parent environment
+
 
 ---->	activity	Loading Posting Label data from Excel into a DataFrame
 
@@ -200,7 +204,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 ---->	activity	Doing a cycle of loop to process one of 10 label handles
 
             idx                 : 9
-            excel_filename      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w9/w9-workstream.initiatives.a6i.xlsx
+            excel_filename      : initiatives/FY 22/s1.w9/w9-workstream.initiatives.a6i.xlsx
 
 ---->	activity	Applying controller to process the posting
 

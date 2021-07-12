@@ -29,6 +29,24 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
             '_INPUT':                               UnitTest_FilingCoordinates, # Need spurious api "_INPUT" for unit tests
         }
 
+    def beginTransaction(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return
+
+    def commitTransaction(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return
+
+    def abortTransaction(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return
+
     def supported_apis(self, parent_trace):
         '''
         Returns a list of the posting APIs that this KnowledgeStore knows about.

@@ -21,7 +21,7 @@ Here are the functional activities that led to the problem:
 
 ---->	activity	Creating BreakoutTree from Excel
 
-            path                : C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\controllers\util\tests_unit/input_data/user_validation_8_INPUT.xlsx
+            relative_path       : input_data/user_validation_8_INPUT.xlsx
 
 ---->	activity	Loading Excel posting data into a DataFrame
 

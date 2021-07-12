@@ -18,6 +18,86 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
     def __init__(self, postings_rootdir, manifests_roodir):
         super().__init__(postings_rootdir, manifests_roodir)
 
+    def beginTransaction(self, parent_trace):
+        '''
+        Starts an isolation state in which all subsequent I/O is done in an isolation area
+        dedicated to this transaction, and not applied back to the store's persistent area until the
+        transaction is committed..
+        '''
+        return super().beginTransaction(parent_trace)
+
+    def commitTransaction(self, parent_trace):
+        '''
+        Finalizes a transaction previously started by beginTransaction, by cascading any I/O previously done in
+        the transaction's isolation area to the store's persistent area.
+        '''
+        env, parent_env             = self._validate_transaction_end_of_life(parent_trace)
+
+        src_postings_root           = env.postingsURL(parent_trace)
+        dst_postings_root           = parent_env.postingsURL(parent_trace)
+
+        src_manifests_root          = env.manifestsURL(parent_trace)
+        dst_manifests_root           = parent_env.manifestsURL(parent_trace)
+
+        ending_env                  = self._transactions_stack.pop()
+        events                      = self._transaction_events_dict.pop(ending_env.name(parent_trace))
+
+        # If the parent environment is also a transactional envinronment, we will have to record in it
+        # the events so that when the parent is committed, those events are cascaded to the parent's parent.
+        # But it may also be that the parent is not transactional, which is why the `parent_events`
+        # variable may be None and why we need to be checking for that all the time.
+        parent_name                 = parent_env.name(parent_trace)
+        if parent_name in self._transaction_events_dict.keys():
+            parent_events           = self._transaction_events_dict[parent_name]
+        else:
+            parent_events           = None
+
+        for relative_path in events.posting_writes():
+            from_path               = src_postings_root + "/" + relative_path
+            to_path                 = dst_postings_root + "/" + relative_path
+            to_dir                  = _os.path.dirname(to_path)
+            PathUtils().create_path_if_needed(parent_trace, to_dir)
+            _shutil.copy2(src = from_path, dst = to_dir)
+            if parent_events != None:
+                parent_events.remember_posting_write(relative_path)
+
+        for relative_path in events.manifest_writes():
+            from_path               = src_manifests_root + "/" + relative_path
+            to_path                 = dst_manifests_root + "/" + relative_path
+            to_dir                  = _os.path.dirname(to_path)
+            PathUtils().create_path_if_needed(parent_trace, to_dir)
+            _shutil.copy2(src = from_path, dst = to_dir)
+            if parent_events != None:
+                parent_events.remember_manifest_write(relative_path)
+
+        for relative_path in events.posting_deletes():
+            to_path                 = dst_postings_root + "/" + relative_path
+            if _os.path.isfile(to_path):
+                _os.remove(to_path)
+                if parent_events != None:
+                    parent_events.remember_posting_delete(relative_path)
+
+        for relative_path in events.manifest_deletes():
+            to_path                 = dst_manifests_root + "/" + relative_path
+            if _os.path.isfile(to_path):
+                _os.remove(to_path)
+                if parent_events != None:
+                    parent_events.remember_manifest_deletes(relative_path)
+
+        # Now remove the environment of the transaction we just committed
+        self.removeEnvironment(parent_trace, env.name(parent_trace)) 
+        self.activate(parent_trace, parent_env.name(parent_trace))
+
+    def abortTransaction(self, parent_trace):
+        '''
+        Aborts a transaction previously started by beginTransaction, by deleting transaction's isolation area,
+        effectively ignoring any I/O previously done during the transaction's lifetime, and leaving the
+        KnowledgeBaseStore in a state such that any immediately following I/O operation would be done 
+        directly to the store's persistent area.
+        '''
+        return super().abortTransaction(parent_trace)
+
+
     def activate(self, parent_trace, environment_name):
         '''
         Switches the store's current environment to be the one identified by the `environment_name`, unless
@@ -31,20 +111,95 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         '''
         super().deactivate(parent_trace)
 
-    def _copy_posting(self, parent_trace, from_handle, to_environment, overwrite=False):
-        src_path                        = from_handle.getFullPath(parent_trace)
+    def copy_posting_across_environments(self, parent_trace, handle, from_environment, to_environment):
+        '''
+        Copies the posting file denoted by the `handle` in the `from_environment` to the `to_environment`
+        '''
+        from_path       = from_environment.postingsURL(parent_trace)    + "/" + handle.getRelativePath(parent_trace)
+        to_path         = to_environment.postingsURL(parent_trace)      + "/" + handle.getRelativePath(parent_trace)
+        to_dir          = _os.path.dirname(to_path)
 
-        to_handle                       = from_handle.copy(parent_trace)
-        to_handle.kb_postings_url       = self.current_environment(parent_trace).postingsURL(parent_trace)
-        to_path                         = to_handle.getFullPath(parent_trace)
-        to_dir                          = _os.path.dirname(to_path)
-
-        if not _os.path.exists(to_path) or overwrite == True:
-            my_trace                    = parent_trace.doing("Copying a posting file",
-                                            data = {"src_path":     src_path,
-                                                    "to_dir":       to_dir})
+        
+        my_trace                    = parent_trace.doing("Copying a posting file",
+                                        data = {"src_path":     from_path,
+                                                "to_dir":       to_dir})
+        if not _os.path.exists(to_dir):
             PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
-            _shutil.copy2(src = src_path, dst = to_dir)
+        _shutil.copy2(src = from_path, dst = to_dir)
+
+    def _file_not_found_error(self, ex):
+        '''
+        Helper method. Returns true if `ex` is an ApodeixiError triggered by a file not found
+        '''
+        if not type(ex) == ApodeixiError or not 'error' in ex.data.keys():
+            return False
+        elif "No such file or directory" in ex.data['error']:
+            return True
+        else:
+            return False
+
+    def loadPostingLabel(self, parent_trace, posting_label_handle):
+        '''
+        Loads and returns a DataFrame based on the `posting_label_handle` provided
+        '''
+        try:
+            label_df                    = super().loadPostingLabel(parent_trace, posting_label_handle)          
+        except ApodeixiError as ex:
+            # Try again in parent environment if failover is configured and error is a missing file
+            if self._file_not_found_error(ex) and self._failover_reads_to_parent(parent_trace):
+                my_trace                = parent_trace.doing("Searching in parent environment")
+                # Temporarily switch to the environment in which to search
+                original_env            = self.current_environment(my_trace)
+                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
+                label_df                = self.loadPostingLabel(
+                                                    parent_trace                = my_trace,
+                                                    posting_label_handle        = posting_label_handle)
+                # Now that search in parent environment is done, reset back to original environment
+                self.activate(my_trace, original_env.name(my_trace))
+                # Before leaving, copy the parent's data into our environment, so next time 
+                # we don't have to failover again
+                self.copy_posting_across_environments(  
+                                                parent_trace        = my_trace, 
+                                                handle              = posting_label_handle, 
+                                                from_environment    = self.parent_environment(my_trace), 
+                                                to_environment      = self.current_environment(my_trace))
+            else:
+                raise ex
+
+        return label_df
+
+    def loadPostingData(self, parent_trace, data_handle, config):
+        '''
+        Loads and returns a DataFrame based on the `posting_data_handle` provided
+
+        @param config PostingConfig
+        '''
+        try:
+            df                      = super().loadPostingData(parent_trace, data_handle, config)
+        except ApodeixiError as ex:
+            # Try again in parent environment if failover is configured and error is a missing file
+            if self._file_not_found_error(ex) and self._failover_reads_to_parent(parent_trace):
+                my_trace                = parent_trace.doing("Searching in parent environment")
+                # Temporarily switch to the environment in which to search
+                original_env            = self.current_environment(my_trace)
+                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
+                df                      = self.loadPostingData(
+                                                    parent_trace        = my_trace,
+                                                    data_handle         = data_handle,
+                                                    config              = config)
+                # Now that search in parent environment is done, reset back to original environment
+                self.activate(my_trace, original_env.name(my_trace))
+                # Before leaving, copy the parent's data into our environment, so next time 
+                # we don't have to failover again
+                self.copy_posting_across_environments(  
+                                                parent_trace        = my_trace, 
+                                                handle              = data_handle, 
+                                                from_environment    = self.parent_environment(my_trace), 
+                                                to_environment      = self.current_environment(my_trace))
+            else:
+                raise ex
+
+        return df
 
     def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
@@ -89,9 +244,11 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
                                                         "current environment name":     
                                                                     self.current_environment(my_trace).name(my_trace)})
             for handle in parent_handles:
-                self._copy_posting(my_trace,    from_handle         = handle, 
-                                                to_environment      = self.current_environment(my_trace),
-                                                overwrite           = False)
+                self.copy_posting_across_environments(  
+                                                parent_trace        = my_trace, 
+                                                handle              = handle, 
+                                                from_environment    = self.parent_environment(my_trace), 
+                                                to_environment      = self.current_environment(my_trace))
 
         my_trace                = parent_trace.doing("Searching in environment '" 
                                                         + str(self.current_environment(parent_trace)) + "'" )
@@ -148,9 +305,18 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
                                                                         self.parent_environment(my_trace).name(my_trace),
                                                             "current environment name":     
                                                                         self.current_environment(my_trace).name(my_trace)})
-                self._copy_posting(my_trace,    from_handle         = manifest_handle, 
-                                                to_environment      = self.current_environment(my_trace),
-                                                overwrite           = False)
+                
+                
+                    from_path           = manifest_path
+                    to_dir              = self.current_environment(my_trace).postingsURL(parent_trace) 
+
+                    if not _os.path.exists(to_dir):
+                        my_trace                    = parent_trace.doing("Copying a manifest file",
+                                                        data = {"src_path":     from_path,
+                                                                "to_dir":       to_dir})
+                        PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
+                    _shutil.copy2(src = from_path, dst = to_dir)
+
 
         return manifest, manifest_path
 
@@ -168,47 +334,7 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         '''
         Used to record in the store information about a posting event that has been completed.
         '''
-        archival_list                       = controller_response.archivedPostings()
-        if len(archival_list) != 1:
-            raise ApodeixiError(parent_trace, "Can't log post event because it lacks a unique archival record",
-                                                    data = {"Nb of archivals for this posting": str(len(archival_list))})
-        original_handle, archival_handle    = archival_list[0]
-
-        archival_path                       = archival_handle.getFullPath(parent_trace)
-        log_folder                          = _os.path.dirname(archival_path)
-
-        env_config                          = self.current_environment(parent_trace).config(parent_trace)
-        path_mask                           = env_config.path_mask
-
-        log_txt                             = ""
-        for handle in controller_response.createdManifests():
-            log_txt                         += "\nCREATED MANIFEST:        " + handle.display(parent_trace) + "\n"
-
-        for handle in controller_response.updatedManifests():
-            log_txt                         += "\nUPDATED MANIFEST:        " + handle.display(parent_trace) + "\n"
-
-        for handle in controller_response.deletedManifests():
-            log_txt                         += "\nDELETED MANIFEST:        " + handle.display(parent_trace) + "\n"
-
-        for handle1, handle2 in controller_response.archivedPostings():
-            log_txt                         += "\nARCHIVED POSTING FROM:   " + handle1.display(parent_trace, path_mask)
-            log_txt                         += "\n             TO:         " + handle2.display(parent_trace, path_mask) + "\n"
-
-        for form_request in controller_response.optionalForms():
-            log_txt                         += "\nPUBLISHED OPTIONAL FORM: " + form_request.display(parent_trace) + "\n"
-
-        for form_request in controller_response.mandatoryForms():
-            log_txt                         += "\nPUBLISHED MANDATORY FORM: " + form_request.display(parent_trace) + "\n"
-
-
-        LOG_FILENAME                        = "POST_EVENT_LOG.txt"
-        try:
-            with open(log_folder + "/" + LOG_FILENAME, 'w') as file:
-                file.write(str(log_txt))
-
-        except Exception as ex:
-            raise ApodeixiError(parent_trace, "Encountered problem saving log for post event",
-                                    data = {"Exception found": str(ex)})
+        log_txt                             = super().logPostEvent(parent_trace, controller_response)
 
         return log_txt
 

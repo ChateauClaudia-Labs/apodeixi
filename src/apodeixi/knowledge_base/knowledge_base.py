@@ -26,53 +26,89 @@ class KnowledgeBase():
         return
 
     def postByFile(self, parent_trace, path_of_file_being_posted, excel_sheet="Posting Label", ctx_range="B2:C1000"):
-        root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
-                                                                data = {    'path'          : path_of_file_being_posted,
-                                                                            'excel_sheet'   : excel_sheet,
-                                                                            'ctx_range'     : ctx_range},
-                                                                origination = {'signaled_from' : __file__
-                                                                            })
         '''
+        Part of the KnowledgeBase's API, i.e., this method is transactional (to the extent that the
+        store used by the KnowledgeBase supports it).
+
         Handles a posting request expressed as an Excel file, with optional information on the worksheet and cells
         where the posting label can be found within the Excel file.
 
         Returns a PostResponse object, as well as a string corresponding the log made for this posting
         '''
+        self.store.beginTransaction(parent_trace)
+        try:
+            root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
+                                                                    data = {    'path'          : path_of_file_being_posted,
+                                                                                'excel_sheet'   : excel_sheet,
+                                                                                'ctx_range'     : ctx_range},
+                                                                    origination = {'signaled_from' : __file__
+                                                                                })
+            my_trace                = root_trace.doing("Inferring the posting handle from filename",
+                                                            data = {'filename': path_of_file_being_posted})
 
-        my_trace                = root_trace.doing("Inferring the posting handle from filename",
-                                                        data = {'filename': path_of_file_being_posted})
+            label_handle            = self.store.buildPostingHandle(    parent_trace        = my_trace,
+                                                                        excel_posting_path  = path_of_file_being_posted, 
+                                                                        sheet               = excel_sheet, 
+                                                                        excel_range         = ctx_range)
 
-        label_handle            = self.store.buildPostingHandle(    parent_trace        = my_trace,
-                                                                    excel_posting_path  = path_of_file_being_posted, 
-                                                                    sheet               = excel_sheet, 
-                                                                    excel_range         = ctx_range)
+            my_trace                = root_trace.doing("Posting by label")
+            response, log_txt       = self.postByLabel(my_trace, label_handle)
 
-        my_trace                = root_trace.doing("Posting by label")
-        return self.postByLabel(my_trace, label_handle)
+            self.store.commitTransaction(parent_trace)
+
+            return response, log_txt
+
+        except Exception as ex:
+            self.store.abortTransaction(parent_trace) # Clean up the transactional isolation area before erroring out
+            if type(ex) == ApodeixiError:
+                raise ex # Just propagate exception, retaining its friendly FunctionalTrace
+            else:
+                raise ApodeixiError(parent_trace, "Transaction aborted due to error found in processing",
+                                                    data = {"error": str(ex)})
+
 
     def postByLabel(self, parent_trace, label_handle):
         '''
+        Part of the KnowledgeBase's API, i.e., this method is transactional (to the extent that the
+        store used by the KnowledgeBase supports it).
+        
         Handles a posting request expressed as an Posting Label handle.
 
         Returns a PostResponse object, as well as a string corresponding the log made for this posting
         '''
-        my_trace                = parent_trace.doing("Posting by label",
-                                                        data = {'fullPath':         label_handle.getFullPath(parent_trace)})
+        self.store.beginTransaction(parent_trace)
+        try:
+            my_trace                = parent_trace.doing("Posting by label",
+                                                data = {'relativePath': label_handle.getRelativePath(parent_trace)})
 
-        posting_api             = label_handle.getPostingAPI(my_trace)
+            posting_api             = label_handle.getPostingAPI(my_trace)
 
-        ctrl                    = self.findController(  parent_trace        = my_trace,
-                                                            posting_api     = posting_api)
+            ctrl                    = self.findController(  parent_trace        = my_trace,
+                                                                posting_api     = posting_api)
 
-        my_trace                = parent_trace.doing("Applying controller to process the posting")
-        response                = ctrl.apply(   parent_trace                = my_trace, 
-                                                    posting_label_handle    = label_handle)
+            my_trace                = parent_trace.doing("Applying controller to process the posting")
+            response                = ctrl.apply(   parent_trace                = my_trace, 
+                                                        posting_label_handle    = label_handle)
 
-        log_txt                 = ctrl.log_txt
-        return response, log_txt
+            log_txt                 = ctrl.log_txt
+
+            self.store.commitTransaction(parent_trace)
+
+            return response, log_txt
+
+        except Exception as ex:
+            self.store.abortTransaction(parent_trace) # Clean up the transactional isolation area before erroring out
+            if type(ex) == ApodeixiError:
+                raise ex # Just propagate exception, retaining its friendly FunctionalTrace
+            else:
+                raise ApodeixiError(parent_trace, "Transaction aborted due to error found in processing",
+                                                    data = {"error": str(ex)})
 
     def postInBatch(self, parent_trace, label_handle_list):
         '''
+        Part of the KnowledgeBase's API, i.e., this method is transactional (to the extent that the
+        store used by the KnowledgeBase supports it).
+        
         Handles a barch of posting request expressed as a list of PostingLabelHandle objects.
 
         Returns two dictionaries, one for successes and one for errors. 
@@ -84,26 +120,43 @@ class KnowledgeBase():
         For the success dictionary, the values are the ApodeixiError raised whhile processing the
         correspoding PostingLabelHandle.
         '''
-        successes               = {}
-        errors                  = {}
-        for idx in range(len(label_handle_list)):
-            handle              = label_handle_list[idx]
-            loop_trace          = parent_trace.doing("Doing a cycle of loop to process one of " 
-                                                        + str(len(label_handle_list)) 
-                                                        + " label handles",
-                                                    data = {'idx'               : idx,
-                                                            'excel_filename'    : handle.getFullPath(parent_trace)})
-            
-            try:
-                response, log   = self.postByLabel(loop_trace, handle)
-                successes[idx]  = response
-            except ApodeixiError as ex:
-                errors[idx]     = ex
+        self.store.beginTransaction(parent_trace)
 
-        return successes, errors
+        try:
+            successes               = {}
+            errors                  = {}
+            for idx in range(len(label_handle_list)):
+                handle              = label_handle_list[idx]
+                loop_trace          = parent_trace.doing("Doing a cycle of loop to process one of " 
+                                                            + str(len(label_handle_list)) 
+                                                            + " label handles",
+                                                        data = {'idx'               : idx,
+                                                                'excel_filename'    : handle.getRelativePath(parent_trace)})
+                                                                
+                
+                try:
+                    response, log   = self.postByLabel(loop_trace, handle)
+                    successes[idx]  = response
+                except ApodeixiError as ex:
+                    errors[idx]     = ex
+
+            self.store.commitTransaction(parent_trace)
+
+            return successes, errors
+
+        except Exception as ex:
+            self.store.abortTransaction(parent_trace) # Clean up the transactional isolation area before erroring out
+            if type(ex) == ApodeixiError:
+                raise ex # Just propagate exception, retaining its friendly FunctionalTrace
+            else:
+                raise ApodeixiError(parent_trace, "Transaction aborted due to error found in processing",
+                                                    data = {"error": str(ex)})
 
     def requestForm(self, parent_trace, form_request):
         '''
+        Part of the KnowledgeBase's API, i.e., this method is transactional (to the extent that the
+        store used by the KnowledgeBase supports it).
+        
         Handles the request for getting a form (i.e., an Excel spreadsheet) that the caller can complete
         and later submit in a post request to the Knowledge Base.
         
@@ -117,21 +170,35 @@ class KnowledgeBase():
         * the Manifest_Representer object that was used to create the form
 
         '''
-        my_trace                = parent_trace.doing("Requestiong a form",
-                                                data = {'posting_api':     form_request.getPostingAPI(parent_trace)})
+        self.store.beginTransaction(parent_trace)
 
-        posting_api             = form_request.getPostingAPI(my_trace)
+        try:
+            my_trace                = parent_trace.doing("Requestiong a form",
+                                                    data = {'posting_api':     form_request.getPostingAPI(parent_trace)})
 
-        ctrl                    = self.findController(  parent_trace        = my_trace,
-                                                        posting_api         = posting_api)
+            posting_api             = form_request.getPostingAPI(my_trace)
 
-        my_trace                = parent_trace.doing("Applying controller to process the posting")
-        response                = ctrl.generateForm(    parent_trace            = my_trace, 
-                                                        form_request            = form_request)
+            ctrl                    = self.findController(  parent_trace        = my_trace,
+                                                            posting_api         = posting_api)
 
-        log_txt                 = ctrl.log_txt
-        representer             = ctrl.representer
-        return response, log_txt, representer
+            my_trace                = parent_trace.doing("Applying controller to process the posting")
+            response                = ctrl.generateForm(    parent_trace            = my_trace, 
+                                                            form_request            = form_request)
+
+            log_txt                 = ctrl.log_txt
+            representer             = ctrl.representer
+
+            self.store.commitTransaction(parent_trace)
+
+            return response, log_txt, representer
+
+        except Exception as ex:
+            self.store.abortTransaction(parent_trace) # Clean up the transactional isolation area before erroring out
+            if type(ex) == ApodeixiError:
+                raise ex # Just propagate exception, retaining its friendly FunctionalTrace
+            else:
+                raise ApodeixiError(parent_trace, "Transaction aborted due to error found in processing",
+                                                    data = {"error": str(ex)})
         
     def findController(self, parent_trace, posting_api):
         '''

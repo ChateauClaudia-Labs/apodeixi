@@ -11,6 +11,43 @@ from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, M
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
+class TransactionEvents():
+    '''
+    Helper class to keep track of all the writes and deletes that happen in a transaction's environment
+    '''
+    def __init__(self, transaction_name):
+        self._transaction_name      = transaction_name
+
+        # These are lists of of relative paths from root of transactional environment
+        self._posting_writes        = [] 
+        self._posting_deletes       = []
+        self._manifest_writes        = [] 
+        self._manifest_deletes       = []
+
+    def remember_posting_write(self, relative_path):
+        self._posting_writes.append(relative_path)
+
+    def remember_posting_delete(self, relative_path):
+        self._posting_deletes.append(relative_path)
+
+    def remember_manifest_write(self, relative_path):
+        self._manifest_writes.append(relative_path)
+
+    def remember_manifest_delete(self, relative_path):
+        self._manifest_deletes.append(relative_path)
+
+    def posting_writes(self):
+        return self._posting_writes
+
+    def manifest_writes(self):
+        return self._manifest_writes
+
+    def posting_deletes(self):
+        return self._posting_deletes
+
+    def manifest_deletes(self):
+        return self._manifest_deletes
+
 class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
     '''
     Abstract class.
@@ -29,8 +66,8 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
 
     Normally, clients of a KnowledgeBaseStore are not expected to directly access KB_Environments or the
     KB_Environment-related services in this class. Instead, they should access higher level 
-    KnowledgeBaseStore isolation APIs (such as beginTransaction(-) and commit(-)), which derived concrete
-    classes are expected to implement by leveraging the KB_Environment-related services in this class.
+    KnowledgeBaseStore isolation APIs (such as beginTransaction(-) and commitTransaction(-)), which derived concrete
+    classes are expected to possibly re-implement by leveraging the KB_Environment-related services in this class.
     
     *** NOTE ON FAILOVER ***
     Notably, derived classes are supposed to handle any read fail-overs. I.e., this abstract class will only
@@ -65,8 +102,122 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
             'capability-hierarchy.bdd.kernel.a6i':                  None, # TODO
             'workstream.initiatives.a6i':                           InitiativesFilingCoordinates,
             'charter.initiatives.a6i':                              InitiativesFilingCoordinates, 
-            
         }
+
+        # Stack of nested environments used during transactions
+        self._transactions_stack    = []
+        self._transaction_nb        = 1 # Used for the number of the "next" transaction
+
+        # Per transactional environment, it tracks all writes and deletes, in case they need to be applied
+        # to a parent environment
+        self._transaction_events_dict   = {} 
+
+    _TRANSACTION                    = "store-transaction"
+
+    def transaction_env(self, parent_trace):
+        '''
+        Helper method to return the environment of the transaction we are in the midst of, if any.
+        Otherwise returns None
+        '''
+        if len(self._transactions_stack) == 0:
+            return None
+        else:
+            env                     = self._transactions_stack[-1]
+            return env
+
+    def parent_transaction_env(self, parent_trace):
+        '''
+        Helper method to return the environment of the transaction that is parent to the transaction
+        we are in the midst of, if any.
+        Otherwise returns None
+        '''
+        if len(self._transactions_stack) < 2:
+            return None
+        else:
+            env                     = self._transactions_stack[-2]
+            return env
+
+    def _gen_transaction_name(self, parent_trace):
+        '''
+        Helper method to generate and return a unique string that can be used to identify the next
+        transaction for this store
+        '''
+        ME                          = Isolation_KnowledgeBaseStore
+        name                        = ME._TRANSACTION + "." + str(self._transaction_nb)
+        self._transaction_nb        += 1
+        return name
+
+    def beginTransaction(self, parent_trace):
+        '''       
+        Starts an isolation state in which all subsequent I/O is done in an isolation area
+        dedicated to this transaction, and not applied back to the store's persistent area until the
+        transaction is committed..
+        '''
+        env                         = self.transaction_env(parent_trace) 
+        if env == None:
+            env                     = self.current_environment(parent_trace)
+        else:
+            current                 = self.current_environment(parent_trace)
+            if env != current:
+                raise ApodeixiError(parent_trace, "Store is an inconstent state: the current environment "
+                                                    + " and the transactional environment are different",
+                                                    data = {"current environment":          current.name(parent_trace),
+                                                            "transactional environment":    env.name(parent_trace)})
+            
+        
+        name                        = self._gen_transaction_name(parent_trace)
+        isolation_env               = env.addSubEnvironment(parent_trace, name, env.config(parent_trace))
+        self._transactions_stack.append(isolation_env)
+        self._transaction_events_dict[name]  = TransactionEvents(name)
+        self.activate(parent_trace, name)
+
+    def _validate_transaction_end_of_life(self, parent_trace):
+        '''
+        Helper method to validate some internal consistency relationships that must hold true within
+        the Knowledge Store, whenver a transaction is behing ended (via abort or commit)
+
+        If successful, returns a pair of environments: the environment corresponding for the transaction
+        being ended, and its parent environment.
+
+        If validation fails then this method raises an ApodeixiError
+        '''
+        env                         = self.transaction_env(parent_trace) 
+        if env == None:
+            raise ApodeixiError(parent_trace, "Can't end transaction because we are not in the middle of a transaction")
+        parent_env                  = env.parent(parent_trace)   
+        if parent_env == None:
+            raise ApodeixiError(parent_trace, "Can't end transaction because store is an inconsistent state: "
+                                                " the transaction being aborted has no parent environment",
+                                                data = {"transaction being ended":    env.name(parent_trace)}) 
+        
+        
+        parent_transaction_env      = self.parent_transaction_env(parent_trace)
+        if parent_transaction_env != None and parent_env != parent_transaction_env:
+            raise ApodeixiError(parent_trace, "Can't e d transaction because store is an inconsistent state: "
+                                            + " the transaction being aborted was a child transaction of "
+                                            + "an environment that is not its parent",
+                                            data = {"transaction being ended":    env.name(parent_trace),
+                                                    "parent transaction":           parent_transaction_env.name(parent_trace),
+                                                    "parent environment":           parent_env.name(parent_trace)})
+
+        return env, parent_env
+
+    def abortTransaction(self, parent_trace):
+        '''
+        Aborts a transaction previously started by beginTransaction, by deleting transaction's isolation area,
+        effectively ignoring any I/O previously done during the transaction's lifetime, and leaving the
+        KnowledgeBaseStore in a state such that any immediately following I/O operation would be done 
+        directly to the store's persistent area.
+        '''  
+        env, parent_env             = self._validate_transaction_end_of_life(parent_trace)
+
+        # Remove state that makes us track the transaction being aborted
+        aborted_env                 = self._transactions_stack.pop()
+        self._transaction_events_dict.pop(aborted_env.name(parent_trace))
+        
+        # Now remove the environment of the transaction we just aborted
+        self.removeEnvironment(parent_trace, env.name(parent_trace)) 
+        self.activate(parent_trace, parent_env.name(parent_trace))
 
     def _failover_reads_to_parent(self, parent_trace):
         '''
@@ -120,8 +271,21 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         '''
         Removes the environment with the given name, if one exists, in which case returns 0.
         If no such environment exists then it returns -1.
+
+        In the process it also removes any child environment, recursively down.
         '''
         ME                          = File_KB_Environment
+
+        env_to_remove               = self.base_environment(parent_trace).findSubEnvironment(parent_trace, name)
+
+        # Don't error out if env_to_remove is None, as it might have been created by an earlier Python process, 
+        # so in memory we lost track of who are the children, since that information is not persisted to disk
+        if env_to_remove != None: 
+            for child_name in env_to_remove.children_names(parent_trace):
+                loop_trace              = parent_trace.doing("Removing chid environment before removing parent",
+                                                            data = {"child being removed":  str(child_name),
+                                                                    "parent to remove later":   str(name)})
+                self.removeEnvironment(loop_trace, child_name)
 
         root_dir                    = _os.path.dirname(self.base_environment(parent_trace).manifestsURL(parent_trace))
         envs_dir                    = root_dir + "/" + ME.ENVS_FOLDER
@@ -134,6 +298,16 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         try:
             if _os.path.isdir(dir_to_remove):
                 _shutil.rmtree(dir_to_remove)
+                # Also remove it as a child in the parent, lest later on when the parent is removed
+                # it will think this child is still around and will try to remove a non-existent environment, and error out
+                # As per earlier comment, we also don't error out if env_to_remove is None, since it might have been
+                # created by an earlier process, so it is None since it isn't in memory in this process
+                if env_to_remove != None:
+                    parent_env          = env_to_remove.parent(parent_trace)
+                    if parent_env != None:
+                        parent_env.removeChild(parent_trace = parent_trace, child_name = name)
+                else:
+                    x=1 # DUMMY statement, just to stop debugger here
             else:
                 return -1
         except Exception as ex:
@@ -157,15 +331,16 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         Switches the store's current environment to be the one identified by the `environment_name`, unless
         no such environment exists in which case it raises an ApodeixiError
         '''
-        if environment_name == self._base_env.name(parent_trace):
-            next_env                    = self._base_env
+        base_environment                = self.base_environment(parent_trace)
+        if environment_name == base_environment.name(parent_trace):
+            next_env                    = base_environment
         else:
-            next_env                    = self._current_env.findSubEnvironment(parent_trace, environment_name)
+            next_env                    = base_environment.findSubEnvironment(parent_trace, environment_name)
         
         if next_env != None:
             self._current_env           = next_env
         else:
-            raise ApodeixiError(parent_trace, "Can't activiate an environment that does not exist",
+            raise ApodeixiError(parent_trace, "Can't activate an environment that does not exist",
                                                     data = {"environment_name": str(environment_name)})
 
     def deactivate(self, parent_trace):
@@ -236,6 +411,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         manifest_dir        = self._current_env.manifestsURL(parent_trace) + "/" + namespace  + "/" + name
         PathUtils().create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
         manifest_file       = kind + suffix + ".yaml"
+        relative_path       = namespace  + "/" + name + "/" + manifest_file
         my_trace            = parent_trace.doing("Persisting manifest", 
                                                     data = {    'manifests_dir': manifest_dir, 
                                                                 'manifest_file': manifest_file},
@@ -245,9 +421,43 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         if True:
             with open(manifest_dir + "/" + manifest_file, 'w') as file:
                 _yaml.dump(manifest_dict, file)
+            self._remember_manifest_write(my_trace, relative_path)
             
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
+
+    def _remember_posting_write(self, parent_trace, relative_path):
+        '''
+        Helper method. If we are in a transaction, it will remember the relative path of a write
+        for a posting
+        '''
+        current_env             = self.current_environment(parent_trace)
+        env_name                = current_env.name(parent_trace)
+        if env_name in self._transaction_events_dict.keys():
+            transaction_events = self._transaction_events_dict[env_name]
+            transaction_events.remember_posting_write(relative_path)
+
+    def _remember_posting_delete(self, parent_trace, relative_path):
+        '''
+        Helper method. If we are in a transaction, it will remember the relative path of a delete
+        for a posting
+        '''
+        current_env             = self.current_environment(parent_trace)
+        env_name                = current_env.name(parent_trace)
+        if env_name in self._transaction_events_dict.keys():
+            transaction_events = self._transaction_events_dict[env_name]
+            transaction_events.remember_posting_delete(relative_path)
+              
+    def _remember_manifest_write(self, parent_trace, relative_path):
+        '''
+        Helper method. If we are in a transaction, it will remember the relative path of a write
+        for a manifest
+        '''
+        current_env             = self.current_environment(parent_trace)
+        env_name                = current_env.name(parent_trace)
+        if env_name in self._transaction_events_dict.keys():
+            transaction_events = self._transaction_events_dict[env_name]
+            transaction_events.remember_manifest_write(relative_path)
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
@@ -328,10 +538,11 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
 
         The suffix might be ".yaml" to retrieve manifests, or even "_<version>.yaml" for versioned manifests
         '''
-        matches = [filename for filename in _os.listdir(folder) if filename.endswith(".yaml")]
+        matches                         = []
+        if  _os.path.isdir(folder):
+            matches                     = [filename for filename in _os.listdir(folder) if filename.endswith(".yaml")]
 
         return matches
-
 
     def archivePosting(self, parent_trace, posting_label_handle):
         '''
@@ -339,7 +550,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         to this posting event and returns a PostingLabelHandle to identify the Excel file in this newly
         created archival folder.       
         '''
-        submitted_posting_path              = posting_label_handle.getFullPath(parent_trace)
+        submitted_posting_path              = self._getPostingFullPath(parent_trace, posting_label_handle)
         submitted_posting_coords            = posting_label_handle.filing_coords
         filename                            = posting_label_handle.excel_filename
 
@@ -350,7 +561,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                                             use_timestamps          = env_config.use_timestamps)
 
         archival_folder_path_tokens         = archival_folder_coords.path_tokens(parent_trace)
-        archival_folder_path                = posting_label_handle.kb_postings_url +  '/' + '/'.join(archival_folder_path_tokens)
+        archival_folder_path                = self.getPostingsURL(parent_trace) +  '/' + '/'.join(archival_folder_path_tokens)
 
         PathUtils().create_path_if_needed(parent_trace, archival_folder_path)
 
@@ -359,14 +570,21 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                             path                        = submitted_posting_path):
             # In this case the posting was submitted in the current environment, so move it
             _os.rename(src = submitted_posting_path, dst = archival_folder_path + "/" + filename)
+            # Now remember the write and the delete, in case later we need to apply these changes in a parent environment
+            archived_relative_path          = '/'.join(archival_folder_path_tokens) + "/" + filename
+            self._remember_posting_write(parent_trace, archived_relative_path)
+            removed_relative_path           = posting_label_handle.getRelativePath(parent_trace)
+            self._remember_posting_delete(parent_trace, removed_relative_path)
         else:
             # In this case the posting was submitted from outside the current environment, so archive it but don't move it
             _shutil.copy2(src = submitted_posting_path, dst = archival_folder_path)
+            # Now remember the write, in case later we need to apply these changes in a parent environment
+            archived_relative_path          = '/'.join(archival_folder_path_tokens) + "/" + filename
+            self._remember_posting_write(parent_trace, archived_relative_path)
 
 
         archival_handle     = PostingLabelHandle(       parent_trace        = parent_trace,
                                                         posting_api         = posting_label_handle.posting_api,
-                                                        kb_postings_url     = self.getPostingsURL(parent_trace), 
                                                         filing_coords       = archival_folder_coords,
                                                         excel_filename      = filename, 
                                                         excel_sheet         = posting_label_handle.excel_sheet, 
@@ -384,11 +602,10 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                                     data = {"Nb of archivals for this posting": str(len(archival_list))})
         original_handle, archival_handle    = archival_list[0]
 
-        archival_path                       = archival_handle.getFullPath(parent_trace)
+        archival_path                       = self._getPostingFullPath(parent_trace, archival_handle)
         log_folder                          = _os.path.dirname(archival_path)
 
-        env_config                          = self.current_environment(parent_trace).config(parent_trace)
-        path_mask                           = env_config.path_mask
+        #env_config                          = self.current_environment(parent_trace).config(parent_trace)
 
         log_txt                             = ""
         for handle in controller_response.createdManifests():
@@ -401,8 +618,8 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
             log_txt                         += "\nDELETED MANIFEST:        " + handle.display(parent_trace) + "\n"
 
         for handle1, handle2 in controller_response.archivedPostings():
-            log_txt                         += "\nARCHIVED POSTING FROM:   " + handle1.display(parent_trace, path_mask)
-            log_txt                         += "\n             TO:         " + handle2.display(parent_trace, path_mask) + "\n"
+            log_txt                         += "\nARCHIVED POSTING FROM:   " + handle1.display(parent_trace)
+            log_txt                         += "\n             TO:         " + handle2.display(parent_trace) + "\n"
 
         for form_request in controller_response.optionalForms():
             log_txt                         += "\nPUBLISHED OPTIONAL FORM: " + form_request.display(parent_trace) + "\n"
@@ -415,6 +632,9 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         try:
             with open(log_folder + "/" + LOG_FILENAME, 'w') as file:
                 file.write(str(log_txt))
+                relative_path               = _os.path.dirname(archival_handle.getRelativePath(parent_trace)) \
+                                                                    + "/" + LOG_FILENAME
+                self._remember_posting_write(parent_trace, relative_path)
 
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Encountered problem saving log for post event",
@@ -436,25 +656,27 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                                 +  '/' + '/'.join(log_coords.path_tokens(parent_trace))
 
         PathUtils().create_path_if_needed(parent_trace, log_folder)
-        return log_folder
+        return log_folder, log_coords
 
     def logFormRequestEvent(self, parent_trace, form_request, controller_response):
         '''
         Used to record in the store information about a request form event that has been completed.
         '''
-        log_folder                          = self._get_log_folder(parent_trace, form_request)
+        log_folder, log_coords              = self._get_log_folder(parent_trace, form_request)
 
         env_config                          = self.current_environment(parent_trace).config(parent_trace)
-        path_mask                           = env_config.path_mask
 
         log_txt                             = ""
         for handle in controller_response.createdForms():
-            log_txt                         += "\nCREATED FORM:        " + handle.display(parent_trace, path_mask) + "\n"
+            log_txt                         += "\nCREATED FORM:        " + handle.display(parent_trace) + "\n"
 
         LOG_FILENAME                        = "FORM_REQUEST_EVENT_LOG.txt"
         try:
             with open(log_folder + "/" + LOG_FILENAME, 'a') as file:
                 file.write(str(log_txt))
+                relative_path               = '/'.join(log_coords.path_tokens(parent_trace)) + "/" + LOG_FILENAME
+                self._remember_posting_write(parent_trace, relative_path)
+                
 
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Encountered problem saving log for form request event",

@@ -56,14 +56,10 @@ class PostingController():
         It records some intermediate computations in self.show_your_work. In particular, it records the UID of
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
         the UID of the rightmost column in that Excel row that is for an entity)
+
+        @config A PostingConfig object
         '''
-        path                    = data_handle.getFullPath(parent_trace)
-        sheet                   = data_handle.excel_sheet
-        excel_range             = data_handle.excel_range
-        r                       = ExcelTableReader(path, sheet,excel_range = excel_range, horizontally = config.horizontally)
-        my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
-                                                        data = {"path": path, "excel range": excel_range})
-        df                      = r.read(my_trace)
+        df                      = self.store.loadPostingData(parent_trace, data_handle, config)
 
         cols=list(df.columns)
 
@@ -71,9 +67,7 @@ class PostingController():
         GIST_OF                 = IntervalUtils().without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
         df.columns              = [GIST_OF(parent_trace, col) for col in df.columns]
 
-        my_trace                = parent_trace.doing("Sanity check that user complied with right schema",
-                                                        data = {"posting's path"         : str(path),
-                                                                "excel range examined"  : str(excel_range)})
+        my_trace                = parent_trace.doing("Sanity check that user complied with right schema")
 
         config.preflightPostingValidation(parent_trace = my_trace, posted_content_df = df)
         
@@ -91,9 +85,10 @@ class PostingController():
             last_uid            = None # Will represent the 
             for interval in config.buildIntervals(my_trace, list(df.columns)):
                 loop_trace      = my_trace.doing(   activity="Processing fragment", 
-                                                    data={  'excel row': ExcelTableReader.df_2_xl_row(  parent_trace    = my_trace, 
-                                                                                                        df_row_nb       = idx, 
-                                                                                                        excel_range     = r.excel_range), 
+                                                    data={  'excel row': ExcelTableReader.df_2_xl_row(  
+                                                                            parent_trace    = my_trace, 
+                                                                            df_row_nb       = idx, 
+                                                                            excel_range     = data_handle.excel_range), 
                                                             'interval': interval.columns},
                                                     origination = {
                                                             'signaled_from': __file__,
@@ -492,17 +487,11 @@ class PostingLabel():
             # If we get this far we haven't found anything problematic
             return missing_fields
 
-        excel_range                 = posting_label_handle.excel_range
-
-        excel_range    = excel_range.upper()
-        path            = posting_label_handle.getFullPath(parent_trace)
-        sheet           = posting_label_handle.excel_sheet
-        reader         = ExcelTableReader(path, sheet, excel_range, horizontally=False)
-        my_trace       = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
-                                                data = {"path": path, "excel range": excel_range})
-        label_df       = reader.read(my_trace)
+        label_df                    = self.controller.store.loadPostingLabel(parent_trace, posting_label_handle)
         
         # Check context has the right number of rows (which are columns in Excel, since we transposed)
+        excel_range                 = posting_label_handle.excel_range
+        excel_range                 = excel_range.upper()
         if len(label_df.index) != 1:
             raise ApodeixiError(parent_trace, "Bad Excel range provided: " + excel_range
                             + "\nShould contain exactly two columns: keys and values", 
@@ -527,7 +516,7 @@ class PostingLabel():
                                                         label_df                = label_df)
 
         my_trace        = parent_trace.doing("Checking if fields are missing or spurious",
-                                                data = {"path": path, "excel range": excel_range})
+                                                data = {"excel range": excel_range})
         spurious_fields     = [col for col in label_df.columns if col not in appearances]
         missing_fields = _missing_fields(   parent_trace        = my_trace,
                                             expected_fields     = self.mandatory_fields, 
