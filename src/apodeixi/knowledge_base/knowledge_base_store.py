@@ -139,10 +139,11 @@ class KnowledgeBaseStore():
 
         excel_range             = excel_range.upper()
         path                    = self._getPostingFullPath(parent_trace, posting_label_handle)
+        relative_path           = posting_label_handle.getRelativePath(parent_trace)
         sheet                   = posting_label_handle.excel_sheet
         reader                  = ExcelTableReader(path, sheet, excel_range, horizontally=False)
         my_trace                = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
-                                                data = {"path": path, "excel range": excel_range})
+                                                data = {"relative_path": relative_path, "excel range": excel_range})
         label_df                = reader.read(my_trace)
         return label_df
 
@@ -153,12 +154,13 @@ class KnowledgeBaseStore():
         @param config PostingConfig
         '''
         path                    = self._getPostingFullPath(parent_trace, data_handle)
+        relative_path           = data_handle.getRelativePath(parent_trace)
         sheet                   = data_handle.excel_sheet
         excel_range             = data_handle.excel_range
         r                       = ExcelTableReader(path, sheet,excel_range = excel_range, 
                                                     horizontally = config.horizontally)
         my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
-                                                        data = {"path": path, "excel range": excel_range})
+                                                        data = {"relative_path": relative_path, "excel range": excel_range})
         df                      = r.read(my_trace)
         return df
 

@@ -31,10 +31,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
                                                                         origination = {'signaled_from': __file__})
         self.config                 = ApodeixiConfig(root_trace)
-        self.postings_folder        = self.config.get_KB_PostingsRootFolder(root_trace)
-        self.manifests_folder       = self.config.get_KB_ManifestsRootFolder(root_trace)
+        self.kb_rootdir             = self.config.get_KB_RootFolder(root_trace)
 
-        self.store                  = File_KnowledgeBaseStore(  postings_rootdir        = self.postings_folder,
+        self.postings_folder        = self.kb_rootdir + "/excel-postings" 
+        self.manifests_folder       = self.kb_rootdir + "/manifests" 
+
+        self.store                  = File_KnowledgeBaseStore(  postings_rootdir    = self.postings_folder,
                                                                 manifests_roodir    = self.manifests_folder)
         my_trace                    = root_trace.doing("Starting KnowledgeBase")
         self.kb                     = KnowledgeBase(my_trace, self.store)

@@ -79,33 +79,34 @@ class ApodeixiConfig():
         
         return self.config_dict['secrets']['folder']      
 
-    def get_KB_PostingsRootFolder(self, parent_trace):
-        my_trace            = parent_trace.doing("Retrieving Knowledge Base's root postings folder from the Apodeixi Configuration ")
+    def get_KB_RootFolder(self, parent_trace): 
+        my_trace            = parent_trace.doing("Retrieving Knowledge Base's root folder from the Apodeixi Configuration ")
         KB                  = 'knowledge-base'
-        POSTINGS_FOLDER     = 'postings-root-folder'
+        ROOT_FOLDER         = 'knowledge-base-root-folder'
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
                                                                 root_dict       = self.config_dict, 
                                                                 root_dict_name  = 'apodeixi',
-                                                                path_list       = [KB, POSTINGS_FOLDER],
+                                                                path_list       = [KB, ROOT_FOLDER],
                                                                 valid_types     = [str])
         if not check:
-            raise ApodeixiError(my_trace, "Can't locate root folder for postings: " + explanation)
+            raise ApodeixiError(my_trace, "Can't locate root folder for Knowledge Base: " + explanation)
         
-        return self.config_dict[KB][POSTINGS_FOLDER]
+        return self.config_dict[KB][ROOT_FOLDER]
 
-    def get_KB_ManifestsRootFolder(self, parent_trace):
-        my_trace            = parent_trace.doing("Retrieving Knowledge Base's root manifests folder from the Apodeixi Configuration ")
+    def get_ExternalCollaborationFolder(self, parent_trace):
+        my_trace            = parent_trace.doing("Retrieving external collaboration root folder from the "
+                                                    + "Apodeixi Configuration ")
         KB                  = 'knowledge-base'
-        MANIFESTS_FOLDER    = 'manifests-root-folder'
+        EXTERNAL_FOLDER     = 'external-collaboration-folder'
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
                                                                 root_dict       = self.config_dict, 
                                                                 root_dict_name  = 'apodeixi',
-                                                                path_list       = [KB, MANIFESTS_FOLDER],
+                                                                path_list       = [KB, EXTERNAL_FOLDER],
                                                                 valid_types     = [str])
         if not check:
-            raise ApodeixiError(my_trace, "Can't locate root folder for manifests: " + explanation)
+            raise ApodeixiError(my_trace, "Can't locate external collaboration folder: " + explanation)
         
-        return self.config_dict[KB][MANIFESTS_FOLDER]
+        return self.config_dict[KB][EXTERNAL_FOLDER]
 
     def getMonthFiscalYearStarts(self, parent_trace):
         my_trace            = parent_trace.doing("Retrieving Knowledge Base's root postings folder from the Apodeixi Configuration ")

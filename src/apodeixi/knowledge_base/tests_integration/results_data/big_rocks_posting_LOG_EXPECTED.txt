@@ -22,7 +22,7 @@ CREATED MANIFEST:
 
 ARCHIVED POSTING FROM:   
 		 posting_api     = 'big-rocks.journeys.a6i'
-		 filing_coords   = 'TBD - Submitted from: <MASKED>/apodeixi/test-knowledge-base/excel-postings/journeys/Dec 2020/FusionOpus/Default/OPUS_big-rocks.journeys.a6i.xlsx'
+		 filing_coords   = 'TBD - Submitted from: <MASKED>/apodeixi/test_db/knowledge-base/excel-postings/journeys/Dec 2020/FusionOpus/Default/OPUS_big-rocks.journeys.a6i.xlsx'
 		 excel_filename  = 'OPUS_big-rocks.journeys.a6i.xlsx'
 		 excel_sheet     = 'Sheet1'
 		 excel_range     = 'B2:C1000'
