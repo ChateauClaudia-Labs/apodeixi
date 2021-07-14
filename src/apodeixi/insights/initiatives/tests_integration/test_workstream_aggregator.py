@@ -1,6 +1,6 @@
 import sys                                                      as _sys
 
-from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest
+from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest, FileStoreTestStack
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                             import DictionaryFormatter 
 
@@ -10,7 +10,16 @@ from apodeixi.insights.initiatives.workstream_aggregator        import Workstrea
 class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
     def setUp(self):
-        super().setUp()       
+        super().setUp()      
+        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        self.selectStack(root_trace) 
+
+    def selectStack(self, parent_trace):
+        '''
+        Called as part of setting up each integration test case. It chooses and provisions the stack that should
+        be used by this test case.
+        '''
+        self._stack                 = FileStoreTestStack(parent_trace, self._config)
 
     def test_workstream_aggregator(self):
 
@@ -22,7 +31,7 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
             my_trace                    = root_trace.doing("Removing previously created environment, if any",
                                                         data = {'environment name': ENVIRONMENT_NAME})
-            stat                        = self.store.removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
+            stat                        = self.stack().store().removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
 
             my_trace                    = root_trace.doing("Creating a sub-environment to do postings in")
             env_config                  = KB_Environment_Config(
@@ -30,14 +39,14 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
                                                 read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
                                                 use_timestamps      = False,
                                                 path_mask           = self._path_mask)
-            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
+            self.stack().store().current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
                                                                             isolate_collab_folder = True)
-            self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
+            self.stack().store().activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
 
             my_trace                    = root_trace.doing("Running WorkstreamAggregator")
             aggregator                  = WorkstreamAggregator(         parent_trace                = my_trace,
                                                                         initiative_UID              = INITIATIVE, 
-                                                                        knowledge_base              = self.kb)
+                                                                        knowledge_base              = self.stack().kb())
 
             result_df, errors           = aggregator.aggregateMetrics(  parent_trace                = my_trace, 
                                                                         filing_coordinates_filter   = None, 

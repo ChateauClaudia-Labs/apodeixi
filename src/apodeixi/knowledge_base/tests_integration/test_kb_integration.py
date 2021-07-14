@@ -1,90 +1,75 @@
 import sys                                                      as _sys
-import shutil                                                   as _shutil
 
-from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest
+
+from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest, FileStoreTestStack
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
-from apodeixi.util.path_utils                                   import PathUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.journeys.delivery_planning.big_rocks  import BigRocksEstimate_Controller
 from apodeixi.knowledge_base.knowledge_base                     import KnowledgeBase
-from apodeixi.knowledge_base.kb_environment                     import KB_Environment_Config
 from apodeixi.representers.as_excel                             import Manifest_Representer
 
 class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
+        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        self.selectStack(root_trace) 
+
+    def selectStack(self, parent_trace):
+        '''
+        Called as part of setting up each integration test case. It chooses and provisions the stack that should
+        be used by this test case.
+        '''
+        self._stack                 = FileStoreTestStack(parent_trace, self._config)
 
     def test_big_rocks_posting(self):
 
         TEST_CASE                       = 'big_rocks_posting'
-        
-        #EXCEL_FILE                      = self.clientURL + "/journeys/Dec 2020/FusionOpus/Default/" \
-        #                                    + 'OPUS_big-rocks.journeys.a6i.xlsx' 
+         
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"
         EXCEL_FILE                      = "OPUS_big-rocks.journeys.a6i.xlsx"
 
-        self._posting_testing_skeleton( #store           = self.store, 
-                                        test_case_name          = TEST_CASE,
+        self._posting_testing_skeleton( test_case_name          = TEST_CASE,
                                         excel_relative_path     = EXCEL_RELATIVE_PATH,
                                         excel_file              = EXCEL_FILE)
 
-    def _posting_testing_skeleton(self, test_case_name, excel_relative_path, excel_file): #store, test_case_name, excel_file):
+    def _posting_testing_skeleton(self, test_case_name, excel_relative_path, excel_file):
 
         all_manifests_dicts                     = []
         ENVIRONMENT_NAME                        = test_case_name + "_ENV"
         try:
-            root_trace                          = FunctionalTrace(parent_trace=None).doing("Posting excel file", 
+            root_trace                          = FunctionalTrace(parent_trace=None).doing("Testing post/requestForm scenario", 
                                                                                 data={  'excel_file'    : excel_file},
                                                                                 origination = {
                                                                                         'signaled_from' : __file__,
                                                                                         'concrete class': str(self.__class__.__name__)})
 
-            #kbase                               = KnowledgeBase(root_trace, store)
-            my_trace                    = root_trace.doing("Removing previously created environment, if any",
-                                                        data = {'environment name': ENVIRONMENT_NAME})
-            stat                        = self.store.removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
-            
-            my_trace                    = root_trace.doing("Creating a sub-environment to do postings in")
-            env_config                  = KB_Environment_Config(
-                                                root_trace, 
-                                                read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                                use_timestamps      = False,
-                                                path_mask           = self._path_mask)
-            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
-                                                                        isolate_collab_folder = True)
-            self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
- 
-            # We are using an isolated collaboration folder specific to our environment, so need
-            # to populate it with the data in the test_db/sharepoint area (the "immutable, deterministic seed")
-            clientURL                           = self.store.current_environment(my_trace).clientURL(my_trace)
-            posting_path                        = clientURL + "/" + excel_relative_path + "/" + excel_file
-            PathUtils().create_path_if_needed(my_trace, clientURL + "/" + excel_relative_path)
-
-            _shutil.copy2(  src = self.clientURL + "/" + excel_relative_path + "/" + excel_file, 
-                            dst = posting_path)
-
-            self._assert_current_environment(   parent_trace    = my_trace,
+            my_trace                            = root_trace.doing("Isolating test case")
+            self.provisionIsolatedEnvironment(my_trace, ENVIRONMENT_NAME)
+            self._assert_current_environment(   parent_trace    = root_trace,
                                                 snapshot_name   = test_case_name + "_POST_SNAPSHOT_0")
 
-            response, log_txt                   = self.kb.postByFile(   parent_trace               = my_trace, 
-                                                                        path_of_file_being_posted   = posting_path, 
-                                                                        excel_sheet                 = "Sheet1")
+            my_trace                            = root_trace.doing("Calling 'postByFile' API")
+            clientURL                           = self.stack().store().current_environment(my_trace).clientURL(my_trace)
+            posting_path                        = clientURL + "/" + excel_relative_path + "/" + excel_file
+            response, log_txt                   = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                                path_of_file_being_posted   = posting_path, 
+                                                                                excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED               = 3
             if len(response.createdManifests()) != NB_MANIFESTS_EXPECTED:
-                raise ApodeixiError(root_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
+                raise ApodeixiError(my_trace, 'Expected ' + str(NB_MANIFESTS_EXPECTED) + ' manifests, but found ' 
                                     + str(len(all_manifests_dicts)))
 
             # Retrieve the manifests created
             manifest_dict                       = {}
             for handle in response.createdManifests():
-                loop_trace                      = root_trace.doing("Retrieving manifest for handle " + str(handle),
+                loop_trace                      = my_trace.doing("Retrieving manifest for handle " + str(handle),
                                                         origination = {    
                                                                     'concrete class': str(self.__class__.__name__), 
                                                                     'signaled_from': __file__})
-                manifest_dict, manifest_path    = self.store.retrieveManifest(loop_trace, handle)
+                manifest_dict, manifest_path    = self.stack().store().retrieveManifest(loop_trace, handle)
                 self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
 
             self._assert_current_environment(   parent_trace    = my_trace,
@@ -97,16 +82,17 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
             # At this point the posting seems completed successfully.
             # So as the next step, try to generate to forms suggested by the response to the posting
+            my_trace                            = root_trace.doing("Calling 'requestForm' API")
             form_idx = 0
             def _regression_file(idx, purpose):
                 return test_case_name + "_" + str(idx) + "_" + purpose
             for form_request in response.optionalForms() + response.mandatoryForms():
-                fr_response, fr_log_txt, fr_rep                 = self.kb.requestForm(  parent_trace    = root_trace, 
+                fr_response, fr_log_txt, fr_rep                 = self.stack().kb().requestForm(  parent_trace    = root_trace, 
                                                                                         form_request    = form_request) 
 
                 self._assert_current_environment(   parent_trace    = my_trace,
                                                     snapshot_name   = test_case_name + "_REQUEST_FORM_SNAPSHOT_" + str(form_idx))
-                layout_info, pl_fmt_info, ws_fmt_info           = self._generated_form_test_output(root_trace, 
+                layout_info, pl_fmt_info, ws_fmt_info           = self._generated_form_test_output( my_trace, 
                                                                                                     form_request, 
                                                                                                     fr_response, 
                                                                                                     fr_log_txt, 

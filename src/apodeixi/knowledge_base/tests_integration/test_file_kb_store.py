@@ -1,6 +1,6 @@
 import sys                                              as _sys
 
-from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest
+from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, FileStoreTestStack
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                     import DictionaryFormatter 
 
@@ -10,10 +10,19 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
+        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        self.selectStack(root_trace) 
         
         root_trace                      = FunctionalTrace(None).doing("Retrieving product list from config",
                                                                         origination = {'signaled_from': __file__})
-        self.products                   = self.config.getProducts(root_trace)
+        self.products                   = self.config().getProducts(root_trace)
+
+    def selectStack(self, parent_trace):
+        '''
+        Called as part of setting up each integration test case. It chooses and provisions the stack that should
+        be used by this test case.
+        '''
+        self._stack                 = FileStoreTestStack(parent_trace, self._config)
 
     def test_locate_milestone_postings(self):
         POSTING_API                     = 'milestone.journeys.a6i'
@@ -34,7 +43,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" and coords.scenario == "MTP"
 
-            scanned_handles                  = self.store.searchPostings(    parent_trace                = root_trace,
+            scanned_handles                  = self.stack().store().searchPostings(    parent_trace                = root_trace,
                                                                             posting_api                 = posting_api, 
                                                                             filing_coordinates_filter   = _coords_filter, 
                                                                             posting_version_filter      = None)
@@ -83,14 +92,11 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
         coords_txt                      = ''
         try:
             root_trace                  = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
-            kb_store                    = File_KnowledgeBaseStore(  parent_trace        = root_trace,
-                                                                    kb_rootdir      = self.kb_rootdir, 
-                                                        clientURL = self.clientURL)
 
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" # and coords.scenario == "MTP"
 
-            scanned_handles             = kb_store.searchPostings(    parent_trace                = root_trace, 
+            scanned_handles             = self.stack().store().searchPostings(    parent_trace                = root_trace, 
                                                                     posting_api                 = posting_api, 
                                                                     filing_coordinates_filter   = _coords_filter, 
                                                                     posting_version_filter      = None)

@@ -1,6 +1,6 @@
 import sys                                              as _sys
 
-from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest
+from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, GITStoreTestStack
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 from apodeixi.util.path_utils              			    import FolderHierarchy
@@ -13,22 +13,15 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
+        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        self.selectStack(root_trace) 
 
-        try:
-            root_trace      = FunctionalTrace(None).doing("Initializing GIT_KnowledgeBaseStore",
-                                                                origination = { 'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
-
-            self.store      = GIT_KnowledgeBaseStore(   parent_trace                    = root_trace,
-                                                        kb_rootdir                  = self.kb_rootdir,
-                                                        clientURL   = self.clientURL,
-                                                        remote                          = None)
-
-            my_trace        = root_trace.doing("Starting KnowledgeBase")
-            self.kb         = KnowledgeBase(my_trace, self.store)
-        except ApodeixiError as ex:
-            print(ex.trace_message()) 
-            raise ex
+    def selectStack(self, parent_trace):
+        '''
+        Called as part of setting up each integration test case. It chooses and provisions the stack that should
+        be used by this test case.
+        '''
+        self._stack                 = GITStoreTestStack(parent_trace, self._config)
 
     def test_persist_manifest(self):
 

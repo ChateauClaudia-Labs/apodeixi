@@ -1,6 +1,6 @@
 import sys                                              as _sys
 
-from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest
+from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, FileStoreTestStack
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 from apodeixi.util.path_utils              			    import FolderHierarchy
@@ -12,6 +12,15 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
+        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        self.selectStack(root_trace) 
+
+    def selectStack(self, parent_trace):
+        '''
+        Called as part of setting up each integration test case. It chooses and provisions the stack that should
+        be used by this test case.
+        '''
+        self._stack                 = FileStoreTestStack(parent_trace, self._config)
 
     def test_create_environment(self):
 
@@ -29,7 +38,7 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
 
             my_trace            = root_trace.doing("Removing previously created environment, if any",
                                                         data = {'environment name': ENVIRONMENT_NAME})
-            stat                = self.store.removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
+            stat                = self.stack().store().removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
             
             my_trace            = root_trace.doing("Creating an environment", 
                                                     data={  'environment_name'    : ENVIRONMENT_NAME},
@@ -40,24 +49,24 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
                                                 read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
                                                 use_timestamps      = False,
                                                 path_mask           = self._path_mask)
-            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
+            self.stack().store().current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
                                                                         isolate_collab_folder = True)
 
             my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
-            self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
+            self.stack().store().activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
             self._assert_current_environment(   parent_trace    = my_trace,
                                                 snapshot_name   = ENVIRONMENT_NAME + "_Step_0")
 
             my_trace            = root_trace.doing("Making a posting in environment '" + ENVIRONMENT_NAME + "'")
-            response, log_txt   = self.kb.postByFile(   parent_trace                = my_trace, 
-                                                        path_of_file_being_posted   = POSTING_FULLPATH,
-                                                        excel_sheet                 = POSTING_LABEL_SHEET)
+            response, log_txt   = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                path_of_file_being_posted   = POSTING_FULLPATH,
+                                                                excel_sheet                 = POSTING_LABEL_SHEET)
 
             self._assert_current_environment(   parent_trace    = my_trace,
                                                 snapshot_name   = ENVIRONMENT_NAME + "_Step_1")
 
             my_trace            = root_trace.doing("Deactivating environment '" + ENVIRONMENT_NAME + "'")
-            self.store.deactivate(parent_trace = my_trace)
+            self.stack().store().deactivate(parent_trace = my_trace)
 
             self._assert_current_environment(   parent_trace    = my_trace,
                                                 snapshot_name   = TEST_CASE + "_BASE") 
