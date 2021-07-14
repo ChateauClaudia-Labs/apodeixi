@@ -66,18 +66,6 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
             print(ex.trace_message()) 
             self.assertTrue(1==2)
            
-
-    def DEPRECATED_assert_current_environment(self, parent_trace, test_case_name):     
-        '''
-        Helper method to validate current environment's folder hierarchy is as expected
-        '''
-        hierarchy_env       = self.store.current_environment(parent_trace).folder_hierarchy(parent_trace        = parent_trace,
-                                                                                            include_timestamps  = False)
-        # TODO: add some data to environment, maybe calling a controller on some posting
-
-        self._compare_to_expected_yaml( output_dict         = hierarchy_env.to_dict(),
-                                        test_case_name      = test_case_name, 
-                                        save_output_dict    = True)
                                                                        
 
 if __name__ == "__main__":
