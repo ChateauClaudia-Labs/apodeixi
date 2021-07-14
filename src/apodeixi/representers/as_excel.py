@@ -35,6 +35,7 @@ class Manifest_Representer:
                                                         data = {'folder': excel_folder, 'filename': excel_filename})
         
         PathUtils().create_path_if_needed(my_trace, excel_folder)
+
         workbook                = xlsxwriter.Workbook(excel_folder + '/' + excel_filename)
 
         inner_trace             = parent_trace.doing("Creating Posting Label")

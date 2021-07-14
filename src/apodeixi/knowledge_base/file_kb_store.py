@@ -53,9 +53,6 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         src_clientURL_root          = env.clientURL(parent_trace)
         dst_clientURL_root          = parent_env.clientURL(parent_trace)
 
-        ending_env                  = self._transactions_stack.pop()
-        events                      = self._transaction_events_dict.pop(ending_env.name(parent_trace))
-
         # If the parent environment is also a transactional envinronment, we will have to record in it
         # the events so that when the parent is committed, those events are cascaded to the parent's parent.
         # But it may also be that the parent is not transactional, which is why the `parent_events`
@@ -65,6 +62,17 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
             parent_events           = self._transaction_events_dict[parent_name]
         else:
             parent_events           = None
+
+        # **GOTCHA** 
+        # 
+        # Don't call pop()! We want to see the "last transaction's" environment, but not yet remove
+        # the last transaction (so peek, not pop). The reason is that if any of the subsequent code in this commit() method
+        # raises an exception, it will cause a subsequent problem for the abortTransaction method,
+        # since abortTransaction will look for the "last transaction" and will not find it (or will)
+        # find the wrong one) if we have poped. So use the [-1] notation to peek (not pop!) the last
+        # transaction. Later, just before exiting this method, do the pop()
+        ending_env                  = self._transactions_stack[-1]
+        events                      = self._transaction_events_dict[ending_env.name(parent_trace)]
 
         for relative_path in events.posting_writes():
             from_path               = src_postings_root + "/" + relative_path
@@ -118,9 +126,18 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
                 if parent_events != None:
                     parent_events.remember_clientURL_deletes(relative_path)
 
+
         # Now remove the environment of the transaction we just committed
         self.removeEnvironment(parent_trace, env.name(parent_trace)) 
         self.activate(parent_trace, parent_env.name(parent_trace))
+
+        # **GOTCHA** 
+        # 
+        # Now it is safe to pop() - it wasn't safe earlier because if any of the code in this method
+        # raised an exception after having popped the last transaction in the stack, the abortTransaction
+        #method woudld have failed since it wouldh't have found the last transaction to then abort it.
+        ending_env                  = self._transactions_stack.pop()
+        events                      = self._transaction_events_dict.pop(ending_env.name(parent_trace))
 
     def abortTransaction(self, parent_trace):
         '''

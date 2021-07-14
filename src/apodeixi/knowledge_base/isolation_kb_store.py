@@ -210,7 +210,10 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         '''       
         Starts an isolation state in which all subsequent I/O is done in an isolation area
         dedicated to this transaction, and not applied back to the store's persistent area until the
-        transaction is committed..
+        transaction is committed.
+
+        If an error is raised in this method, then the transaction is not begun (hence an
+        abortTransaction should not be attempted if this method raises an error)
         '''
         env                         = self.transaction_env(parent_trace) 
         if env == None:
@@ -226,9 +229,21 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         
         name                        = self._gen_transaction_name(parent_trace)
         isolation_env               = env.addSubEnvironment(parent_trace, name, env.config(parent_trace))
+
+        self.activate(parent_trace, name)
+
+        # **GOTCHA** 
+        #
+        # Mutate the transactions tack state, but do so at the very end of the method, before returning.
+        # This will make it official that we are in a new transaction. 
+        # This is not done earlier because the spec of this method is to guarantee
+        # that a transaction has not begun unless this method is successful. Thus, if the code above raised
+        # an error, we don't want to have appended a new entry in the transaction stack. 
+        # This ensures adherence to the semantics there is no need (and it would be buggy) for the caller
+        # to call abortTransaction in response to an error arising in beginTransaction, since beginTransaction
+        # is not supposed to start any transaction at all unless it succeeds.
         self._transactions_stack.append(isolation_env)
         self._transaction_events_dict[name]  = TransactionEvents(name)
-        self.activate(parent_trace, name)
 
     def _validate_transaction_end_of_life(self, parent_trace):
         '''

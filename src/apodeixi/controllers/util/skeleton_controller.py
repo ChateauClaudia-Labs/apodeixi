@@ -107,7 +107,6 @@ class SkeletonController(PostingController):
         if True:
             full_path                           = self.store.getClientURL(my_trace) \
                                                     + "/" + form_request.getRelativePath(my_trace)
-
             output_folder, filename             = _os.path.split(full_path)
             
             rep                                 = Manifest_Representer(config_table)
