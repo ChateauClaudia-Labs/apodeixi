@@ -1,7 +1,9 @@
 import sys                                                      as _sys
+import shutil                                                   as _shutil
 
 from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
+from apodeixi.util.path_utils                                   import PathUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.journeys.delivery_planning.big_rocks  import BigRocksEstimate_Controller
@@ -18,14 +20,17 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
         TEST_CASE                       = 'big_rocks_posting'
         
-        EXCEL_FILE                      = self.clientURL + "/journeys/Dec 2020/FusionOpus/Default/" \
-                                            + 'OPUS_big-rocks.journeys.a6i.xlsx' 
+        #EXCEL_FILE                      = self.clientURL + "/journeys/Dec 2020/FusionOpus/Default/" \
+        #                                    + 'OPUS_big-rocks.journeys.a6i.xlsx' 
+        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"
+        EXCEL_FILE                      = "OPUS_big-rocks.journeys.a6i.xlsx"
 
         self._posting_testing_skeleton( #store           = self.store, 
-                                        test_case_name  = TEST_CASE,
-                                        excel_file      = EXCEL_FILE)
+                                        test_case_name          = TEST_CASE,
+                                        excel_relative_path     = EXCEL_RELATIVE_PATH,
+                                        excel_file              = EXCEL_FILE)
 
-    def _posting_testing_skeleton(self, test_case_name, excel_file): #store, test_case_name, excel_file):
+    def _posting_testing_skeleton(self, test_case_name, excel_relative_path, excel_file): #store, test_case_name, excel_file):
 
         all_manifests_dicts                     = []
         ENVIRONMENT_NAME                        = test_case_name + "_ENV"
@@ -51,8 +56,20 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                                                                         isolate_collab_folder = True)
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
  
-            response, log_txt                    = self.kb.postByFile(   parent_trace                = root_trace, 
-                                                                        path_of_file_being_posted   = excel_file, 
+            # We are using an isolated collaboration folder specific to our environment, so need
+            # to populate it with the data in the test_db/sharepoint area (the "immutable, deterministic seed")
+            clientURL                           = self.store.current_environment(my_trace).clientURL(my_trace)
+            posting_path                        = clientURL + "/" + excel_relative_path + "/" + excel_file
+            PathUtils().create_path_if_needed(my_trace, clientURL + "/" + excel_relative_path)
+
+            _shutil.copy2(  src = self.clientURL + "/" + excel_relative_path + "/" + excel_file, 
+                            dst = posting_path)
+
+            self._assert_current_environment(   parent_trace    = my_trace,
+                                                snapshot_name   = test_case_name + "_POST_SNAPSHOT_0")
+
+            response, log_txt                   = self.kb.postByFile(   parent_trace               = my_trace, 
+                                                                        path_of_file_being_posted   = posting_path, 
                                                                         excel_sheet                 = "Sheet1")
 
             NB_MANIFESTS_EXPECTED               = 3
@@ -70,6 +87,9 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                 manifest_dict, manifest_path    = self.store.retrieveManifest(loop_trace, handle)
                 self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
 
+            self._assert_current_environment(   parent_trace    = my_trace,
+                                                snapshot_name   = test_case_name + "_POST_SNAPSHOT_1")
+
             # Check log is right
             self._compare_to_expected_txt(  output_txt          = log_txt,
                                             test_case_name      = test_case_name + "_LOG", 
@@ -83,6 +103,9 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
             for form_request in response.optionalForms() + response.mandatoryForms():
                 fr_response, fr_log_txt, fr_rep                 = self.kb.requestForm(  parent_trace    = root_trace, 
                                                                                         form_request    = form_request) 
+
+                self._assert_current_environment(   parent_trace    = my_trace,
+                                                    snapshot_name   = test_case_name + "_REQUEST_FORM_SNAPSHOT_" + str(form_idx))
                 layout_info, pl_fmt_info, ws_fmt_info           = self._generated_form_test_output(root_trace, 
                                                                                                     form_request, 
                                                                                                     fr_response, 

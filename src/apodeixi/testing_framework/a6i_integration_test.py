@@ -76,3 +76,16 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         super()._compare_to_expected_df(parent_trace, output_df, test_case_name, data_dir = self.results_data, 
                                             columns_to_ignore=columns_to_ignore, id_column=id_column)
+
+
+    def _assert_current_environment(self, parent_trace, snapshot_name):     
+        '''
+        Helper method to validate current environment's folder hierarchy is as expected
+        '''
+        hierarchy_env       = self.store.current_environment(parent_trace).folder_hierarchy(parent_trace        = parent_trace,
+                                                                                            include_timestamps  = False)
+        # TODO: add some data to environment, maybe calling a controller on some posting
+
+        self._compare_to_expected_yaml( output_dict         = hierarchy_env.to_dict(),
+                                        test_case_name      = snapshot_name, 
+                                        save_output_dict    = True)

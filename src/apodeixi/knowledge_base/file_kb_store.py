@@ -98,7 +98,8 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
             # Normally clientURL is the same across environments (except mostly in test situations),
             # so to prevent the copy operation from raising an exception make sure we only attempt to copy
             # the file when the two paths are different
-            if from_path != to_path: 
+            if not _os.path.samefile(from_path, to_path):
+            #if from_path != to_path: 
                 to_dir                  = _os.path.dirname(to_path)
                 PathUtils().create_path_if_needed(parent_trace, to_dir)
                 _shutil.copy2(src = from_path, dst = to_dir)

@@ -666,26 +666,147 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                                             parent_trace            = parent_trace, 
                                                             posting_label_handle    = posting_label_handle,
                                                             use_timestamps          = env_config.use_timestamps)
-
-        archival_folder_path_tokens         = archival_folder_coords.path_tokens(parent_trace)
-        archival_folder_path                = self.getPostingsURL(parent_trace) +  '/' + '/'.join(archival_folder_path_tokens)
-
-        PathUtils().create_path_if_needed(parent_trace, archival_folder_path)
-
-        posted_from_current_env = PathUtils().is_parent(    parent_trace            = parent_trace,
+        '''
+        if PathUtils().is_parent(                           parent_trace            = parent_trace,
                                                             parent_dir              = self.getPostingsURL(parent_trace), 
-                                                            path                    = submitted_posting_path)
+                                                            path                    = submitted_posting_path):
+            relative_path, filename     = PathUtils().relativize(   parent_trace    = parent_trace, 
+                                                                    root_dir        = self.getPostingsURL(parent_trace), 
+                                                                    full_path       = submitted_posting_path)
+            submitted_root_path         = self.getPostingsURL(parent_trace)
+            submitted_relative_path     = relative_path + "/" + filename
+        
         posted_from_clientURL = PathUtils().is_parent(      parent_trace            = parent_trace,
                                                             parent_dir              = self.getClientURL(parent_trace), 
                                                             path                    = submitted_posting_path)
+        '''
+        '''
+        archival_folder_path_tokens         = archival_folder_coords.path_tokens(parent_trace)
+        archival_folder                     = self.getPostingsURL(parent_trace) +  '/' + '/'.join(archival_folder_path_tokens)
+        archival_filename                   = filename
+        archived_relative_path              = '/'.join(archival_folder_path_tokens) + "/" + archival_filename
+        '''
+        #PathUtils().create_path_if_needed(parent_trace, archival_folder)
+        
+        '''
+        posting_dst_path_tokens             = submitted_posting_coords.path_tokens(parent_trace)
+        posting_dst_folder                  = self.getPostingsURL(parent_trace) +  '/' + '/'.join(posting_dst_path_tokens)
+        posting_dst_filename                = posting_label_handle.getPostingAPI(parent_trace)
+        '''
+        def _relativize_if_possible(parent_trace, parent_dir, path):
+            '''
+            Returns a boolean status and if boolean is true, a decomposition of the submitted path into root
+            and relative path
+            '''
+            check   =   PathUtils().is_parent(  parent_trace            = parent_trace,
+                                                parent_dir              = parent_dir, 
+                                                path                    = path)
+            if not check:
+                return False, None, None
+            relative_path, filename     = PathUtils().relativize(   parent_trace    = parent_trace, 
+                                                                    root_dir        = parent_dir, 
+                                                                    full_path       = path)
+            root_path         = parent_dir
+            relative_path     = relative_path + "/" + filename
+            return True, root_path, relative_path
 
-        if posted_from_current_env or posted_from_clientURL:
+        def _copy(src, dst_root, dst_coords, dst_filename):
+            path_tokens                     = dst_coords.path_tokens(parent_trace)
+            folder                          = dst_root              + "/" + "/".join(path_tokens)
+            relative_path                   = '/'.join(path_tokens) + "/" + dst_filename
+            dst                             = folder                + "/" + dst_filename
+            PathUtils().create_path_if_needed(parent_trace, folder)
+            _shutil.copy2(  src     = src,
+                            dst     = dst)
+            self._remember_posting_write(parent_trace, relative_path)            
+
+        def _conditional_move(src_root, src_relative_path, remove_src, dst_root, dst_coords, dst_filename):
+            path_tokens                     = dst_coords.path_tokens(parent_trace)
+            folder                          = dst_root              + "/" + "/".join(path_tokens)
+            relative_path                   = '/'.join(path_tokens) + "/" + dst_filename
+            dst                             = folder                + "/" + dst_filename
+            src                             = src_root              + "/" + src_relative_path
+            PathUtils().create_path_if_needed(parent_trace, folder)
+            if _os.path.exists(src) and _os.path.exists(dst) and _os.path.samefile(src, dst):
+                # Do nothing - just return
+                return
+            elif remove_src:
+                _os.rename( src         = src, 
+                            dst         = dst)
+                self._remember_posting_write(parent_trace, relative_path)  
+                if self.getPostingsURL(parent_trace) == src_root:
+                    self._remember_posting_delete(parent_trace, src_relative_path)
+                elif self.getClientURL(parent_trace) == src_root:
+                    self._remember_clientURL_delete(parent_trace, src_relative_path)
+            else:
+                _shutil.copy2(  src     = src,
+                                dst     = dst)
+                self._remember_posting_write(parent_trace, relative_path)
+
+        check, submitted_root_path, submitted_relative_path         = _relativize_if_possible(
+                                                                        parent_trace    = parent_trace,
+                                                                        parent_dir      = self.getPostingsURL(parent_trace),
+                                                                        path            = submitted_posting_path)
+        if not check:
+            check, submitted_root_path, submitted_relative_path     = _relativize_if_possible(
+                                                                        parent_trace    = parent_trace,
+                                                                        parent_dir      = self.getClientURL(parent_trace),
+                                                                        path            = submitted_posting_path)
+        if not check:
+            submitted_root_path, submitted_relative_path            = _os.path.split(submitted_posting_path
+            )
+        # Archive
+        _copy(  src                         = submitted_posting_path,
+                dst_root                    = self.getPostingsURL(parent_trace), 
+                dst_coords                  = archival_folder_coords, 
+                dst_filename                = filename)
+
+        # Save posting in official area with official name, possibly removing it from the source
+        _conditional_move(  src_root                    = submitted_root_path,
+                            src_relative_path           = submitted_relative_path,
+                            remove_src                  = check,
+                            dst_root                    = self.getPostingsURL(parent_trace), 
+                            dst_coords                  = submitted_posting_coords, 
+                            dst_filename                = posting_label_handle.getPostingAPI(parent_trace) + ".xlsx")        
+
+        '''
+        if posted_from_current_env:
+            if submitted_posting_path == posting_dst_folder     + "/" + posting_dst_filename:
+                # In this case the posting was submitted from the correct target destination, so just archive
+                _shutil.copy2(  src     = submitted_posting_path,
+                                dst     = archival_folder       + "/"   + archival_filename)
+                self._remember_posting_write(parent_trace,      archived_relative_path)
+            else:
+                # In this case the posting was submitted from outside the target destination, so
+                # remove it, archive it, and create the posting at the target destination
+                _os.rename(src = submitted_posting_path, dst = archival_folder + "/" + filename)
+                _shutil.copy2(  src     = archival_folder       + "/"   + archival_filename,
+                                dst     = posting_dst_folder    + "/"   + posting_dst_filename)
+                self._remember_posting_write(parent_trace,      archived_relative_path)
+                self._remember_posting_write(parent_trace,      archived_relative_path)
+                self._remember_posting_delete(parent_trace,     removed_relative_path)
+
+        elif posted_from_clientURL:
             # In this case the posting was submitted in the known area, so move it
-            _os.rename(src = submitted_posting_path, dst = archival_folder_path + "/" + filename)
-            # Now remember the write and the delete, in case later we need to apply these changes in a parent environment
+            _os.rename(src = submitted_posting_path, dst = archival_folder + "/" + filename)
+            # This posting is now the "latest version" for these filing coordinates and posting API,
+            # so save it also as the "latest". The folder is taken from the given posting label handle,
+            # but the filename is the standard (the posting API) since we don't want to use "as is"
+            # the filename from the caller, since that might be different across updates of the same posting.
+            # Since this is being saved in the knowledge base, we want to ensure consistent, not-user-arbitrary
+            # filenames. For the coordinates we don't have that issue since they already conform to a filing
+            # structure known to the Knowledge Base
+            posting_relative_path           = posting_label_handle.getRelativePath(parent_trace)
+            posting_folder                  = self.getPostingsURL(parent_trace) +  '/' \
+                                            + _os.path.dirname(posting_relative_path)
+            posting_filename              = posting_label_handle.getPostingAPI(parent_trace)
+            _shutil.copy2(  src     = archival_folder  + "/" + filename,
+                            dst     = posting_folder        + "/" + posting_filename)
+            # Now remember the writes and the delete, in case later we need to apply these changes in a parent environment
             archived_relative_path          = '/'.join(archival_folder_path_tokens) + "/" + filename
             self._remember_posting_write(parent_trace, archived_relative_path)
-            removed_relative_path           = posting_label_handle.getRelativePath(parent_trace)
+            self._remember_posting_write(parent_trace, posting_relative_path)
+            
             if posted_from_current_env:
                 self._remember_posting_delete(parent_trace, removed_relative_path)
             elif posted_from_clientURL:
@@ -696,7 +817,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
             # Now remember the write, in case later we need to apply these changes in a parent environment
             archived_relative_path          = '/'.join(archival_folder_path_tokens) + "/" + filename
             self._remember_posting_write(parent_trace, archived_relative_path)
-
+        '''
 
         archival_handle     = PostingLabelHandle(       parent_trace        = parent_trace,
                                                         posting_api         = posting_label_handle.posting_api,

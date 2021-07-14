@@ -46,7 +46,7 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
             my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
             self._assert_current_environment(   parent_trace    = my_trace,
-                                                test_case_name  = ENVIRONMENT_NAME + "_Step_0")
+                                                snapshot_name   = ENVIRONMENT_NAME + "_Step_0")
 
             my_trace            = root_trace.doing("Making a posting in environment '" + ENVIRONMENT_NAME + "'")
             response, log_txt   = self.kb.postByFile(   parent_trace                = my_trace, 
@@ -54,20 +54,20 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
                                                         excel_sheet                 = POSTING_LABEL_SHEET)
 
             self._assert_current_environment(   parent_trace    = my_trace,
-                                                test_case_name  = ENVIRONMENT_NAME + "_Step_1")
+                                                snapshot_name   = ENVIRONMENT_NAME + "_Step_1")
 
             my_trace            = root_trace.doing("Deactivating environment '" + ENVIRONMENT_NAME + "'")
             self.store.deactivate(parent_trace = my_trace)
 
             self._assert_current_environment(   parent_trace    = my_trace,
-                                                test_case_name  = TEST_CASE + "_BASE") 
+                                                snapshot_name   = TEST_CASE + "_BASE") 
 
         except ApodeixiError as ex:
             print(ex.trace_message()) 
             self.assertTrue(1==2)
            
 
-    def _assert_current_environment(self, parent_trace, test_case_name):     
+    def DEPRECATED_assert_current_environment(self, parent_trace, test_case_name):     
         '''
         Helper method to validate current environment's folder hierarchy is as expected
         '''
