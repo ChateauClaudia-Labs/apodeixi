@@ -1,6 +1,6 @@
 secrets.folder		C:/Alex/Code/ea-journeys/secrets
 knowledge-base.knowledge-base-root-folder		C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/knowledge-base
-knowledge-base.external-collaboration-folder		C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-db/share-point
+knowledge-base.external-collaboration-folder		C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/share-point
 organization-settings.month-fiscal-year-starts		6
 products.corporate.name		Corporate
 products.corporate.liq.short-name		LIQ

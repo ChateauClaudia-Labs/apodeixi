@@ -80,29 +80,30 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 
     def _locate_workstream_postings(self, posting_api, test_name):
         
-        coords_txt                          = ''
+        coords_txt                      = ''
         try:
-            root_trace                      = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
-            kb                              = File_KnowledgeBaseStore(  postings_rootdir       = self.postings_folder,
-                                                                        manifests_roodir    = None)
+            root_trace                  = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
+            kb_store                    = File_KnowledgeBaseStore(  parent_trace        = root_trace,
+                                                                    kb_rootdir      = self.kb_rootdir, 
+                                                        clientURL = self.clientURL)
 
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" # and coords.scenario == "MTP"
 
-            scanned_handles                 = kb.searchPostings(    parent_trace                = root_trace, 
+            scanned_handles             = kb_store.searchPostings(    parent_trace                = root_trace, 
                                                                     posting_api                 = posting_api, 
                                                                     filing_coordinates_filter   = _coords_filter, 
                                                                     posting_version_filter      = None)
 
-            stringified_coords_dict         = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
+            stringified_coords_dict     = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
 
             idx = 1
             for handle in scanned_handles:
                 stringified_coords_dict[str(idx) + "." + format(handle.filing_coords, '')] = handle.excel_filename
                 idx +=1
 
-            coords_txt                      = "--------------------- Workstreams with a filing structure in the KnowledgeBase\n\n"
-            coords_txt                      += DictionaryFormatter().dict_2_nice(   parent_trace   = root_trace,
+            coords_txt                  = "--------------------- Workstreams with a filing structure in the KnowledgeBase\n\n"
+            coords_txt                  += DictionaryFormatter().dict_2_nice(   parent_trace   = root_trace,
                                                                                     a_dict          = stringified_coords_dict, 
                                                                                     flatten=True)
 

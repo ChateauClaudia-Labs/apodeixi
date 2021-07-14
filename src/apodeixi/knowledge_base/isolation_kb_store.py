@@ -21,8 +21,10 @@ class TransactionEvents():
         # These are lists of of relative paths from root of transactional environment
         self._posting_writes        = [] 
         self._posting_deletes       = []
-        self._manifest_writes        = [] 
-        self._manifest_deletes       = []
+        self._manifest_writes       = [] 
+        self._manifest_deletes      = []
+        self._clientURL_writes      = []
+        self._clientURL_deletes     = []
 
     def remember_posting_write(self, relative_path):
         self._posting_writes.append(relative_path)
@@ -36,17 +38,29 @@ class TransactionEvents():
     def remember_manifest_delete(self, relative_path):
         self._manifest_deletes.append(relative_path)
 
+    def remember_clientURL_write(self, relative_path):
+        self._clientURL_writes.append(relative_path)
+
+    def remember_clientURL_delete(self, relative_path):
+        self._clientURL_deletes.append(relative_path)
+
     def posting_writes(self):
         return self._posting_writes
 
     def manifest_writes(self):
         return self._manifest_writes
 
+    def clientURL_writes(self):
+        return self._clientURL_writes
+
     def posting_deletes(self):
         return self._posting_deletes
 
     def manifest_deletes(self):
         return self._manifest_deletes
+
+    def clientURL_deletes(self):
+        return self._clientURL_deletes
 
 class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
     '''
@@ -75,8 +89,52 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
     the current environment is configured. Derived concrete classes define how failover is handled, and typically
     re-implement read I/O methods by writing failover code around calls to super()'s (i.e., to this class's)
     read I/O methods.
+
+    @param kb_rootdir A string, corresponding to the absolute path in the local machine
+                            corresponding to the KnowledgeBase.
+    @param clientURL A string, corresponding to the absolute path to a root folder in a collaboration
+                            drive system (such as SharePoint) in which end-users will collaborate to create
+                            the Excel spreadsheets that will be eventually posted to the KnowledgeBase. This
+                            shared drive is also the location to which the KnowledgeBase will save
+                            generated forms or reports requested by end-users. This is a "root folder" in that
+                            the structure below will be assumed to follow the filing structure of the
+                            KnowledgeBase for postings.
     '''
-    def __init__(self, postings_rootdir, manifests_roodir):
+    def __init__(self, parent_trace, kb_rootdir, clientURL):
+
+        my_trace                        = parent_trace.doing("Validating root folders are valid")
+        if True:
+            # Check parameters are indeed directories
+            if not _os.path.isdir(kb_rootdir):
+                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore because an invalid directory was given "
+                                                    + " for the root of the KnoweldgeBaseStore",
+                                                    data = {"kb_rootdir": kb_rootdir})
+            if not _os.path.isdir(clientURL):
+                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore because an invalid directory was given "
+                                                    + " for the root of the collaboration area",
+                                                    data = {"collaboration_rootdir": clientURL})
+
+            self._kb_rootdir                       = kb_rootdir
+            self._clientURL     = clientURL
+
+            postings_rootdir                        =  kb_rootdir + "/excel-postings" 
+            manifests_roodir                        =  kb_rootdir + "/manifests"      
+
+            # If missing, create the postings and manifest folders 
+            if not _os.path.exists(postings_rootdir):                                                                                               
+                _os.mkdir(postings_rootdir)
+            if not _os.path.exists(manifests_roodir):
+                _os.mkdir(manifests_roodir)
+
+            # Check nobody previously created these things as files instead of folders by mistake
+            if  _os.path.isfile(postings_rootdir):
+                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore postings root is a file, "
+                                                    + " and should instead have been a directory",
+                                                    data = {"postings root": postings_rootdir})
+            if  _os.path.isfile(manifests_roodir):
+                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore manifests root is a file, "
+                                                    + " and should instead have been a directory",
+                                                    data = {"manifests root": manifests_roodir}) 
         super().__init__()
 
         _BASE_ENVIRONMENT           = '_BASE_ENVIRONMENT'
@@ -86,13 +144,14 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                             read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
                                             use_timestamps      = True,
                                             path_mask           = None)
-        self._base_env              = File_KB_Environment(parent_trace            = root_trace, 
-                                                                    name                    = _BASE_ENVIRONMENT, 
-                                                                    store                   = self, 
-                                                                    parent_environment      = None,
-                                                                    config                  = env_config,
-                                                                    postings_rootdir        = postings_rootdir,
-                                                                    manifests_roodir        = manifests_roodir)  
+        self._base_env              = File_KB_Environment(  parent_trace            = root_trace, 
+                                                            name                    = _BASE_ENVIRONMENT, 
+                                                            store                   = self, 
+                                                            parent_environment      = None,
+                                                            config                  = env_config,
+                                                            postings_rootdir        = postings_rootdir,
+                                                            manifests_roodir        = manifests_roodir,
+                                                            clientURL               = self._clientURL)  
           
         self._current_env           = self._base_env
 
@@ -255,8 +314,18 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         '''
         Returns a string that can be used to locate the postings area in the Knowledge Base store's current environment
         '''   
-        current_kb_env_url              = self._current_env.postingsURL(parent_trace)
-        return current_kb_env_url
+        current_env_postings_url              = self._current_env.postingsURL(parent_trace)
+        return current_env_postings_url
+
+
+    def getClientURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate the user-specific area (such as a SharePoint folder)
+        into which generated forms and reports should be store.
+        '''   
+        current_env_client_url              = self._current_env.clientURL(parent_trace)
+        return current_env_client_url
+        
 
     def current_environment(self, parent_trace):
         return self._current_env
@@ -448,6 +517,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
             transaction_events = self._transaction_events_dict[env_name]
             transaction_events.remember_posting_delete(relative_path)
               
+
     def _remember_manifest_write(self, parent_trace, relative_path):
         '''
         Helper method. If we are in a transaction, it will remember the relative path of a write
@@ -458,6 +528,28 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         if env_name in self._transaction_events_dict.keys():
             transaction_events = self._transaction_events_dict[env_name]
             transaction_events.remember_manifest_write(relative_path)
+
+    def _remember_clientURL_write(self, parent_trace, relative_path):
+        '''
+        Helper method. If we are in a transaction, it will remember the relative path of a write
+        for a clientURL file
+        '''
+        current_env             = self.current_environment(parent_trace)
+        env_name                = current_env.name(parent_trace)
+        if env_name in self._transaction_events_dict.keys():
+            transaction_events = self._transaction_events_dict[env_name]
+            transaction_events.remember_clientURL_write(relative_path)
+
+    def _remember_clientURL_delete(self, parent_trace, relative_path):
+        '''
+        Helper method. If we are in a transaction, it will remember the relative path of a delete
+        for a posting
+        '''
+        current_env             = self.current_environment(parent_trace)
+        env_name                = current_env.name(parent_trace)
+        if env_name in self._transaction_events_dict.keys():
+            transaction_events = self._transaction_events_dict[env_name]
+            transaction_events.remember_clientURL_delete(relative_path)
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
@@ -565,18 +657,26 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
 
         PathUtils().create_path_if_needed(parent_trace, archival_folder_path)
 
-        if PathUtils().is_parent(           parent_trace                = parent_trace,
-                                            parent_dir                  = self.getPostingsURL(parent_trace), 
-                                            path                        = submitted_posting_path):
-            # In this case the posting was submitted in the current environment, so move it
+        posted_from_current_env = PathUtils().is_parent(    parent_trace            = parent_trace,
+                                                            parent_dir              = self.getPostingsURL(parent_trace), 
+                                                            path                    = submitted_posting_path)
+        posted_from_clientURL = PathUtils().is_parent(      parent_trace            = parent_trace,
+                                                            parent_dir              = self.getClientURL(parent_trace), 
+                                                            path                    = submitted_posting_path)
+
+        if posted_from_current_env or posted_from_clientURL:
+            # In this case the posting was submitted in the known area, so move it
             _os.rename(src = submitted_posting_path, dst = archival_folder_path + "/" + filename)
             # Now remember the write and the delete, in case later we need to apply these changes in a parent environment
             archived_relative_path          = '/'.join(archival_folder_path_tokens) + "/" + filename
             self._remember_posting_write(parent_trace, archived_relative_path)
             removed_relative_path           = posting_label_handle.getRelativePath(parent_trace)
-            self._remember_posting_delete(parent_trace, removed_relative_path)
+            if posted_from_current_env:
+                self._remember_posting_delete(parent_trace, removed_relative_path)
+            elif posted_from_clientURL:
+                self._remember_clientURL_delete(parent_trace, removed_relative_path)
         else:
-            # In this case the posting was submitted from outside the current environment, so archive it but don't move it
+            # In this case the posting was submitted from an unknown area, so archive it but don't move it
             _shutil.copy2(src = submitted_posting_path, dst = archival_folder_path)
             # Now remember the write, in case later we need to apply these changes in a parent environment
             archived_relative_path          = '/'.join(archival_folder_path_tokens) + "/" + filename
@@ -669,6 +769,9 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         log_txt                             = ""
         for handle in controller_response.createdForms():
             log_txt                         += "\nCREATED FORM:        " + handle.display(parent_trace) + "\n"
+            unmasked_client_URL             = str(controller_response.clientURL(parent_trace))
+            masked_client_URL               = controller_response.applyMask(parent_trace, unmasked_client_URL)
+            log_txt                         += "clientURL =          " + masked_client_URL + "\n"
 
         LOG_FILENAME                        = "FORM_REQUEST_EVENT_LOG.txt"
         try:

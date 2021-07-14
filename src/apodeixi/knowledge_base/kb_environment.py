@@ -141,7 +141,8 @@ class KB_Environment():
 class File_KB_Environment(KB_Environment):
     '''
     '''
-    def __init__(self, parent_trace, name, store, parent_environment, config, postings_rootdir, manifests_roodir):
+    def __init__(self, parent_trace, name, store, parent_environment, config, 
+                    postings_rootdir, manifests_roodir, clientURL):
         super().__init__(   parent_trace            = parent_trace, 
                             name                    = name, 
                             store                   = store, 
@@ -149,17 +150,22 @@ class File_KB_Environment(KB_Environment):
                             config                  = config)
 
         self._postings_rootdir                      = postings_rootdir
-        self._manifests_roodir                      = manifests_roodir
+        self._manifests_roodir                      = manifests_roodir 
+        self._clientURL                             = clientURL
 
     ENVS_FOLDER                                     = "envs"
-    POSTINGS_ENV_DIR                                = "excel-postings"
-    MANIFESTS_ENV_DIR                               = "manifests"
+    POSTINGS_ENV_DIR                                = "kb/excel-postings"
+    MANIFESTS_ENV_DIR                               = "kb/manifests"
+    COLLABORATION_DIR                               = "external-collaboration"
 
     def postingsURL(self, parent_trace):
         return self._postings_rootdir
 
     def manifestsURL(self, parent_trace):
         return self._manifests_roodir
+
+    def clientURL(self, parent_trace):
+        return self._clientURL
 
     def findSubEnvironment(self, parent_trace, name):
         '''
@@ -177,13 +183,26 @@ class File_KB_Environment(KB_Environment):
         # If we get this far it means we never found it
         return None
 
-    def addSubEnvironment(self, parent_trace, name, env_config):
+    def addSubEnvironment(self, parent_trace, name, env_config, isolate_collab_folder = False):
         '''
         Creates and returns a new File_KB_Environment with name `name` and using self as the parent environment.
 
         @param name A string, used as the unique name of this environment among all environments in the store
         @param env_config A KB_Environment_Config object that will be set as the configuration of the newly
                     created sub-environment
+        @param isolate_collab_folder A boolean to determine how the `_clientURL`
+                    attribute should be set for the sub-environment being created. This is an attribute that
+                    points to folders external to the KnowledgeBase (such as SharePoint) from where users post 
+                    spreadsheets and into which users request generated forms and reports to be written to.
+                    By default, the boolean is False, in which case the sub-environment shares the same
+                    external collaboration folder as the parent.
+                    If the caller sets it to True, then the sub-environment will have its own dedicated
+                    local folder for the `_clientURL`.
+                    This setting should be set to False in normal production usage. It is mainly in test situations 
+                    where the parent environment is a deterministic set of files that should not be mutated by
+                    test cases. In such cases, test cases will need to create an environment to serve as
+                    the test case's "root", and will need to have a notion of `_clientURL`
+                    in that root. In those cases this flag should be set to True to ensure the required isolation.
         '''
         ME                          = File_KB_Environment
 
@@ -207,17 +226,24 @@ class File_KB_Environment(KB_Environment):
 
         subenv_postings_rootdir     = envs_dir + "/" + sub_env_name + "/" + ME.POSTINGS_ENV_DIR
         subenv_manifests_rootdir    = envs_dir + "/" + sub_env_name + "/" + ME.MANIFESTS_ENV_DIR
+
+        if isolate_collab_folder:
+            subenv_collab_folder = envs_dir + "/" + sub_env_name + "/" + ME.COLLABORATION_DIR
+        else:
+            subenv_collab_folder = self._clientURL
+
         PathUtils().create_path_if_needed(my_trace, subenv_postings_rootdir)
         PathUtils().create_path_if_needed(my_trace, subenv_manifests_rootdir)
 
         my_trace                    = parent_trace.doing("Creating sub environment", data = {'sub_env_name': sub_env_name})
-        sub_env                     = File_KB_Environment(  parent_trace            = my_trace, 
-                                                            name                    = sub_env_name, 
-                                                            store                   = self._store, 
-                                                            parent_environment      = self,
-                                                            config                  = env_config,
-                                                            postings_rootdir        = subenv_postings_rootdir,
-                                                            manifests_roodir        = subenv_manifests_rootdir)
+        sub_env                     = File_KB_Environment(  parent_trace                    = my_trace, 
+                                                            name                            = sub_env_name, 
+                                                            store                           = self._store, 
+                                                            parent_environment              = self,
+                                                            config                          = env_config,
+                                                            postings_rootdir                = subenv_postings_rootdir,
+                                                            manifests_roodir                = subenv_manifests_rootdir,
+                                                            clientURL   = subenv_collab_folder)
 
         self._children[sub_env_name] = sub_env
         return sub_env

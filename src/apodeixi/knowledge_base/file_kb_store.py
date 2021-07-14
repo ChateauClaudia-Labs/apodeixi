@@ -14,9 +14,20 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
 
     Implements failover for reads by re-trying in parent environment, if one exists and if such failover policy
     is stipulated in the current environment's configuration.
+
+    @param kb_rootdir A string, corresponding to the absolute path in the local machine
+                            corresponding to the KnowledgeBase.
+    @param clientURL A string, corresponding to the absolute path to a root folder in a collaboration
+                            drive system (such as SharePoint) in which end-users will collaborate to create
+                            the Excel spreadsheets that will be eventually posted to the KnowledgeBase. This
+                            shared drive is also the location to which the KnowledgeBase will save
+                            generated forms or reports requested by end-users. This is a "root folder" in that
+                            the structure below will be assumed to follow the filing structure of the
+                            KnowledgeBase for postings.
     '''
-    def __init__(self, postings_rootdir, manifests_roodir):
-        super().__init__(postings_rootdir, manifests_roodir)
+    def __init__(self, parent_trace, kb_rootdir, clientURL):
+
+        super().__init__(parent_trace, kb_rootdir, clientURL)
 
     def beginTransaction(self, parent_trace):
         '''
@@ -37,7 +48,10 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         dst_postings_root           = parent_env.postingsURL(parent_trace)
 
         src_manifests_root          = env.manifestsURL(parent_trace)
-        dst_manifests_root           = parent_env.manifestsURL(parent_trace)
+        dst_manifests_root          = parent_env.manifestsURL(parent_trace)
+
+        src_clientURL_root          = env.clientURL(parent_trace)
+        dst_clientURL_root          = parent_env.clientURL(parent_trace)
 
         ending_env                  = self._transactions_stack.pop()
         events                      = self._transaction_events_dict.pop(ending_env.name(parent_trace))
@@ -70,6 +84,19 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
             if parent_events != None:
                 parent_events.remember_manifest_write(relative_path)
 
+        for relative_path in events.clientURL_writes():
+            from_path               = src_clientURL_root + "/" + relative_path
+            to_path                 = dst_clientURL_root + "/" + relative_path
+            # Normally clientURL is the same across environments (except mostly in test situations),
+            # so to prevent the copy operation from raising an exception make sure we only attempt to copy
+            # the file when the two paths are different
+            if from_path != to_path: 
+                to_dir                  = _os.path.dirname(to_path)
+                PathUtils().create_path_if_needed(parent_trace, to_dir)
+                _shutil.copy2(src = from_path, dst = to_dir)
+                if parent_events != None:
+                    parent_events.remember_clientURL_write(relative_path)
+
         for relative_path in events.posting_deletes():
             to_path                 = dst_postings_root + "/" + relative_path
             if _os.path.isfile(to_path):
@@ -83,6 +110,13 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
                 _os.remove(to_path)
                 if parent_events != None:
                     parent_events.remember_manifest_deletes(relative_path)
+
+        for relative_path in events.clientURL_deletes():
+            to_path                 = dst_clientURL_root + "/" + relative_path
+            if _os.path.isfile(to_path):
+                _os.remove(to_path)
+                if parent_events != None:
+                    parent_events.remember_clientURL_deletes(relative_path)
 
         # Now remove the environment of the transaction we just committed
         self.removeEnvironment(parent_trace, env.name(parent_trace)) 

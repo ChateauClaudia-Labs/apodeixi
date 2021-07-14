@@ -173,7 +173,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 
 ---->	activity	Loading Excel spreadsheet
 
-            excel_fullpath      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/knowledge-base/envs/test_workstream_aggregator_ENV/excel-postings/initiatives/FY 22/s1.w8/w8-workstream.initiatives.a6i.xlsx
+            excel_fullpath      : C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/knowledge-base/envs/test_workstream_aggregator_ENV/kb/excel-postings/initiatives/FY 22/s1.w8/w8-workstream.initiatives.a6i.xlsx
 
 ------------------------------------------------------------	Technical Stack Trace
 

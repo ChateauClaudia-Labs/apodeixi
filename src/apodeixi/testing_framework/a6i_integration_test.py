@@ -28,18 +28,18 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
         self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
-        root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
+        root_trace                          = FunctionalTrace(None).doing("Loading Apodeixi configuration",
                                                                         origination = {'signaled_from': __file__})
-        self.config                 = ApodeixiConfig(root_trace)
-        self.kb_rootdir             = self.config.get_KB_RootFolder(root_trace)
+        self.config                         = ApodeixiConfig(root_trace)
+        self.kb_rootdir                     = self.config.get_KB_RootFolder(root_trace)
+        self.clientURL  = self.config.get_ExternalCollaborationFolder(root_trace) 
 
-        self.postings_folder        = self.kb_rootdir + "/excel-postings" 
-        self.manifests_folder       = self.kb_rootdir + "/manifests" 
-
-        self.store                  = File_KnowledgeBaseStore(  postings_rootdir    = self.postings_folder,
-                                                                manifests_roodir    = self.manifests_folder)
-        my_trace                    = root_trace.doing("Starting KnowledgeBase")
-        self.kb                     = KnowledgeBase(my_trace, self.store)
+        self.store                          = File_KnowledgeBaseStore(  parent_trace                    = root_trace,
+                                                                        kb_rootdir                      = self.kb_rootdir, 
+                                                                        clientURL   = 
+                                                                                    self.clientURL)
+        my_trace                            = root_trace.doing("Starting KnowledgeBase")
+        self.kb                             = KnowledgeBase(my_trace, self.store)
 
 
     def tearDown(self):

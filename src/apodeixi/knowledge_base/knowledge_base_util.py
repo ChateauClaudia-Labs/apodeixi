@@ -258,7 +258,8 @@ class Response():
     '''
     def __init__(self):
         self.manifest_handles_dict          = {Response.CREATED: [], Response.UPDATED: [], Response.DELETED: []}
-        self.posting_handles_dict           = {Response.ARCHIVED: [], Response.CREATED: []}
+        self.posting_handles_dict           = {Response.ARCHIVED: []}
+        self.clientURL_handles_dict         = {Response.CREATED: []}
         self.form_requests_dict             = {Response.OPTIONAL_FORMS: [], Response.MANDATORY_FORMS: []}
 
     CREATED                                 = 'CREATED' 
@@ -283,7 +284,7 @@ class Response():
         return self.posting_handles_dict[Response.ARCHIVED]   
         
     def createdForms(self):
-        return self.posting_handles_dict[Response.CREATED]
+        return self.clientURL_handles_dict[Response.CREATED]
 
     def optionalForms(self):
         return self.form_requests_dict[Response.OPTIONAL_FORMS]
@@ -317,17 +318,43 @@ class PostResponse(Response):
 class FormRequestResponse(Response):
     '''
     Data structure used as a response to a FormRequest request on the knowledge base
-    '''
-    def __init__(self):
-        super().__init__()
 
-    def recordCreation(self, parent_trace, response_handle):
+    @param clientURL A string corresponding to the root path of the client area (such as a SharePoint folder)
+                        under which the form was saved in response to the FormRequest.
+    @param path_mask A function that takes as tring argument and returns a string. Normally it is None, but
+                it is used in situations (such as in regression testing) when observability should not
+                report the paths "as is", but with a mask. For example, this can be used in regression
+                tests to hide the user-dependent portion of paths, so that logs would otherwise display a path
+                like:
+
+                'C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/big_rocks_posting_ENV/excel-postings'
+
+                instead display a "masked" path where the user-specific prefix is masked, so that only the
+                logical portion of the path (logical as in: it is the structure mandated by the KnowledgeStore)
+                is displayed. In the above example, that might become:
+
+                '<KNOWLEDGE_BASE>/envs/big_rocks_posting_ENV/excel-postings    
+    '''
+    def __init__(self, clientURL, path_mask):
+        super().__init__()
+        self._clientURL         = clientURL
+        self._path_mask         = path_mask
+
+    def clientURL(self, parent_trace):
+        return self._clientURL
+
+    def applyMask(self, parent_trace, original_txt):
+        if self._path_mask != None:
+            return self._path_mask(original_txt)
+
+
+    def recordClientURLCreation(self, parent_trace, response_handle):
         '''
         Used to enrich the content of this FormRequestResponse by recording that a form was created
 
-        @param response_handle A PostingLabelHandle for the form that was created
+        @param response_handle A PostingLabelHandle for the form that was created'
         '''
-        self.posting_handles_dict[Response.CREATED].append(response_handle)
+        self.clientURL_handles_dict[Response.CREATED].append(response_handle)
 
 
 class PostingVersion():

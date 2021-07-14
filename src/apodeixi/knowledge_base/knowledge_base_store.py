@@ -90,6 +90,18 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def getClientURL(self, parent_trace):
+        '''
+        Abstract method.
+
+        Returns a string that can be used to locate the area (quite possibly external to the KnowledgeBase store)
+        where end users preare manifests they later post, and into which users expecte generated forms and reports
+        to go
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getClientURL' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
     def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
         Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 

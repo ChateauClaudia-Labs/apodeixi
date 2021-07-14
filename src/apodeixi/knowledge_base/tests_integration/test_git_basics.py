@@ -14,13 +14,21 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
     def setUp(self):
         super().setUp()
 
-        root_trace                  = FunctionalTrace(None).doing("Initializing GIT_KnowledgeBaseStore",
-                                                            origination = { 'concrete class': str(self.__class__.__name__), 
-                                                                            'signaled_from': __file__})
-        self.store                  = GIT_KnowledgeBaseStore(  postings_rootdir        = self.postings_folder,
-                                                                manifests_roodir    = self.manifests_folder)
-        my_trace                    = root_trace.doing("Starting KnowledgeBase")
-        self.kb                     = KnowledgeBase(my_trace, self.store)
+        try:
+            root_trace      = FunctionalTrace(None).doing("Initializing GIT_KnowledgeBaseStore",
+                                                                origination = { 'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
+            self.store      = GIT_KnowledgeBaseStore(   parent_trace                    = root_trace,
+                                                        kb_rootdir                  = self.kb_rootdir,
+                                                        clientURL   = self.clientURL,
+                                                        remote                          = None)
+
+            my_trace        = root_trace.doing("Starting KnowledgeBase")
+            self.kb         = KnowledgeBase(my_trace, self.store)
+        except ApodeixiError as ex:
+            print(ex.trace_message()) 
+            raise ex
 
     def test_persist_manifest(self):
 
@@ -51,7 +59,8 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
                                                 read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
                                                 use_timestamps      = False,
                                                 path_mask           = self._path_mask)
-            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
+            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
+                                                                            isolate_collab_folder = True)
 
             my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)

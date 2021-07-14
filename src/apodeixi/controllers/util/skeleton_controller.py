@@ -105,7 +105,7 @@ class SkeletonController(PostingController):
 
         my_trace                            = parent_trace.doing("Writing out the Excel spreadsheet requested")
         if True:
-            full_path                           = self.store.getPostingsURL(my_trace) \
+            full_path                           = self.store.getClientURL(my_trace) \
                                                     + "/" + form_request.getRelativePath(my_trace)
 
             output_folder, filename             = _os.path.split(full_path)
@@ -117,7 +117,7 @@ class SkeletonController(PostingController):
                                                                         excel_folder    = output_folder, 
                                                                         excel_filename  = filename)  
 
-            self.store._remember_posting_write(parent_trace, form_request.getRelativePath(my_trace))
+            self.store._remember_clientURL_write(parent_trace, form_request.getRelativePath(my_trace))
             if status != Manifest_Representer.SUCCESS:
                 raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
 
@@ -132,8 +132,10 @@ class SkeletonController(PostingController):
                                                         filing_coords          = form_request.getFilingCoords(my_trace), 
                                                         )
 
-            response                            = FormRequestResponse()
-            response.recordCreation(parent_trace=my_trace, response_handle=response_handle)
+            env_config                          = self.store.current_environment(parent_trace).config(parent_trace)
+            response                            = FormRequestResponse(self.store.getClientURL(my_trace),
+                                                                        path_mask   = env_config.path_mask)
+            response.recordClientURLCreation(parent_trace=my_trace, response_handle=response_handle)
 
             self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
             self.representer                    = rep
@@ -422,15 +424,6 @@ class SkeletonController(PostingController):
                                                     manifest_dict       = manifest_dict, 
                                                     manifest_version    = next_version)
         return manifest_dict
-
-    def _genExcel(self, parent_trace, ctx_range, manifests_dir, manifest_file):
-        '''
-        Helper function that is amenable to unit testing (i.e., does not require a KnowledgeBase structure for I/O).
-
-        Used to generate an Excel spreadsheet that represents the current state of the manifest, inclusive of UIDs.
-        Such Excel spreadsheet is what the user would need to post in order to make changes to the manifest, since pre-existing
-        UIDs must be repected.
-        '''
 
     class _MyPostingLabel(PostingLabel):
         '''

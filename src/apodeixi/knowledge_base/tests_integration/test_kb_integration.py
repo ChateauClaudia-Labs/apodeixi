@@ -18,7 +18,7 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 
         TEST_CASE                       = 'big_rocks_posting'
         
-        EXCEL_FILE                      = self.postings_folder + "/journeys/Dec 2020/FusionOpus/Default/" \
+        EXCEL_FILE                      = self.clientURL + "/journeys/Dec 2020/FusionOpus/Default/" \
                                             + 'OPUS_big-rocks.journeys.a6i.xlsx' 
 
         self._posting_testing_skeleton( #store           = self.store, 
@@ -47,7 +47,8 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                                                 read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
                                                 use_timestamps      = False,
                                                 path_mask           = self._path_mask)
-            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config)
+            self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
+                                                                        isolate_collab_folder = True)
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
  
             response, log_txt                    = self.kb.postByFile(   parent_trace                = root_trace, 

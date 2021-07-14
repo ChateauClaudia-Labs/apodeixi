@@ -108,9 +108,9 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
             debugging, verbose dry-runs, or regression testing, for example) 
         b.  When the KnowledgeBase has a bug and didn't clean up after itself as it should.
 
-    @param git_kb_rootdir A string, corresponding to the absolute path to a GIT project in the local machine
+    @param kb_rootdir A string, corresponding to the absolute path to a GIT project in the local machine
                             corresponding to the KnowledgeBase.
-    @param external_collaboration_folder A string, corresponding to the absolute path to a root folder in a collaboration
+    @param clientURL A string, corresponding to the absolute path to a root folder in a collaboration
                             drive system (such as SharePoint) in which end-users will collaborate to create
                             the Excel spreadsheets that will be eventually posted to the KnowledgeBase. This
                             shared drive is also the location to which the KnowledgeBase will save
@@ -118,43 +118,9 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
                             the structure below will be assumed to follow the filing structure of the
                             KnowledgeBase for postings.
     '''
-    def __init__(self, parent_trace, git_kb_rootdir, external_collaboration_folder, remote):
+    def __init__(self, parent_trace, kb_rootdir, clientURL, remote):
 
-        my_trace                        = parent_trace.doing("Validating root folders are valid")
-        if True:
-            # Check parameters are indeed directories
-            if not _os.path.isdir(git_kb_rootdir):
-                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore because an invalid directory was given "
-                                                    + " for the root of the KnoweldgeBaseStore",
-                                                    data = {"git_kb_rootdir": git_kb_rootdir})
-            if not _os.path.isdir(external_collaboration_folder):
-                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore because an invalid directory was given "
-                                                    + " for the root of the collaboration area",
-                                                    data = {"collaboration_rootdir": external_collaboration_folder})
-
-            self.git_kb_rootdir                     = git_kb_rootdir
-            self.external_collaboration_folder      = external_collaboration_folder
-
-            postings_rootdir                        =  git_kb_rootdir + "/excel-postings" 
-            manifests_roodir                        =  git_kb_rootdir + "/manifests"      
-
-            # If missing, create the postings and manifest folders 
-            if not _os.path.exists(postings_rootdir):                                                                                               
-                _os.mkdir(postings_rootdir)
-            if not _os.path.exists(manifests_roodir):
-                _os.mkdir(manifests_roodir)
-
-            # Check nobody previously created these things as files instead of folders by mistake
-            if  _os.path.isfile(postings_rootdir):
-                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore postings root is a file, "
-                                                    + " and should instead have been a directory",
-                                                    data = {"postings root": postings_rootdir})
-            if  _os.path.isfile(manifests_roodir):
-                raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore manifests root is a file, "
-                                                    + " and should instead have been a directory",
-                                                    data = {"manifests root": manifests_roodir}) 
-
-        super().__init__(postings_rootdir, manifests_roodir)
+        super().__init__(parent_trace, kb_rootdir, clientURL)
 
         # TODO - Initialize a git project, possibly making it point to a remote. Tricky thing is what to do
         #       about the separate folders for postings and manifests - need a higher level folder for the
@@ -228,6 +194,8 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         events                      = self._transaction_events_dict.pop(ending_env.name(parent_trace))
 
         # TODO - a git push from env to parent_env.
+        # TODO - GOTCHA!!!! When going up the parent chain, and get to commit to the parent who originated
+        #           the first commit, we may need to do an additional push to the remote at that point
         #               
         raise ApodeixiError(parent_trace, "commitTransaction - IMPLEMENTATION IS STILL TODO",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
@@ -397,8 +365,8 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         '''
         Persists manifest_dict as a yaml object and returns a ManifestHandle that uniquely identifies it.
         '''
-        # TODO - Do a git commit and push before loading, to get parent environment's data.
-        #           Tricky thing is that this may be needed recursively up the parent's chain...
+        # TODO - Do NOT do pull/push, just save and commit, so changes are only local
+        #           Later when commit happens we worry about merge to parent environment...
         raise ApodeixiError(parent_trace, "persistManifest - IMPLEMENTATION IS STILL TODO",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
@@ -437,8 +405,8 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         to this posting event and returns a PostingLabelHandle to identify the Excel file in this newly
         created archival folder.       
         '''
-        # TODO - Do a git commit and push before loading, to get parent environment's data.
-        #           Tricky thing is that this may be needed recursively up the parent's chain...
+        # TODO - Do NOT do pull/push, just save and commit, so changes are only local
+        #           Later when commit happens we worry about merge to parent environment...
         raise ApodeixiError(parent_trace, "persistManifest - IMPLEMENTATION IS STILL TODO",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
@@ -451,8 +419,8 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         '''
         Used to record in the store information about a posting event that has been completed.
         '''
-        # TODO - Do a git commit and push before loading, to get parent environment's data.
-        #           Tricky thing is that this may be needed recursively up the parent's chain...
+        # TODO - Do NOT do pull/push, just save and commit, so changes are only local
+        #           Later when commit happens we worry about merge to parent environment...
         raise ApodeixiError(parent_trace, "logPostEvent - IMPLEMENTATION IS STILL TODO",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
@@ -465,8 +433,8 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         '''
         Used to record in the store information about a request form event that has been completed.
         '''
-        # TODO - Do a git commit and push before loading, to get parent environment's data.
-        #           Tricky thing is that this may be needed recursively up the parent's chain...
+        # TODO - Do NOT do pull/push, just save and commit, so changes are only local
+        #           Later when commit happens we worry about merge to parent environment...
         raise ApodeixiError(parent_trace, "logPostEvent - IMPLEMENTATION IS STILL TODO",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
