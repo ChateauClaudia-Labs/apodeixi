@@ -88,6 +88,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
     def _malformed_input_test_skeleton(self, test_case_nb, expect_error):
         test_case_name              = 'user_validation_' + str(test_case_nb)
         result_dict                 = None  
+        root_trace                  = FunctionalTrace(None).doing("Validating mal-formed input")
         try:
             self._attempt_to_run(test_case_name, expect_error)
         except ApodeixiError as ex:
@@ -96,7 +97,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
                 output_txt              += Test_MalformedInput.VALIDATIONS_DICT[test_case_nb]
                 output_txt              += "\n\n================     Below is the error message the user would get:"
                 output_txt              += ex.trace_message(exclude_stack_trace=True)
-                self._compare_to_expected_txt(output_txt, test_case_name, save_output_txt=True)
+                self._compare_to_expected_txt(root_trace, output_txt, test_case_name, save_output_txt=True)
                 return
             else:
                 print(ex.trace_message()) 
@@ -161,7 +162,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
         for manifest_nb in all_manifests_dict.keys():
             manifest_dict   = all_manifests_dict[manifest_nb]
             kind            = manifest_dict['kind']
-            self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + kind)
+            self._compare_to_expected_yaml(root_trace, manifest_dict, test_case_name + "." + kind)
         with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
         self.assertEqual(explanations_nice,    expected_explain)

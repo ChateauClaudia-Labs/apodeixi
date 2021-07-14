@@ -23,6 +23,7 @@ class Test_ApodeixiError(ApodeixiUnitTest):
 
     def test_functional_trace(self):
 
+        root_trace                          = FunctionalTrace(None).doing('Testing functional trace')
         output = "================== Step 1 =============\n\n" \
                 + '\n\n'.join([str(trace_level) for trace_level in self.step1.examine(as_string=True,)]) \
                 + "\n\n\n================== Step 2 =============\n\n" \
@@ -30,10 +31,11 @@ class Test_ApodeixiError(ApodeixiUnitTest):
                 + "\n\n\n================== Step 2i =============\n\n" \
                 + '\n\n'.join([str(trace_level) for trace_level in self.step2i.examine(as_string=True,)]) \
 
-        self._compare_to_expected_txt(output, 'functional_trace', save_output_txt=True)
+        self._compare_to_expected_txt(root_trace, output, 'functional_trace', save_output_txt=True)
 
     def test_a6i_error(self):
         MSG                                         = "Error with horrible consequences for you"
+        root_trace                          = FunctionalTrace(None).doing('Testing Apodeixi error message')
         try:
             raise ApodeixiError(self.step2i, MSG)
         except ApodeixiError as                     ex:
@@ -42,7 +44,7 @@ class Test_ApodeixiError(ApodeixiUnitTest):
             output = msg + "\n\n" \
                     + '\n\n'.join([str(trace_level) for trace_level in trace.examine(as_string=True,)]) \
 
-            self._compare_to_expected_txt(output, 'a6i_error', save_output_txt=True)
+            self._compare_to_expected_txt(root_trace, output, 'a6i_error', save_output_txt=True)
 
 if __name__ == "__main__":
     # execute only if run as a script

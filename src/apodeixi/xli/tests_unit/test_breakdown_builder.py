@@ -37,14 +37,16 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         return          df2
 
     def test_read_df_fragment(self):  
-        result_dict                 = None  
+        result_dict                 = None
+        root_trace                  = FunctionalTrace(None).doing("Reading df fragment")  
         try:
             tree                    = self._create_breakdown_tree()
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
 
-        self._compare_to_expected_yaml(result_dict, 'read_df_fragment', save_output_dict=True)
+        
+        self._compare_to_expected_yaml(root_trace, result_dict, 'read_df_fragment', save_output_dict=True)
 
     def test_find(self):    
         UID_TO_FIND                 = 'A2.B1.C1'   
@@ -69,6 +71,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         df              = _pd.DataFrame(columns=columns, data = [row0])
 
         DATA_TO_ATTACH  = next(df.iterrows())[1]
+        root_trace                  = FunctionalTrace(None).doing("Tesing docking")
 
         entity_instance             = None
         try:
@@ -84,7 +87,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
-        self._compare_to_expected_yaml(result_dict, 'docking_1', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, 'docking_1', save_output_dict=True)
 
     def test_docking_2(self):
         DOCKING_UID           = 'A2.B1'   
@@ -95,6 +98,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         df              = _pd.DataFrame(columns=columns, data = [row0])
 
         DATA_TO_ATTACH  = next(df.iterrows())[1]
+        root_trace                  = FunctionalTrace(None).doing("Testing docking")
 
         entity_instance             = None
         try:
@@ -110,7 +114,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
-        self._compare_to_expected_yaml(result_dict, 'docking_2', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, 'docking_2', save_output_dict=True)
 
     def test_acronyms(self):   
         entities                    = ['Costs', 'Cost Models', "Ferries", 'Carry Mirrors', 'CO', 'Costs']
@@ -128,6 +132,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
     def test_attach_subtree(self):  
         result_dict                 = None  
+        root_trace                  = FunctionalTrace(None).doing("Attaching subtree")
         try:
             tree1                   = self._create_breakdown_tree()
             subtree_df              = self._create_df2()
@@ -143,7 +148,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         except ApodeixiError as ex:
             print(ex.trace_message())
 
-        self._compare_to_expected_yaml(result_dict, 'attach_subtree', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, 'attach_subtree', save_output_dict=True)
 
     def _create_breakdown_tree(self):
         root_trace      = FunctionalTrace(None).doing("Creating UID Store")

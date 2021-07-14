@@ -25,6 +25,15 @@ class IntegrationTestStack():
     def __init__(self, parent_trace):
         return
 
+    def name(self):
+        '''
+        Abstract method. Returns a string used to identify this stack, used in the filing structure for
+        the regression output of integration tests using this stack
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'name' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
     def store(self, parent_trace):
         '''
         Abstract method. Returns the KnowledgeBaseStore instance provisioned as part of this stack.
@@ -68,6 +77,15 @@ class FileStoreTestStack(IntegrationTestStack):
                                                                         clientURL       = self._clientURL)
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
         self._kb                        = KnowledgeBase(my_trace, self._store)
+
+    MY_NAME                             = "fs-stack"
+    def name(self):
+        '''
+        Returns a string used to identify this stack, used in the filing structure for
+        the regression output of integration tests using this stack
+        '''
+        ME                  = FileStoreTestStack
+        return ME.MY_NAME
 
     def store(self):
         '''
@@ -124,6 +142,15 @@ class GITStoreTestStack(IntegrationTestStack):
                                                                     remote              = None)
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
         self._kb                        = KnowledgeBase(my_trace, self._store)
+
+    MY_NAME                             = "git-stack"
+    def name(self):
+        '''
+        Returns a string used to identify this stack, used in the filing structure for
+        the regression output of integration tests using this stack
+        '''
+        ME                  = GITStoreTestStack
+        return ME.MY_NAME
 
     def store(self):
         '''
@@ -241,6 +268,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def setScenario(self, scenario):
+        '''
+        Must be called by all concrete integration tests at the start. It will impact the folder in which
+        regression test is persisted.
+        '''
+        self._scenario          = scenario
+
     def provisionIsolatedEnvironment(self, parent_trace, environment_name):
         '''
         '''
@@ -265,23 +299,38 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
     def tearDown(self):
         super().tearDown()
 
-    def _compare_to_expected_yaml(self, output_dict, test_case_name, save_output_dict=False):
+    def _regression_dir(self):
+        if self._scenario == None:
+            raise ApodeixiError(None, "Test case not properly intialized - scenario is null. Must be set")
+        dir         = self.results_data + "/" + self._scenario + "/" + self.stack().name()
+        #dir         = self.results_data 
+        return dir
+
+    def _compare_to_expected_yaml(self, parent_trace, output_dict, test_case_name, save_output_dict=False):
         '''
         Utility method for derived classes that create YAML files and need to check they match an expected output
         previously saves as a YAML file as well. 
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        super()._compare_to_expected_yaml(output_dict, test_case_name, data_dir = self.results_data, save_output_dict=save_output_dict)
+        super()._compare_to_expected_yaml(  parent_trace,
+                                            output_dict, 
+                                            test_case_name, 
+                                            data_dir            = self._regression_dir(), 
+                                            save_output_dict    = save_output_dict)
 
-    def _compare_to_expected_txt(self, output_txt, test_case_name, save_output_txt=False):
+    def _compare_to_expected_txt(self, parent_trace, output_txt, test_case_name, save_output_txt=False):
         '''
         Utility method for derived classes that create text files and need to check they match an expected output
         previously saves as a text file as well. 
 
         It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
         '''
-        super()._compare_to_expected_txt(output_txt, test_case_name, data_dir = self.results_data, save_output_txt=save_output_txt)
+        super()._compare_to_expected_txt(   parent_trace,
+                                            output_txt, 
+                                            test_case_name, 
+                                            data_dir            = self._regression_dir(), 
+                                            save_output_txt     = save_output_txt)
 
     def _compare_to_expected_df(self, parent_trace, output_df, test_case_name, columns_to_ignore=[], id_column=None):
         '''
@@ -294,8 +343,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         @param id_column A string representing the column that should be used to identify rows in comparison text produced. 
                          If set to None, then the row index is used.
         '''
-        super()._compare_to_expected_df(parent_trace, output_df, test_case_name, data_dir = self.results_data, 
-                                            columns_to_ignore=columns_to_ignore, id_column=id_column)
+        super()._compare_to_expected_df(    parent_trace, 
+                                            output_df, 
+                                            test_case_name, 
+                                            data_dir            = self._regression_dir(), 
+                                            columns_to_ignore   = columns_to_ignore, 
+                                            id_column           = id_column)
 
 
     def _assert_current_environment(self, parent_trace, snapshot_name):     
@@ -307,6 +360,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                                             include_timestamps  = False)
         # TODO: add some data to environment, maybe calling a controller on some posting
 
-        self._compare_to_expected_yaml( output_dict         = env_hierarchy.to_dict(),
+        self._compare_to_expected_yaml( parent_trace        = parent_trace,
+                                        output_dict         = env_hierarchy.to_dict(),
                                         test_case_name      = snapshot_name, 
                                         save_output_dict    = True)

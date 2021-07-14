@@ -61,7 +61,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
                                                                     'concrete class': str(self.__class__.__name__), 
                                                                     'signaled_from': __file__})
                 manifest_dict, manifest_path    = store.retrieveManifest(loop_trace, handle)
-                self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
+                self._compare_to_expected_yaml(loop_trace, manifest_dict, test_case_name + "." + handle.kind)
 
             return
         except ApodeixiError as ex:

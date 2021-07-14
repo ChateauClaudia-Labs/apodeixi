@@ -30,7 +30,8 @@ class Test_FolderHierarchy(ApodeixiUnitTest):
                                                                     filter              = filter,
                                                                     include_timestamps  = False)
 
-            self._compare_to_expected_yaml( output_dict         = hierarchy.to_dict(),
+            self._compare_to_expected_yaml( parent_trace        = root_trace,
+                                            output_dict         = hierarchy.to_dict(),
                                             test_case_name      = TEST_SCENARIO, 
                                             save_output_dict    = True)
 

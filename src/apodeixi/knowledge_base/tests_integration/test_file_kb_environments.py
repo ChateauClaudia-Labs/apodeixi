@@ -30,6 +30,8 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
 
         POSTING_FULLPATH                = self.input_data + "/" + TEST_CASE + "_big-rocks.journeys.a6i.xlsx" 
         POSTING_LABEL_SHEET             = "Sheet1"
+
+        self.setScenario("environment_lifecycle")
                     
         all_manifests_dicts     = []
 

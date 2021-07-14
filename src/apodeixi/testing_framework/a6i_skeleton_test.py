@@ -7,6 +7,7 @@ from io                     import StringIO
 
 
 from apodeixi.util.formatting_utils                 import DictionaryFormatter
+from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.dataframe_utils                  import DataFrameUtils, DataFrameComparator
 from apodeixi.util.a6i_error                        import ApodeixiError
 
@@ -89,7 +90,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         return data_df
 
     
-    def _compare_to_expected_yaml(self, output_dict, test_case_name, data_dir, save_output_dict=False):
+    def _compare_to_expected_yaml(self, parent_trace, output_dict, test_case_name, data_dir, save_output_dict=False):
         '''
         Utility method for derived classes that create YAML files and need to check they match an expected output
         previously saves as a YAML file as well. 
@@ -99,6 +100,8 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
         # (at least it would erroneously pass when the expected output is set to an empty file)
         self.assertIsNotNone(output_dict)
+
+        PathUtils().create_path_if_needed(parent_trace = parent_trace, path = data_dir)
 
         # Persist output (based on save_output_dict flag)
         if save_output_dict:
@@ -129,7 +132,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
 
         self.assertEqual(result_yaml, expected_yaml)
 
-    def _compare_to_expected_txt(self, output_txt, test_case_name, data_dir, save_output_txt=False):
+    def _compare_to_expected_txt(self, parent_trace, output_txt, test_case_name, data_dir, save_output_txt=False):
         '''
         Utility method for derived classes that create text files and need to check they match an expected output
         previously saves as a text file as well. 
@@ -139,6 +142,8 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
         # (at least it would erroneously pass when the expected output is set to an empty file)
         self.assertIsNotNone(output_txt)
+
+        PathUtils().create_path_if_needed(parent_trace = parent_trace, path = data_dir)
 
         # Persist output (based on save_output_dict flag)
         if save_output_txt:
@@ -182,6 +187,8 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
         # (at least it would erroneously pass when the expected output is set to an empty file)
         self.assertIsNotNone(output_df)
+
+        PathUtils().create_path_if_needed(parent_trace = parent_trace, path = data_dir)
 
         OUTPUT_COLUMNS              = [col for col in output_df.columns if not col in columns_to_ignore] 
         output_df[OUTPUT_COLUMNS].to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)

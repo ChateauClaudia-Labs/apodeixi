@@ -29,6 +29,8 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
 
         ENVIRONMENT_NAME                = TEST_CASE + "_ENV"
 
+        self.setScenario("persist_manifest")
+
         self.assertTrue(1 == 2) # TODO: finish the test
 
         #POSTING_FULLPATH                = self.input_data + "/" + TEST_CASE + "_big-rocks.journeys.a6i.xlsx" 
@@ -87,7 +89,8 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
                                                                                             include_timestamps  = False)
         # TODO: add some data to environment, maybe calling a controller on some posting
 
-        self._compare_to_expected_yaml( output_dict         = hierarchy_env.to_dict(),
+        self._compare_to_expected_yaml( parent_trace        = parent_trace,
+                                        output_dict         = hierarchy_env.to_dict(),
                                         test_case_name      = test_case_name, 
                                         save_output_dict    = True)
                                                                        

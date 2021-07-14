@@ -89,7 +89,8 @@ class Test_PathUtils(ApodeixiUnitTest):
             val                             = PathUtils().tokenizePath(my_trace, absolute_path)
             output_txt                      += "\n\ntokenizePath(" + absolute_path + ") = \n\t\t" + str(val)
 
-            self._compare_to_expected_txt(  output_txt          = output_txt,
+            self._compare_to_expected_txt(  parent_trace        = my_trace,
+                                            output_txt          = output_txt,
                                             test_case_name      = TEST_SCENARIO, 
                                             save_output_txt     = True)
 

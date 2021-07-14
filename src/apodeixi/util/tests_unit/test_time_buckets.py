@@ -14,6 +14,7 @@ class Test_FY_Quarter(ApodeixiUnitTest):
 
     def test_fy_quarter(self):
 
+        root_trace                  = FunctionalTrace(None).doing("Testing quarter time buckets")
         Q1                          = FY_Quarter(2021, 1, month_fiscal_year_starts=6)
         Q2                          = FY_Quarter(2021, 2, month_fiscal_year_starts=6)
         Q3                          = FY_Quarter(2021, 3, month_fiscal_year_starts=6)
@@ -61,7 +62,8 @@ class Test_FY_Quarter(ApodeixiUnitTest):
                                         + '\nQ4.contains(' + d_fmt + ')    = ' + str(Q4.contains(d))
 
 
-        self._compare_to_expected_txt(  output_txt      = output, 
+        self._compare_to_expected_txt(  parent_trace    = root_trace,
+                                        output_txt      = output, 
                                         test_case_name  = 'test_fy_quarter', 
                                         save_output_txt = True)
 

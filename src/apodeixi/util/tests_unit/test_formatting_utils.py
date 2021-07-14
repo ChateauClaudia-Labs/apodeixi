@@ -53,7 +53,8 @@ class Test_NotebookUtils(ApodeixiUnitTest):
                                                                                 path_list               = ['cells', '*', 'outputs', '*','data', 'text/plain'], 
                                                                                 replacement_lambda      = _hide_user_folders)
 
-            self._compare_to_expected_yaml( output_dict         = cleaned_dict, 
+            self._compare_to_expected_yaml( parent_trace        = my_trace,
+                                            output_dict         = cleaned_dict, 
                                             test_case_name      = TEST_SCENARIO, 
                                             save_output_dict    = True)
         except ApodeixiError as ex:

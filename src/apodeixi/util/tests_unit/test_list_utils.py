@@ -50,7 +50,8 @@ class Test_ListMerger(ApodeixiUnitTest):
                                                                     "RIGHT" if e[2] else "     "]) for e in merged_list])
             '''
 
-            self._compare_to_expected_txt(  output_txt          = output_txt,
+            self._compare_to_expected_txt(  parent_trace        = my_trace,
+                                            output_txt          = output_txt,
                                             test_case_name      = TEST_SCENARIO, 
                                             save_output_txt     = True)
 

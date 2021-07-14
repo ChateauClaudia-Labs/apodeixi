@@ -73,7 +73,7 @@ class Test_Workstream(ApodeixiUnitTest):
         for manifest_nb in all_manifests_dict.keys():
             manifest_dict   = all_manifests_dict[manifest_nb]
             kind            = manifest_dict['kind']
-            self._compare_to_expected_yaml(manifest_dict, MANIFEST_FILE_PREFIX + "." + kind)
+            self._compare_to_expected_yaml(root_trace, manifest_dict, MANIFEST_FILE_PREFIX + "." + kind)
         with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
         self.assertEqual(explanations_nice,    expected_explain)

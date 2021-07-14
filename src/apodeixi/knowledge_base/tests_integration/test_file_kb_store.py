@@ -27,18 +27,21 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
     def test_locate_milestone_postings(self):
         POSTING_API                     = 'milestone.journeys.a6i'
         TEST_NAME                       = 'test_locate_milestone_postings'
+        self.setScenario("search_milestone_postings")
         self._locate_product_postings(POSTING_API, TEST_NAME)
 
     def test_locate_big_rocks_postings(self):
         POSTING_API                     = 'big-rocks.journeys.a6i'
         TEST_NAME                       = 'test_locate_big_rocks_postings'
+        self.setScenario("search_big_rocks_postings")
         self._locate_product_postings(POSTING_API, TEST_NAME)
 
     def _locate_product_postings(self, posting_api, test_name):
         coords_txt                          = ''
+
+        root_trace                          = FunctionalTrace(None).doing("Testing File Knowledge Base::locate product postings")
         
         try:
-            root_trace                      = FunctionalTrace(None).doing("Testing File Knowledge Base::locate product postings")
 
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" and coords.scenario == "MTP"
@@ -78,20 +81,23 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             print(ex.trace_message()) 
             self.assertTrue(1==2)
 
-        self._compare_to_expected_txt(  output_txt      = coords_txt, 
+        self._compare_to_expected_txt(  parent_trace    = root_trace,
+                                        output_txt      = coords_txt, 
                                         test_case_name  = test_name, 
                                         save_output_txt = True)
 
     def test_locate_initiative_milestone_postings(self):
         POSTING_API                     = 'workstream.initiatives.a6i'
         TEST_NAME                       = 'test_locate_initiative_milestone_postings'
+        self.setScenario("search_workstream_postings")
         self._locate_workstream_postings(POSTING_API, TEST_NAME)
 
     def _locate_workstream_postings(self, posting_api, test_name):
         
         coords_txt                      = ''
+        root_trace                      = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
         try:
-            root_trace                  = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
+            
 
             def _coords_filter(coords):
                 return coords.scoringCycle == "FY 22" # and coords.scenario == "MTP"
@@ -118,7 +124,8 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             self.assertTrue(1==2)
             
 
-        self._compare_to_expected_txt(  output_txt      = coords_txt, 
+        self._compare_to_expected_txt(  parent_trace    = root_trace,
+                                        output_txt      = coords_txt, 
                                         test_case_name  = test_name, 
                                         save_output_txt = True)
 

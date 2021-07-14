@@ -86,17 +86,20 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
 
             output_nice         = DictionaryFormatter().dict_2_nice(parent_trace = root_trace, a_dict = output_dict)
 
-            self._compare_to_expected_txt(  output_txt      = output_nice,
+            self._compare_to_expected_txt(  parent_trace    = root_trace,
+                                        output_txt      = output_nice,
                                         test_case_name      = OUTPUT_FILE, 
                                         save_output_txt     = True) 
 
             ws_info_nice         = self._nice_ws_info(root_trace, worksheet_info)
-            self._compare_to_expected_txt(  output_txt      = ws_info_nice,
+            self._compare_to_expected_txt(  parent_trace    = root_trace,
+                                        output_txt      = ws_info_nice,
                                         test_case_name      = WS_INFO_FILE, 
                                         save_output_txt     = True)
 
             pl_ws_info_nice         = self._nice_ws_info(root_trace, posting_label_ws_info)
-            self._compare_to_expected_txt(  output_txt      = pl_ws_info_nice,
+            self._compare_to_expected_txt(  parent_trace    = root_trace,
+                                        output_txt      = pl_ws_info_nice,
                                         test_case_name      = PL_WS_INFO_FILE, 
                                         save_output_txt     = True)
 

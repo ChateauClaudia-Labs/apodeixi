@@ -26,6 +26,7 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
         TEST_NAME                       = 'test_workstream_aggregator'
         INITIATIVE                      = 'S1'
         ENVIRONMENT_NAME                = TEST_NAME + "_ENV"
+        self.setScenario("aggregate_workstream_metrics")
         try:
             root_trace                  = FunctionalTrace(None).doing("Testing Workstream Aggregators")
 
@@ -64,11 +65,12 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
                 explanation_txt              += "\n\n============= Error processinng handle #" + str(idx) + "\n"  
                 explanation_txt              += errors[idx].trace_message()     
 
-            self._compare_to_expected_txt(  output_txt                  = explanation_txt, 
+            self._compare_to_expected_txt(  parent_trace                = my_trace,
+                                            output_txt                  = explanation_txt, 
                                             test_case_name              = TEST_NAME + "_explanations", 
                                             save_output_txt             = True)                                          
 
-            self._compare_to_expected_df(   parent_trace                = root_trace,
+            self._compare_to_expected_df(   parent_trace                = my_trace,
                                             output_df                   = result_df, 
                                             test_case_name              = TEST_NAME, 
                                             columns_to_ignore           = [], 

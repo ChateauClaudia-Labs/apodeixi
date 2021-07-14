@@ -30,6 +30,8 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"
         EXCEL_FILE                      = "OPUS_big-rocks.journeys.a6i.xlsx"
 
+        self.setScenario("post_and_request_big_rocks")
+
         self._posting_testing_skeleton( test_case_name          = TEST_CASE,
                                         excel_relative_path     = EXCEL_RELATIVE_PATH,
                                         excel_file              = EXCEL_FILE)
@@ -70,13 +72,14 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                                                                     'concrete class': str(self.__class__.__name__), 
                                                                     'signaled_from': __file__})
                 manifest_dict, manifest_path    = self.stack().store().retrieveManifest(loop_trace, handle)
-                self._compare_to_expected_yaml(manifest_dict, test_case_name + "." + handle.kind)
+                self._compare_to_expected_yaml(loop_trace, manifest_dict, test_case_name + "." + handle.kind)
 
             self._assert_current_environment(   parent_trace    = my_trace,
                                                 snapshot_name   = test_case_name + "_POST_SNAPSHOT_1")
 
             # Check log is right
-            self._compare_to_expected_txt(  output_txt          = log_txt,
+            self._compare_to_expected_txt(  parent_trace        = my_trace,
+                                            output_txt          = log_txt,
                                             test_case_name      = test_case_name + "_LOG", 
                                             save_output_txt     = True)
 
@@ -97,16 +100,20 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                                                                                                     fr_response, 
                                                                                                     fr_log_txt, 
                                                                                                     fr_rep)
-                self._compare_to_expected_txt(  output_txt      = fr_log_txt,
+                self._compare_to_expected_txt(  parent_trace    = my_trace,
+                                            output_txt      = fr_log_txt,
                                             test_case_name      = _regression_file(form_idx, "FORM_REQUEST_LOG"), 
                                             save_output_txt     = True) 
-                self._compare_to_expected_txt(  output_txt      = layout_info,
+                self._compare_to_expected_txt(  parent_trace    = my_trace,
+                                            output_txt      = layout_info,
                                             test_case_name      = _regression_file(form_idx, "LAYOUT"), 
                                             save_output_txt     = True) 
-                self._compare_to_expected_txt(  output_txt      = pl_fmt_info,
+                self._compare_to_expected_txt(  parent_trace    = my_trace,
+                                            output_txt      = pl_fmt_info,
                                             test_case_name      = _regression_file(form_idx, "POSTING_LABEL_FMT"), 
                                             save_output_txt     = True) 
-                self._compare_to_expected_txt(  output_txt      = ws_fmt_info,
+                self._compare_to_expected_txt(  parent_trace    = my_trace,
+                                            output_txt      = ws_fmt_info,
                                             test_case_name      = _regression_file(form_idx, "WORKSHEET_FMT"), 
                                             save_output_txt     = True) 
                 form_idx += 1

@@ -62,7 +62,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
 
         with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
-        self._compare_to_expected_yaml(manifest_dict, 'feature_injection', save_output_dict = True)
+        self._compare_to_expected_yaml(root_trace, manifest_dict, 'feature_injection', save_output_dict = True)
         self.assertEqual(explanations_nice,    expected_explain)
 
 if __name__ == "__main__":

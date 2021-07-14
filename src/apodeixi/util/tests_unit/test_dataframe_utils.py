@@ -57,7 +57,8 @@ class Test_DataFrameComparator(ApodeixiUnitTest):
                 else:
                     output_txt              += str(val)
 
-            self._compare_to_expected_txt(  output_txt          = output_txt, 
+            self._compare_to_expected_txt(  parent_trace        = my_trace,
+                                            output_txt          = output_txt, 
                                             test_case_name      = TEST_SCENARIO + '_comparison', 
                                             save_output_txt=True)
 
