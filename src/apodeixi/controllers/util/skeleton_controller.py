@@ -138,6 +138,7 @@ class SkeletonController(PostingController):
 
             self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
             self.representer                    = rep
+
             return response
 
     def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):

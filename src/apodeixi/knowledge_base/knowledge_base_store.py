@@ -102,6 +102,17 @@ class KnowledgeBaseStore():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def resetClientArea(self, parent_trace, coords):
+        '''
+        Abstract method
+
+        This method "refreshes" the area under the clientURL identified by the given coordinates, so that it is
+        identical the the area under the store's postingsURL corresponding to those coordinates.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'resetClientArea' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+                                                                                
     def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
         '''
         Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 

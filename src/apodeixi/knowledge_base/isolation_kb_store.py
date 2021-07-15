@@ -341,6 +341,39 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         current_env_client_url              = self._current_env.clientURL(parent_trace)
         return current_env_client_url
         
+    def resetClientArea(self, parent_trace, coords):
+        '''
+        This method "refreshes" the area under the clientURL identified by the given coordinates, so that it is
+        identical the the area under the store's postingsURL corresponding to those coordinates (as per
+        the store's current environment)
+        '''
+        current_env         = self.current_environment(parent_trace)
+        path_tokens         = coords.path_tokens(parent_trace)
+
+        src_root            = current_env.postingsURL(parent_trace)
+        src_area            = src_root              + "/" + "/".join(path_tokens)
+
+        dst_root            = current_env.clientURL(parent_trace)
+        dst_area            = dst_root              + "/" + "/".join(path_tokens)
+
+        PathUtils().create_path_if_needed(parent_trace, dst_area)
+
+        area_to_refresh     = self.current_environment(parent_trace).clientURL(parent_trace)
+
+        def _ignore(subdir, file_list):
+            IGNORE_LIST         = ["Thumbs.db"]
+            dont_copy_list      = [f for f in file_list if f in IGNORE_LIST]
+            return dont_copy_list
+        try:
+            _shutil.copytree(   src                 = src_area, 
+                                dst                 = dst_area,
+                                ignore              = _ignore,
+                                dirs_exist_ok       = True)
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Found an error in copying refreshing clientURL area",
+                                            data = {"area to refresh":      dst_area, 
+                                                    "area used as source":  src_area,
+                                                    "error":                str(ex)})       
 
     def current_environment(self, parent_trace):
         return self._current_env
@@ -749,7 +782,10 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                                                         filing_coords       = archival_folder_coords,
                                                         excel_filename      = filename, 
                                                         excel_sheet         = posting_label_handle.excel_sheet, 
-                                                        excel_range         = posting_label_handle.excel_range)        
+                                                        excel_range         = posting_label_handle.excel_range)  
+
+        # Copy archival logs to the clientURL area
+        self.resetClientArea(parent_trace = parent_trace, coords = archival_folder_coords)      
         
         return archival_handle
 
@@ -801,6 +837,9 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
             raise ApodeixiError(parent_trace, "Encountered problem saving log for post event",
                                     data = {"Exception found": str(ex)})
 
+        # Copy archival logs to the clientURL area
+        self.resetClientArea(parent_trace = parent_trace, coords = archival_handle.filing_coords) 
+
         return log_txt
 
     def _get_log_folder(self, parent_trace, form_request):
@@ -845,5 +884,8 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Encountered problem saving log for form request event",
                                     data = {"Exception found": str(ex)})
+
+        # Copy archival logs to the clientURL area
+        self.resetClientArea(parent_trace = parent_trace, coords = log_coords) 
 
         return log_txt
