@@ -91,7 +91,7 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
 
         self._compare_to_expected_yaml( parent_trace        = parent_trace,
                                         output_dict         = hierarchy_env.to_dict(),
-                                        test_case_name      = test_case_name, 
+                                        test_output_name    = test_case_name, 
                                         save_output_dict    = True)
                                                                        
 

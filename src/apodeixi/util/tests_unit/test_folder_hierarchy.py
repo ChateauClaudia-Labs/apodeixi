@@ -32,7 +32,7 @@ class Test_FolderHierarchy(ApodeixiUnitTest):
 
             self._compare_to_expected_yaml( parent_trace        = root_trace,
                                             output_dict         = hierarchy.to_dict(),
-                                            test_case_name      = TEST_SCENARIO, 
+                                            test_output_name    = TEST_SCENARIO, 
                                             save_output_dict    = True)
 
         except ApodeixiError as ex:

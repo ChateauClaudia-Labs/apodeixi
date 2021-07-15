@@ -20,10 +20,10 @@ class Test_ApodeixiConfig(ApodeixiUnitTest):
                                                                                     a_dict          = config.config_dict, 
                                                                                     flatten         = True)
 
-            self._compare_to_expected_txt(  parent_trace    = root_trace,
-                                            output_txt      = config_txt, 
-                                            test_case_name  = 'test_a6i_config', 
-                                            save_output_txt = True)
+            self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                            output_txt          = config_txt, 
+                                            test_output_name    = 'test_a6i_config', 
+                                            save_output_txt     = True)
         except ApodeixiError as ex:
             print(ex.trace_message())
 
@@ -41,10 +41,10 @@ class Test_ApodeixiConfig(ApodeixiUnitTest):
                                                                                     a_dict          = prod, 
                                                                                     flatten         = True)
 
-            self._compare_to_expected_txt(  parent_trace    = root_trace,
-                                            output_txt      = output_txt, 
-                                            test_case_name  = 'test_get_products', 
-                                            save_output_txt = True)
+            self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                            output_txt          = output_txt, 
+                                            test_output_name    = 'test_get_products', 
+                                            save_output_txt     = True)
         except ApodeixiError as ex:
             print(ex.trace_message())
 

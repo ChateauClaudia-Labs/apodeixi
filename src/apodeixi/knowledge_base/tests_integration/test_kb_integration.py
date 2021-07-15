@@ -80,7 +80,7 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
             # Check log is right
             self._compare_to_expected_txt(  parent_trace        = my_trace,
                                             output_txt          = log_txt,
-                                            test_case_name      = test_case_name + "_LOG", 
+                                            test_output_name    = test_case_name + "_LOG", 
                                             save_output_txt     = True)
 
             # At this point the posting seems completed successfully.
@@ -101,20 +101,20 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
                                                                                                     fr_log_txt, 
                                                                                                     fr_rep)
                 self._compare_to_expected_txt(  parent_trace    = my_trace,
-                                            output_txt      = fr_log_txt,
-                                            test_case_name      = _regression_file(form_idx, "FORM_REQUEST_LOG"), 
+                                            output_txt          = fr_log_txt,
+                                            test_output_name    = _regression_file(form_idx, "FORM_REQUEST_LOG"), 
                                             save_output_txt     = True) 
                 self._compare_to_expected_txt(  parent_trace    = my_trace,
-                                            output_txt      = layout_info,
-                                            test_case_name      = _regression_file(form_idx, "LAYOUT"), 
+                                            output_txt          = layout_info,
+                                            test_output_name    = _regression_file(form_idx, "LAYOUT"), 
                                             save_output_txt     = True) 
                 self._compare_to_expected_txt(  parent_trace    = my_trace,
-                                            output_txt      = pl_fmt_info,
-                                            test_case_name      = _regression_file(form_idx, "POSTING_LABEL_FMT"), 
+                                            output_txt          = pl_fmt_info,
+                                            test_output_name    = _regression_file(form_idx, "POSTING_LABEL_FMT"), 
                                             save_output_txt     = True) 
                 self._compare_to_expected_txt(  parent_trace    = my_trace,
-                                            output_txt      = ws_fmt_info,
-                                            test_case_name      = _regression_file(form_idx, "WORKSHEET_FMT"), 
+                                            output_txt          = ws_fmt_info,
+                                            test_output_name    = _regression_file(form_idx, "WORKSHEET_FMT"), 
                                             save_output_txt     = True) 
                 form_idx += 1
 

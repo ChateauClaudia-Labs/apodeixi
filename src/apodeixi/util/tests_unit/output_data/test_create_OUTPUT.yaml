@@ -186,17 +186,17 @@ util:
         '
     test_a6i_error.py: '
 
-      Size (in bytes):  3093
+      Size (in bytes):  3131
 
       '
     test_apodeixi_config.py: '
 
-      Size (in bytes):  3141
+      Size (in bytes):  3173
 
       '
     test_dataframe_utils.py: '
 
-      Size (in bytes):  4151
+      Size (in bytes):  4173
 
       '
     test_folder_hierarchy.py: '
@@ -221,7 +221,7 @@ util:
       '
     test_time_buckets.py: '
 
-      Size (in bytes):  5139
+      Size (in bytes):  5153
 
       '
   time_buckets.py: '

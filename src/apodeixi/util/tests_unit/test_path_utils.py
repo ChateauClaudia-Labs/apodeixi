@@ -91,7 +91,7 @@ class Test_PathUtils(ApodeixiUnitTest):
 
             self._compare_to_expected_txt(  parent_trace        = my_trace,
                                             output_txt          = output_txt,
-                                            test_case_name      = TEST_SCENARIO, 
+                                            test_output_name    = TEST_SCENARIO, 
                                             save_output_txt     = True)
 
         except ApodeixiError as ex:

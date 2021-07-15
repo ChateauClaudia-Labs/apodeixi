@@ -306,7 +306,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         #dir         = self.results_data 
         return dir
 
-    def _compare_to_expected_yaml(self, parent_trace, output_dict, test_case_name, save_output_dict=False):
+    def _compare_to_expected_yaml(self, parent_trace, output_dict, test_output_name, save_output_dict=False):
         '''
         Utility method for derived classes that create YAML files and need to check they match an expected output
         previously saves as a YAML file as well. 
@@ -315,11 +315,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         super()._compare_to_expected_yaml(  parent_trace,
                                             output_dict, 
-                                            test_case_name, 
-                                            data_dir            = self._regression_dir(), 
+                                            test_output_name    = test_output_name, 
+                                            output_data_dir     = self._regression_dir(), 
+                                            expected_data_dir   = self._regression_dir(), 
                                             save_output_dict    = save_output_dict)
 
-    def _compare_to_expected_txt(self, parent_trace, output_txt, test_case_name, save_output_txt=False):
+    def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, save_output_txt=False):
         '''
         Utility method for derived classes that create text files and need to check they match an expected output
         previously saves as a text file as well. 
@@ -328,11 +329,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         super()._compare_to_expected_txt(   parent_trace,
                                             output_txt, 
-                                            test_case_name, 
-                                            data_dir            = self._regression_dir(), 
+                                            test_output_name    = test_output_name,
+                                            output_data_dir     = self._regression_dir(), 
+                                            expected_data_dir   = self._regression_dir(), 
                                             save_output_txt     = save_output_txt)
 
-    def _compare_to_expected_df(self, parent_trace, output_df, test_case_name, columns_to_ignore=[], id_column=None):
+    def _compare_to_expected_df(self, parent_trace, output_df, test_output_name, columns_to_ignore=[], id_column=None):
         '''
         Utility method for derived classes that creates DataFrames (saved as CSV files) and checks they match an expected output
         previously saves as a CSV file as well. 
@@ -345,8 +347,9 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         super()._compare_to_expected_df(    parent_trace, 
                                             output_df, 
-                                            test_case_name, 
-                                            data_dir            = self._regression_dir(), 
+                                            test_output_name    = test_output_name, 
+                                            output_data_dir     = self._regression_dir(), 
+                                            expected_data_dir   = self._regression_dir(), 
                                             columns_to_ignore   = columns_to_ignore, 
                                             id_column           = id_column)
 
@@ -362,5 +365,5 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         self._compare_to_expected_yaml( parent_trace        = parent_trace,
                                         output_dict         = env_hierarchy.to_dict(),
-                                        test_case_name      = snapshot_name, 
+                                        test_output_name    = snapshot_name, 
                                         save_output_dict    = True)

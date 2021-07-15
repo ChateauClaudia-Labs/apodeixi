@@ -46,7 +46,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             print(ex.trace_message())
 
         
-        self._compare_to_expected_yaml(root_trace, result_dict, 'read_df_fragment', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'read_df_fragment', save_output_dict=True)
 
     def test_find(self):    
         UID_TO_FIND                 = 'A2.B1.C1'   
@@ -87,7 +87,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
-        self._compare_to_expected_yaml(root_trace, result_dict, 'docking_1', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'docking_1', save_output_dict=True)
 
     def test_docking_2(self):
         DOCKING_UID           = 'A2.B1'   
@@ -114,7 +114,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
-        self._compare_to_expected_yaml(root_trace, result_dict, 'docking_2', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'docking_2', save_output_dict=True)
 
     def test_acronyms(self):   
         entities                    = ['Costs', 'Cost Models', "Ferries", 'Carry Mirrors', 'CO', 'Costs']
@@ -148,7 +148,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         except ApodeixiError as ex:
             print(ex.trace_message())
 
-        self._compare_to_expected_yaml(root_trace, result_dict, 'attach_subtree', save_output_dict=True)
+        self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'attach_subtree', save_output_dict=True)
 
     def _create_breakdown_tree(self):
         root_trace      = FunctionalTrace(None).doing("Creating UID Store")

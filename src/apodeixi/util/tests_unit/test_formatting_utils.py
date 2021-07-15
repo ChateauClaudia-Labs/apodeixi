@@ -55,7 +55,7 @@ class Test_NotebookUtils(ApodeixiUnitTest):
 
             self._compare_to_expected_yaml( parent_trace        = my_trace,
                                             output_dict         = cleaned_dict, 
-                                            test_case_name      = TEST_SCENARIO, 
+                                            test_output_name    = TEST_SCENARIO, 
                                             save_output_dict    = True)
         except ApodeixiError as ex:
             print(ex.trace_message())

@@ -62,15 +62,15 @@ class Test_FY_Quarter(ApodeixiUnitTest):
                                         + '\nQ4.contains(' + d_fmt + ')    = ' + str(Q4.contains(d))
 
 
-        self._compare_to_expected_txt(  parent_trace    = root_trace,
-                                        output_txt      = output, 
-                                        test_case_name  = 'test_fy_quarter', 
-                                        save_output_txt = True)
+        self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                        output_txt          = output, 
+                                        test_output_name    = 'test_fy_quarter', 
+                                        save_output_txt     = True)
 
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_Aha_Importer()
+        T = Test_FY_Quarter()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='fy_quarter':

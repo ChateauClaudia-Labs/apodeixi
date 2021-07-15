@@ -67,12 +67,12 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
             self._compare_to_expected_txt(  parent_trace                = my_trace,
                                             output_txt                  = explanation_txt, 
-                                            test_case_name              = TEST_NAME + "_explanations", 
+                                            test_output_name            = TEST_NAME + "_explanations", 
                                             save_output_txt             = True)                                          
 
             self._compare_to_expected_df(   parent_trace                = my_trace,
                                             output_df                   = result_df, 
-                                            test_case_name              = TEST_NAME, 
+                                            test_output_name            = TEST_NAME, 
                                             columns_to_ignore           = [], 
                                             id_column                   = None)
  

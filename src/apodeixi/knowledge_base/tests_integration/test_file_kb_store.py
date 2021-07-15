@@ -81,10 +81,10 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             print(ex.trace_message()) 
             self.assertTrue(1==2)
 
-        self._compare_to_expected_txt(  parent_trace    = root_trace,
-                                        output_txt      = coords_txt, 
-                                        test_case_name  = test_name, 
-                                        save_output_txt = True)
+        self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                        output_txt          = coords_txt, 
+                                        test_output_name    = test_name, 
+                                        save_output_txt     = True)
 
     def test_locate_initiative_milestone_postings(self):
         POSTING_API                     = 'workstream.initiatives.a6i'
@@ -124,10 +124,10 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
             self.assertTrue(1==2)
             
 
-        self._compare_to_expected_txt(  parent_trace    = root_trace,
-                                        output_txt      = coords_txt, 
-                                        test_case_name  = test_name, 
-                                        save_output_txt = True)
+        self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                        output_txt          = coords_txt, 
+                                        test_output_name    = test_name, 
+                                        save_output_txt     = True)
 
 
 
