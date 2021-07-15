@@ -25,7 +25,7 @@ class IntegrationTestStack():
     def __init__(self, parent_trace):
         return
 
-    def name(self):
+    def name(self, parent_trace):
         '''
         Abstract method. Returns a string used to identify this stack, used in the filing structure for
         the regression output of integration tests using this stack
@@ -78,8 +78,8 @@ class FileStoreTestStack(IntegrationTestStack):
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
         self._kb                        = KnowledgeBase(my_trace, self._store)
 
-    MY_NAME                             = "fs-stack"
-    def name(self):
+    MY_NAME                             = "file_store"
+    def name(self, parent_trace):
         '''
         Returns a string used to identify this stack, used in the filing structure for
         the regression output of integration tests using this stack
@@ -143,8 +143,8 @@ class GITStoreTestStack(IntegrationTestStack):
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
         self._kb                        = KnowledgeBase(my_trace, self._store)
 
-    MY_NAME                             = "git-stack"
-    def name(self):
+    MY_NAME                             = "git_store"
+    def name(self, parent_trace):
         '''
         Returns a string used to identify this stack, used in the filing structure for
         the regression output of integration tests using this stack
@@ -299,10 +299,17 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
     def tearDown(self):
         super().tearDown()
 
-    def _regression_dir(self):
+    def _regression_output_dir(self, parent_trace):
         if self._scenario == None:
             raise ApodeixiError(None, "Test case not properly intialized - scenario is null. Must be set")
-        dir         = self.results_data + "/" + self._scenario + "/" + self.stack().name()
+        dir         = self.results_data + "/" + self._scenario + "/" + self.stack().name(parent_trace)
+        #dir         = self.results_data 
+        return dir
+
+    def _regression_expected_dir(self, parent_trace):
+        if self._scenario == None:
+            raise ApodeixiError(None, "Test case not properly intialized - scenario is null. Must be set")
+        dir         = self.results_data + "/" + self._scenario
         #dir         = self.results_data 
         return dir
 
@@ -316,8 +323,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         super()._compare_to_expected_yaml(  parent_trace,
                                             output_dict, 
                                             test_output_name    = test_output_name, 
-                                            output_data_dir     = self._regression_dir(), 
-                                            expected_data_dir   = self._regression_dir(), 
+                                            output_data_dir     = self._regression_output_dir(parent_trace), 
+                                            expected_data_dir   = self._regression_expected_dir(parent_trace), 
                                             save_output_dict    = save_output_dict)
 
     def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, save_output_txt=False):
@@ -330,8 +337,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         super()._compare_to_expected_txt(   parent_trace,
                                             output_txt, 
                                             test_output_name    = test_output_name,
-                                            output_data_dir     = self._regression_dir(), 
-                                            expected_data_dir   = self._regression_dir(), 
+                                            output_data_dir     = self._regression_output_dir(parent_trace), 
+                                            expected_data_dir   = self._regression_expected_dir(parent_trace), 
                                             save_output_txt     = save_output_txt)
 
     def _compare_to_expected_df(self, parent_trace, output_df, test_output_name, columns_to_ignore=[], id_column=None):
@@ -348,8 +355,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         super()._compare_to_expected_df(    parent_trace, 
                                             output_df, 
                                             test_output_name    = test_output_name, 
-                                            output_data_dir     = self._regression_dir(), 
-                                            expected_data_dir   = self._regression_dir(), 
+                                            output_data_dir     = self._regression_output_dir(parent_trace), 
+                                            expected_data_dir   = self._regression_expected_dir(parent_trace), 
                                             columns_to_ignore   = columns_to_ignore, 
                                             id_column           = id_column)
 
