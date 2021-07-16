@@ -7,7 +7,7 @@ from apodeixi.util.path_utils              			    import FolderHierarchy
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
-from apodeixi.knowledge_base.git_kb_store               import GIT_KnowledgeBaseStore
+from apodeixi.knowledge_base.git_kb_store               import GIT_KBStore_Impl
 
 class Test_GIT_Basics(ApodeixiIntegrationTest):
 

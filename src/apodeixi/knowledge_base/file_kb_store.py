@@ -1,223 +1,81 @@
-import os                                               as _os
-import shutil                                           as _shutil
-import yaml                                             as _yaml
 
-from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KnowledgeBaseStore
+
+from apodeixi.knowledge_base.knowledge_base_util        import PostingLabelHandle
+from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
+
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils
 
-class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
-    '''
-    File-system-based implementation of the KnowledgeBaseStore. The entire knowledge base is held under a two root folders
-    (one for postings and one for all derived data, including manifests)
-    and follows a structure based on filing schemes of the KB_ProcessingRules.
+from apodeixi.xli.xlimporter                            import ExcelTableReader
 
-    Implements failover for reads by re-trying in parent environment, if one exists and if such failover policy
-    is stipulated in the current environment's configuration.
+'''
+Abstract class
 
-    @param kb_rootdir A string, corresponding to the absolute path in the local machine
-                            corresponding to the KnowledgeBase.
-    @param clientURL A string, corresponding to the absolute path to a root folder in a collaboration
-                            drive system (such as SharePoint) in which end-users will collaborate to create
-                            the Excel spreadsheets that will be eventually posted to the KnowledgeBase. This
-                            shared drive is also the location to which the KnowledgeBase will save
-                            generated forms or reports requested by end-users. This is a "root folder" in that
-                            the structure below will be assumed to follow the filing structure of the
-                            KnowledgeBase for postings.
-    '''
-    def __init__(self, parent_trace, kb_rootdir, clientURL):
+Represents the implementation of a KnowledgeBaseStore based on the File protocol, i.e., all URLs are paths in the
+local file system.
 
-        super().__init__(parent_trace, kb_rootdir, clientURL)
+Most KnowledgeBase functionality is implemented in derived classes, but some common methods are implemented in this
+class for convenience.
+'''
+class File_KBStore_Impl():
+    def __init__(self):
+        return
 
-    def beginTransaction(self, parent_trace):
+    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet, excel_range):
         '''
-        Starts an isolation state in which all subsequent I/O is done in an isolation area
-        dedicated to this transaction, and not applied back to the store's persistent area until the
-        transaction is committed..
+        Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 
+        the path provided.
         '''
-        return super().beginTransaction(parent_trace)
+        kb_postings_url                     = self.getPostingsURL(parent_trace)
+        if PathUtils().is_parent(           parent_trace                = parent_trace,
+                                            parent_dir                  = kb_postings_url, 
+                                            path                        = excel_posting_path):
 
-    def commitTransaction(self, parent_trace):
-        '''
-        Finalizes a transaction previously started by beginTransaction, by cascading any I/O previously done in
-        the transaction's isolation area to the store's persistent area.
-        '''
-        env, parent_env             = self._validate_transaction_end_of_life(parent_trace)
+            relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
+                                                                        root_dir        = kb_postings_url,
+                                                                        full_path       = excel_posting_path)
 
-        src_postings_root           = env.postingsURL(parent_trace)
-        dst_postings_root           = parent_env.postingsURL(parent_trace)
+            posting_api                     = self._filename_2_api(parent_trace, filename)
+                                   
+            my_trace                        = parent_trace.doing("Building the filing coordinates",
+                                                                    data = {"relative_path": str(relative_path)})
+            filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
+                                                                        posting_api         = posting_api, 
+                                                                        relative_path       = relative_path)
+        else: # Posting wasn't submitted from the "right" folder, so coordinates will have be inferred later when label is read
+            filename                        = PathUtils().tokenizePath(parent_trace, excel_posting_path)[-1]
+            posting_api                     = self._filename_2_api(parent_trace, filename)
 
-        src_manifests_root          = env.manifestsURL(parent_trace)
-        dst_manifests_root          = parent_env.manifestsURL(parent_trace)
+            env_config                      = self.current_environment(parent_trace).config(parent_trace)
+            path_mask                       = env_config.path_mask            
+            filing_coords                   = TBD_FilingCoordinates(fullpath            = excel_posting_path,
+                                                                    posting_api         = posting_api,
+                                                                    path_mask           = path_mask)
 
-        src_clientURL_root          = env.clientURL(parent_trace)
-        dst_clientURL_root          = parent_env.clientURL(parent_trace)
+        # Now build the posting label handle
+        posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,
+                                                                    posting_api         = posting_api,
+                                                                    filing_coords       = filing_coords,
+                                                                    excel_filename      = filename, 
+                                                                    excel_sheet         = sheet, 
+                                                                    excel_range         = excel_range)
 
-        # If the parent environment is also a transactional envinronment, we will have to record in it
-        # the events so that when the parent is committed, those events are cascaded to the parent's parent.
-        # But it may also be that the parent is not transactional, which is why the `parent_events`
-        # variable may be None and why we need to be checking for that all the time.
-        parent_name                 = parent_env.name(parent_trace)
-        if parent_name in self._transaction_events_dict.keys():
-            parent_events           = self._transaction_events_dict[parent_name]
-        else:
-            parent_events           = None
-
-        # **GOTCHA** 
-        # 
-        # Don't call pop()! We want to see the "last transaction's" environment, but not yet remove
-        # the last transaction (so peek, not pop). The reason is that if any of the subsequent code in this commit() method
-        # raises an exception, it will cause a subsequent problem for the abortTransaction method,
-        # since abortTransaction will look for the "last transaction" and will not find it (or will)
-        # find the wrong one) if we have poped. So use the [-1] notation to peek (not pop!) the last
-        # transaction. Later, just before exiting this method, do the pop()
-        ending_env                  = self._transactions_stack[-1]
-        events                      = self._transaction_events_dict[ending_env.name(parent_trace)]
-
-        for relative_path in events.posting_writes():
-            from_path               = src_postings_root + "/" + relative_path
-            to_path                 = dst_postings_root + "/" + relative_path
-            to_dir                  = _os.path.dirname(to_path)
-            PathUtils().create_path_if_needed(parent_trace, to_dir)
-            _shutil.copy2(src = from_path, dst = to_dir)
-            if parent_events != None:
-                parent_events.remember_posting_write(relative_path)
-
-        for relative_path in events.manifest_writes():
-            from_path               = src_manifests_root + "/" + relative_path
-            to_path                 = dst_manifests_root + "/" + relative_path
-            to_dir                  = _os.path.dirname(to_path)
-            PathUtils().create_path_if_needed(parent_trace, to_dir)
-            _shutil.copy2(src = from_path, dst = to_dir)
-            if parent_events != None:
-                parent_events.remember_manifest_write(relative_path)
-
-        for relative_path in events.clientURL_writes():
-            from_path               = src_clientURL_root + "/" + relative_path
-            to_path                 = dst_clientURL_root + "/" + relative_path
-            # Normally clientURL is the same across environments (except mostly in test situations),
-            # so to prevent the copy operation from raising an exception make sure we only attempt to copy
-            # the file when the two paths are different
-            if not _os.path.samefile(from_path, to_path):
-            #if from_path != to_path: 
-                to_dir                  = _os.path.dirname(to_path)
-                PathUtils().create_path_if_needed(parent_trace, to_dir)
-                _shutil.copy2(src = from_path, dst = to_dir)
-                if parent_events != None:
-                    parent_events.remember_clientURL_write(relative_path)
-
-        for relative_path in events.posting_deletes():
-            to_path                 = dst_postings_root + "/" + relative_path
-            if _os.path.isfile(to_path):
-                _os.remove(to_path)
-                if parent_events != None:
-                    parent_events.remember_posting_delete(relative_path)
-
-        for relative_path in events.manifest_deletes():
-            to_path                 = dst_manifests_root + "/" + relative_path
-            if _os.path.isfile(to_path):
-                _os.remove(to_path)
-                if parent_events != None:
-                    parent_events.remember_manifest_deletes(relative_path)
-
-        for relative_path in events.clientURL_deletes():
-            to_path                 = dst_clientURL_root + "/" + relative_path
-            if _os.path.isfile(to_path):
-                _os.remove(to_path)
-                if parent_events != None:
-                    parent_events.remember_clientURL_deletes(relative_path)
-
-
-        # Now remove the environment of the transaction we just committed
-        self.removeEnvironment(parent_trace, env.name(parent_trace)) 
-        self.activate(parent_trace, parent_env.name(parent_trace))
-
-        # **GOTCHA** 
-        # 
-        # Now it is safe to pop() - it wasn't safe earlier because if any of the code in this method
-        # raised an exception after having popped the last transaction in the stack, the abortTransaction
-        #method woudld have failed since it wouldh't have found the last transaction to then abort it.
-        ending_env                  = self._transactions_stack.pop()
-        events                      = self._transaction_events_dict.pop(ending_env.name(parent_trace))
-
-    def abortTransaction(self, parent_trace):
-        '''
-        Aborts a transaction previously started by beginTransaction, by deleting transaction's isolation area,
-        effectively ignoring any I/O previously done during the transaction's lifetime, and leaving the
-        KnowledgeBaseStore in a state such that any immediately following I/O operation would be done 
-        directly to the store's persistent area.
-        '''
-        return super().abortTransaction(parent_trace)
-
-
-    def activate(self, parent_trace, environment_name):
-        '''
-        Switches the store's current environment to be the one identified by the `environment_name`, unless
-        no such environment exists in which case it raises an ApodeixiError
-        '''
-        super().activate(parent_trace, environment_name)
-
-    def deactivate(self, parent_trace):
-        '''
-        Switches the store's current environment to be the base environment.
-        '''
-        super().deactivate(parent_trace)
-
-    def copy_posting_across_environments(self, parent_trace, handle, from_environment, to_environment):
-        '''
-        Copies the posting file denoted by the `handle` in the `from_environment` to the `to_environment`
-        '''
-        from_path       = from_environment.postingsURL(parent_trace)    + "/" + handle.getRelativePath(parent_trace)
-        to_path         = to_environment.postingsURL(parent_trace)      + "/" + handle.getRelativePath(parent_trace)
-        to_dir          = _os.path.dirname(to_path)
-
-        
-        my_trace                    = parent_trace.doing("Copying a posting file",
-                                        data = {"src_path":     from_path,
-                                                "to_dir":       to_dir})
-        if not _os.path.exists(to_dir):
-            PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
-        _shutil.copy2(src = from_path, dst = to_dir)
-
-    def _file_not_found_error(self, ex):
-        '''
-        Helper method. Returns true if `ex` is an ApodeixiError triggered by a file not found
-        '''
-        if not type(ex) == ApodeixiError or not 'error' in ex.data.keys():
-            return False
-        elif "No such file or directory" in ex.data['error']:
-            return True
-        else:
-            return False
+        return posting_handle
 
     def loadPostingLabel(self, parent_trace, posting_label_handle):
         '''
         Loads and returns a DataFrame based on the `posting_label_handle` provided
         '''
-        try:
-            label_df                    = super().loadPostingLabel(parent_trace, posting_label_handle)          
-        except ApodeixiError as ex:
-            # Try again in parent environment if failover is configured and error is a missing file
-            if self._file_not_found_error(ex) and self._failover_reads_to_parent(parent_trace):
-                my_trace                = parent_trace.doing("Searching in parent environment")
-                # Temporarily switch to the environment in which to search
-                original_env            = self.current_environment(my_trace)
-                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
-                label_df                = self.loadPostingLabel(
-                                                    parent_trace                = my_trace,
-                                                    posting_label_handle        = posting_label_handle)
-                # Now that search in parent environment is done, reset back to original environment
-                self.activate(my_trace, original_env.name(my_trace))
-                # Before leaving, copy the parent's data into our environment, so next time 
-                # we don't have to failover again
-                self.copy_posting_across_environments(  
-                                                parent_trace        = my_trace, 
-                                                handle              = posting_label_handle, 
-                                                from_environment    = self.parent_environment(my_trace), 
-                                                to_environment      = self.current_environment(my_trace))
-            else:
-                raise ex
+        excel_range             = posting_label_handle.excel_range
 
+        excel_range             = excel_range.upper()
+        path                    = self._getPostingFullPath(parent_trace, posting_label_handle)
+        relative_path           = posting_label_handle.getRelativePath(parent_trace)
+        sheet                   = posting_label_handle.excel_sheet
+        reader                  = ExcelTableReader(path, sheet, excel_range, horizontally=False)
+        my_trace                = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
+                                                data = {"relative_path": relative_path, "excel range": excel_range})
+        label_df                = reader.read(my_trace)
         return label_df
 
     def loadPostingData(self, parent_trace, data_handle, config):
@@ -226,173 +84,66 @@ class File_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
 
         @param config PostingConfig
         '''
-        try:
-            df                      = super().loadPostingData(parent_trace, data_handle, config)
-        except ApodeixiError as ex:
-            # Try again in parent environment if failover is configured and error is a missing file
-            if self._file_not_found_error(ex) and self._failover_reads_to_parent(parent_trace):
-                my_trace                = parent_trace.doing("Searching in parent environment")
-                # Temporarily switch to the environment in which to search
-                original_env            = self.current_environment(my_trace)
-                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
-                df                      = self.loadPostingData(
-                                                    parent_trace        = my_trace,
-                                                    data_handle         = data_handle,
-                                                    config              = config)
-                # Now that search in parent environment is done, reset back to original environment
-                self.activate(my_trace, original_env.name(my_trace))
-                # Before leaving, copy the parent's data into our environment, so next time 
-                # we don't have to failover again
-                self.copy_posting_across_environments(  
-                                                parent_trace        = my_trace, 
-                                                handle              = data_handle, 
-                                                from_environment    = self.parent_environment(my_trace), 
-                                                to_environment      = self.current_environment(my_trace))
-            else:
-                raise ex
-
+        path                    = self._getPostingFullPath(parent_trace, data_handle)
+        relative_path           = data_handle.getRelativePath(parent_trace)
+        sheet                   = data_handle.excel_sheet
+        excel_range             = data_handle.excel_range
+        r                       = ExcelTableReader(path, sheet,excel_range = excel_range, 
+                                                    horizontally = config.horizontally)
+        my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
+                                                        data = {"relative_path": relative_path, "excel range": excel_range})
+        df                      = r.read(my_trace)
         return df
 
-    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def _getPostingFullPath(self, parent_trace, posting_handle):
         '''
-        Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
-        the given criteria:
-
-        * They are all postings for the `posting_api`
-        * They pass the given filters
-
-        @param posting_api A string that identifies the type of posting represented by an Excel file. For example,
-                            'milestone.modernization.a6i' is a recognized posting API and files that end with that suffix,
-                            such as 'opus_milestone.modernization.a6i.xlsx' will be located by this method.
-        @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
-                            Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.
-        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
-                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.n.
+        It returns a string, corresponding to the full path to the posting referenced by the `posting_handle`.
         '''
-        ME                          = File_KnowledgeBaseStore
+        if type(posting_handle.filing_coords) == TBD_FilingCoordinates: # Filing Coords haven't been set yet, so use place holder
+            return posting_handle.filing_coords.getFullPath()
+        else:
+            parsed_tokens               = posting_handle.filing_coords.path_tokens(parent_trace)
+            kb_postings_url             = self.getPostingsURL(parent_trace)
+            excel_path                  = kb_postings_url  +  '/' + '/'.join(parsed_tokens)
+            return excel_path + "/" + posting_handle.excel_filename       
 
-        if self._failover_reads_to_parent(parent_trace):
-            # Search in parent first, and copy anything found to the current environment
-
-            my_trace                = parent_trace.doing("Searching in parent environment")
-            # Temporarily switch to the environment in which to search
-            original_env            = self.current_environment(my_trace)
-            self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
-            parent_handles          = self.searchPostings(
-                                                parent_trace                = my_trace,
-                                                posting_api                 = posting_api,
-                                                filing_coordinates_filter   = filing_coordinates_filter,
-                                                posting_version_filter      = posting_version_filter)
-            # Now that search in parent environment is done, reset back to original environment
-            self.activate(my_trace, original_env.name(my_trace))
-
-            # Populate current environment with anything found in the parent environment, but only if it is not
-            # already in current environment
-            my_trace                = parent_trace.doing("Copying postings from parent environment",
-                                                data = {"parent environment name":  
-                                                                    self.parent_environment(my_trace).name(my_trace),
-                                                        "current environment name":     
-                                                                    self.current_environment(my_trace).name(my_trace)})
-            for handle in parent_handles:
-                self.copy_posting_across_environments(  
-                                                parent_trace        = my_trace, 
-                                                handle              = handle, 
-                                                from_environment    = self.parent_environment(my_trace), 
-                                                to_environment      = self.current_environment(my_trace))
-
-        my_trace                = parent_trace.doing("Searching in environment '" 
-                                                        + str(self.current_environment(parent_trace)) + "'" )
-        scanned_handles             = super().searchPostings(
-                                                parent_trace                = my_trace, 
-                                                posting_api                 = posting_api, 
-                                                filing_coordinates_filter   = filing_coordinates_filter, 
-                                                posting_version_filter      = posting_version_filter)
-        return scanned_handles
-
-    def persistManifest(self, parent_trace, manifest_dict):
+    def _filename_2_api(self, parent_trace, filename):
         '''
-        Persists manifest_dict as a yaml object and returns a ManifestHandle that uniquely identifies it.
+        Helper method that can be used by derived classes to infer the posting api from a filename.
+
+        Returns a string: the posting api. Raises an ApodeixiError if none of the store's supported apis matches the filename.
         '''
-        handle              = super().persistManifest(parent_trace, manifest_dict)
-        return handle
+        posting_api                                 = None
+        supported_apis                              = self.supported_apis(parent_trace=parent_trace)
+        for api in supported_apis:
+            if filename.endswith(api + ".xlsx"):
+                posting_api          = api
+                break
+        if posting_api == None:
+            raise ApodeixiError(parent_trace, "Filename is not for an API supported by the Knowledge Base store",
+                                            data    = {    'filename':             filename,
+                                                            'supported apis':       str(supported_apis)})
+        return posting_api
 
-    def retrieveManifest(self, parent_trace, manifest_handle):
+    def _buildFilingCoords(self, parent_trace, posting_api, relative_path):
         '''
-        Returns a dict and a string.
-        
-        The dict represents the unique manifest in the store that is identified by the `manifest handle`.
-        
-        The string represents the full pathname for the manifest.
-
-        If none exists, it returns (None, None). That said, before giving up and returning (None, None), 
-        this method will attempt to find the manifest in the parent environment if that is what is stipulated
-        in the current environment's configuration
-
-        @param manifest_handle A ManifestHandle instance that uniquely identifies the manifest we seek to retrieve.
+        Helper method that concrete derived classes may choose to use as part of implementing `buildPostingHandle`,
+        to determine the FilingCoordinates to put into the posting handle.
         '''
-        manifest, manifest_path         = super().retrieveManifest(parent_trace, manifest_handle)
+        path_tokens                     = PathUtils().tokenizePath( parent_trace    = parent_trace,
+                                                                    path   = relative_path) 
 
-        if manifest == None:
-            # Not found, so normally we should return None. But before giving up, look in parent environment
-            # if we have been configured to fail over the parent environment whenver we can't find something
-            if self._failover_reads_to_parent(parent_trace):
-                # Search in parent first, and copy anything found to the current environment
-
-                my_trace                = parent_trace.doing("Searching in parent environment")
-                # Temporarily switch to the parent environment, and try again
-                original_env            = self.current_environment(my_trace)
-                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
-
-                manifest, manifest_path = self.retrieveManifest(parent_trace, manifest_handle)
-                # Now that search in parent environment is done, reset back to original environment
-                self.activate(my_trace, original_env.name(my_trace))
-
-                # Populate current environment with anything found in the parent environment, but only if it is not
-                # already in current environment
-                if manifest != None:
-                    my_trace            = parent_trace.doing("Copying manifest from parent environment",
-                                                    data = {"parent environment name":  
-                                                                        self.parent_environment(my_trace).name(my_trace),
-                                                            "current environment name":     
-                                                                        self.current_environment(my_trace).name(my_trace)})
-                
-                
-                    from_path           = manifest_path
-                    to_dir              = self.current_environment(my_trace).postingsURL(parent_trace) 
-
-                    if not _os.path.exists(to_dir):
-                        my_trace                    = parent_trace.doing("Copying a manifest file",
-                                                        data = {"src_path":     from_path,
-                                                                "to_dir":       to_dir})
-                        PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
-                    _shutil.copy2(src = from_path, dst = to_dir)
-
-
-        return manifest, manifest_path
-
-    def archivePosting(self, parent_trace, posting_label_handle):
-        '''
-        Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
-        to this posting event and returns a PostingLabelHandle to identify the Excel file in this newly
-        created archival folder.       
-        '''
-        archival_handle                     = super().archivePosting(parent_trace, posting_label_handle)
-        
-        return archival_handle
-
-    def logPostEvent(self, parent_trace, controller_response):
-        '''
-        Used to record in the store information about a posting event that has been completed.
-        '''
-        log_txt                             = super().logPostEvent(parent_trace, controller_response)
-
-        return log_txt
-
-    def logFormRequestEvent(self, parent_trace, form_request, controller_response):
-        '''
-        Used to record in the store information about a request form event that has been completed.
-        '''
-        log_txt                             = super().logFormRequestEvent(parent_trace, form_request, controller_response)
-        return log_txt
+        my_trace                        = parent_trace.doing("Looking up filing class for given posting API",
+                                                                data = {'posting_api': posting_api})               
+        filing_class                    = self.getFilingClass(parent_trace, posting_api)
+        if filing_class == None:
+            raise ApodeixiError(my_trace, "Can't build filing coordinates from a null filing class")
+        my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
+                                                                + "within the Knowledge Base")
+        filing_coords                   = filing_class().build(parent_trace = my_trace, path_tokens = path_tokens)
+        if filing_coords == None:
+            raise ApodeixiError(my_trace, "Posting is not in the right folder within the Knowledge Base for this kind of API",
+                                            data = {'posting relative path tokens':         path_tokens,
+                                                    'posting api':                          posting_api,
+                                                    'relative path expected by api':        filing_coords.expected_tokens(my_trace)})
+        return filing_coords

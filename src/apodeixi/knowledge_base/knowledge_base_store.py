@@ -1,174 +1,149 @@
-import os                                           as _os
-import yaml                                         as _yaml
+#import os                                           as _os
+#import yaml                                         as _yaml
 
-from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, PostingLabelHandle
-from apodeixi.knowledge_base.filing_coordinates     import TBD_FilingCoordinates
-from apodeixi.util.path_utils                       import PathUtils
-from apodeixi.util.a6i_error                        import ApodeixiError
-from apodeixi.xli.xlimporter                        import ExcelTableReader
+#from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, PostingLabelHandle
+#from apodeixi.util.path_utils                       import PathUtils
+#from apodeixi.util.a6i_error                        import ApodeixiError
+
 
 class KnowledgeBaseStore():
     '''
-    Abstract class used to encapsulate the common services that a KnowledgeBase depends on from a "store" in which the
+    Class used to codify an API of the dependencies that theKnowledgeBase depends on from a "store" in which the
     KnowledgeBase can persist and retrieve manifests, postings, and any other persistent Apodeixi domain object.
 
-    The KnowledgeBaseStore's API includes transactional support, which means that the I/O operations on the store
-    depend on whether the store is in the midst of a transaction or not.
+    The physical mechanisms are delegated to an implementation object, and different implementation can be
+    transparently swapped.
 
-    When not in the midst of a transaction, I/O operations apply to the persistent area of the store, i.e., the
-    "official system of record" of what is contained in the store.
+    Thus, the methods in this class are really an abstracted API for the services needed.
+    These services include:
 
-    By contrast, during a transaction behavior is dependent on each concrete class implementation. For derived
-    classes that support transactional isolation, I/O during a transaction's lifetime is done in a separate
-    isolation area, disjoint from the persistent area of the store.
+    * Persistence of postings, manifests
+    * Support to archive logs and payloads involved in KnowledgeBase API operations, such as a posting
+    * Transactional support
+    * Sandbox support via the notion of "environment". These can be hierarchical, as the collection of all
+      environments are a logical tree, with the root being the "base" environment that always exists, and the
+      rest are added or removed by the caller via APIs. KnowledgeBase operations are applied only to the
+      environment that is "active", with exactly 1 environment being active at all times.
+
+    @impl A class that implements the methods of the KnowledgeBaseStore. This delegation is used as a means to
+            be able to swap different implementations of the store's functionality, without changing the
+            code that calls the store.
     '''
-    def __init__(self):
+    def __init__(self, parent_trace, impl):
+        self._impl          = impl
         return
 
     def beginTransaction(self, parent_trace):
         '''
-        Abstract method. 
-        
         Starts an isolation state in which all subsequent I/O is done in an isolation area
         dedicated to this transaction, and not applied back to the store's persistent area until the
         transaction is committed..
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'beginTransaction' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.beginTransaction(parent_trace)
 
     def commitTransaction(self, parent_trace):
         '''
-        Abstract method. 
-        
         Finalizes a transaction previously started by beginTransaction, by cascading any I/O previously done in
         the transaction's isolation area to the store's persistent area.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'commitTransaction' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
-
+        return self._impl.commitTransaction(parent_trace)
+        
     def abortTransaction(self, parent_trace):
         '''
-        Abstract method. 
-        
         Aborts a transaction previously started by beginTransaction, by deleting transaction's isolation area,
         effectively ignoring any I/O previously done during the transaction's lifetime, and leaving the
         KnowledgeBaseStore in a state such that any immediately following I/O operation would be done 
         directly to the store's persistent area.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'abortTransaction' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.abortTransaction(parent_trace)
 
     def supported_apis(self, parent_trace):
         '''
-        Abstract method. Returns a list of the posting APIs that this KnowledgeStore knows about.
+        Returns a list of the posting APIs that this KnowledgeStore knows about.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'supported_apis' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.supported_apis(parent_trace)
 
     def getFilingClass(self, parent_trace, posting_api):
         '''
-        Abstract method. 
-        
         Returns a class object, derived from FilingCoordinates, that this store uses to structure postings for 
         the giving posting api. Used to build the posting handle.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getFilingClass' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.getFilingClass(parent_trace, posting_api)
 
     def getPostingsURL(self, parent_trace):
         '''
-        Abstract method.
-
         Returns a string that can be used to locate the postings area in the Knowledge Base store's current environment
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getPostingsURL' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.getPostingsURL(parent_trace)
 
     def getClientURL(self, parent_trace):
         '''
-        Abstract method.
-
         Returns a string that can be used to locate the area (quite possibly external to the KnowledgeBase store)
         where end users preare manifests they later post, and into which users expecte generated forms and reports
         to go
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getClientURL' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.getClientURL(parent_trace)
 
     def resetClientArea(self, parent_trace, coords):
         '''
-        Abstract method
-
         This method "refreshes" the area under the clientURL identified by the given coordinates, so that it is
         identical the the area under the store's postingsURL corresponding to those coordinates.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'resetClientArea' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
-                                                                                
-    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
+        return self._impl.resetClientArea(parent_trace, coords)
+
+    def current_environment(self, parent_trace):
+        '''
+        Returns the current environment that is active in the KnowledgeBaseStore
+        '''
+        return self._impl.current_environment(parent_trace)
+
+    def parent_environment(self, parent_trace):
+        '''
+        In the logical tree of environments, returns the parent to the currently active environment.
+        If the current environment is the root of the logical tree then it returns None.
+        '''
+        return self._impl.parent_environment(parent_trace)
+
+    def base_environment(self, parent_trace):
+        '''
+        Returns the root of the logical tree of environments for the KnoledgeBase
+        '''
+        return self._impl.base_environment(parent_trace)
+
+    def activate(self, parent_trace, environment_name):
+        '''
+        Switches the store's current environment to be the one identified by the `environment_name`, unless
+        no such environment exists in which case it raises an ApodeixiError
+        '''
+        return self._impl.activate(parent_trace, environment_name)
+
+    def deactivate(self, parent_trace):
+        '''
+        Switches the store's current environment to be the base environment.
+        '''
+        return self._impl.deactivate(parent_trace)
+ 
+    def removeEnvironment(self, parent_trace, name):
+        '''
+        Removes the environment with the given name, if one exists, in which case returns 0.
+        If no such environment exists then it returns -1.
+
+        In the process it also removes any child environment, recursively down.
+        ''' 
+        return self._impl.removeEnvironment(parent_trace, name)
+
+    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet, excel_range):
         '''
         Returns an PostingLabelHandle for the posting label embedded within the Excel spreadsheet that resides in 
         the path provided.
         '''
-        kb_postings_url                     = self.getPostingsURL(parent_trace)
-        if PathUtils().is_parent(           parent_trace                = parent_trace,
-                                            parent_dir                  = kb_postings_url, 
-                                            path                        = excel_posting_path):
-
-            relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
-                                                                        root_dir        = kb_postings_url,
-                                                                        full_path       = excel_posting_path)
-
-            posting_api                     = self._filename_2_api(parent_trace, filename)
-                                   
-            my_trace                        = parent_trace.doing("Building the filing coordinates",
-                                                                    data = {"relative_path": str(relative_path)})
-            filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
-                                                                        posting_api         = posting_api, 
-                                                                        relative_path       = relative_path)
-        else: # Posting wasn't submitted from the "right" folder, so coordinates will have be inferred later when label is read
-            filename                        = PathUtils().tokenizePath(parent_trace, excel_posting_path)[-1]
-            posting_api                     = self._filename_2_api(parent_trace, filename)
-
-            env_config                      = self.current_environment(parent_trace).config(parent_trace)
-            path_mask                       = env_config.path_mask            
-            filing_coords                   = TBD_FilingCoordinates(fullpath            = excel_posting_path,
-                                                                    posting_api         = posting_api,
-                                                                    path_mask           = path_mask)
-
-        # Now build the posting label handle
-        posting_handle                  = PostingLabelHandle(       parent_trace        = parent_trace,
-                                                                    posting_api         = posting_api,
-                                                                    filing_coords       = filing_coords,
-                                                                    excel_filename      = filename, 
-                                                                    excel_sheet         = sheet, 
-                                                                    excel_range         = excel_range)
-
-        return posting_handle
+        return self._impl.buildPostingHandle(parent_trace, excel_posting_path, sheet, excel_range)
 
     def loadPostingLabel(self, parent_trace, posting_label_handle):
         '''
         Loads and returns a DataFrame based on the `posting_label_handle` provided
         '''
-        excel_range             = posting_label_handle.excel_range
-
-        excel_range             = excel_range.upper()
-        path                    = self._getPostingFullPath(parent_trace, posting_label_handle)
-        relative_path           = posting_label_handle.getRelativePath(parent_trace)
-        sheet                   = posting_label_handle.excel_sheet
-        reader                  = ExcelTableReader(path, sheet, excel_range, horizontally=False)
-        my_trace                = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
-                                                data = {"relative_path": relative_path, "excel range": excel_range})
-        label_df                = reader.read(my_trace)
-        return label_df
+        return self._impl.loadPostingLabel(parent_trace, posting_label_handle)
 
     def loadPostingData(self, parent_trace, data_handle, config):
         '''
@@ -176,34 +151,10 @@ class KnowledgeBaseStore():
 
         @param config PostingConfig
         '''
-        path                    = self._getPostingFullPath(parent_trace, data_handle)
-        relative_path           = data_handle.getRelativePath(parent_trace)
-        sheet                   = data_handle.excel_sheet
-        excel_range             = data_handle.excel_range
-        r                       = ExcelTableReader(path, sheet,excel_range = excel_range, 
-                                                    horizontally = config.horizontally)
-        my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
-                                                        data = {"relative_path": relative_path, "excel range": excel_range})
-        df                      = r.read(my_trace)
-        return df
-
-    def _getPostingFullPath(self, parent_trace, posting_handle):
-        '''
-        It returns a string, corresponding to the full path to the posting referenced by the `posting_handle`.
-        '''
-        if type(posting_handle.filing_coords) == TBD_FilingCoordinates: # Filing Coords haven't been set yet, so use place holder
-            return posting_handle.filing_coords.getFullPath()
-        else:
-            parsed_tokens               = posting_handle.filing_coords.path_tokens(parent_trace)
-            kb_postings_url             = self.getPostingsURL(parent_trace)
-            excel_path                  = kb_postings_url  +  '/' + '/'.join(parsed_tokens)
-            return excel_path + "/" + posting_handle.excel_filename       
+        return self._impl.loadPostingData(parent_trace, data_handle, config)      
         
-
     def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
-        Abstract method
-
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
         the given criteria:
 
@@ -220,61 +171,14 @@ class KnowledgeBaseStore():
                             Any PostingVersion instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.n.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'searchPostings' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
-
-    def _filename_2_api(self, parent_trace, filename):
-        '''
-        Helper method that can be used by derived classes to infer the posting api from a filename.
-
-        Returns a string: the posting api. Raises an ApodeixiError if none of the store's supported apis matches the filename.
-        '''
-        posting_api                                 = None
-        supported_apis                              = self.supported_apis(parent_trace=parent_trace)
-        for api in supported_apis:
-            if filename.endswith(api + ".xlsx"):
-                posting_api          = api
-                break
-        if posting_api == None:
-            raise ApodeixiError(parent_trace, "Filename is not for an API supported by the Knowledge Base store",
-                                            data    = {    'filename':             filename,
-                                                            'supported apis':       str(supported_apis)})
-        return posting_api
-
-    def _buildFilingCoords(self, parent_trace, posting_api, relative_path):
-        '''
-        Helper method that concrete derived classes may choose to use as part of implementing `buildPostingHandle`,
-        to determine the FilingCoordinates to put into the posting handle.
-        '''
-        path_tokens                     = PathUtils().tokenizePath( parent_trace    = parent_trace,
-                                                                    path   = relative_path) 
-
-        my_trace                        = parent_trace.doing("Looking up filing class for given posting API",
-                                                                data = {'posting_api': posting_api})               
-        filing_class                    = self.getFilingClass(parent_trace, posting_api)
-        if filing_class == None:
-            raise ApodeixiError(my_trace, "Can't build filing coordinates from a null filing class")
-        my_trace                        = parent_trace.doing("Validating that posting is in the right folder structure "
-                                                                + "within the Knowledge Base")
-        filing_coords                   = filing_class().build(parent_trace = my_trace, path_tokens = path_tokens)
-        if filing_coords == None:
-            raise ApodeixiError(my_trace, "Posting is not in the right folder within the Knowledge Base for this kind of API",
-                                            data = {'posting relative path tokens':         path_tokens,
-                                                    'posting api':                          posting_api,
-                                                    'relative path expected by api':        filing_coords.expected_tokens(my_trace)})
-        return filing_coords
+        return self._impl.searchPostings(parent_trace, posting_api, filing_coordinates_filter, posting_version_filter)
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
-        Abstract method implemented by concrete classes.
-
         It persists a manifest object whose content is given by `manifest_dict`, and returns a 
         ManifestHandle that uniquely identifies it.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'persistManifest' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.persistManifest(parent_trace, manifest_dict)
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
@@ -288,14 +192,10 @@ class KnowledgeBaseStore():
 
         @param manifest_handle A ManifestHandle instance that uniquely identifies the manifest we seek to retrieve.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'retrieveManifest' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.retrieveManifest(parent_trace, manifest_handle)
 
     def searchManifests(self, parent_trace, manifest_api, labels_filter=None, manifest_version_filter=None):
         '''
-        Abstract method
-
         Returns a list of ManifestHandle objects, one for each manifest in the Knowledge Base that matches
         the given criteria:
 
@@ -313,29 +213,38 @@ class KnowledgeBaseStore():
                             Any ManifestVersion instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'searchManifests' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.searchManifests(parent_trace, manifest_api, labels_filter, manifest_version_filter)
 
     def archivePosting(self, parent_trace, posting_label_handle):
         '''
-        Abstract methods.
-
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
         to this posting event and returns a FilingCoordinates object to identify that folder.       
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'archivePosting' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._impl.archivePosting(parent_trace, posting_label_handle)
         
     def logPostEvent(self, parent_trace, controller_response):
         '''
-        Abstract methods.
-
         Used to record in the store information about a posting event that has been completed.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'logPostEvent' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
-        
+        return self._impl.logPostEvent(parent_trace, controller_response)
+
+    def logFormRequestEvent(self, parent_trace, form_request, controller_response):
+        '''
+        Used to record information about a request form event that has been handled by a controller, based on
+        data in the `controller_response`.
+        '''
+        return self._impl.logFormRequestEvent(parent_trace, form_request, controller_response)
+
+    def uploadForm(self, parent_trace, form_request, representer):
+        '''
+        Generates the requested form and uploads it to the ClientURL area, based on coordinates
+        under the ClientURL determined by the form_request
+
+        @param form_request A FormRequest object that specifies what form should be uploaded and to which
+                            coordinates within the ClientURL area.
+        @param representer A Manifest_Representer object that can be used to generate the form to be uploaded.
+
+        @return The filename (a string) under which the form was uploaded
+        '''
+        return self._impl.uploadForm(parent_trace, form_request, representer)
  

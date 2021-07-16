@@ -2,6 +2,7 @@ import sys                                              as _sys
 
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
+from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils
@@ -30,7 +31,7 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
 
         
 
-        STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
+        STORE_IMPL              = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
                                                                 input_manifests_dir     = self.input_data, 
                                                                 input_postings_dir      = self.input_data, 
                                                                 output_manifests_dir    = self.output_data, 
@@ -39,6 +40,7 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
 
         root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                   'sheet' : SHEET})
+        STORE                   = KnowledgeBaseStore(root_trace, STORE_IMPL)
         posting_handle          = STORE.buildPostingHandle(root_trace, EXCEL_FILE, sheet=SHEET, excel_range=CTX_RANGE)
 
         MANIFESTS_DIR           = self.output_data

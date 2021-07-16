@@ -12,10 +12,15 @@ class Manifest_Representer:
     '''
     Class that can represent an Apodeixi manifest as an Excel spreadsheet
 
-    @param An AsExcel_Config_Table object
+    @param config_table An AsExcel_Config_Table object
+    @param content_df_dict A dictionary where the keys are the string identifiers of the manifests,
+                and the values are DataFrames, each representing the content of a manifest.
+    @param label_ctx A dictionary representing the key-value pairs representing the content of a PostingLabel
     '''
-    def __init__(self, config_table):
+    def __init__(self, config_table, label_ctx, content_df_dict):
         self.config_table       = config_table
+        self.label_ctx          = label_ctx
+        self.content_df_dict    = content_df_dict
 
         # Some intermediate values computed in the course of processing, which are saved as state to facilitate debugging
         self.widths_dict_dict       = {}
@@ -28,7 +33,7 @@ class Manifest_Representer:
     POSTING_LABEL_SHEET     = "Posting Label"
     SUCCESS                 = "Success"
 
-    def dataframe_to_xl(self, parent_trace, content_df_dict, label_dict, excel_folder, excel_filename):
+    def dataframe_to_xl(self, parent_trace, excel_folder, excel_filename):
         '''
         '''
         my_trace                = parent_trace.doing("Creating Excel workbook",
@@ -39,16 +44,16 @@ class Manifest_Representer:
         workbook                = xlsxwriter.Workbook(excel_folder + '/' + excel_filename)
 
         inner_trace             = parent_trace.doing("Creating Posting Label")
-        self._write_posting_label(inner_trace, workbook, label_dict)
+        self._write_posting_label(inner_trace, workbook)
 
         inner_trace             = parent_trace.doing("Writing manifest's data")
-        self._write_dataframes(inner_trace, workbook, content_df_dict)
+        self._write_dataframes(inner_trace, workbook)
 
         workbook.close()
 
         return Manifest_Representer.SUCCESS
 
-    def _write_dataframes(self, parent_trace, workbook, content_df_dict):
+    def _write_dataframes(self, parent_trace, workbook):
         '''
         Creates and populates one or more worksheets, each containing data for one or more manifests.
         Each manifest's data is inputed as a DataFrame.
@@ -56,15 +61,12 @@ class Manifest_Representer:
         The worksheet onto which a manifest's data is laid out is the worksheet whose name is listed in
         self.config_table[key] where key is a string identifying a manifest (i.e., a dataset). These
         `key' strings are the same as the dictionary keys in content_df_dict.
-
-        @content_df_dict A dict object, whose keys are strings representing the name of a dataset, and the
-                        values are the manifests expressed as a Pandas DataFrame
         '''
 
         manifest_worksheet_list = []
-        for name in content_df_dict.keys():
+        for name in self.content_df_dict.keys():
             loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
-            df                  = content_df_dict[name]
+            df                  = self.content_df_dict[name]
             config              = self.config_table.getManifestXLConfig(loop_trace, name)
             worksheet               = workbook.get_worksheet_by_name(config.sheet)
             if worksheet == None:
@@ -85,7 +87,7 @@ class Manifest_Representer:
             self._unprotect_free_space(parent_trace, worksheet = worksheet)
             self._remember_formatting(worksheet, worksheet.get_name())
 
-    def _write_posting_label(self, parent_trace, workbook, label_dict):
+    def _write_posting_label(self, parent_trace, workbook):
         '''
         Creates and populates a PostingLabel worksheet
         '''
@@ -94,8 +96,8 @@ class Manifest_Representer:
 
 
         tmp_dict                = {}
-        for key in label_dict.keys():
-            tmp_dict[key] = [label_dict[key]]
+        for key in self.label_ctx.keys():
+            tmp_dict[key] = [self.label_ctx[key]]
         label_df         = _pd.DataFrame(tmp_dict)
         
         posting_label_worksheet  = workbook.add_worksheet(label_config.sheet) 

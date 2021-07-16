@@ -2,11 +2,11 @@ import os                                               as _os
 #import shutil                                           as _shutil
 #import yaml                                             as _yaml
 
-from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KnowledgeBaseStore
+from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KBStore_Impl
 from apodeixi.util.a6i_error                            import ApodeixiError
 #from apodeixi.util.path_utils                           import PathUtils
 
-class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
+class GIT_KBStore_Impl(Isolation_KBStore_Impl):
     '''
     GIT-based implementation of the KnowledgeBaseStore. The entire knowledge base is held in a GIT project
     under a root folder with separate subfolders for postings, manifests, and possibly other derived data.
@@ -14,29 +14,29 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
     Multi-User Configurations and SharePoint Interaction
     ====================================================
 
-    In a multi-user configuration, it is expected that each GIT_KnowledgeBaseStore "instance" corresponds
+    In a multi-user configuration, it is expected that each GIT_KBStore_Impl "instance" corresponds
     to just one user, is local, and that each user has a different machine, so access is always single-threaded.
-    These GIT_KnowledgeBaseStore "instances" synchronize through standard GIT mechanisms (such as git pull
+    These GIT_KBStore_Impl "instances" synchronize through standard GIT mechanisms (such as git pull
     and git push) that happen behind the scenes, not visible to the user.
 
-    End users are not expected, or encouraged, to use GIT commands to interact with a GIT_KnowledgeBaseStore.
+    End users are not expected, or encouraged, to use GIT commands to interact with a GIT_KBStore_Impl.
     Instead they should use the KnowledgeBase's API, which will will lead to GIT commands being invoked behind the
     scenes.
 
     Specifically, end users are expected to invoke APIs such as post, generateForm, etc. which transmit
     Excel files to/from the KnowledgeBase's store and the user's chosen working area. The user's "working area"
-    is a folder structure that mirrors a portion of the GIT_KnowledgeBaseStore's folder structure, but is
+    is a folder structure that mirrors a portion of the GIT_KBStore_Impl's folder structure, but is
     external to it (i.e., it is not in the GIT working tree). This prevent conflicts in situations where
     users collaborate with shared drive technologies such as SharePoint. In this scenario, there are two
     distributed file synchronization technologies simultaneously in play (GIT and SharePoint), so this is what is
     expected to avoid conflicts between them:
 
     1.  Each end-user with access to the KnowledgeBase API will have a local install of GIT with a GIT project
-        dedicated to an instance of the GIT_KnowledgeBaseStore.
-    2.  Typically, end-users GIT_KnowledgeBaseStore repos would have a common remote (such as in GitHub),
+        dedicated to an instance of the GIT_KBStore_Impl.
+    2.  Typically, end-users GIT_KBStore_Impl repos would have a common remote (such as in GitHub),
         and end-users' repos stay in sync as follows:
         a.  Each end user is allocated a user-specific branch in the common remote
-        b.  The local install of the GIT_KnowledgeBaseStore uses that user-specific branch for all pull/push
+        b.  The local install of the GIT_KBStore_Impl uses that user-specific branch for all pull/push
             communication with the remote, which is done behind the scenes by the KnowledgeBase API. So normally
             end users don't need to push/pull to the remote, or be aware on a daily basis that GIT is running locally.
         c.  The only GIT-awareness for users is that from time to time, they need to go to the remote (e.g., GitHub)
@@ -51,7 +51,7 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
     In contrast to the folders synchronized by GIT, this what happens in SharePoint:
 
     3.  Users who collaborate on the construction of data may share a common SharePoint area. This area is 
-        external to the GIT project underying the GIT_KnowledgeBaseStore.
+        external to the GIT project underying the GIT_KBStore_Impl.
     4.  Not all SharePoint users are necessarily users of the KnowledgeBase API. For example, often multiple
         heads of development, product managers and architect collaborate on the content of an Excel spreadsheet
         that will eventually be posted to the KnowledgeBase, but maybe only one of them (e.g., the chief
@@ -73,7 +73,7 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         (in SharePoint). In that example, the user can then collaborate with others to complete the form, and
         when ready can submit it to the KnoweledgeBase via the post API, as above.
     7.  Thus, the SharePoint folder structure would generally be a "soft (next version) mirror" of the part of the
-        GIT_KnowledgeBaseStore that contains Excel spreadsheets. SharePoint is where users "are working on 
+        GIT_KBStore_Impl that contains Excel spreadsheets. SharePoint is where users "are working on 
         future updates to the content", and the KnowledgeBase has the previously posted content.
 
     Apodeixi vs GIT domain models: environments vs branches and clones
@@ -81,7 +81,7 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
 
     The interplay between GIT semantics and the KnowledgeBase semantics are as follows:
 
-    1.  The GIT_KnowledgeBaseStore has a notion of "environments", organized in a tree structure (every environment
+    1.  The GIT_KBStore_Impl has a notion of "environments", organized in a tree structure (every environment
         has a parent environment, except the base "root" environment)
     2.  Each "environment" is a folder with a structure, and can be thought of as a "partial mirror" of the logical
         KnowledgeBase.
@@ -89,11 +89,11 @@ class GIT_KnowledgeBaseStore(Isolation_KnowledgeBaseStore):
         is used as a transactional cache), regression testing (e.g., an environment isolates a "copy" of a
         test knowledge base specific to a test case), or reporting (e.g., two environments are snapshots at different
         points in time).
-    4.  In the case of the GIT_KnowledgeBaseStore, GIT semantics interplay with the notion of "environment" as follows:
+    4.  In the case of the GIT_KBStore_Impl, GIT semantics interplay with the notion of "environment" as follows:
         a.  Each environment is a clone of its parent environment's GIT project, with the parent as the GIT "remote"
         b.  The base environment is a clone of the remote GIT project used to synchronize all users (e.g., in GitHub), 
             in multi-user situations.
-        c.  The GIT_KnowledgeBaseStore knows only about two types of GIT branches:
+        c.  The GIT_KBStore_Impl knows only about two types of GIT branches:
             i.  The user-specific branch used to integrate with the remote (in multi-user situations)
             ii. Branches used for baselining, which typically are also in the remote.
         d.  Each "writable environment" is a GIT working tree and at all times must be set to the user-specific branch.

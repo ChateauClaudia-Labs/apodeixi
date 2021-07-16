@@ -2,6 +2,7 @@ import sys                                              as _sys
 
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
+from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
@@ -18,13 +19,18 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
 
         MANIFEST_FILE_PREFIX    = 'posting_with_mock_store'
 
-        STORE                   = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
+        STORE_IMPL              = UnitTest_KnowledgeBaseStore(  test_case_name          = MANIFEST_FILE_PREFIX,
                                                                 input_manifests_dir     = self.input_data, 
                                                                 input_postings_dir      = self.input_data, 
                                                                 output_manifests_dir    = self.output_data, 
                                                                 output_postings_dir     = self.output_data)
 
-        EXCEL_FILE                      = MANIFEST_FILE_PREFIX + '_big-rocks.journeys.a6i.xlsx' 
+        EXCEL_FILE              = MANIFEST_FILE_PREFIX + '_big-rocks.journeys.a6i.xlsx'
+        root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+                                                                                                    })
+        STORE                   = KnowledgeBaseStore(root_trace, STORE_IMPL)
+
+         
         
         self._posting_testing_skeleton( store           = STORE, 
                                         test_case_name  = MANIFEST_FILE_PREFIX,

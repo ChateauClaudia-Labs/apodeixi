@@ -4,6 +4,7 @@ import yaml                                                     as _yaml
 
 from apodeixi.testing_framework.a6i_unit_test                   import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store                   import UnitTest_KnowledgeBaseStore
+from apodeixi.knowledge_base.knowledge_base_store               import KnowledgeBaseStore
 from apodeixi.testing_framework.controllers.mock_controller     import Mock_Controller
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
@@ -107,7 +108,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
             self.assertTrue(1==2)
 
     def _attempt_to_run(self, test_case_name, expect_error):
-        STORE                           = UnitTest_KnowledgeBaseStore(  test_case_name          = test_case_name,
+        STORE_IMPL                      = UnitTest_KnowledgeBaseStore(  test_case_name          = test_case_name,
                                                                         input_manifests_dir     = self.input_data, 
                                                                         input_postings_dir      = self.input_data, 
                                                                         output_manifests_dir    = self.output_data, 
@@ -117,8 +118,9 @@ class Test_MalformedInput(ApodeixiUnitTest):
 
         root_trace                      = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     })
-                                                                                                    
-        posting_handle                  = STORE.buildPostingHandle(root_trace, EXCEL_FILE) 
+        STORE                           = KnowledgeBaseStore(root_trace, STORE_IMPL)                                                                                            
+        posting_handle                  = STORE.buildPostingHandle(root_trace, EXCEL_FILE,
+                                                                    sheet="Posting Label", excel_range="B2:C100") 
 
         MANIFESTS_DIR                   = self.output_data
         EXPLANATIONS_OUTPUT             = test_case_name + '_explanations_OUTPUT.yaml'

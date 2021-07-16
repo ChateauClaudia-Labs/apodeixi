@@ -3,11 +3,14 @@ import shutil                                           as _shutil
 import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
+from apodeixi.knowledge_base.file_kb_store              import File_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import File_KB_Environment, KB_Environment_Config
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, \
                                                                 InitiativesFilingCoordinates, \
-                                                                ArchiveFilingCoordinates, LogFilingCoordinates
+                                                                ArchiveFilingCoordinates, LogFilingCoordinates, \
+                                                                TBD_FilingCoordinates    
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
+from apodeixi.representers.as_excel                     import Manifest_Representer
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
@@ -62,7 +65,7 @@ class TransactionEvents():
     def clientURL_deletes(self):
         return self._clientURL_deletes
 
-class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
+class Isolation_KBStore_Impl(File_KBStore_Impl):
     '''
     Abstract class.
 
@@ -135,7 +138,6 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                 raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore manifests root is a file, "
                                                     + " and should instead have been a directory",
                                                     data = {"manifests root": manifests_roodir}) 
-        super().__init__()
 
         _BASE_ENVIRONMENT           = '_BASE_ENVIRONMENT'
         root_trace                  = FunctionalTrace(None).doing("Creating KB's store's base environment")
@@ -201,7 +203,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         Helper method to generate and return a unique string that can be used to identify the next
         transaction for this store
         '''
-        ME                          = Isolation_KnowledgeBaseStore
+        ME                          = Isolation_KBStore_Impl
         name                        = ME._TRANSACTION + "." + str(self._transaction_nb)
         self._transaction_nb        += 1
         return name
@@ -332,7 +334,6 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         current_env_postings_url              = self._current_env.postingsURL(parent_trace)
         return current_env_postings_url
 
-
     def getClientURL(self, parent_trace):
         '''
         Returns a string that can be used to locate the user-specific area (such as a SharePoint folder)
@@ -356,7 +357,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         dst_root            = current_env.clientURL(parent_trace)
         dst_area            = dst_root              + "/" + "/".join(path_tokens)
 
-        PathUtils().create_path_if_needed(parent_trace, dst_area)
+        #PathUtils().create_path_if_needed(parent_trace, dst_area)
 
         area_to_refresh     = self.current_environment(parent_trace).clientURL(parent_trace)
 
@@ -465,7 +466,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         Switches the store's current environment to be the base environment.
         '''
         self._current_env               = self._base_env
-
+                                                                            
     def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
         '''
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
@@ -487,7 +488,7 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
         if posting_version_filter != None:
             raise ApodeixiError(parent_trace, "Apologies, but filtering postings by version is not yet implemented in "
-                                                + "File_KnowledgeBaseStore. Aborting the effort to searchPostings.")
+                                                + "Isolation_KBStore_Impl. Aborting the effort to searchPostings.")
 
 
         my_trace                    = parent_trace.doing("Scanning existing filing coordinates",
@@ -503,7 +504,9 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
                     loop_trace          = my_trace.doing("Scanning directory", data = {'currentdir': currentdir, 'file': a_file})
                     try:
                         handle      = self.buildPostingHandle(  parent_trace        = loop_trace,
-                                                                excel_posting_path  = _os.path.join(currentdir, a_file))
+                                                                excel_posting_path  = _os.path.join(currentdir, a_file),
+                                                                sheet               = "Posting Label", 
+                                                                excel_range         = "B2:C100")
                     except ApodeixiError as ex:
                         continue # This just means that this directory had nothing matching the posting API
                     if handle.posting_api != posting_api:
@@ -565,7 +568,6 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
             transaction_events = self._transaction_events_dict[env_name]
             transaction_events.remember_posting_delete(relative_path)
               
-
     def _remember_manifest_write(self, parent_trace, relative_path):
         '''
         Helper method. If we are in a transaction, it will remember the relative path of a write
@@ -889,3 +891,30 @@ class Isolation_KnowledgeBaseStore(KnowledgeBaseStore):
         self.resetClientArea(parent_trace = parent_trace, coords = log_coords) 
 
         return log_txt
+
+    def uploadForm(self, parent_trace, form_request, representer):
+        '''
+        Generates the requested form and uploads it to the ClientURL area, based on coordinates
+        under the ClientURL determined by the form_request
+
+        @param form_request A FormRequest object that specifies what form should be uploaded and to which
+                            coordinates within the ClientURL area.
+        @param representer A Manifest_Representer object that can be used to generate the form to be uploaded.
+
+        @return The filename (a string) under which the form was uploaded
+        '''
+        full_path                   = self.getClientURL(parent_trace) \
+                                            + "/" + form_request.getRelativePath(parent_trace)
+        output_folder, filename     = _os.path.split(full_path)
+        
+        
+
+        status                      = representer.dataframe_to_xl(  parent_trace    = parent_trace, 
+                                                                    excel_folder    = output_folder, 
+                                                                    excel_filename  = filename)  
+
+        self._remember_clientURL_write(parent_trace, form_request.getRelativePath(parent_trace))
+        if status != Manifest_Representer.SUCCESS:
+            raise ApodeixiError(parent_trace, "Encountered a problem creating the Excel spreadsheet requested")
+        
+        return filename

@@ -9,6 +9,7 @@ from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, Man
 from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.representers.as_dataframe                 import AsDataframe_Representer
 from apodeixi.representers.as_excel                     import Manifest_Representer
+
 from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLConfig, PostingLabelXLConfig
 from apodeixi.util.formatting_utils                     import StringUtils
 
@@ -104,31 +105,24 @@ class SkeletonController(PostingController):
         config_table.setPostingLabelXLConfig(my_trace, label_config)
 
         my_trace                            = parent_trace.doing("Writing out the Excel spreadsheet requested")
+        
         if True:
-            full_path                           = self.store.getClientURL(my_trace) \
-                                                    + "/" + form_request.getRelativePath(my_trace)
-            output_folder, filename             = _os.path.split(full_path)
-            
-            rep                                 = Manifest_Representer(config_table)
-            status                              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
-                                                                        content_df_dict = contents_df_dict, 
-                                                                        label_dict      = label.ctx,
-                                                                        excel_folder    = output_folder, 
-                                                                        excel_filename  = filename)  
-
-            self.store._remember_clientURL_write(parent_trace, form_request.getRelativePath(my_trace))
-            if status != Manifest_Representer.SUCCESS:
-                raise ApodeixiError(my_trace, "Encountered a problem creating the Excel spreadsheet requested") 
+            rep                                 = Manifest_Representer( config_table    = config_table,
+                                                                        label_ctx       = label.ctx,
+                                                                        content_df_dict = contents_df_dict,)
+            filename                            = self.store.uploadForm(my_trace, 
+                                                                        form_request    = form_request, 
+                                                                        representer     = rep)
 
         my_trace                            = parent_trace.doing("Assembling FormRequest response")     
         if True:
             response_handle                     = PostingLabelHandle(   
                                                         parent_trace            = my_trace,
-                                                        excel_filename        = filename,
-                                                        excel_sheet            = SkeletonController.POSTING_LABEL_SHEET,
-                                                        excel_range            = SkeletonController.POSTING_LABEL_RANGE,
-                                                        posting_api            = form_request.getPostingAPI(my_trace), 
-                                                        filing_coords          = form_request.getFilingCoords(my_trace), 
+                                                        excel_filename          = filename,
+                                                        excel_sheet             = SkeletonController.POSTING_LABEL_SHEET,
+                                                        excel_range             = SkeletonController.POSTING_LABEL_RANGE,
+                                                        posting_api             = form_request.getPostingAPI(my_trace), 
+                                                        filing_coords           = form_request.getFilingCoords(my_trace), 
                                                         )
 
             env_config                          = self.store.current_environment(parent_trace).config(parent_trace)

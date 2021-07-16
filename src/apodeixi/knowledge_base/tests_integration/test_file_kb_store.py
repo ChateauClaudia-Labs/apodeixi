@@ -4,9 +4,9 @@ from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrati
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                     import DictionaryFormatter 
 
-from apodeixi.knowledge_base.file_kb_store              import File_KnowledgeBaseStore
+from apodeixi.knowledge_base.shutil_kb_store            import Shutil_KBStore_Impl
 
-class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
+class Test_Shutil_KBStore_Impl(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
@@ -134,7 +134,7 @@ class Test_File_KnowledgeBaseStore(ApodeixiIntegrationTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_File_KnowledgeBaseStore()
+        T = Test_Shutil_KBStore_Impl()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='locate_milestone_postings':

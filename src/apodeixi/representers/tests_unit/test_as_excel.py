@@ -66,11 +66,11 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                             y_offset            = 1)
             config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-            rep                 = Manifest_Representer(config_table)
+            rep                 = Manifest_Representer( config_table    = config_table,
+                                                        label_ctx       = label_dict,
+                                                        content_df_dict = {MANIFEST_NAME: data_df},)
 
             status              = rep.dataframe_to_xl(  parent_trace    = root_trace, 
-                                                        content_df_dict = {MANIFEST_NAME: data_df}, 
-                                                        label_dict      = label_dict,
                                                         excel_folder    = OUTPUT_FOLDER, 
                                                         excel_filename  = EXCEL_FILE)
 

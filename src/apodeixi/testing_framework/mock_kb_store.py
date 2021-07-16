@@ -4,11 +4,11 @@ import yaml                                         as _yaml
 from apodeixi.util.a6i_error                        import ApodeixiError
 from apodeixi.util.path_utils                       import PathUtils
 
-from apodeixi.knowledge_base.knowledge_base_store   import KnowledgeBaseStore
+from apodeixi.knowledge_base.file_kb_store          import File_KBStore_Impl
 from apodeixi.knowledge_base.filing_coordinates     import FilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils
 
-class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
+class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
     '''
     Very simple store used for unit testing purposes. It assumes no segregation of postings or manifests based on functional
     fields such as scenarios, scoring cycles, products, etc.
@@ -54,7 +54,7 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
         supported_apis      = list(self.filing_rules.keys())
         return supported_apis
 
-    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet="Posting Label", excel_range="B2:C100"):
+    def buildPostingHandle(self, parent_trace, excel_posting_path, sheet, excel_range):
         '''
         Returns an Apodeixi Excel URL for the posting label embedded within the Excel spreadsheet that resides in the path provided.
         '''
@@ -67,6 +67,9 @@ class UnitTest_KnowledgeBaseStore(KnowledgeBaseStore):
                                             excel_posting_path  = full_path, 
                                             sheet               = sheet, 
                                             excel_range         = excel_range)
+
+
+
 
     def getFilingClass(self, parent_trace, posting_api):
         '''
