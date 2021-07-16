@@ -214,11 +214,30 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         root_trace                  = FunctionalTrace(None).doing("Provisioning stack for integration test",
                                                                     origination = {'signaled_from': __file__})
 
+        # These will be set by each individual test case (i.e., each method in a derived class with a name like "test_*")
+        self._current_test_name     = None
+        
+        # For ease of maintenance of tests, each output for a test will be named using standard numbering 
+        # enforced by the "next_*" functions
+        self._output_nb             = 0
+
     def stack(self):
         return self._stack
 
+    def currentTestName(self):
+        return self._current_test_name
+
+    def scenario(self):
+        return self._scenario
+
     def config(self):
         return self._config
+
+    def current_environment_name(self, parent_trace):
+        '''
+        Returns the name of the current environment in the stack's store.
+        '''
+        self.stack().store().current_environment(parent_trace).name(parent_trace)
 
     def selectStack(self, parent_trace):
         '''
@@ -238,9 +257,98 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         self._scenario          = scenario
 
-    def provisionIsolatedEnvironment(self, parent_trace, environment_name):
+    def setCurrentTestName(self, test_name):
         '''
+        Must be called by all concrete integration tests at the start. It will impact the filename in which
+        regression test is persisted.
         '''
+        self._current_test_name = test_name
+
+    def next_snapshot(self, description=None):
+        '''
+        Returns a string that can be used as the output name for test output that is a snapshot of
+        a KnowledgeBaseStore's environment
+        '''
+        return self.next_output_name(output_type="snapshot", description=description)
+
+    def next_manifest(self, description=None):
+        '''
+        Returns a string that can be used as the output name for test output that is a manifest YAML file
+        '''
+        return self.next_output_name(output_type="manifest", description=description)
+
+    def next_log(self, description=None):
+        '''
+        Returns a string that can be used as the output name for test output that is a log
+        produced KnowledgeBase processing
+        '''
+        return self.next_output_name(output_type="log", description=description)
+
+    def next_xl_layout(self, worksheet_name, description=None):
+        '''
+        Returns a string that can be used as the output name for test output describing an Excel layout
+        for the worksheet called `worksheet_name`
+        '''
+        if description == None:
+            new_description     = worksheet_name
+        else:
+            new_description     = description + "." + worksheet_name
+        return self.next_output_name(output_type="xl_layout", description=new_description)
+
+    def next_xl_format(self, worksheet_name, description=None):
+        '''
+        Returns a string that can be used as the output name for test output describing an Excel format
+        for the worksheet called `worksheet_name`
+        '''
+        if description == None:
+            new_description     = worksheet_name
+        else:
+            new_description     = description + "." + worksheet_name
+        return self.next_output_name(output_type="xl_format", description=new_description)
+
+    def next_output_name(self, output_type, description=None):
+        '''
+        Returns a string that can be used as the output name for test output of the given `output_type`.
+        For readability of test output filenames, extra space padding is added in the returned filename
+
+        @param output_type A string, to identify the kind of output  this is
+        @paran description An optional string, which if given gets appended to the output name returned.
+                            Ignored if set to None (the default)
+        '''
+        # Pad the output_type to at least 20 characters
+        if len(output_type) < 20:
+            padding                 = " " * (20 - len(output_type))
+            output_type             += padding
+        if description == None:
+            description             = ""
+
+        # Pad description to at least 30 characters
+        if len(description) < 30:
+            padding                 = " " * (30 - len(description))
+            description             += padding  
+
+        output_name             = self._current_test_name + ".T" \
+                                    + str(self._output_nb) + "_" + output_type + description
+        self._output_nb         += 1
+        return output_name
+
+    def provisionIsolatedEnvironment(self, parent_trace, environment_name = None):
+        '''
+        Creates a new environment as a sub-environment of the current environment, and activates it.
+        The new environment is configured to have a dedicated, isolated collaboration area which
+        this method populates by downloading the content from the clientURL area configured in
+        the Apodeixi configuration used by the testing framework.
+
+        The paramenter `environment_name` is used as the name of the newly created environment,
+        unless it is set to None (the default), in which case a standard name is given using
+        the structure
+
+            <scenario>.<test name>_ENV
+
+        '''
+        if environment_name == None:
+            environment_name        = self.scenario() + "." + self.currentTestName() + "_ENV"
+
         my_trace                    = parent_trace.doing("Removing previously created environment, if any",
                                                     data = {'environment name': environment_name})
         store                       = self.stack().store()
@@ -324,17 +432,41 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                             id_column           = id_column)
 
 
-    def _assert_current_environment(self, parent_trace, snapshot_name):     
+    def check_environment_contents(self, parent_trace, snapshot_name = None):     
         '''
-        Helper method to validate current environment's folder hierarchy is as expected
+        Helper method to validate current environment's folder hierarchy is as expected at this point in time
+        in the execution of a test case.
+
+        @param snapshot_name A string, corresponding to the output name under which the regression output should
+                            be generated. If set to None, then it will be computed by calling self.next_snapshot()
         '''
         current_env         = self.stack().store().current_environment(parent_trace)
-        #env_hierarchy       = current_env.folder_hierarchy( parent_trace        = parent_trace,
-        #                                                    include_timestamps  = False)
+
+        if snapshot_name == None:
+            snapshot_name   = self.next_snapshot()
+
         description_dict    = current_env.describe(parent_trace, include_timestamps = False)
-        # TODO: add some data to environment, maybe calling a controller on some posting
 
         self._compare_to_expected_yaml( parent_trace        = parent_trace,
-                                        output_dict         = description_dict, #env_hierarchy.to_dict(),
+                                        output_dict         = description_dict,
                                         test_output_name    = snapshot_name, 
                                         save_output_dict    = True)
+
+    def trace_environment(self, parent_trace, activity):
+        '''
+        Helper method to reduce clutter in derived classes. 
+        
+        It returns a FunctionalTrace for the `activity` that is a child of `parent_trace`.
+        It appends some data elements, such as the KnowledgeBaseStore's current environment we are under,
+        so having this done in a common function is how clutter is reduced and consistency maximized.
+
+        @param parent_trace     A FunctionalTrace from which we seek a child trace
+        @param activity  A string corresponding to the description of the functional behavior that the resulting
+                        trace is about.
+        '''
+        my_trace        = parent_trace.doing(activity,
+                                data        = { "environment":      self.current_environment_name(parent_trace)},
+                                origination = { 'concrete class':   str(self.__class__.__name__), 
+                                                'signaled_from':    __file__})
+        return my_trace
+        

@@ -1,19 +1,24 @@
-big_rocks_posting_ENV:
+environment_lifecycle.play_in_sandbox_ENV:
   external-collaboration:
     journeys:
       Dec 2020:
         FusionOpus:
           Default:
+            OPUS_big-rocks.journeys.a6i.xlsx: '
+
+              Size (in bytes):  25163
+
+              '
             _ARCHIVE:
               (Timestamp omitted) Posting:
-                OPUS_big-rocks.journeys.a6i.xlsx: '
-
-                  Size (in bytes):  25163
-
-                  '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  2377
+                  Size (in bytes):  2358
+
+                  '
+                play_in_sandbox.big-rocks.journeys.a6i.xlsx: '
+
+                  Size (in bytes):  25146
 
                   '
   kb:
@@ -24,19 +29,19 @@ big_rocks_posting_ENV:
             Default:
               _ARCHIVE:
                 (Timestamp omitted) Posting:
-                  OPUS_big-rocks.journeys.a6i.xlsx: '
-
-                    Size (in bytes):  25163
-
-                    '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  2377
+                    Size (in bytes):  2358
+
+                    '
+                  play_in_sandbox.big-rocks.journeys.a6i.xlsx: '
+
+                    Size (in bytes):  25146
 
                     '
               big-rocks.journeys.a6i.xlsx: '
 
-                Size (in bytes):  25163
+                Size (in bytes):  25146
 
                 '
     manifests:

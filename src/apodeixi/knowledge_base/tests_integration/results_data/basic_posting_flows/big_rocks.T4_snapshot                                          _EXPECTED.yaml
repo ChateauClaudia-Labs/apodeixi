@@ -1,4 +1,4 @@
-big_rocks_posting_ENV:
+basic_posting_flows.big_rocks_ENV:
   external-collaboration:
     journeys:
       Dec 2020:
@@ -6,11 +6,6 @@ big_rocks_posting_ENV:
           Default:
             _ARCHIVE:
               (Timestamp omitted) Posting:
-                FORM_REQUEST_EVENT_LOG.txt: '
-
-                  Size (in bytes):  359
-
-                  '
                 OPUS_big-rocks.journeys.a6i.xlsx: '
 
                   Size (in bytes):  25163
@@ -18,14 +13,9 @@ big_rocks_posting_ENV:
                   '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  2377
+                  Size (in bytes):  2389
 
                   '
-            big-rocks.journeys.a6i.xlsx: '
-
-              Size (in bytes):  7100
-
-              '
   kb:
     excel-postings:
       journeys:
@@ -34,11 +24,6 @@ big_rocks_posting_ENV:
             Default:
               _ARCHIVE:
                 (Timestamp omitted) Posting:
-                  FORM_REQUEST_EVENT_LOG.txt: '
-
-                    Size (in bytes):  359
-
-                    '
                   OPUS_big-rocks.journeys.a6i.xlsx: '
 
                     Size (in bytes):  25163
@@ -46,7 +31,7 @@ big_rocks_posting_ENV:
                     '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  2377
+                    Size (in bytes):  2389
 
                     '
               big-rocks.journeys.a6i.xlsx: '

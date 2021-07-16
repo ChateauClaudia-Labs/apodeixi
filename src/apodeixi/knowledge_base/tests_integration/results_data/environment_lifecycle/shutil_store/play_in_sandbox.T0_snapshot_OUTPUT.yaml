@@ -1,4 +1,4 @@
-test_create_environment_ENV:
+environment_lifecycle.play_in_sandbox_ENV:
   external-collaboration:
     journeys:
       Dec 2020:

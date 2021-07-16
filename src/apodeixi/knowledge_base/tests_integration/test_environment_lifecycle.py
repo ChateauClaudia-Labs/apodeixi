@@ -22,40 +22,33 @@ class Test_EnvironmentLIfecycle(ApodeixiIntegrationTest):
         '''
         self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
 
-    def test_create_environment(self):
 
-        TEST_CASE                       = 'test_create_environment'
-
-        ENVIRONMENT_NAME                = TEST_CASE + "_ENV"
-
-        POSTING_FULLPATH                = self.input_data + "/" + TEST_CASE + "_big-rocks.journeys.a6i.xlsx" 
-        POSTING_LABEL_SHEET             = "Sheet1"
+    def test_play_in_sandbox(self):
 
         self.setScenario("environment_lifecycle")
+        self.setCurrentTestName('play_in_sandbox')
+
+        POSTING_FULLPATH            = self.input_data + "/" + self.currentTestName() + ".big-rocks.journeys.a6i.xlsx" 
+        POSTING_LABEL_SHEET         = "Sheet1"
                     
-        all_manifests_dicts     = []
+        all_manifests_dicts         = []
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Running " + TEST_CASE)
+            root_trace              = FunctionalTrace(parent_trace=None).doing("Running " + self.currentTestName())
 
-            my_trace                            = root_trace.doing("Isolating test case")
-            self.provisionIsolatedEnvironment(my_trace, ENVIRONMENT_NAME)
-            self._assert_current_environment(   parent_trace    = my_trace,
-                                                snapshot_name   = ENVIRONMENT_NAME + "_Step_0")
+            my_trace                = self.trace_environment(root_trace, "Isolating test case")
+            self.provisionIsolatedEnvironment(my_trace)
+            self.check_environment_contents(my_trace)
 
-            my_trace            = root_trace.doing("Making a posting in environment '" + ENVIRONMENT_NAME + "'")
-            response, log_txt   = self.stack().kb().postByFile( parent_trace                = my_trace, 
-                                                                path_of_file_being_posted   = POSTING_FULLPATH,
-                                                                excel_sheet                 = POSTING_LABEL_SHEET)
+            my_trace                = self.trace_environment(root_trace, "Doing postByFile")
+            response, log_txt       = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                    path_of_file_being_posted   = POSTING_FULLPATH,
+                                                                    excel_sheet                 = POSTING_LABEL_SHEET)
+            self.check_environment_contents(my_trace)
 
-            self._assert_current_environment(   parent_trace    = my_trace,
-                                                snapshot_name   = ENVIRONMENT_NAME + "_Step_1")
-
-            my_trace            = root_trace.doing("Deactivating environment '" + ENVIRONMENT_NAME + "'")
-            self.stack().store().deactivate(parent_trace = my_trace)
-
-            self._assert_current_environment(   parent_trace    = my_trace,
-                                                snapshot_name   = TEST_CASE + "_BASE") 
+            my_trace                = self.trace_environment(root_trace, "Deactivating environment")
+            self.stack().store().deactivate(my_trace)
+            self.check_environment_contents(my_trace) 
 
         except ApodeixiError as ex:
             print(ex.trace_message()) 
@@ -69,7 +62,7 @@ if __name__ == "__main__":
         T = Test_EnvironmentLIfecycle()
         T.setUp()
         what_to_do = args[1]
-        if what_to_do=='create_environment':
-            T.test_create_environment()
+        if what_to_do=='play_in_sandbox':
+            T.test_play_in_sandbox()
 
     main(_sys.argv)

@@ -1,26 +1,31 @@
-test_create_environment_ENV:
+basic_posting_flows.big_rocks_ENV:
   external-collaboration:
     journeys:
       Dec 2020:
         FusionOpus:
           Default:
-            OPUS_big-rocks.journeys.a6i.xlsx: '
-
-              Size (in bytes):  25163
-
-              '
             _ARCHIVE:
               (Timestamp omitted) Posting:
+                FORM_REQUEST_EVENT_LOG.txt: '
+
+                  Size (in bytes):  371
+
+                  '
+                OPUS_big-rocks.journeys.a6i.xlsx: '
+
+                  Size (in bytes):  25163
+
+                  '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  2382
+                  Size (in bytes):  2389
 
                   '
-                test_create_environment_big-rocks.journeys.a6i.xlsx: '
+            big-rocks.journeys.a6i.xlsx: '
 
-                  Size (in bytes):  25146
+              Size (in bytes):  7100
 
-                  '
+              '
   kb:
     excel-postings:
       journeys:
@@ -29,19 +34,24 @@ test_create_environment_ENV:
             Default:
               _ARCHIVE:
                 (Timestamp omitted) Posting:
-                  POST_EVENT_LOG.txt: '
+                  FORM_REQUEST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  2382
+                    Size (in bytes):  371
 
                     '
-                  test_create_environment_big-rocks.journeys.a6i.xlsx: '
+                  OPUS_big-rocks.journeys.a6i.xlsx: '
 
-                    Size (in bytes):  25146
+                    Size (in bytes):  25163
+
+                    '
+                  POST_EVENT_LOG.txt: '
+
+                    Size (in bytes):  2389
 
                     '
               big-rocks.journeys.a6i.xlsx: '
 
-                Size (in bytes):  25146
+                Size (in bytes):  25163
 
                 '
     manifests:
