@@ -1,7 +1,7 @@
 import sys                                                      as _sys
 
 
-from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest, FileStoreTestStack
+from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest, ShutilStoreTestStack
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
@@ -21,7 +21,7 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
         be used by this test case.
         '''
-        self._stack                 = FileStoreTestStack(parent_trace, self._config)
+        self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
 
     def test_big_rocks_posting(self):
 

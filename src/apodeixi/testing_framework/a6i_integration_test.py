@@ -59,7 +59,7 @@ class IntegrationTestStack():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-class FileStoreTestStack(IntegrationTestStack):
+class ShutilStoreTestStack(IntegrationTestStack):
     '''
     Helper class to represent the stack used by an ApodeixiIntegrationTest, when the stack choice made is
     for a Shutil_KBStore_Impl
@@ -80,13 +80,13 @@ class FileStoreTestStack(IntegrationTestStack):
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
         self._kb                        = KnowledgeBase(my_trace, self._store)
 
-    MY_NAME                             = "file_store"
+    MY_NAME                             = "shutil_store"
     def name(self, parent_trace):
         '''
         Returns a string used to identify this stack, used in the filing structure for
         the regression output of integration tests using this stack
         '''
-        ME                  = FileStoreTestStack
+        ME                  = ShutilStoreTestStack
         return ME.MY_NAME
 
     def store(self):

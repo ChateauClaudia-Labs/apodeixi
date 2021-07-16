@@ -1,6 +1,6 @@
 import sys                                              as _sys
 
-from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, FileStoreTestStack
+from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, ShutilStoreTestStack
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                     import DictionaryFormatter 
 
@@ -22,7 +22,7 @@ class Test_Shutil_KBStore_Impl(ApodeixiIntegrationTest):
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
         be used by this test case.
         '''
-        self._stack                 = FileStoreTestStack(parent_trace, self._config)
+        self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
 
     def test_locate_milestone_postings(self):
         POSTING_API                     = 'milestone.journeys.a6i'
