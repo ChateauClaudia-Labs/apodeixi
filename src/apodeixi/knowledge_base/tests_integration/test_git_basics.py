@@ -55,7 +55,7 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
                                                 use_timestamps      = False,
                                                 path_mask           = self._path_mask)
             self.store.current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
-                                                                            isolate_collab_folder = True)
+                                                                            isolate_collab_area = True)
 
             my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
             self.store.activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)

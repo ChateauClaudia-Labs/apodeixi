@@ -8,7 +8,7 @@ from apodeixi.util.path_utils              			    import FolderHierarchy
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
 
-class Test_File_KB_Environments(ApodeixiIntegrationTest):
+class Test_File_KBEnv_Impls(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
@@ -38,24 +38,8 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Running " + TEST_CASE)
 
-            my_trace            = root_trace.doing("Removing previously created environment, if any",
-                                                        data = {'environment name': ENVIRONMENT_NAME})
-            stat                = self.stack().store().removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
-            
-            my_trace            = root_trace.doing("Creating an environment", 
-                                                    data={  'environment_name'    : ENVIRONMENT_NAME},
-                                                    origination = { 'signaled_from' : __file__,
-                                                                    'concrete class': str(self.__class__.__name__)})
-            env_config                  = KB_Environment_Config(
-                                                root_trace, 
-                                                read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                                use_timestamps      = False,
-                                                path_mask           = self._path_mask)
-            self.stack().store().current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
-                                                                        isolate_collab_folder = True)
-
-            my_trace            = root_trace.doing("Activating environment '" + ENVIRONMENT_NAME + "'")
-            self.stack().store().activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
+            my_trace                            = root_trace.doing("Isolating test case")
+            self.provisionIsolatedEnvironment(my_trace, ENVIRONMENT_NAME)
             self._assert_current_environment(   parent_trace    = my_trace,
                                                 snapshot_name   = ENVIRONMENT_NAME + "_Step_0")
 
@@ -82,7 +66,7 @@ class Test_File_KB_Environments(ApodeixiIntegrationTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_File_KB_Environments()
+        T = Test_File_KBEnv_Impls()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='create_environment':

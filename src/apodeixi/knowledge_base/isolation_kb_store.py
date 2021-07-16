@@ -4,7 +4,7 @@ import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.file_kb_store              import File_KBStore_Impl
-from apodeixi.knowledge_base.kb_environment             import File_KB_Environment, KB_Environment_Config
+from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl, KB_Environment_Config, KB_Environment
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, \
                                                                 InitiativesFilingCoordinates, \
                                                                 ArchiveFilingCoordinates, LogFilingCoordinates, \
@@ -146,15 +146,17 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                             read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
                                             use_timestamps      = True,
                                             path_mask           = None)
-        self._base_env              = File_KB_Environment(  parent_trace            = root_trace, 
+        base_env_impl               = File_KBEnv_Impl(  parent_trace            = root_trace, 
                                                             name                    = _BASE_ENVIRONMENT, 
                                                             store                   = self, 
                                                             parent_environment      = None,
                                                             config                  = env_config,
                                                             postings_rootdir        = postings_rootdir,
                                                             manifests_roodir        = manifests_roodir,
-                                                            clientURL               = self._clientURL)  
-          
+                                                            clientURL               = self._clientURL) 
+
+        self._base_env              = KB_Environment(   parent_trace            = parent_trace,
+                                                        impl                    = base_env_impl)  
         self._current_env           = self._base_env
 
         self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
@@ -269,7 +271,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         
         parent_transaction_env      = self.parent_transaction_env(parent_trace)
         if parent_transaction_env != None and parent_env != parent_transaction_env:
-            raise ApodeixiError(parent_trace, "Can't e d transaction because store is an inconsistent state: "
+            raise ApodeixiError(parent_trace, "Can't end transaction because store is an inconsistent state: "
                                             + " the transaction being aborted was a child transaction of "
                                             + "an environment that is not its parent",
                                             data = {"transaction being ended":    env.name(parent_trace),
@@ -304,9 +306,9 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         current environment lacks the data in question, the I/O read service will search in the parent 
         environment and, if it finds it, will copy it to the current environment. 
         '''
-        if self._current_env._parent_environment == None: # Can't failover to a non-existent parent
+        if self._current_env.parent(parent_trace) == None: # Can't failover to a non-existent parent
             return False
-        if self._current_env._config.read_misses_policy == KB_Environment_Config.FAILOVER_READS_TO_PARENT:
+        if self._current_env.config(parent_trace).read_misses_policy == KB_Environment_Config.FAILOVER_READS_TO_PARENT:
             return True
         else:
             return False
@@ -380,7 +382,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         return self._current_env
 
     def parent_environment(self, parent_trace):
-        return self._current_env._parent_environment
+        return self._current_env.parent(parent_trace)
 
     def base_environment(self, parent_trace):
         return self._base_env
@@ -392,7 +394,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
         In the process it also removes any child environment, recursively down.
         '''
-        ME                          = File_KB_Environment
+        ME                          = File_KBEnv_Impl
 
         env_to_remove               = self.base_environment(parent_trace).findSubEnvironment(parent_trace, name)
 

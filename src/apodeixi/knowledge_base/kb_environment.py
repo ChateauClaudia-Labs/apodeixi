@@ -1,4 +1,5 @@
 import os                                               as _os
+import shutil                                           as _shutil
 
 
 from apodeixi.util.a6i_error                            import ApodeixiError
@@ -52,8 +53,6 @@ class KB_Environment_Config():
 
 class KB_Environment():
     '''
-    Abstract class.
-
     Represents a logical "environment", which can be thought of as a slice of a KnowledgeBaseStore that has 
     the following isolation functionality:
 
@@ -82,9 +81,154 @@ class KB_Environment():
     Environments naturally are organized in a tree structure. Each node is an instance of the KB_Environment,
     and are part of "doubly linked list": each node points to its parent, and also each node has a dictionary
     of its children, whose keys are the names (of type str) of the child environments.
-    '''
-    def __init__(self, parent_trace, name, store, parent_environment, config):
 
+    There can be multiple implementation of environment services. This class supports swapping different
+    implementations by delegating all services to an implementation class
+
+    @param impl An object implementing the services of a KB_Environment, to which this KB_Environment
+                class can delegate to.
+    '''
+    def __init__(self, parent_trace, impl):
+        self._impl                           = impl
+        return
+
+    def postingsURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate the postings area in the Knowledge Base store's current environment
+        '''
+        return self._impl.postingsURL(parent_trace)
+
+    def manifestsURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate the manifests area in the Knowledge Base store's current environment
+        '''
+        return self._impl.manifestsURL(parent_trace)
+
+    def clientURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate external collaboration area (such as SharePoint) that
+        this environment is associated with
+        '''
+        return self._impl.clientURL(parent_trace)
+
+    def name(self, parent_trace):
+        '''
+        Returns a string corresponding to the unique name that identifes this environment object among all
+        environments known to the KnowledgeBaseStore.
+        '''
+        return self._impl.name(parent_trace)
+
+    def config(self, parent_trace):
+        '''
+        Return a KB_Environment_Config object for this environment
+        '''
+        return self._impl.config(parent_trace)
+
+    def parent(self, parent_trace):
+        '''
+        Returns a KB environment object, corresponding to this environment's parent, if one exists, or None otherwise.
+        '''
+        return self._impl.parent(parent_trace)
+
+    def children_names(self, parent_trace):
+        '''
+        Returns a list of strings, corresponding to the names that uniquely identify environments that are
+        direct children of this environment in the KnowledgeBaseStore.
+        '''
+        return self._impl.children_names(parent_trace)
+
+    def child(self, parent_trace, child_name):
+        '''
+        Returns a KB_Environment object, corresponding to the child of this environment identified by the
+        string `child_name`. Returns None if no such child exists.
+        '''
+        return self._impl.child(parent_trace, child_name)
+
+    def removeChild(self, parent_trace, child_name):
+        '''
+        Disconnects an environment called `child_name` as a direct child of this environment, if is indeed a child.
+
+        @param child_name A string, uniquely identifying the environment to disconnect among all environments in
+                the KnowledgeBaseStore.
+        '''
+        return self._impl.removeChild(parent_trace, child_name)
+
+    def findSubEnvironment(self, parent_trace, name):
+        '''
+        Searches for a descendent environment with the given name (so a child environment or a 
+        child of a child, etc. If none exists, returns None
+        '''
+        return self._impl.findSubEnvironment(parent_trace, name)
+
+    def addSubEnvironment(self, parent_trace, name, env_config, isolate_collab_area = False):
+        '''
+        Creates and returns a new File_KBEnv_Impl with name `name` and using self as the parent environment.
+
+        @param name A string, used as the unique name of this environment among all environments in the store
+        @param env_config A KB_Environment_Config object that will be set as the configuration of the newly
+                    created sub-environment
+        @param isolate_collab_area A boolean to determine the relationship that the sub-environment being
+                    created should have with the external collaboration area (such as SharePoint) from where users 
+                    of the KnowledgeBase post spreadsheets and into which users request generated forms and reports 
+                    to be written to.
+
+                    By default, the boolean is False, in which case the sub-environment shares the same
+                    external collaboration folder as the parent.
+
+                    If the caller sets it to True, then the sub-environment will create an internal area
+                    that will be treated as the "external collaboration area" for all KnowledgeBaseStore
+                    processing when this sub-environment is set as the current environment.
+                    
+                    This setting should be set to False in normal production usage. It is mainly used in test situations 
+                    where the parent environment is associated to a collaboration is a deterministic set of files 
+                    that should not be mutated by test cases, since it is used to "seed" multiple test_cases.
+                    In such cases, test cases will need to create an environment to serve as
+                    the test case's "root", and which will have to be associated to a dedicated notion of 
+                    "external collaboration area" specific to that test case.
+                    In those cases this flag should be set to True to ensure the creation of such an
+                    environment-specific "external collaboration area" with the required isolation.
+        '''
+        return self._impl.addSubEnvironment(    parent_trace, 
+                                                parent_env          = self,
+                                                name                = name, 
+                                                env_config          = env_config, 
+                                                isolate_collab_area = isolate_collab_area)
+
+    def seedCollaborationArea(self, parent_trace, sourceURL):
+        '''
+        Populates the "external collaboration area" associated to this environment by copying information
+        from the sourceURL
+
+        @param sourceURL A string identifying an area with content that should be downloaded to populate
+                        the "external collaboration area" associated to this environment.
+        '''
+        return self._impl.seedCollaborationArea(parent_trace, sourceURL)
+
+    def describe(self, parent_trace, include_timestamps = True):
+        '''
+        Returns a dictionary object that describes the contents of the environment
+
+        @param include_timestamps A boolean, which defaults to True. If False, it will mask 
+                all timestamps from the description (for example, in logs). In production this flag should normally
+                 be set to True.
+                The main use case for setting it to false is regression testing, where the desire for
+                deterministic output motivates the need for masking timestamps.
+        '''
+        return self._impl.describe(parent_trace, include_timestamps)
+
+class File_KBEnv_Impl(KB_Environment):
+    '''
+    Implementation of KB_Environment services when KnowledgeBase is configured to use a file-system based stack.
+    '''
+    def __init__(self, parent_trace, name, store, parent_environment, config, 
+                    postings_rootdir, manifests_roodir, clientURL):
+        '''
+        super().__init__(   parent_trace            = parent_trace, 
+                            name                    = name, 
+                            store                   = store, 
+                            parent_environment      = parent_environment,
+                            config                  = config)
+        '''
         if not type(config)==KB_Environment_Config:
             raise ApodeixiError(parent_trace, "Unsupported config provided when creating environment",
                                                 data = {"config type expected":         str(KB_Environment_Config),
@@ -96,29 +240,40 @@ class KB_Environment():
         self._store                          = store
         self._name                           = name
         self._children                       = {}
-        return
+
+        self._postings_rootdir                      = postings_rootdir
+        self._manifests_roodir                      = manifests_roodir 
+        self._clientURL                             = clientURL
+
+    ENVS_FOLDER                                     = "envs"
+    POSTINGS_ENV_DIR                                = "kb/excel-postings"
+    MANIFESTS_ENV_DIR                               = "kb/manifests"
+    COLLABORATION_DIR                               = "external-collaboration"
 
     def postingsURL(self, parent_trace):
         '''
-        Abstract method.
-
         Returns a string that can be used to locate the postings area in the Knowledge Base store's current environment
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'postings_rootdir' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._postings_rootdir
 
     def manifestsURL(self, parent_trace):
         '''
-        Abstract method.
-
         Returns a string that can be used to locate the manifests area in the Knowledge Base store's current environment
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifests_roodir' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        return self._manifests_rootdir
+
+    def clientURL(self, parent_trace):
+        '''
+        Returns a string that can be used to locate external collaboration area (such as SharePoint) that
+        this environment is associated with
+        '''
+        return self._clientURL
 
     def name(self, parent_trace):
+        '''
+        Returns a string corresponding to the unique name that identifes this environment object among all
+        environments known to the KnowledgeBaseStore.
+        '''
         return self._name
 
     def config(self, parent_trace):
@@ -137,26 +292,6 @@ class KB_Environment():
     def removeChild(self, parent_trace, child_name):
         if child_name in self._children.keys():
             self._children.pop(child_name)
-
-class File_KB_Environment(KB_Environment):
-    '''
-    '''
-    def __init__(self, parent_trace, name, store, parent_environment, config, 
-                    postings_rootdir, manifests_roodir, clientURL):
-        super().__init__(   parent_trace            = parent_trace, 
-                            name                    = name, 
-                            store                   = store, 
-                            parent_environment      = parent_environment,
-                            config                  = config)
-
-        self._postings_rootdir                      = postings_rootdir
-        self._manifests_roodir                      = manifests_roodir 
-        self._clientURL                             = clientURL
-
-    ENVS_FOLDER                                     = "envs"
-    POSTINGS_ENV_DIR                                = "kb/excel-postings"
-    MANIFESTS_ENV_DIR                               = "kb/manifests"
-    COLLABORATION_DIR                               = "external-collaboration"
 
     def postingsURL(self, parent_trace):
         return self._postings_rootdir
@@ -183,14 +318,16 @@ class File_KB_Environment(KB_Environment):
         # If we get this far it means we never found it
         return None
 
-    def addSubEnvironment(self, parent_trace, name, env_config, isolate_collab_folder = False):
+    def addSubEnvironment(self, parent_trace, parent_env, name, env_config, isolate_collab_area = False):
         '''
-        Creates and returns a new File_KB_Environment with name `name` and using self as the parent environment.
+        Creates and returns a new File_KBEnv_Impl with name `name` and using self as the parent environment.
 
+        @param parent_env A KB_Environment object, that contains this File_KBEnv_Impl as its implementation
+                    (i.e., parent_env._impl == self)
         @param name A string, used as the unique name of this environment among all environments in the store
         @param env_config A KB_Environment_Config object that will be set as the configuration of the newly
                     created sub-environment
-        @param isolate_collab_folder A boolean to determine how the `_clientURL`
+        @param isolate_collab_area A boolean to determine how the `_clientURL`
                     attribute should be set for the sub-environment being created. This is an attribute that
                     points to folders external to the KnowledgeBase (such as SharePoint) from where users post 
                     spreadsheets and into which users request generated forms and reports to be written to.
@@ -204,7 +341,7 @@ class File_KB_Environment(KB_Environment):
                     the test case's "root", and will need to have a notion of `_clientURL`
                     in that root. In those cases this flag should be set to True to ensure the required isolation.
         '''
-        ME                          = File_KB_Environment
+        ME                          = File_KBEnv_Impl
 
         root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
         envs_dir                    = root_dir + "/" + ME.ENVS_FOLDER
@@ -227,7 +364,7 @@ class File_KB_Environment(KB_Environment):
         subenv_postings_rootdir     = envs_dir + "/" + sub_env_name + "/" + ME.POSTINGS_ENV_DIR
         subenv_manifests_rootdir    = envs_dir + "/" + sub_env_name + "/" + ME.MANIFESTS_ENV_DIR
 
-        if isolate_collab_folder:
+        if isolate_collab_area:
             subenv_collab_folder = envs_dir + "/" + sub_env_name + "/" + ME.COLLABORATION_DIR
         else:
             subenv_collab_folder = self._clientURL
@@ -236,25 +373,68 @@ class File_KB_Environment(KB_Environment):
         PathUtils().create_path_if_needed(my_trace, subenv_manifests_rootdir)
 
         my_trace                    = parent_trace.doing("Creating sub environment", data = {'sub_env_name': sub_env_name})
-        sub_env                     = File_KB_Environment(  parent_trace                    = my_trace, 
+        sub_env_impl                = File_KBEnv_Impl(  parent_trace                    = my_trace, 
                                                             name                            = sub_env_name, 
                                                             store                           = self._store, 
-                                                            parent_environment              = self,
+                                                            parent_environment              = parent_env,
                                                             config                          = env_config,
                                                             postings_rootdir                = subenv_postings_rootdir,
                                                             manifests_roodir                = subenv_manifests_rootdir,
                                                             clientURL   = subenv_collab_folder)
 
+        sub_env                     = KB_Environment(   parent_trace                        = my_trace,
+                                                        impl                                = sub_env_impl)
+
         self._children[sub_env_name] = sub_env
         return sub_env
 
-    def folder_hierarchy(self, parent_trace, include_timestamps = True):
+    def seedCollaborationArea(self, parent_trace, sourceURL):
+        '''
+        Populates the "external collaboration area" associated to this environment by copying information
+        from the sourceURL
+
+        @param sourceURL A string identifying an area with content that should be downloaded to populate
+                        the "external collaboration area" associated to this environment.
+        '''
+        # We are using an isolated collaboration folder specific to our environment, so need
+        # to populate it with the data in the test_db/sharepoint area (the "immutable, deterministic seed")
+        area_to_seed     = self.clientURL(parent_trace)
+
+        def _ignore(subdir, file_list):
+            IGNORE_LIST         = ["Thumbs.db"]
+            dont_copy_list      = [f for f in file_list if f in IGNORE_LIST]
+            return dont_copy_list
+        try:
+            _shutil.copytree(   src                 = sourceURL, 
+                                dst                 = area_to_seed,
+                                ignore              = _ignore)
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Found an error in downloading the content for an environment's collaboration area",
+                                            data = {"URL to download from":            self._clientURL, 
+                                                    "environment collaobration area":     area_to_seed,
+                                                    "error":                str(ex)})
+
+    def describe(self, parent_trace, include_timestamps):
+        '''
+        Returns a dictionary object that describes the contents of the environment
+
+        @param include_timestamps A boolean. If False, it will mask 
+                all timestamps from the description (for example, in logs). In production this flag should normally
+                 be set to True.
+                The main use case for setting it to false is regression testing, where the desire for
+                deterministic output motivates the need for masking timestamps.
+        '''
+        env_hierarchy       = self._folder_hierarchy(   parent_trace        = parent_trace,
+                                                        include_timestamps  = include_timestamps)
+        return env_hierarchy.to_dict()
+
+    def _folder_hierarchy(self, parent_trace, include_timestamps):
         '''
         Returns a FolderHierarchy object that describes the current contents of this environment
         '''
-        ME                          = File_KB_Environment
+        ME                          = File_KBEnv_Impl
 
-        if self == self._store.base_environment(parent_trace):
+        if self.name(parent_trace) == self._store.base_environment(parent_trace).name(parent_trace):
             my_dir                      = self._store.base_environment(parent_trace).manifestsURL(parent_trace)
         else:        
             root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))

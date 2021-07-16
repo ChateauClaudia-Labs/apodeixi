@@ -41,7 +41,7 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
                                                 use_timestamps      = False,
                                                 path_mask           = self._path_mask)
             self.stack().store().current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
-                                                                            isolate_collab_folder = True)
+                                                                            isolate_collab_area = True)
             self.stack().store().activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
 
             my_trace                    = root_trace.doing("Running WorkstreamAggregator")

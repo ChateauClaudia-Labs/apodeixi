@@ -1,6 +1,6 @@
 import sys                                              as _sys
 import os                                               as _os
-import shutil                                           as _shutil
+#import shutil                                           as _shutil
 import inspect
 
 from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
@@ -51,13 +51,16 @@ class IntegrationTestStack():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-    def seedClientArea(self, parent_trace):
+    def seedTestClientArea(self, parent_trace):
         '''
-        Abstract method. Populates the client area that the integration test should use
+        Populates the client area that the integration test should use, determined based on the
+        store's current environment as of the moment this method is called.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'seedClientURLArea' in concrete class",
-                                                origination = {'concrete class': str(self.__class__.__name__), 
-                                                                                'signaled_from': __file__})
+        # We are using an isolated collaboration folder specific to our environment, so need
+        # to populate it with the data in the test_db/sharepoint area (the "immutable, deterministic seed")
+        current_env             = self.store().current_environment(parent_trace)
+
+        current_env.seedCollaborationArea(parent_trace, sourceURL = self._clientURL)
 
 class ShutilStoreTestStack(IntegrationTestStack):
     '''
@@ -101,28 +104,7 @@ class ShutilStoreTestStack(IntegrationTestStack):
         '''
         return self._kb
 
-    def seedTestClientArea(self, parent_trace):
-        '''
-        Populates the client area that the integration test should use, determined based on the
-        store's current environment as of the moment this method is called.
-        '''
-        # We are using an isolated collaboration folder specific to our environment, so need
-        # to populate it with the data in the test_db/sharepoint area (the "immutable, deterministic seed")
-        area_to_seed     = self.store().current_environment(parent_trace).clientURL(parent_trace)
 
-        def _ignore(subdir, file_list):
-            IGNORE_LIST         = ["Thumbs.db"]
-            dont_copy_list      = [f for f in file_list if f in IGNORE_LIST]
-            return dont_copy_list
-        try:
-            _shutil.copytree(   src                 = self._clientURL, 
-                                dst                 = area_to_seed,
-                                ignore              = _ignore)
-        except Exception as ex:
-            raise ApodeixiError(parent_trace, "Found an error in copying client area's seed to test environment",
-                                            data = {"seed area":            self._clientURL, 
-                                                    "environment area":     area_to_seed,
-                                                    "error":                str(ex)})
 
 class GITStoreTestStack(IntegrationTestStack):
     '''
@@ -167,29 +149,6 @@ class GITStoreTestStack(IntegrationTestStack):
         Returns the KnowledgeBase instance provisioned as part of this stack.
         '''
         return self._kb
-
-    def seedTestClientArea(self, parent_trace):
-        '''
-        Populates the client area that the integration test should use, determined based on the
-        store's current environment as of the moment this method is called.
-        '''
-        # We are using an isolated collaboration folder specific to our environment, so need
-        # to populate it with the data in the test_db/sharepoint area (the "immutable, deterministic seed")
-        area_to_seed     = self.store().current_environment(parent_trace).clientURL(parent_trace)
-
-        def _ignore(subdir, file_list):
-            IGNORE_LIST         = ["Thumbs.db"]
-            dont_copy_list      = [f for f in file_list if f in IGNORE_LIST]
-            return dont_copy_list
-        try:
-            _shutil.copytree(   src                 = self._clientURL, 
-                                dst                 = area_to_seed,
-                                ignore              = _ignore)
-        except Exception as ex:
-            raise ApodeixiError(parent_trace, "Found an error in copying client area's seed to test environment",
-                                            data = {"seed area":            self._clientURL, 
-                                                    "environment area":     area_to_seed,
-                                                    "error":                str(ex)})
 
 class ApodeixiIntegrationTest(ApodeixiSkeletonTest):  
     '''
@@ -294,7 +253,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                             use_timestamps      = False,
                                             path_mask           = self._path_mask)
         store.current_environment(my_trace).addSubEnvironment(my_trace, environment_name, env_config,
-                                                                    isolate_collab_folder = True)
+                                                                    isolate_collab_area = True)
         store.activate(parent_trace = my_trace, environment_name = environment_name)
 
         my_trace                    = parent_trace.doing("Seeding client area for integration test")
@@ -370,11 +329,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         Helper method to validate current environment's folder hierarchy is as expected
         '''
         current_env         = self.stack().store().current_environment(parent_trace)
-        env_hierarchy       = current_env.folder_hierarchy( parent_trace        = parent_trace,
-                                                            include_timestamps  = False)
+        #env_hierarchy       = current_env.folder_hierarchy( parent_trace        = parent_trace,
+        #                                                    include_timestamps  = False)
+        description_dict    = current_env.describe(parent_trace, include_timestamps = False)
         # TODO: add some data to environment, maybe calling a controller on some posting
 
         self._compare_to_expected_yaml( parent_trace        = parent_trace,
-                                        output_dict         = env_hierarchy.to_dict(),
+                                        output_dict         = description_dict, #env_hierarchy.to_dict(),
                                         test_output_name    = snapshot_name, 
                                         save_output_dict    = True)

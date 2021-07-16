@@ -4,6 +4,11 @@ test_create_environment_ENV:
       Dec 2020:
         FusionOpus:
           Default:
+            OPUS_big-rocks.journeys.a6i.xlsx: '
+
+              Size (in bytes):  25163
+
+              '
             _ARCHIVE:
               (Timestamp omitted) Posting:
                 POST_EVENT_LOG.txt: '

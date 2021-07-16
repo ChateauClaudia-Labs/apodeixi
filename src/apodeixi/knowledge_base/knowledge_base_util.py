@@ -242,7 +242,7 @@ class Response():
                                     archived copy of the posting that has been created. In cases where the posting
                                     was submitted from outside the store (e.g., as from some random location in
                                     the file system external to the store), then handle1 is set to None.
-    @interfal form_requests_dict A dictionary explaining the next steps that a user might need to take as a consequence
+    @internal form_requests_dict A dictionary explaining the next steps that a user might need to take as a consequence
                                     of having just finished processing this request.
                                     Keys are: Response.OPTIONAL_FORMS, Response.MANDATORY_FORMS.
                                     Values are lists (possibly empty) with FormRequest objects, one for each
