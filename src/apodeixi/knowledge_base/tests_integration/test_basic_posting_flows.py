@@ -43,6 +43,6 @@ if __name__ == "__main__":
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='big_rocks':
-            T.test_big_rocks_posting()
+            T.test_big_rocks()
 
     main(_sys.argv)

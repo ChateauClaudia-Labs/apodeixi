@@ -104,8 +104,6 @@ class ShutilStoreTestStack(IntegrationTestStack):
         '''
         return self._kb
 
-
-
 class GITStoreTestStack(IntegrationTestStack):
     '''
     Helper class to represent the stack used by an ApodeixiIntegrationTest, when the stack choice made is
@@ -221,23 +219,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # enforced by the "next_*" functions
         self._output_nb             = 0
 
+    def tearDown(self):
+        super().tearDown()
+
+
     def stack(self):
         return self._stack
-
-    def currentTestName(self):
-        return self._current_test_name
-
-    def scenario(self):
-        return self._scenario
-
-    def config(self):
-        return self._config
-
-    def current_environment_name(self, parent_trace):
-        '''
-        Returns the name of the current environment in the stack's store.
-        '''
-        self.stack().store().current_environment(parent_trace).name(parent_trace)
 
     def selectStack(self, parent_trace):
         '''
@@ -250,12 +237,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-    def setScenario(self, scenario):
-        '''
-        Must be called by all concrete integration tests at the start. It will impact the folder in which
-        regression test is persisted.
-        '''
-        self._scenario          = scenario
+    def currentTestName(self):
+        return self._current_test_name
 
     def setCurrentTestName(self, test_name):
         '''
@@ -263,6 +246,101 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         regression test is persisted.
         '''
         self._current_test_name = test_name
+
+    def scenario(self):
+        return self._scenario
+
+    def setScenario(self, scenario):
+        '''
+        Must be called by all concrete integration tests at the start. It will impact the folder in which
+        regression test is persisted.
+        '''
+        self._scenario          = scenario
+
+    def config(self):
+        return self._config
+
+    def current_environment_name(self, parent_trace):
+        '''
+        Returns the name of the current environment in the stack's store.
+        '''
+        self.stack().store().current_environment(parent_trace).name(parent_trace)
+
+ 
+    def provisionIsolatedEnvironment(self, parent_trace, environment_name = None):
+        '''
+        Creates a new environment as a sub-environment of the current environment, and activates it.
+        The new environment is configured to have a dedicated, isolated collaboration area which
+        this method populates by downloading the content from the clientURL area configured in
+        the Apodeixi configuration used by the testing framework.
+
+        The paramenter `environment_name` is used as the name of the newly created environment,
+        unless it is set to None (the default), in which case a standard name is given using
+        the structure
+
+            <scenario>.<test name>_ENV
+
+        '''
+        if environment_name == None:
+            environment_name        = self.scenario() + "." + self.currentTestName() + "_ENV"
+
+        my_trace                    = parent_trace.doing("Removing previously created environment, if any",
+                                                    data = {'environment name': environment_name})
+        store                       = self.stack().store()
+        stat                        = store.removeEnvironment(parent_trace = my_trace, name = environment_name)
+        
+        my_trace                    = parent_trace.doing("Creating an isolated environment for integration test")
+        env_config                  = KB_Environment_Config(
+                                            parent_trace, 
+                                            read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                            use_timestamps      = False,
+                                            path_mask           = self._path_mask)
+        store.current_environment(my_trace).addSubEnvironment(my_trace, environment_name, env_config,
+                                                                    isolate_collab_area = True)
+        store.activate(parent_trace = my_trace, environment_name = environment_name)
+
+        my_trace                    = parent_trace.doing("Seeding client area for integration test")
+        self.stack().seedTestClientArea(parent_trace)
+
+    def check_environment_contents(self, parent_trace, snapshot_name = None):     
+        '''
+        Helper method to validate current environment's folder hierarchy is as expected at this point in time
+        in the execution of a test case.
+
+        @param snapshot_name A string, corresponding to the output name under which the regression output should
+                            be generated. If set to None, then it will be computed by calling self.next_snapshot()
+        '''
+        current_env         = self.stack().store().current_environment(parent_trace)
+
+        if snapshot_name == None:
+            snapshot_name   = self.next_snapshot()
+
+        description_dict    = current_env.describe(parent_trace, include_timestamps = False)
+
+        self._compare_to_expected_yaml( parent_trace        = parent_trace,
+                                        output_dict         = description_dict,
+                                        test_output_name    = snapshot_name, 
+                                        save_output_dict    = True)
+
+    def trace_environment(self, parent_trace, activity):
+        '''
+        Helper method to reduce clutter in derived classes. 
+        
+        It returns a FunctionalTrace for the `activity` that is a child of `parent_trace`.
+        It appends some data elements, such as the KnowledgeBaseStore's current environment we are under,
+        so having this done in a common function is how clutter is reduced and consistency maximized.
+
+        @param parent_trace     A FunctionalTrace from which we seek a child trace
+        @param activity  A string corresponding to the description of the functional behavior that the resulting
+                        trace is about.
+        '''
+        my_trace        = parent_trace.doing(activity,
+                                data        = { "environment":      self.current_environment_name(parent_trace)},
+                                origination = { 'concrete class':   str(self.__class__.__name__), 
+                                                'signaled_from':    __file__})
+        return my_trace
+
+
 
     def next_snapshot(self, description=None):
         '''
@@ -332,43 +410,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         self._output_nb         += 1
         return output_name
 
-    def provisionIsolatedEnvironment(self, parent_trace, environment_name = None):
-        '''
-        Creates a new environment as a sub-environment of the current environment, and activates it.
-        The new environment is configured to have a dedicated, isolated collaboration area which
-        this method populates by downloading the content from the clientURL area configured in
-        the Apodeixi configuration used by the testing framework.
-
-        The paramenter `environment_name` is used as the name of the newly created environment,
-        unless it is set to None (the default), in which case a standard name is given using
-        the structure
-
-            <scenario>.<test name>_ENV
-
-        '''
-        if environment_name == None:
-            environment_name        = self.scenario() + "." + self.currentTestName() + "_ENV"
-
-        my_trace                    = parent_trace.doing("Removing previously created environment, if any",
-                                                    data = {'environment name': environment_name})
-        store                       = self.stack().store()
-        stat                        = store.removeEnvironment(parent_trace = my_trace, name = environment_name)
         
-        my_trace                    = parent_trace.doing("Creating an isolated environment for integration test")
-        env_config                  = KB_Environment_Config(
-                                            parent_trace, 
-                                            read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                            use_timestamps      = False,
-                                            path_mask           = self._path_mask)
-        store.current_environment(my_trace).addSubEnvironment(my_trace, environment_name, env_config,
-                                                                    isolate_collab_area = True)
-        store.activate(parent_trace = my_trace, environment_name = environment_name)
-
-        my_trace                    = parent_trace.doing("Seeding client area for integration test")
-        self.stack().seedTestClientArea(parent_trace)
-
-    def tearDown(self):
-        super().tearDown()
 
     def _regression_output_dir(self, parent_trace):
         if self._scenario == None:
@@ -431,42 +473,3 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                             columns_to_ignore   = columns_to_ignore, 
                                             id_column           = id_column)
 
-
-    def check_environment_contents(self, parent_trace, snapshot_name = None):     
-        '''
-        Helper method to validate current environment's folder hierarchy is as expected at this point in time
-        in the execution of a test case.
-
-        @param snapshot_name A string, corresponding to the output name under which the regression output should
-                            be generated. If set to None, then it will be computed by calling self.next_snapshot()
-        '''
-        current_env         = self.stack().store().current_environment(parent_trace)
-
-        if snapshot_name == None:
-            snapshot_name   = self.next_snapshot()
-
-        description_dict    = current_env.describe(parent_trace, include_timestamps = False)
-
-        self._compare_to_expected_yaml( parent_trace        = parent_trace,
-                                        output_dict         = description_dict,
-                                        test_output_name    = snapshot_name, 
-                                        save_output_dict    = True)
-
-    def trace_environment(self, parent_trace, activity):
-        '''
-        Helper method to reduce clutter in derived classes. 
-        
-        It returns a FunctionalTrace for the `activity` that is a child of `parent_trace`.
-        It appends some data elements, such as the KnowledgeBaseStore's current environment we are under,
-        so having this done in a common function is how clutter is reduced and consistency maximized.
-
-        @param parent_trace     A FunctionalTrace from which we seek a child trace
-        @param activity  A string corresponding to the description of the functional behavior that the resulting
-                        trace is about.
-        '''
-        my_trace        = parent_trace.doing(activity,
-                                data        = { "environment":      self.current_environment_name(parent_trace)},
-                                origination = { 'concrete class':   str(self.__class__.__name__), 
-                                                'signaled_from':    __file__})
-        return my_trace
-        
