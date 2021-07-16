@@ -6,7 +6,7 @@ from apodeixi.util.formatting_utils                     import DictionaryFormatt
 
 from apodeixi.knowledge_base.shutil_kb_store            import Shutil_KBStore_Impl
 
-class Test_Shutil_KBStore_Impl(ApodeixiIntegrationTest):
+class Test_SearchPostings(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
@@ -134,7 +134,7 @@ class Test_Shutil_KBStore_Impl(ApodeixiIntegrationTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_Shutil_KBStore_Impl()
+        T = Test_SearchPostings()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='locate_milestone_postings':

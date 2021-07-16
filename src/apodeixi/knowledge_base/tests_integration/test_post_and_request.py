@@ -9,7 +9,7 @@ from apodeixi.controllers.journeys.delivery_planning.big_rocks  import BigRocksE
 from apodeixi.knowledge_base.knowledge_base                     import KnowledgeBase
 from apodeixi.representers.as_excel                             import Manifest_Representer
 
-class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
+class Test_PostAndRequest(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
@@ -186,7 +186,7 @@ class Test_KnowledgeBase_Integration(ApodeixiIntegrationTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_KnowledgeBase_Integration()
+        T = Test_PostAndRequest()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='big_rocks_posting':

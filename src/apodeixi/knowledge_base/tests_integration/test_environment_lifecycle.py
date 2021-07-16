@@ -8,7 +8,7 @@ from apodeixi.util.path_utils              			    import FolderHierarchy
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
 
-class Test_File_KBEnv_Impls(ApodeixiIntegrationTest):
+class Test_EnvironmentLIfecycle(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
@@ -66,7 +66,7 @@ class Test_File_KBEnv_Impls(ApodeixiIntegrationTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_File_KBEnv_Impls()
+        T = Test_EnvironmentLIfecycle()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='create_environment':
