@@ -276,7 +276,7 @@ class ManifestXLConfig(AsExcel_Config):
                             and 'Parallelize calculations' will be protected in Excel and the user won't be able
                             to modify the value of those cells.
 
-    @param hidden_cols  A list of strings, possibly empty, corresponding to cloumn's in the manifest's tabular
+    @param hidden_cols  A list of strings, possibly empty, corresponding to column's in the manifest's tabular
                             display that should not be shown.
 
     @param editable_headers A list of strings, corresponding to the column headers in the manifest's tabular display that

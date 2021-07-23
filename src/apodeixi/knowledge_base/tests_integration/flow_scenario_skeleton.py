@@ -98,7 +98,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         # Check we created as many manifests as was expected
         if len(posting_response.createdManifests()) != nb_manifests_expected:
             raise ApodeixiError(parent_trace, 'Expected ' + str(nb_manifests_expected) + ' manifests, but found ' 
-                                + str(len(all_manifests_dicts)))
+                                + str(len(posting_response.createdManifests())))
 
     def check_manifests_contents(self, parent_trace, posting_response):
         # Retrieve the manifests created and check they have the data we expect

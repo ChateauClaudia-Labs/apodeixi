@@ -28,7 +28,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
 
         PL_WS_INFO_FILE     = NAME + '_posting_label_ws_info'
 
-        MANIFEST_NAME           = 'Manifest for ' + NAME
+        MANIFEST_NAME           = 'Manifest for ' + NAME + ".57"
         output_dict             = {}
 
         worksheet_info_dict     = {}

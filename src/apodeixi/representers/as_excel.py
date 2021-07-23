@@ -43,15 +43,78 @@ class Manifest_Representer:
 
         workbook                = xlsxwriter.Workbook(excel_folder + '/' + excel_filename)
 
-        inner_trace             = parent_trace.doing("Creating Posting Label")
-        self._write_posting_label(inner_trace, workbook)
+        my_trace                = parent_trace.doing("Enriching Posting Label with location of manifest data")
+        self._add_data_locations_to_posting_label(my_trace, workbook)
 
-        inner_trace             = parent_trace.doing("Writing manifest's data")
-        self._write_dataframes(inner_trace, workbook)
+        my_trace                = parent_trace.doing("Creating Posting Label")
+        self._write_posting_label(my_trace, workbook)
 
-        workbook.close()
+        my_trace                = parent_trace.doing("Writing manifest's data")
+        self._write_dataframes(my_trace, workbook)
+
+        my_trace                = parent_trace.doing("Saving Excel spreadsheet")
+        try:
+            workbook.close()
+        except Exception as ex:
+            raise ApodeixiError(my_trace, "Encountered a problem saving the Excel spreadsheet",
+                            data = {"error": str(ex)})
 
         return Manifest_Representer.SUCCESS
+
+    def _add_data_locations_to_posting_label(self, parent_trace, workbook):
+        '''
+        Adds entries like
+
+            data.kind.1
+            data.range.1
+            data.sheet.1
+
+        to the `self.label_ctx`
+        '''
+        label_config            = self.config_table.getPostingLabelXLConfig(parent_trace)
+        for name in self.content_df_dict.keys():
+            loop_trace          = parent_trace.doing("Adding location information for '" + str(name) + "'")
+            df                  = self.content_df_dict[name]
+            config              = self.config_table.getManifestXLConfig(loop_trace, name)
+
+            try:
+                kind, nb            = name.split(".")
+            except ValueError as ex:
+                raise ApodeixiError(loop_trace, "Unable to parse name of dataset. Expected something like <kind>.<number>",
+                                                data = {"dataset name":     "'" + name + "'",
+                                                        "error":            str(ex)})
+
+            x_0                 = config.x_offset
+            
+            # The "-1" is because x_0 was one of the columns, so count one less column
+            x_1                 = x_0 + len(df.columns) - 1 - len(config.hidden_cols)
+            
+            y_0                 = config.y_offset
+            # The "- 1" is because y_0 was one of the rows, so count one less row. 
+            y_1                 = y_0 + len(df.index) -1 
+
+            if config.layout.is_transposed:
+                # Add an extra columns, for the headers
+                x_1             += 1
+            else: 
+                # Add an extra row, for the headers
+                y_1             += 1
+
+            cell_0              = xl_rowcol_to_cell(y_0, x_0) 
+
+            # x_i, y_i start at 0, whereas Excel ranges start at 1. 
+            cell_1              = xl_rowcol_to_cell(y_1, x_1)
+
+            DATA_KIND           = 'data.kind.'     + str(nb)
+            DATA_RANGE          = 'data.range.'    + str(nb)
+            DATA_SHEET          = 'data.sheet.'    + str(nb)
+            self.label_ctx['data.kind.'     + str(nb)]     = kind
+            self.label_ctx['data.range.'    + str(nb)]     = cell_0 + ":" + cell_1
+            self.label_ctx['data.sheet.'    + str(nb)]     = config.sheet
+
+            label_config.editable_fields.extend([DATA_KIND, DATA_RANGE, DATA_SHEET])
+
+
 
     def _write_dataframes(self, parent_trace, workbook):
         '''
