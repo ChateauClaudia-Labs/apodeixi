@@ -1,5 +1,8 @@
-import pandas                               as _pd
+
 import xlsxwriter
+
+import pandas                               as _pd
+
 from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 
 from apodeixi.util.a6i_error                import ApodeixiError
@@ -213,7 +216,7 @@ class Manifest_Representer:
         '''
         worksheet.set_column(xl_x,      xl_x,       column_width)
 
-    def _write_val(self, parent_trace, workbook, worksheet, layout_x, layout_y, val, layout):
+    def _write_val(self, parent_trace, workbook, worksheet, layout_x, layout_y, val, layout, num_format):
         
         if layout.is_transposed:
             xl_x            = layout_y
@@ -223,6 +226,10 @@ class Manifest_Representer:
             xl_y            = layout_y
         
         fmt_dict        = layout.getFormat(parent_trace, layout_x, layout_y)
+        if num_format != None:
+            fmt_dict    = fmt_dict.copy() # GOTCHA - copy or else subsequent use of xlsxwriter will use a polluted format
+            fmt_dict['num_format'] = num_format
+
         fmt             = workbook.add_format(fmt_dict)
         worksheet.write(xl_y, xl_x, val, fmt)
 
@@ -313,7 +320,7 @@ class Manifest_Representer:
                 else:
                     xl_x        = layout_x
                 #self._set_column_width(loop_trace, worksheet, xl_x, width, layout)
-                self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, col, layout)
+                self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, col, layout, num_format = None)
 
 
         # Now lay out the content
@@ -328,7 +335,11 @@ class Manifest_Representer:
                     layout_x        = config.x_offset + layout_idx 
                     layout_y        = config.y_offset + 1 + row_nb # An extra '1' because of the headers
                  
-                    self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, row_content[col], layout)
+                    num_format      = None
+                    if col in config.date_cols:
+                        num_format  = "[$-en-US]mmmm d, yyyy;@"
+                    self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, 
+                                    row_content[col], layout, num_format = num_format)
 
     def _unprotect_free_space(self, my_trace, worksheet):
         '''

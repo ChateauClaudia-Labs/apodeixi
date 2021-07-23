@@ -156,7 +156,8 @@ class SkeletonController(PostingController):
                                                                 max_word_length     = 20, 
                                                                 editable_cols       = editable_cols,
                                                                 hidden_cols         = [],   
-                                                                editable_headers    = [],   
+                                                                editable_headers    = [],  
+                                                                date_cols           = [], 
                                                                 x_offset            = x_offset,    
                                                                 y_offset            = y_offset)
             # Put next manifest to the right of this one, separated by an empty column
@@ -193,11 +194,13 @@ class SkeletonController(PostingController):
 
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
+         
         label_config                        = PostingLabelXLConfig( sheet               = SkeletonController.POSTING_LABEL_SHEET,
                                                                     viewport_width      = 100,  
                                                                     viewport_height     = 40,   
                                                                     max_word_length     = 20, 
-                                                                    editable_fields     = label_editable_fields,   
+                                                                    editable_fields     = label_editable_fields, 
+                                                                    date_fields         = label.date_fields,  
                                                                     x_offset            = 1,    
                                                                     y_offset            = 1)
 

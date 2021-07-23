@@ -109,7 +109,8 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                 viewport_height     = 40,   
                                                                 max_word_length     = 20, 
                                                                 editable_cols       = editable_cols,
-                                                                hidden_cols         = hidden_cols,   
+                                                                hidden_cols         = hidden_cols,  
+                                                                date_cols           = [], 
                                                                 editable_headers    = [],   
                                                                 x_offset            = x_offset,    
                                                                 y_offset            = y_offset)

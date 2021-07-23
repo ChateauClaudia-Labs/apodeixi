@@ -225,7 +225,7 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, sheet, hidden_cols = [], 
+    def __init__(self, sheet, hidden_cols = [], date_cols = [],
                     viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
@@ -254,6 +254,7 @@ class AsExcel_Config():
         self.y_offset               = y_offset
 
         self.hidden_cols            = hidden_cols
+        self.date_cols              = date_cols
                
 class ManifestXLConfig(AsExcel_Config):
     '''
@@ -294,9 +295,9 @@ class ManifestXLConfig(AsExcel_Config):
 
     '''
     def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
-                                editable_cols   = [],   hidden_cols = [], editable_headers    = [],   
+                                editable_cols   = [],   hidden_cols = [], date_cols = [], editable_headers    = [],   
                                 x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols = hidden_cols, 
+        super().__init__(sheet, hidden_cols = hidden_cols, date_cols = date_cols,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
@@ -340,8 +341,8 @@ class PostingLabelXLConfig(AsExcel_Config):
                             'delivery-plans.journeys.a6i.io/v2.1' or 'OpusPlus'    
     '''
     def __init__(self, sheet, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
-                        editable_fields   = [],   x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols = [], 
+                        editable_fields   = [],  date_fields = [],  x_offset        = 0,    y_offset = 0):
+        super().__init__(sheet, hidden_cols = [], date_cols = date_fields,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
