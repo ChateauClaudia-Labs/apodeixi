@@ -2,7 +2,7 @@ from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
-from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLConfig
+from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
@@ -95,12 +95,15 @@ class BigRocksEstimate_Controller(SkeletonController):
             if key == 'big-rock.0':
                 hidden_cols                 = []
                 right_margin                = 0
+                num_formats                 = {}
             elif key == 'big-rock-estimate.1':
                 hidden_cols                 = ['UID', 'bigRock']
                 right_margin                = 1
+                num_formats                 = {'effort': NumFormats.INT}
             elif key == 'investment.2':
                 hidden_cols                 = ['UID']
                 right_margin                = 1
+                num_formats                 = {'Incremental': NumFormats.INT}
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             config                          = ManifestXLConfig( sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
@@ -110,7 +113,7 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                 max_word_length     = 20, 
                                                                 editable_cols       = editable_cols,
                                                                 hidden_cols         = hidden_cols,  
-                                                                date_cols           = [], 
+                                                                num_formats         = num_formats, 
                                                                 editable_headers    = [],   
                                                                 x_offset            = x_offset,    
                                                                 y_offset            = y_offset)

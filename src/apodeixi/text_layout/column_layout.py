@@ -1,6 +1,8 @@
 import pandas                               as _pd
 import re                                   as _re
 
+from apodeixi.util.a6i_error                import ApodeixiError
+
 from apodeixi.text_layout.text_processor    import TextProcessor
 
 class ColumnWidthCalculator:
@@ -42,8 +44,18 @@ class ColumnWidthCalculator:
                            The exception is for "ridiculously long" words. This parameter sets the limit after which
                            a word is considered "ridiculously long" and will not be protected from requiring it to appear
                            in more than 1 line.
+    @param column_formatters A dictionary, possibly empty. Keys would be columns and the values are formatters
+                            for that column, i.e., a function that takes as input a column value and returns a
+                            string. This is used when Excel spreadsheets are created by using formatters, such as
+                            when we format dates or doubles in Excel.
+                            Such Excel formatting would result in a word or column line being rendered with a 
+                            different number of characters than the underlying value. 
+                            Since we want to compute the appropriate widths of columns
+                            for rendering purposes, when such formatters are used to populate Excel columns we
+                            need to take them into account so that we correctly size the columns.
     '''
-    def __init__(self, data_df, viewport_width=200, viewport_height=40, max_word_length=20):
+    def __init__(self, data_df, viewport_width=200, viewport_height=40, max_word_length=20,
+                        column_formatters = {}):
         self.data_df                = data_df
 
         # Ensure that columns are strings, in case they are integers (can happen if caller is using a transpose,
@@ -62,6 +74,10 @@ class ColumnWidthCalculator:
         self.MAX_ROW_HEIGHT         = self.viewport_height * 0.30
         self.explanations           = None # Computed by self.calc()
         self.analysis_df            = None # Computed by self.calc()
+
+        # Dictionary of formatters per column. Not all columns need to have one, only when a column's values are
+        # to be rendered in a non-literal way (e.g., dates, or doubles with decimals or commas for thousands, etc.)
+        self.column_formatters      = column_formatters
         return
     
     def calc(self, parent_trace):
@@ -95,10 +111,11 @@ class ColumnWidthCalculator:
         FINAL_WIDTH             = W_COL(NEXT)
         FINAL_NB_LINES          = NB_COL(NEXT)
 
-        # Keys will be columns of self.data_df, and values will be a dictonary with two entries: width and nb_lines
+        # Keys will be columns of self.data_df, and values will be a dictionary with two entries: width and nb_lines
         final_result                = {} 
         for row in self.analysis_df.iterrows():
             col                 = row[1]['Column']
+
             width               = row[1][FINAL_WIDTH]
             nb_lines            = row[1][FINAL_NB_LINES]
             final_result[col]   = {'width': width, 'nb_lines': nb_lines}
@@ -186,20 +203,35 @@ class ColumnWidthCalculator:
     def _word_is_acceptable(self, word, width):
         return len(word) <= width and len(word) <= self.MAX_WORD_LENGTH
         
-    def _words_per_row(self, column):
-        tokens_per_column   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
-        return tokens_per_column
+    def _words_per_row(self, parent_trace, column):
+        my_trace            = parent_trace.doing("Getting a list of words per row for column '" + str(column) + "'")
+        rendered_tokenstokens_per_column   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
+         
+        if column in self.column_formatters.keys():
+            formatter       = self.column_formatters[column]
+            try:
+                rendered_tokens   = self.data_df[column].apply(lambda x: [formatter(x)]) # A list of 1 formatter string per row
+                #rendered_tokens = [formatter(token) for token in tokens_per_column]
+            except Exception as ex:
+                raise ApodeixiError(my_trace, "Encountered problem applying formatter in column '" + str(column) + "'",
+                                    data = {"error": str(ex)})
+        else:
+            rendered_tokens   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
+            #rendered_tokens = tokens_per_column
+
+        return rendered_tokens
     
-    def _all_words(self, column):
+    def _all_words(self, parent_trace, column):
+        my_trace            = parent_trace.doing("Getting all words in column '" + str(column) + "'")
         tokens_merged       = []
-        #tokens_per_column   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
-        tokens_per_column   = self._words_per_row(column)
+        tokens_per_column   = self._words_per_row(my_trace, column)
         for tokens in tokens_per_column:
             tokens_merged.extend(tokens)
         return tokens_merged
 
-    def _longest_word(self, column):
-        all_words           = self._all_words(column)
+    def _longest_word(self, parent_trace, column):
+        my_trace            = parent_trace.doing("Getting longest word in column '" + str(column) + "'")
+        all_words           = self._all_words(my_trace, column)
         # The column header will the "the longest word by default", unless we find a longer word in the rows below the header
         default_answer      = column 
         
@@ -219,13 +251,16 @@ class ColumnWidthCalculator:
         '''
         Helper method that returns a Series of the widths for each row in a column, if a row has only 1 line
         '''
-        return self.data_df[column].apply(lambda x: len(str(x)))
+        if column in self.column_formatters.keys():
+            formatter       = self.column_formatters[column]
+        else:
+            formatter       = str  # Just cast to a string, if no formatter was configured
+        return self.data_df[column].apply(lambda x: len(formatter(x)))
 
-    def _max_1l_width(self, column):
+    def _max_1l_width(self, parent_trace, column):
         '''
         Helper function that returns the width of the widest row for a column if the row has only 1 line
         '''
-        columns           = self.data_df.columns
         header_width      = len(str(column))
         return max(header_width, max(self._1l_widths_per_row(column)))
         
@@ -233,10 +268,10 @@ class ColumnWidthCalculator:
         
         columns       = self.data_df.columns
         
-        max_1l_widths         = [self._max_1l_width       (col) for col in columns]  
-        words_per_row         = [self._words_per_row      (col) for col in columns]
-        all_words             = [self._all_words          (col) for col in columns]
-        longest_words         = [self._longest_word       (col) for col in columns]
+        max_1l_widths         = [self._max_1l_width       (parent_trace, col) for col in columns]  
+        words_per_row         = [self._words_per_row      (parent_trace, col) for col in columns]
+        all_words             = [self._all_words          (parent_trace, col) for col in columns]
+        longest_words         = [self._longest_word       (parent_trace, col) for col in columns]
         longest_word_lengths  = [len(w) for w in longest_words]
         widths_df             = _pd.DataFrame({'Column':                columns, 
                                               'Max 1-line width':      max_1l_widths,

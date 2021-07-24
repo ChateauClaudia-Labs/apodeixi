@@ -1,14 +1,14 @@
 
 ======================== Column information ==========================
-00000		[0, 0, 5, None, False, 0, False]
-00001		[1, 1, 15, None, False, 0, False]
-00002		[2, 2, 12, None, False, 0, False]
-00003		[3, 3, 8, None, False, 0, False]
-00004		[4, 4, 12, None, False, 0, False]
-00005		[5, 5, 11, None, False, 0, False]
-00006		[6, 6, 13, None, False, 0, False]
-00007		[7, 7, 14, None, False, 0, False]
-00008		[8, 8, 8, None, False, 0, False]
+00000		[0, 0, 5.5, None, False, 0, False]
+00001		[1, 1, 16.5, None, False, 0, False]
+00002		[2, 2, 13.2, None, False, 0, False]
+00003		[3, 3, 8.8, None, False, 0, False]
+00004		[4, 4, 13.2, None, False, 0, False]
+00005		[5, 5, 12.1, None, False, 0, False]
+00006		[6, 6, 14.3, None, False, 0, False]
+00007		[7, 7, 15.4, None, False, 0, False]
+00008		[8, 8, 8.8, None, False, 0, False]
 
 
 ================ Formats row = 0, col = 0 ============

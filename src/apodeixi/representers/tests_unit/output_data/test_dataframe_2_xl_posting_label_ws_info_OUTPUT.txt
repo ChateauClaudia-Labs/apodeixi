@@ -1,7 +1,7 @@
 
 ======================== Column information ==========================
-00001		[1, 1, 13, None, False, 0, False]
-00002		[2, 2, 50, None, False, 0, False]
+00001		[1, 1, 14.3, None, False, 0, False]
+00002		[2, 2, 55.0, None, False, 0, False]
 
 
 ================ Formats row = 1, col = 1 ============

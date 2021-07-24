@@ -1,3 +1,5 @@
+import datetime                         as _datetime
+
 from apodeixi.util.a6i_error            import ApodeixiError
 
 
@@ -35,6 +37,8 @@ class Excel_Layout():
         self.name               = name
         self.is_transposed      = is_transposed
         return
+
+
     
     def validate(self, parent_trace):
         '''
@@ -120,6 +124,60 @@ class Excel_Layout():
 
         return [[xmin, ymin], [xmax, ymax]]
 
+class Palette():
+
+    # Static colors.
+    DARK_BLUE                   = '#0070C0'
+    WHITE                       = '#FFFFFF'
+    DARK_GREEN                  = '#548235'
+    LIGHT_GREEN                 = '#E2EFDA' # '#E5EDD3' # '#EBF1DE'
+    DARK_GREY                   = '#808080'
+    LIGHT_GREY                  = '#F2F2F2' # '#E8E8E8
+
+class NumFormats():
+
+    # Static Excel formats for dates and numbers
+    INT                         = '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)'       # Example: 4,500
+    DOUBLE                      = '_(* #,##0.00_);_(* (#,##0.00);_(* "-"??_);_(@_)' # Example: 4,500.00
+    DATE                        = "[$-en-US]mmmm d, yyyy;@"                         # Example: August 29, 2021
+
+    def xl_to_txt_formatters(xl_formatters_dict):
+        '''
+        Takes a dict as an input and returns another dict, with the same keys.
+
+        The input dict `xl_formatters_dic` should map manifest dataset column names to Excel formatters
+        known to this class, such as NumFormats.INT, NumFormats.DOUBLE, or NumFormats.DATE. In other words,
+        the formatters that Excel will use to render text, if any such formatter is configured for a column.
+
+        The output dict also maps manifets dataset column names to formatters, but not the kind of formatters
+        used by Excel to render output. Instead, these are normal "Python programmatic" formatters.
+        For example:
+
+            NumFormats.INT renders a number like 4500 as "4,500" in Excel. So the return dict would
+            provide lambda fmt such that fmt(4500) = "4,500".
+
+        This service allows programmatic Python code to anticipate how a value will be rendered in Excel.
+        That can be used, for example, to correctly predict the number of characters needed by a value in Excel,
+        so that Excel column widths can be configured big enough for the rendered value to display.
+        This is important since rendered values (such as "4,500" may require more characters than the value
+        itself "4500")
+        '''
+        output_dict                 = {}
+        for col in xl_formatters_dict:
+            xl_fmt                  = xl_formatters_dict[col]
+            if xl_fmt == NumFormats.INT: 
+                formatter           = lambda x: "{:,.0f}".format(float(x)) # Render 4500 as 4,500
+                output_dict[col]    = formatter
+            elif xl_fmt == NumFormats.DOUBLE:
+                formatter           = lambda x: "{:,.2f}".format(float(x)) # Render 4500 as 4,500.00
+                output_dict[col]    = formatter
+            elif xl_fmt == NumFormats.DATE: # Render dates like "August 21, 20220"
+                formatter           = lambda x: _datetime.datetime.strftime(x, "%B %d, %Y")
+                output_dict[col]    = formatter
+
+        return output_dict
+            
+                
 class PostingLayout(Excel_Layout):
     '''
     Class to assist in the construction of an Excel_Layout for one manifest. It enforces the appropriate Excel formatting
@@ -128,27 +186,22 @@ class PostingLayout(Excel_Layout):
     '''
     def __init__(self, name):
         super().__init__(name)
+        self._init_formats()
 
-    WHITE                   = '#FFFFFF'
-    DARK_GREEN              = '#548235'
-    LIGHT_GREEN             = '#E2EFDA' # '#E5EDD3' # '#EBF1DE'
-    DARK_GREY               = '#808080'
-    LIGHT_GREY              = '#F2F2F2' # '#E8E8E8' 
+    def _init_formats(self):
 
-    DARK_BLUE               = '#0070C0'
+        ROOT_FMT                = {'text_wrap': True, 'valign': 'top', 'border': True, 'border_color': Palette.WHITE}
+        HEADER_CONTRIB          = {'bold': True, 'font_color': Palette.WHITE, 'align': 'center','border_color': Palette.WHITE, 
+                                'right': True}
+        R_CONTRIB               = {'locked': True}
+        W_CONTRIB               = {'locked': False}
+                    
+        # NOTE: this "|" operator to merge dictionaries is only available in Python 3.9+. If this fails, check your Python version
+        self.HEADER_R_FMT         = ROOT_FMT | HEADER_CONTRIB| R_CONTRIB |{'bg_color': Palette.DARK_GREY}
+        self.HEADER_W_FMT         = ROOT_FMT | HEADER_CONTRIB| W_CONTRIB |{'bg_color': Palette.DARK_GREEN}
 
-    ROOT_FMT                = {'text_wrap': True, 'valign': 'top', 'border': True, 'border_color': WHITE}
-    HEADER_CONTRIB          = {'bold': True, 'font_color': WHITE, 'align': 'center','border_color': WHITE, 
-                            'right': True}
-    R_CONTRIB               = {'locked': True}
-    W_CONTRIB               = {'locked': False}
-                
-    # NOTE: this "|" operator to merge dictionaries is only available in Python 3.9+. If this fails, check your Python version
-    HEADER_R_FMT         = ROOT_FMT | HEADER_CONTRIB| R_CONTRIB |{'bg_color': DARK_GREY}
-    HEADER_W_FMT         = ROOT_FMT | HEADER_CONTRIB| W_CONTRIB |{'bg_color': DARK_GREEN}
-
-    BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': LIGHT_GREY}
-    BODY_W_FMT           = ROOT_FMT | W_CONTRIB | {'bg_color': LIGHT_GREEN}
+        self.BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': Palette.LIGHT_GREY}
+        self.BODY_W_FMT           = ROOT_FMT | W_CONTRIB | {'bg_color': Palette.LIGHT_GREEN}
 
     def addHeader(self, parent_trace, xInterval, y, mode):
         '''
@@ -161,9 +214,9 @@ class PostingLayout(Excel_Layout):
         @param mode A string. Either "r" or "w", to indicate whether the block will be read-only or writable.
         '''
         if mode=='r':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = PostingLayout.HEADER_R_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = self.HEADER_R_FMT))
         elif mode=='w':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = PostingLayout.HEADER_W_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=[y,y], fmt = self.HEADER_W_FMT))
         else:
             raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
                                                 origination ={'signaled_from': __file__,})
@@ -177,19 +230,19 @@ class PostingLayout(Excel_Layout):
         @param mode A string. Either "r" or "w", to indicate whether the block will be read-only or writable.
         '''
         if mode=='r':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = PostingLayout.BODY_R_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = self.BODY_R_FMT))
         elif mode=='w':
-            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = PostingLayout.BODY_W_FMT))
+            self.blocks.append(Excel_Block(xInterval=xInterval, yInterval=yInterval, fmt = self.BODY_W_FMT))
         else:
             raise ApodeixiError(parent_trace, "Invalid mode '" + mode + "'; expected 'r' or 'w'",
                                                 origination ={'signaled_from': __file__,})
 
-    def build(self, parent_trace,   columns, nb_rows, editable_cols=[], editable_headers=[], 
+    def build(self, parent_trace,   columns, nb_rows, editable_cols=[], hidden_cols=[], editable_headers=[], 
                                     x_offset=0, y_offset=0, has_headers=True):
         '''
         Builds out this layout, by adding blocks as appropriate to end up with an N * M layout such that:
         
-        1. M is the number of columns
+        1. M is the number of columns minus the number of hidden columns
         2. The first layout's row is the header for the columns (the "headers"), but only if `has_headers` is True
         3. The subsequent N-1 rows (or N rows, if `has_headers` is False) in the layout are for the "body", 
            where N is nb_rows
@@ -201,8 +254,9 @@ class PostingLayout(Excel_Layout):
 
         '''
         self.blocks                     = []
-        for idx in range(len(columns)):
-            col                         = columns[idx]
+        visible_columns                 = [col for col in columns if not col in hidden_cols]
+        for idx in range(len(visible_columns)):
+            col                         = visible_columns[idx]
             header_mode                 = 'r'
             body_mode                   = 'r'
 
@@ -225,7 +279,7 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, sheet, hidden_cols = [], date_cols = [],
+    def __init__(self, sheet, hidden_cols = [], num_formats = {},
                     viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
@@ -254,7 +308,7 @@ class AsExcel_Config():
         self.y_offset               = y_offset
 
         self.hidden_cols            = hidden_cols
-        self.date_cols              = date_cols
+        self.num_formats            = num_formats
                
 class ManifestXLConfig(AsExcel_Config):
     '''
@@ -280,6 +334,10 @@ class ManifestXLConfig(AsExcel_Config):
     @param hidden_cols  A list of strings, possibly empty, corresponding to column's in the manifest's tabular
                             display that should not be shown.
 
+    @param num_formats A dictionary, possibly empty. Any key should be a column and the value should be a string
+                        for how to do number formatting for that column in Excel (e.g., whether a number has
+                        decimals or a comma for thousands, or whether to format as a date, and how)
+
     @param editable_headers A list of strings, corresponding to the column headers in the manifest's tabular display that
                             can be edited. All other headers will be protected by Excel (user can't change them)
                             
@@ -295,9 +353,9 @@ class ManifestXLConfig(AsExcel_Config):
 
     '''
     def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
-                                editable_cols   = [],   hidden_cols = [], date_cols = [], editable_headers    = [],   
+                                editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [],   
                                 x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols = hidden_cols, date_cols = date_cols,
+        super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
@@ -317,6 +375,7 @@ class ManifestXLConfig(AsExcel_Config):
         self.layout.build(parent_trace, columns             = columns,
                                         nb_rows             = nb_rows,
                                         editable_cols       = self.editable_cols, 
+                                        hidden_cols         = self.hidden_cols,
                                         editable_headers    = self.editable_headers, 
                                         x_offset            = self.x_offset, 
                                         y_offset            = self.y_offset,
@@ -342,7 +401,11 @@ class PostingLabelXLConfig(AsExcel_Config):
     '''
     def __init__(self, sheet, viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                         editable_fields   = [],  date_fields = [],  x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols = [], date_cols = date_fields,
+        num_formats                 = {}
+        for col in date_fields:
+            num_formats[col]        = NumFormats.DATE
+
+        super().__init__(sheet, hidden_cols = [], num_formats = num_formats,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
@@ -360,7 +423,8 @@ class PostingLabelXLConfig(AsExcel_Config):
 
         self.layout.build(parent_trace, columns             = fields,
                                         nb_rows             = 2,
-                                        editable_cols       = self.editable_fields, 
+                                        editable_cols       = self.editable_fields,
+                                        hidden_cols         = self.hidden_cols, 
                                         editable_headers    = [], 
                                         x_offset            = self.x_offset, 
                                         y_offset            = self.y_offset,

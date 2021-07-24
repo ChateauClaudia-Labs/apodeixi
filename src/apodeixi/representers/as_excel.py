@@ -8,7 +8,7 @@ from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.util.path_utils               import PathUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
-from apodeixi.text_layout.excel_layout      import PostingLayout
+from apodeixi.text_layout.excel_layout      import Palette, NumFormats
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 
 class Manifest_Representer:
@@ -117,8 +117,6 @@ class Manifest_Representer:
 
             label_config.editable_fields.extend([DATA_KIND, DATA_RANGE, DATA_SHEET])
 
-
-
     def _write_dataframes(self, parent_trace, workbook):
         '''
         Creates and populates one or more worksheets, each containing data for one or more manifests.
@@ -197,7 +195,7 @@ class Manifest_Representer:
         title_x             = xl_config.x_offset
         title_y             = xl_config.y_offset - 1
         title               = text
-        fmt_dict            ={'bold': True, 'font_color': PostingLayout.DARK_BLUE}
+        fmt_dict            ={'bold': True, 'font_color': Palette.DARK_BLUE}
         fmt                 = workbook.add_format(fmt_dict)
         worksheet.write(title_y, title_x, title, fmt)
 
@@ -275,10 +273,13 @@ class Manifest_Representer:
                 
             else:
                 xl_df           = displayable_df
+
+            column_formatters   = NumFormats.xl_to_txt_formatters(config.num_formats)
             calc                = ColumnWidthCalculator(    data_df             = xl_df, 
                                                             viewport_width      = config.viewport_width, 
                                                             viewport_height     = config.viewport_height, 
-                                                            max_word_length     = config.max_word_length)
+                                                            max_word_length     = config.max_word_length,
+                                                            column_formatters   = column_formatters)
             
             # Dictionary - keys are columns of displayable_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
             widths_dict         = calc.calc(inner_trace) 
@@ -298,12 +299,13 @@ class Manifest_Representer:
             for xl_idx in range(len(xl_columns)): # GOTCHA: Loop is in "Excel space"
                 col             = xl_columns[xl_idx]
                 loop_trace      = my_trace.doing("Processing XL column '" + col + "'")
-                width           = int(widths_dict[col]['width']) # Cast to int to avoid errors if width is e.g. 20.0
+                width           = float(widths_dict[col]['width']) # Cast to float to do float arithmetic in scaling to font size
+                scaled_width    = width * self._scale_to_font_size(loop_trace, font_size = 11) # Excel by default uses font size 11
                 if is_transposed:
                     xl_x        = config.y_offset + xl_idx
                 else:
                     xl_x        = config.x_offset + xl_idx
-                self._set_column_width(loop_trace, worksheet, xl_x, width, layout)
+                self._set_column_width(loop_trace, worksheet, xl_x, scaled_width, layout)
    
         # Now populate headers
         if True:
@@ -312,14 +314,12 @@ class Manifest_Representer:
             for layout_idx in range(len(columns)): # GOTCHA: Loop is in "Layout space"
                 col             = columns[layout_idx]
                 loop_trace      = my_trace.doing("Processing layout column '" + col + "'")
-                #width           = int(widths_dict[col]['width']) # Cast to int to avoid errors if width is e.g. 20.0
                 layout_x        = config.x_offset + layout_idx
                 layout_y        = config.y_offset
                 if is_transposed:
                     xl_x        = layout_y
                 else:
                     xl_x        = layout_x
-                #self._set_column_width(loop_trace, worksheet, xl_x, width, layout)
                 self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, col, layout, num_format = None)
 
 
@@ -336,10 +336,22 @@ class Manifest_Representer:
                     layout_y        = config.y_offset + 1 + row_nb # An extra '1' because of the headers
                  
                     num_format      = None
-                    if col in config.date_cols:
-                        num_format  = "[$-en-US]mmmm d, yyyy;@"
+                    if col in config.num_formats.keys():
+                        num_format  = config.num_formats[col]
                     self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, 
                                     row_content[col], layout, num_format = num_format)
+
+    def _scale_to_font_size(self, parent_trace, font_size):
+        '''
+        Helper method. This is needed because Excel column widths assume a font size of 10. So we must scale up
+        widths by the ratio between the desired font_size (which in Excel defaults to 11 for displaying, at odds
+        with the way Excel counts column widths, which assumes a font size of 10).
+
+        So this method returns the ratio of font_size to the default assumed in Excel column widths (10)
+        
+        Refer to the Excel documentation: https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths
+        '''
+        return float(font_size)/10.0
 
     def _unprotect_free_space(self, my_trace, worksheet):
         '''
@@ -387,7 +399,21 @@ class XL_WorksheetInfo():
         self.colinfo     = {}
     
     def build(self, worksheet):
-        self.colinfo     = worksheet.__dict__['colinfo']
+        raw_dict                = worksheet.__dict__['colinfo']
+        # raw_dict has keys like '00001' and values like [1, 1, 16.5000000001, None, False, 0, False]
+        # To make things easier to display, we want to format numbers to 2 decimals only,
+        # so 16.5000000001 becomes 16.50
+        def _round(val):
+            if type(val) == float:
+                return round(val, 2)
+            else:
+                return val
+
+        nicer_dict              = {}
+        for key in raw_dict.keys():
+            nicer_dict[key]     = [_round(val) for val in raw_dict[key]]
+
+        self.colinfo            = nicer_dict 
         
         table = worksheet.__dict__['table']
         for row_nb in table.keys():
