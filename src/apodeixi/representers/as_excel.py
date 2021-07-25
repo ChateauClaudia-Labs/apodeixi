@@ -378,6 +378,7 @@ class Manifest_Representer:
                 # Before exiting this row, write any formulas associated to this column
                 self._add_formulas( parent_trace        = outer_loop_trace,
                                     column              = col,
+                                    column_width        = scaled_width,
                                     first_x             = first_x,
                                     first_y             = first_y,
                                     last_x              = last_x,
@@ -387,35 +388,113 @@ class Manifest_Representer:
                                     workbook            = workbook,
                                     worksheet           = worksheet)
 
-    def _add_formulas(self, parent_trace, column, first_x, first_y, last_x, last_y,
+    def _add_formulas(self, parent_trace, column, column_width, first_x, first_y, last_x, last_y,
                         data_df, config, workbook, worksheet):
         '''
         Writes the formulas to the worksheet that pertain to column, if any
         '''
         if config.excel_formulas == None:
             return
+        if config.layout.is_transposed:
+            # TODO Logic in this method needs to be enhanced & refactored to support cases where layout
+            # is transposed. For example, totals wouldn't be for Excel column but for Excel rows.
+            raise ApodeixiError(parent_trace, "Sorry, but formulas are not yet supported for transposed layouts")
+
         if config.excel_formulas.hasTotal(parent_trace, column):
-            cell_first              = xl_rowcol_to_cell(first_y,        first_x) 
-            cell_last               = xl_rowcol_to_cell(last_y,         last_x)
-            cell_totals             = xl_rowcol_to_cell(last_y + 1,     last_x)
-            formula                 = "=SUM(" + cell_first + ":" + cell_last + ")" # For example, "=SUM(C3:C6)"
+            my_trace                    = parent_trace.doing("Adjusting column width so totals will fit")
+            if True:
+                # To know the width, compute the total and format it to count how much space it needs
+                total                   = data_df[column].sum()
+                column_formatters       = NumFormats.xl_to_txt_formatters(config.num_formats)
+                if column in column_formatters.keys():
+                    formatter           = column_formatters[column]
+                else:
+                    formatter           = str
+                total_txt               = formatter(total)
+                new_width               = max(len(total_txt), column_width)
+                self._set_column_width(my_trace, worksheet, last_x, new_width, config.layout)
 
-            formula_fmt_dict        = config.layout.FORMULA_W_FMT
+            my_trace                    = parent_trace.doing("Writing down totals for column")
+            if True:
+                cell_first              = xl_rowcol_to_cell(first_y,        first_x) 
+                cell_last               = xl_rowcol_to_cell(last_y,         last_x)
+                cell_totals             = xl_rowcol_to_cell(last_y + 1,     last_x)
+                formula                 = "=SUM(" + cell_first + ":" + cell_last + ")" # For example, "=SUM(C3:C6)"
+                self._write_formula_val(parent_trace, cell_totals, formula, column, config, worksheet, workbook)
 
-            if column in config.num_formats.keys():
-                num_format  = config.num_formats[column]
-                if num_format != None:
-                    formula_fmt_dict    = formula_fmt_dict.copy() # GOTCHA - copy or else subsequent use of xlsxwriter will use a polluted format
-                    formula_fmt_dict['num_format'] = num_format
+            my_trace                    = parent_trace.doing("Writing down label for totals")
+            if True:
+                fmt_dict            ={'bold': True, 'align': 'right', 'font_color': Palette.DARK_BLUE}
+                fmt                 = workbook.add_format(fmt_dict)
+                worksheet.write(last_y + 1, last_x - 1, "Total:", fmt)          
 
-            formula_fmt             = workbook.add_format(formula_fmt_dict)
-            worksheet.write_formula(cell_totals, formula, formula_fmt)
-            # In this case we don't modify self.formula_shift_dict[config.sheet], since we are laying out
-            # manifests from left to right by default, and we only added a formula in a column already
-            # dedicated to this manifest, so there is no need to shift the remaining columns/manifests to the right
+        if config.excel_formulas.hasCumulativeSum(parent_trace, column):
+            HEADER                      = "Cumulative"
+            my_trace                    = parent_trace.doing("Setting up column width for extra column for cumulative totals")
+            if True:
+                # To correctly set the width of the column where we display cumulative sums, we
+                # will need to use the ColumnWidthCalculator on a "transient dataframe" where we place the cumulative
+                # sum and try to format it the same way as the column we are summing
+                cumsum_df               = data_df[column].cumsum().to_frame()
+
+                # NB: cumsum_df will have a single column, also called `column`, as in data_df. So the same
+                # column formatters used for data_df will work for cumsum_df
+                column_formatters       = NumFormats.xl_to_txt_formatters(config.num_formats)
+                calc                    = ColumnWidthCalculator(    data_df             = cumsum_df, 
+                                                                    viewport_width      = config.viewport_width, 
+                                                                    viewport_height     = config.viewport_height, 
+                                                                    max_word_length     = config.max_word_length,
+                                                                    column_formatters   = column_formatters)
+                
+                # Dictionary - keys are columns of cumsum_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
+                widths_dict             = calc.calc(my_trace)             
+                width                   = float(widths_dict[column]['width']) # Cast to float to do float arithmetic in scaling to font size
+                scaled_width            = width * self._scale_to_font_size(my_trace, font_size = 11) # Excel by default uses font size 11
+                scaled_width            = max(scaled_width, len(HEADER))
+                # Set width of Excel column last_x+1, which is where we will later write the cumulative sums
+                self._set_column_width(my_trace, worksheet, last_x + 1, scaled_width, config.layout)   
+
+            my_trace                    = parent_trace.doing("Writing out header for extra column for cumulative totals")
+            if True:
+                header_fmt_dict         = config.layout.FORMULA_HEADER_FMT
+                header_fmt              = workbook.add_format(header_fmt_dict)
+                worksheet.write(first_y - 1, last_x + 1, HEADER, header_fmt)
+
+            my_trace                    = parent_trace.doing("Writing down extra column for cumulative totals")
+            if True:
+                cell_first              = xl_rowcol_to_cell(first_y,        first_x, row_abs=True) # For example: "C$3"
+                for row_nb in range(first_y, last_y + 1):
+                    cell_last           = xl_rowcol_to_cell(row_nb,         last_x)
+                    cell_cumsum         = xl_rowcol_to_cell(row_nb,         last_x + 1)
+                    formula             = "=SUM(" + cell_first + ":" + cell_last + ")" # For example, "=SUM(C$3:C6)"
+                    self._write_formula_val(my_trace, cell_cumsum, formula, column, config, worksheet, workbook)
+ 
 
         # Default case: do nothing
         return
+
+    def _write_formula_val(self, parent_trace, cell, formula, column, config, worksheet, workbook):
+        '''
+        Helper method to write the formula into the given cell
+
+        @param column A string representing a column name for a manifest dataset, which is the column
+                    for which a formula was configured (Note: depending on the formula type, the formula might 
+                    not be written to the same Excel spreadsheet column as the dataset column that inspired
+                    the need for the formula. For example, cumulative totals formulae are written to the
+                    right of the dataset's column against which cumulative totals are computed).
+        @param cell A string representing an Excel cell where a formula should be writte. Example: "D3"
+        @param formula A string representing an Excel formula to be added to the cell. Example: "=SUM(C3:C6)"
+        '''
+        formula_fmt_dict        = config.layout.FORMULA_W_FMT
+
+        if column in config.num_formats.keys():
+            num_format  = config.num_formats[column]
+            if num_format != None:
+                formula_fmt_dict    = formula_fmt_dict.copy() # GOTCHA - copy or else subsequent use of xlsxwriter will use a polluted format
+                formula_fmt_dict['num_format'] = num_format
+
+        formula_fmt             = workbook.add_format(formula_fmt_dict)
+        worksheet.write_formula(cell, formula, formula_fmt)
 
     def _scale_to_font_size(self, parent_trace, font_size):
         '''

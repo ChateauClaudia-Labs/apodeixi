@@ -205,7 +205,7 @@ class ColumnWidthCalculator:
         
     def _words_per_row(self, parent_trace, column):
         my_trace            = parent_trace.doing("Getting a list of words per row for column '" + str(column) + "'")
-        rendered_tokenstokens_per_column   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
+        #rendered_tokenstokens_per_column   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
          
         if column in self.column_formatters.keys():
             formatter       = self.column_formatters[column]

@@ -132,6 +132,7 @@ class Palette():
     DARK_GREEN                  = '#548235'
     LIGHT_GREEN                 = '#E2EFDA' # '#E5EDD3' # '#EBF1DE'
     DARK_GREY                   = '#808080'
+    VERY_DARK_GREY              = "#606060"
     LIGHT_GREY                  = '#F2F2F2' # '#E8E8E8
 
 class NumFormats():
@@ -246,7 +247,8 @@ class PostingLayout(Excel_Layout):
         self.BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': Palette.LIGHT_GREY}
         self.BODY_W_FMT           = ROOT_FMT | W_CONTRIB | {'bg_color': Palette.LIGHT_GREEN}
 
-        self.FORMULA_W_FMT        = HEADER_CONTRIB | W_CONTRIB | {'bg_color': Palette.DARK_GREEN}
+        self.FORMULA_W_FMT        = ROOT_FMT | HEADER_CONTRIB | W_CONTRIB | {'bg_color': Palette.DARK_GREEN}
+        self.FORMULA_HEADER_FMT   = ROOT_FMT | HEADER_CONTRIB | R_CONTRIB | {'bg_color': Palette.VERY_DARK_GREY}
 
     def addHeader(self, parent_trace, xInterval, y, mode):
         '''

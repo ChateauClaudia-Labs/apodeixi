@@ -107,7 +107,8 @@ class BigRocksEstimate_Controller(SkeletonController):
                 hidden_cols                 = ['UID']
                 right_margin                = 1
                 num_formats                 = {'Incremental': NumFormats.INT}
-                excel_formulas              = None
+                excel_formulas              = ExcelFormulas(key)
+                excel_formulas.addCumulativeSum(parent_trace, 'Incremental')
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             config                          = ManifestXLConfig( sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
