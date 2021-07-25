@@ -557,15 +557,21 @@ class PostingLabel():
         self.ctx                = ctx 
         self.sightings  = sightings
 
-    def infer(self, parent_trace, manifest_dict):
+    def infer(self, parent_trace, manifest_dict, manifest_key):
         '''
-        Builds out the properties of a PostingLabel so that it can be used in a post request to update a
-        manifest given by the `manifest_dict`.
+        Abstract method
+
+        Used in the context of generating a form to build the posting label information that should be
+        embedded in the generated form.
+
+        Accomplishes this by extracting the necesssary information from the manifest given by the `manifest_dict`
 
         Returns a list of the fields that may be editable
 
         @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
                             a manifest YAML file into a dict)
+        @param manifest_key A string that identifies this manifest among others. For example, "big-rock.0". Typically
+                    it should be in the format <kind>.<number>
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'infer' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 

@@ -12,6 +12,7 @@ from apodeixi.representers.as_excel                     import Manifest_Represen
 
 from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLConfig, PostingLabelXLConfig
 from apodeixi.util.formatting_utils                     import StringUtils
+from apodeixi.util.dictionary_utils                     import DictionaryUtils
 
 
 class SkeletonController(PostingController):
@@ -176,21 +177,21 @@ class SkeletonController(PostingController):
         It returns a pair: the PostingLabel, and the PostingLabelXLConfig
         '''
         label                               = self.getPostingLabel(parent_trace)
+        label.ctx                           = {} # It gest populated in the loop below, with each manifest contributing
         label_editable_fields               = None
         for key in manifestInfo_dict.keys():
             loop_trace                      = parent_trace.doing("Checking label editable fields for manifest '" 
                                                                 + str(key) + "'")
             manifest_info                   = manifestInfo_dict[key]
             manifest_dict                   = manifest_info.getManifestDict(loop_trace)
-            proposed_editable_fields        = label.infer(loop_trace, manifest_dict)
+            my_trace                        = loop_trace.doing("Inferring posting label", 
+                                                                origination = {'signaled_from': __file__})
+            proposed_editable_fields        = label.infer(loop_trace, manifest_dict, key)
             if label_editable_fields == None: # Initialize them
                 label_editable_fields             = proposed_editable_fields
             elif proposed_editable_fields != label_editable_fields: 
                 raise ApodeixiError(loop_trace, "Can't generate form since manifests disagree on which fields should be"
                                                 + " editable in the PostingLabel of the form being requested") 
-
-        my_trace                            = parent_trace.doing("Inferring posting label", 
-                                                                origination = {'signaled_from': __file__})
 
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
@@ -219,9 +220,9 @@ class SkeletonController(PostingController):
             self._controller                = controller
             self._form_request              = form_request
 
-            # These are build later 
+            # These computed 
             self._manifest_dict             = self._retrieveManifest(parent_trace)
-            self._contents_df               = self._buildManifestContent(parent_trace)
+            self._contents_df               = self._buildManifestContent(parent_trace)  
             return
 
         def _retrieveManifest(self, parent_trace):
@@ -426,16 +427,17 @@ class SkeletonController(PostingController):
         Codifies the schema expectations for the posting label when posting BDD capability hierarchy content. 
         '''
         _MANIFEST_API               = "manifestAPI"
+        
         _DATA_KIND                  = "data.kind"
         _DATA_RANGE                 = "data.range"
         _DATA_SHEET                 = "data.sheet"
+        _PRIOR_VERSION              = "priorVersion"
+        
         _ORGANIZATION               = 'organization'
         _ENVIRONMENT                = 'environment'
         _RECORDED_BY                = 'recordedBy'
         _ESTIMATED_BY               = 'estimatedBy'
         _ESTIMATED_ON               = 'estimatedOn'
-
-        #_POSTING_VERSION            = "postingVersion"
 
         def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
             # Shortcut to reference class static variables
@@ -488,18 +490,34 @@ class SkeletonController(PostingController):
                     raise ApodeixiError(parent_trace, "Non supported domain object kind '" + kind + "'"
                                                     + "\nShould be one of: " + str(supported_data_kinds))
 
-        def infer(self, parent_trace, manifest_dict):
+        def infer(self, parent_trace, manifest_dict, manifest_key):
             '''
-            Builds out the properties of a PostingLabel so that it can be used in a post request to update a
-            manifest given by the `manifest_dict`
+            Used in the context of generating a form to build the posting label information that should be
+            embedded in the generated form.
+
+            Accomplishes this by extracting the necesssary information from the manifest given by the `manifest_dict`
 
             Returns a list of the fields that may be editable
 
             @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
                                 a manifest YAML file into a dict)
+            @param manifest_key A string that identifies this manifest among others. For example, "big-rock.0". Typically
+                        it should be in the format <kind>.<number>
             '''
-            self.ctx                        = {}
+            #GOTCHA: This method is called several times, one per manifest. Usually most field names are identical
+            #           and have identical values across the manifests, but some (like priorVersion) are manifest-dependent
+            #           i.e., "priorVersion.0", "priorVersion.1", etc. are different fieldnames.
+            #           For that reason we should not clear out the self.ctx when we enter this function, to avoid
+            #           losing fields from prior cycles of the loop that calls this function
+            #self.ctx                        = {} <======= DO NOT DO THIS
             
+            try:
+                kind, nb            = manifest_key.split(".")
+            except ValueError as ex:
+                raise ApodeixiError(parent_trace, "Unable to parse name of dataset. Expected something like <kind>.<number>",
+                                                data = {"dataset name":     "'" + str(manifest_key) + "'",
+                                                        "error":            str(ex)})
+
             ME = SkeletonController._MyPostingLabel
             def _infer(fieldname, path_list):
                 self._inferField(   parent_trace            = parent_trace, 
@@ -513,6 +531,9 @@ class SkeletonController(PostingController):
             _infer(ME._RECORDED_BY,         ["assertion",                   ME._RECORDED_BY     ])
             _infer(ME._ESTIMATED_BY,        ["assertion",                   ME._ESTIMATED_BY    ])
             _infer(ME._ESTIMATED_ON,        ["assertion",                   ME._ESTIMATED_ON    ])
+
+            version_fieldname       = ME._PRIOR_VERSION + "." + str(nb)
+            _infer(version_fieldname,       ["metadata",    "version"                           ])
 
             editable_fields = [ME._RECORDED_BY, ME._ESTIMATED_BY, ME._ESTIMATED_ON]
             return editable_fields

@@ -176,7 +176,50 @@ class NumFormats():
                 output_dict[col]    = formatter
 
         return output_dict
-            
+
+class ExcelFormulas:
+    '''
+    Helper class to represent excel formulas that should be added to the Excel spreadsheet in the vicinity
+    of the layout for a manifest.
+
+    Typically this is for usability, to provide the user some feedback that numbers entered by the user reconcile
+    with the user expectations and/or with other numbers displayed or entered in the spreadsheet.
+    '''
+    def __init__(self, manifest_name):
+        self._manifest_name         = manifest_name
+        self._formulas              = {} # Keys are column names, values are lists of possible formulas from supported types
+        return
+
+    COLUMN_TOTAL                    = "COLUMN_TOTAL"
+    CUMULATIVE_SUM                  = "CUMULATIVE_SUM" 
+
+    def addTotal(self, parent_trace, column):
+        self._addFormulatType(parent_trace, column, ExcelFormulas.COLUMN_TOTAL)
+
+    def addCumulativeSum(self, parent_trace, column):
+        self._addFormulatType(parent_trace, column, ExcelFormulas.CUMULATIVE_SUM)
+
+    def hasTotal(self, parent_trace, column):
+        return self._hasFormulaType(parent_trace, column, ExcelFormulas.COLUMN_TOTAL)
+
+    def hasCumulativeSum(self, parent_trace, column):
+        return self._hasFormulaType(parent_trace, column, ExcelFormulas.CUMULATIVE_SUM)
+
+    def _addFormulatType(self, parent_trace, column, formula_type):
+        if not column in self._formulas.keys():
+            self._formulas[column]  = []
+        
+        formula_list                = self._formulas[column]
+        if not formula_type in formula_list:
+            formula_list.append(formula_type)
+
+    def _hasFormulaType(self, parent_trace, column, formula_type):
+        if not column in self._formulas.keys():
+            return False
+        if formula_type in self._formulas[column]:
+            return True
+        else:
+            return False
                 
 class PostingLayout(Excel_Layout):
     '''
@@ -202,6 +245,8 @@ class PostingLayout(Excel_Layout):
 
         self.BODY_R_FMT           = ROOT_FMT | R_CONTRIB | {'bg_color': Palette.LIGHT_GREY}
         self.BODY_W_FMT           = ROOT_FMT | W_CONTRIB | {'bg_color': Palette.LIGHT_GREEN}
+
+        self.FORMULA_W_FMT        = HEADER_CONTRIB | W_CONTRIB | {'bg_color': Palette.DARK_GREEN}
 
     def addHeader(self, parent_trace, xInterval, y, mode):
         '''
@@ -279,7 +324,7 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, sheet, hidden_cols = [], num_formats = {},
+    def __init__(self, sheet, hidden_cols = [], num_formats = {}, excel_formulas = None,
                     viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
@@ -309,6 +354,7 @@ class AsExcel_Config():
 
         self.hidden_cols            = hidden_cols
         self.num_formats            = num_formats
+        self.excel_formulas         = excel_formulas
                
 class ManifestXLConfig(AsExcel_Config):
     '''
@@ -351,18 +397,23 @@ class ManifestXLConfig(AsExcel_Config):
                             then if `editable_headers` = ['Subtask'], this means that the user
                             can change 'Subtask' but not 'Theme' or 'Task'    
 
+    @param excel_formulas   An ExcelFormulas object that expresses which formulas (if any) should be written
+                            to the excel spreadsheet in the vicinity of the area where the manifest was laid out.
+    @param excel_formulas   An ExcelFormulas object that expresses which formulas (if any) should be written
+                            to the excel spreadsheet in the vicinity of the area where the manifest was laid out.
+
     '''
     def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
-                                editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [],   
+                                editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
+                                excel_formulas  = None,  
                                 x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats,
+        super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats, excel_formulas = excel_formulas,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
         self.editable_cols          = editable_cols
         
         self.editable_headers       = editable_headers
-
 
         self.layout                 =  PostingLayout(manifest_name)
 

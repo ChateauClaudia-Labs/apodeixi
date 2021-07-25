@@ -31,10 +31,20 @@ class Manifest_Representer:
         self.hidden_cols_dict       = {}
         self.worksheet_info_dict    = {}
 
+        # If there are formulas to add to any worksheet, they may take space which may imply that we need to shift the
+        # layout subsequent content (for other columns of a given manifest, or for other manifest).
+        # This dictionary helps us remember such shifts, for each worksheet. The keys worksheets and the values
+        # are FormulaShift instances
+        #
+        self.formula_shift_dict     = {}
+
         return
 
     POSTING_LABEL_SHEET     = "Posting Label"
     SUCCESS                 = "Success"
+
+    FORMULA_SHIFT_X         = "FORMULA_SHIFT_X"
+    FORMULA_SHIFT_Y         = "FORMULA_SHIFT_Y"
 
     def dataframe_to_xl(self, parent_trace, excel_folder, excel_filename):
         '''
@@ -115,7 +125,7 @@ class Manifest_Representer:
             self.label_ctx['data.range.'    + str(nb)]     = cell_0 + ":" + cell_1
             self.label_ctx['data.sheet.'    + str(nb)]     = config.sheet
 
-            label_config.editable_fields.extend([DATA_KIND, DATA_RANGE, DATA_SHEET])
+            label_config.editable_fields.extend([DATA_RANGE, DATA_SHEET])
 
     def _write_dataframes(self, parent_trace, workbook):
         '''
@@ -255,7 +265,6 @@ class Manifest_Representer:
         is_transposed           = layout.is_transposed
 
         my_trace                = parent_trace.doing("Building out the layout")
-
         if True:
             displayable_cols    = [col for col in content_df.columns if not col in config.hidden_cols]
             displayable_df      = content_df[displayable_cols]
@@ -290,11 +299,10 @@ class Manifest_Representer:
             self.span_dict[name]            = span
             self.hidden_cols_dict[name]     = config.hidden_cols
 
-        
         # Now we start laying out content on the worksheet. 
         # Start by re-sizing the columns.
-        if True:
-            my_trace            = parent_trace.doing("Setting column widths")
+        my_trace            = parent_trace.doing("Setting column widths")
+        if True:            
             xl_columns          = xl_df.columns 
             for xl_idx in range(len(xl_columns)): # GOTCHA: Loop is in "Excel space"
                 col             = xl_columns[xl_idx]
@@ -308,38 +316,106 @@ class Manifest_Representer:
                 self._set_column_width(loop_trace, worksheet, xl_x, scaled_width, layout)
    
         # Now populate headers
-        if True:
-            my_trace            = parent_trace.doing("Populating headers", data = {'layout span': str(span)})
-            columns             = displayable_df.columns
+        my_trace                        = parent_trace.doing("Populating headers", data = {'layout span': str(span)})
+        if True:            
+            columns                     = displayable_df.columns
             for layout_idx in range(len(columns)): # GOTCHA: Loop is in "Layout space"
-                col             = columns[layout_idx]
-                loop_trace      = my_trace.doing("Processing layout column '" + col + "'")
-                layout_x        = config.x_offset + layout_idx
-                layout_y        = config.y_offset
+                col                     = columns[layout_idx]
+                loop_trace              = my_trace.doing("Processing layout column '" + col + "'")
+                layout_x                = config.x_offset + layout_idx
+                layout_y                = config.y_offset
                 if is_transposed:
-                    xl_x        = layout_y
+                    xl_x                = layout_y
                 else:
-                    xl_x        = layout_x
+                    xl_x                = layout_x
                 self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, col, layout, num_format = None)
 
-
         # Now lay out the content
-        my_trace                = parent_trace.doing("Populating content", data = {'layout span': str(span)})
+        my_trace                        = parent_trace.doing("Populating content", data = {'layout span': str(span)})
         if True:
-            for row in displayable_df.iterrows(): # GOTCHA: Loop is in "Layout space"
-                row_nb      = row[0]
-                row_content = row[1]
-                for layout_idx in range(len(columns)):
-                    col             = columns[layout_idx]
-                    loop_trace      = my_trace.doing("Processing column = '" + col + "' row = '" + str(row_nb) + "'")
-                    layout_x        = config.x_offset + layout_idx 
-                    layout_y        = config.y_offset + 1 + row_nb # An extra '1' because of the headers
+            for layout_idx in range(len(columns)):
+                col                     = columns[layout_idx]
+                outer_loop_trace        = my_trace.doing("Processing column = '" + col + "'")
+
+                # These are the coordinates of the first cell populated with content for this column
+                # They are needed later to define the start of the range to which a column-level formula applies,
+                # if such a formula has been configured to be required. They are set in the first cycle of the loop,
+                # so we initialize them to None so that the loop uses that as the hint that it is on the first cycle
+                first_x                 = None
+                first_y                 = None
+                # This will be set in each cycle of the loop, so after the loop they will correspond to the last
+                # cell populated for this column
+                last_x                  = None
+                last_y                  = None
+                for row in displayable_df.iterrows(): # GOTCHA: Loop is in "Layout space"
+                    row_nb      = row[0]
+                    row_content = row[1]
+                
+                    loop_trace          = outer_loop_trace.doing("Processing column = '" + col 
+                                                                    + "' row = '" + str(row_nb) + "'")
+                    layout_x            = config.x_offset + layout_idx 
+                    layout_y            = config.y_offset + 1 + row_nb # An extra '1' because of the headers
+
+                    # If we have inserted formulas that took space, shift accordingly 
+                    if config.sheet in self.formula_shift_dict.keys():
+                        formula_shift   = self.formula_shift_dict[config.sheet]
+                        layout_x        += formula_shift.shift_x
+                        layout_y        += formula_shift.shift_y  
+
+                    if first_x == None:
+                        first_x         = layout_x
+                    if first_y == None:
+                        first_y         = layout_y
                  
                     num_format      = None
                     if col in config.num_formats.keys():
                         num_format  = config.num_formats[col]
                     self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, 
                                     row_content[col], layout, num_format = num_format)
+
+                    last_x              = layout_x
+                    last_y              = layout_y
+                # Before exiting this row, write any formulas associated to this column
+                self._add_formulas( parent_trace        = outer_loop_trace,
+                                    column              = col,
+                                    first_x             = first_x,
+                                    first_y             = first_y,
+                                    last_x              = last_x,
+                                    last_y              = last_y,
+                                    data_df             = displayable_df,
+                                    config              = config,
+                                    workbook            = workbook,
+                                    worksheet           = worksheet)
+
+    def _add_formulas(self, parent_trace, column, first_x, first_y, last_x, last_y,
+                        data_df, config, workbook, worksheet):
+        '''
+        Writes the formulas to the worksheet that pertain to column, if any
+        '''
+        if config.excel_formulas == None:
+            return
+        if config.excel_formulas.hasTotal(parent_trace, column):
+            cell_first              = xl_rowcol_to_cell(first_y,        first_x) 
+            cell_last               = xl_rowcol_to_cell(last_y,         last_x)
+            cell_totals             = xl_rowcol_to_cell(last_y + 1,     last_x)
+            formula                 = "=SUM(" + cell_first + ":" + cell_last + ")" # For example, "=SUM(C3:C6)"
+
+            formula_fmt_dict        = config.layout.FORMULA_W_FMT
+
+            if column in config.num_formats.keys():
+                num_format  = config.num_formats[column]
+                if num_format != None:
+                    formula_fmt_dict    = formula_fmt_dict.copy() # GOTCHA - copy or else subsequent use of xlsxwriter will use a polluted format
+                    formula_fmt_dict['num_format'] = num_format
+
+            formula_fmt             = workbook.add_format(formula_fmt_dict)
+            worksheet.write_formula(cell_totals, formula, formula_fmt)
+            # In this case we don't modify self.formula_shift_dict[config.sheet], since we are laying out
+            # manifests from left to right by default, and we only added a formula in a column already
+            # dedicated to this manifest, so there is no need to shift the remaining columns/manifests to the right
+
+        # Default case: do nothing
+        return
 
     def _scale_to_font_size(self, parent_trace, font_size):
         '''
@@ -422,5 +498,18 @@ class XL_WorksheetInfo():
             for col_nb in row_dict.keys():
                 #self.format_dict[row_nb][col_nb] = {}
                 cell_struct = row_dict[col_nb]
-                fmt        = cell_struct.format.__dict__
-                self.format_dict[row_nb][col_nb] = fmt
+                if cell_struct.format != None:
+                    fmt        = cell_struct.format.__dict__
+                    self.format_dict[row_nb][col_nb] = fmt
+
+class FormulaShift():
+    '''
+    Helper class used when there are formulas to add to an Excel spreadsheet, in addition to the content of manifests.
+    Since formulas can take some space, this object remembers the cumulative impact of prior formulas added, in that
+    if a prior formula took a column, for example, then the subsequent writing of remaining columns and manifests
+    should shift accordingly, since the space where they might otherwise have been written has been consumed by the
+    new formula-based column, for example.
+    '''
+    def __init__(self):
+        self.shift_x        = 0
+        self.shift_y        = 0

@@ -2,7 +2,7 @@ from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
-from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats
+from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats, ExcelFormulas
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
@@ -96,14 +96,18 @@ class BigRocksEstimate_Controller(SkeletonController):
                 hidden_cols                 = []
                 right_margin                = 0
                 num_formats                 = {}
+                excel_formulas              = None
             elif key == 'big-rock-estimate.1':
                 hidden_cols                 = ['UID', 'bigRock']
                 right_margin                = 1
                 num_formats                 = {'effort': NumFormats.INT}
+                excel_formulas              = ExcelFormulas(key)
+                excel_formulas.addTotal(loop_trace, column = "effort")
             elif key == 'investment.2':
                 hidden_cols                 = ['UID']
                 right_margin                = 1
                 num_formats                 = {'Incremental': NumFormats.INT}
+                excel_formulas              = None
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             config                          = ManifestXLConfig( sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
@@ -114,6 +118,7 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                 editable_cols       = editable_cols,
                                                                 hidden_cols         = hidden_cols,  
                                                                 num_formats         = num_formats, 
+                                                                excel_formulas      = excel_formulas,
                                                                 editable_headers    = [],   
                                                                 x_offset            = x_offset,    
                                                                 y_offset            = y_offset)
@@ -381,17 +386,21 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                         ME._SCORING_CYCLE,  ME._SCORING_MATURITY],
                                 date_fields         = [])
 
-        def infer(self, parent_trace, manifest_dict):
+        def infer(self, parent_trace, manifest_dict, manifest_key):
             '''
-            Builds out the properties of a PostingLabel so that it can be used in a post request to update a
-            manifest given by the `manifest_dict`
+            Used in the context of generating a form to build the posting label information that should be
+            embedded in the generated form.
+
+            Accomplishes this by extracting the necesssary information from the manifest given by the `manifest_dict`
 
             Returns a list of the fields that may be editable
 
             @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
                                 a manifest YAML file into a dict)
+            @param manifest_key A string that identifies this manifest among others. For example, "big-rock.0". Typically
+                        it should be in the format <kind>.<number>
             '''
-            editable_fields     = super().infer(parent_trace, manifest_dict)
+            editable_fields     = super().infer(parent_trace, manifest_dict, manifest_key)
 
             ME = BigRocksEstimate_Controller._MyPostingLabel
             def _infer(fieldname, path_list):
