@@ -1,5 +1,6 @@
 from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
+from apodeixi.util.formatting_utils                 import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, ClosedOpenIntervalSpec
@@ -47,7 +48,7 @@ class Workstream_Controller(SkeletonController):
                                                                             manifest_nb         = manifest_nb,
                                                                             controller          = self)
         elif kind == 'workstream-metric':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._WorkstreamMetricConfig(       update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,
@@ -72,6 +73,21 @@ class Workstream_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
+    def buildManifestName(self, parent_trace, posting_data_handle, label):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        posting_data_handle and label
+        '''
+        workstream_UID                  = label.workstream_UID      (parent_trace)
+        initiative                      = label.initiative          (parent_trace)
+        scenario                        = label.scenario            (parent_trace)
+        scoring_cycle                   = label.scoring_cycle       (parent_trace)
+
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        name                            = FMT(scenario + '.' + scoring_cycle + '.' + workstream_UID + '.' + initiative)
+
+        return name
+
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
@@ -93,9 +109,7 @@ class Workstream_Controller(SkeletonController):
                                                                 + "specific to Workstream_Controller")
         
         if True:
-            FMT                                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
             metadata                                    = manifest_dict['metadata']
-            metadata['name']                            = FMT(scenario + '.' + scoring_cycle + '.' + workstream_UID + '.' + initiative)
 
             MY_PL                                       = Workstream_Controller._MyPostingLabel # Abbreviation for readability
             labels                                      = metadata['labels']

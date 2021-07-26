@@ -13,7 +13,7 @@ class WorkstreamAggregator():
         self.kb                     = knowledge_base
 
 
-    def aggregateMetrics(self, parent_trace, filing_coordinates_filter=None, posting_version_filter=None):
+    def aggregateMetrics(self, parent_trace, filing_coordinates_filter=None):
         '''
         Returns a DataFrame that aggregates all metrics across all workstreams for self.initiative that exist in self.kb_store.
         If no such metrics exist, it returns None.
@@ -21,7 +21,6 @@ class WorkstreamAggregator():
         @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
                             Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
-        @param posting_version An instance of a posting version.
         
         '''
         POSTING_API                             = 'workstream.initiatives.a6i'
@@ -33,8 +32,7 @@ class WorkstreamAggregator():
         handle_list                             = self.kb.store.searchPostings( 
                                                                     parent_trace                    = my_trace, 
                                                                     posting_api                     = POSTING_API,
-                                                                    filing_coordinates_filter       = None, 
-                                                                    posting_version_filter          = None)
+                                                                    filing_coordinates_filter       = None)
 
         my_trace                                = parent_trace.doing("Posting " + str(len(handle_list)) + " handles in batch")
         successes, errors                       = self.kb.postInBatch(my_trace, handle_list)

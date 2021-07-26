@@ -1,6 +1,6 @@
 import sys                                              as _sys
 import os                                               as _os
-#import shutil                                           as _shutil
+import shutil                                           as _shutil
 import inspect
 
 from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
@@ -267,18 +267,34 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         self.stack().store().current_environment(parent_trace).name(parent_trace)
 
  
-    def provisionIsolatedEnvironment(self, parent_trace, environment_name = None):
+    def provisionIsolatedEnvironment(self, parent_trace, environment_name = None, 
+                                            read_misses_policy  = KB_Environment_Config.FAIL_ON_READ_MISSES,):
         '''
         Creates a new environment as a sub-environment of the current environment, and activates it.
         The new environment is configured to have a dedicated, isolated collaboration area which
         this method populates by downloading the content from the clientURL area configured in
         the Apodeixi configuration used by the testing framework.
 
-        The paramenter `environment_name` is used as the name of the newly created environment,
+        @param environment_name A string. This paramenter is used as the name of the newly created environment,
         unless it is set to None (the default), in which case a standard name is given using
         the structure
 
             <scenario>.<test name>_ENV
+
+        @param read_misses_policy A string that is recognized by the KB_Environment_Config as a valid
+                policy. The default is a high level of isolation, i.e., if data is missing
+                in the isolated environment then the store will not attempt to retrieve the
+                data from the parent environment.  
+
+                GOTCHA: Normally this higher level of isolation is needed for tests that create
+                manifests that exist in the base environment, since version consistency checks
+                prevent creation of a manifest (i.e., with version=1) if it finds such a manifest
+                existing. So if the base environment has such a manifest, then want to not
+                failover the the parent environment during read misses.
+
+                On the other hand, other tests make postings directly from the knowledge base
+                (not from the collaboration area), using postings saved in the base environment.
+                For them a different policy should be used (such as KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT).
 
         '''
         if environment_name == None:
@@ -292,7 +308,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         my_trace                    = parent_trace.doing("Creating an isolated environment for integration test")
         env_config                  = KB_Environment_Config(
                                             parent_trace, 
-                                            read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                            #read_misses_policy  = KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT,
+                                            read_misses_policy  = read_misses_policy,
                                             use_timestamps      = False,
                                             path_mask           = self._path_mask)
         store.current_environment(my_trace).addSubEnvironment(my_trace, environment_name, env_config,
@@ -341,6 +358,50 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         return my_trace
 
 
+    def snapshot_generated_form(self, parent_trace, form_request_response):     
+        '''
+        Helper method to remember a generated form at a given point in time, in case it is subsequently
+        modified and submitted as an update posting.
+
+        Basically, this will copy the generated form to self.results_data/self.scenario()
+
+        @param form_request_response A FormRequestResponse object with the information needed to locate
+                        the generated form in question.
+        '''
+        form_path   = form_request_response.clientURL(parent_trace) + "/" + form_request_response.getRelativePath(parent_trace)
+        filename = _os.path.split(form_path)[1]
+        snapshot_name   = self.next_form(filename)
+        _shutil.copy2(src = form_path, dst = self.results_data + "/" + self.scenario() + "/" + snapshot_name)
+
+    def modify_form(self, parent_trace, form_request_response):     
+        '''
+        Helper method to simulate an end-user's edits of a generated form, where the end-user's intention would
+        typically be to submit an update posting using the form.
+
+        This "simulation" is done by copying a manually created "edited form" from the self.inputs area
+
+        remember a generated form at a given point in time, in case it is subsequently
+        modified and submitted as an update posting.
+
+        Basically, this will copy the generated form to self.results_data/self.scenario()
+
+        @param form_request_response A FormRequestResponse object with the information needed to locate
+                        the generated form in question.
+        '''
+        form_path   = form_request_response.clientURL(parent_trace) + "/" + form_request_response.getRelativePath(parent_trace)
+        form_filename = _os.path.split(form_path)[1]
+
+        simulation_filename = self.input_data + "/" + self.scenario() + "/" + self.currentTestName() + "." + form_filename
+        _shutil.copy2(src = simulation_filename, dst = form_path)
+
+    def next_form(self, description=None):
+        '''
+        Returns a string that can be used as the output name for test output that is a snapshot of
+        a form, i,e,, an Excel spreadsheet generated by calling the generateForm API of the Knowledge
+        Base. This is useful to remember the form before it is modified (as it might be if the 
+        test case subsequently wants to do an update by modifying the form and submitting it as posting)
+        '''
+        return self.next_output_name(output_type="form", description=description)
 
     def next_snapshot(self, description=None):
         '''

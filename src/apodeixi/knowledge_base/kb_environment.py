@@ -12,7 +12,7 @@ class KB_Environment_Config():
 
     @param read_misses_policy A string determining how to handle I/O situations when a piece of data
             does not exist in the current environment. Possibilities are:
-            * 'FAILOVER_READS_TO_PARENT': Causes the store to search for the missing information in the parent
+            * 'FAILOVER_ALL_READS_TO_PARENT': Causes the store to search for the missing information in the parent
                 environment, and if found, it will be copied to the current environment
             * 'FAIL_ON_READ_MISSES': Causes the store to fail when the datum is not found. Exact failure 
                 semantics depends on each I/O service. For example, some may raise an ApodeixiError while
@@ -47,9 +47,16 @@ class KB_Environment_Config():
         self.use_timestamps                 = use_timestamps
         self.path_mask                      = path_mask
 
-    FAILOVER_READS_TO_PARENT                = 'FAILOVER_READS_TO_PARENT'
+    FAILOVER_ALL_READS_TO_PARENT            = 'FAILOVER_ALL_READS_TO_PARENT'
+    FAILOVER_MANIFEST_READS_TO_PARENT       = 'FAILOVER_MANIFEST_READS_TO_PARENT'
+    FAILOVER_POSTING_READS_TO_PARENT        = 'FAILOVER_POSTING_READS_TO_PARENT'
     FAIL_ON_READ_MISSES                     = 'FAIL_ON_READ_MISSES'
-    READ_MISSES_POLICIES = [FAILOVER_READS_TO_PARENT, FAIL_ON_READ_MISSES]
+    READ_MISSES_POLICIES = [FAILOVER_ALL_READS_TO_PARENT, 
+                            FAILOVER_MANIFEST_READS_TO_PARENT,
+                            FAILOVER_POSTING_READS_TO_PARENT,
+                            FAIL_ON_READ_MISSES]
+
+
 
 class KB_Environment():
     '''

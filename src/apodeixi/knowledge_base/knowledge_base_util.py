@@ -125,7 +125,7 @@ class ManifestUtils():
                                                                 root_dict       = manifest_dict, 
                                                                 root_dict_name  = 'manifest_dict',
                                                                 path_list       = [_METADATA, _LABELS],
-                                                                valid_types     = None)
+                                                                valid_types     = [dict])
         if not check:
             raise ApodeixiError(my_trace, "Can't set manifest version because it is not structured correctly",
                                         data = {'explanation': explanation})
@@ -144,7 +144,7 @@ class ManifestUtils():
                                                                 root_dict       = manifest_dict, 
                                                                 root_dict_name  = 'manifest_dict',
                                                                 path_list       = [_METADATA, _VERSION],
-                                                                valid_types     = None)
+                                                                valid_types     = [int])
         if not check:
             raise ApodeixiError(my_trace, "Can't get manifest version because it is not structured correctly",
                                         data = {'explanation': explanation})
@@ -335,9 +335,11 @@ class FormRequestResponse(Response):
 
                 '<KNOWLEDGE_BASE>/envs/big_rocks_posting_ENV/excel-postings    
     '''
-    def __init__(self, clientURL, path_mask):
+    def __init__(self, clientURL, posting_api, filing_coords, path_mask):
         super().__init__()
         self._clientURL         = clientURL
+        self._posting_api       = posting_api 
+        self._filing_coords     = filing_coords 
         self._path_mask         = path_mask
 
     def clientURL(self, parent_trace):
@@ -356,17 +358,16 @@ class FormRequestResponse(Response):
         '''
         self.clientURL_handles_dict[Response.CREATED].append(response_handle)
 
+    def getRelativePath(self, parent_trace):
+        '''
+        Returns the relative path within the Knowledge Store's external collaboration area where the 
+        form (an Excel spreadsheet) can be found. This is the form generated in the processing for
+        which this class is the response.
+        '''
+        parsed_tokens               = self._filing_coords.path_tokens(parent_trace)
+        excel_path                  = '/'.join(parsed_tokens)
+        return excel_path + "/" + self._posting_api + ".xlsx"
 
-class PostingVersion():
-    '''
-    Helper class to represent different versions of the same posting
-    '''
-    def __init__(self, version_nb = 0):
-        self.version_nb         = version_nb
-        return
-    
-    def nextVersion(self, posting_version):
-        return PostingVersion(posting_version.version_nb + 1)
 
 class FormRequest():
     '''

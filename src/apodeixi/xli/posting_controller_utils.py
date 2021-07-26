@@ -49,7 +49,21 @@ class PostingController():
                                             origination = {'concrete class': str(self.__class__.__name__), 
                                                             'signaled_from': __file__})
 
-    def _xl_2_tree(self, parent_trace, data_handle, config):
+    def initialize_UID_Store(self, parent_trace, posting_data_handle, label, config):
+        '''
+        Abstract method
+
+        Creates and returns a UID_Store object.
+
+        It also initializes it to contain all UIDs that might have been used previously by the preceding version
+        of the manifest being updated by the posting referenced by `posting_data_handel`, if such a prior
+        version exists and if `config`'s update policy is set to reuse UIDs.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'initialize_UID_Store' in concrete class",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
+
+    def _xl_2_tree(self, parent_trace, data_handle, label, config):
         '''
         Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
@@ -71,9 +85,18 @@ class PostingController():
 
         config.preflightPostingValidation(parent_trace = my_trace, posted_content_df = df)
         
-        store                   = UID_Store(parent_trace)
+
+        
+        store                   = self.initialize_UID_Store(parent_trace, data_handle, label, config)
         tree                    = BreakdownTree(uid_store = store, entity_type=config.entity_name(), parent_UID=None)
         
+        # If we are supposed to use user-generated UIDs (when available) instead of generating them,
+        # tell the tree's UID store to keep them. 
+        #
+        # At most one UID column per interval, hence the loop so that uniqueness of UID column per interval can be enforced
+        for interval in config.buildIntervals(my_trace, list(df.columns)):
+            tree.reserve_user_provided_uids(parent_trace, config, df[interval.columns])  
+
         rows                    = list(df.iterrows())
         my_trace                = parent_trace.doing("Processing DataFrame", data={ 'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)},
@@ -104,19 +127,6 @@ class PostingController():
                                                     uid                 = last_uid)
 
         return tree
-
-    def format_as_yaml_fieldname(txt):
-        '''
-        Returns a re-formatting of the string `txt` to adhere to the standards controller apply to field names.
-        Specifically, no spaces and all lower case. Internal spaces are replaced by a hyphen
-        '''
-        tyt     = txt
-        if type(txt) == float and _math.isnan(txt):
-            tyt = ''
-        else:
-            tyt = str(txt) # Precaution in case somebody passes a non-string, like a float (Pandas might put a 0.0 on an empty field instead of '')
-        
-        return tyt.strip().lower().replace(' ', '-')
 
     def getManifestAPI(self):
         '''

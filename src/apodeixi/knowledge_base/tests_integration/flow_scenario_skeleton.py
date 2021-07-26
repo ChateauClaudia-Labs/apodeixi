@@ -1,4 +1,3 @@
-
 from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
@@ -57,6 +56,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                 self.check_log(my_trace, log_txt, api_called="postByFile")
 
             my_trace                        = self.trace_environment(root_trace, "Calling 'requestForm' API")
+            form_request_responses          = []
             if True:
                 form_idx = 0
 
@@ -83,7 +83,31 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
 
                     self.check_xl_format(my_trace, ws_fmt_info, generated_form_worksheet, api_called)
 
+                    '''
+                    Save the form before we change it
+                    '''
+                    self.snapshot_generated_form(my_trace, fr_response)
+
+                    form_request_responses.append(fr_response)
                     form_idx += 1
+
+            my_trace                        = self.trace_environment(root_trace, "Doing an update via 'postByFile' API")
+            if True:
+                for fr_response in form_request_responses:
+                    # Copy the "modified form" that has some edits in it
+                    self.modify_form(my_trace, fr_response)
+                    form_path   = fr_response.clientURL(my_trace) + "/" + fr_response.getRelativePath(my_trace)
+
+                    update_response, update_log_txt = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                                path_of_file_being_posted   = form_path)
+
+                    self.check_manifest_count(my_trace, update_response, nb_manifests_expected)
+
+                    self.check_manifests_contents(my_trace, update_response)
+
+                    self.check_environment_contents(   parent_trace    = my_trace)
+
+                    self.check_log(my_trace, update_log_txt, api_called="postByFile")
 
             return
         except ApodeixiError as ex:

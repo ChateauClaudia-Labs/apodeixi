@@ -4,8 +4,9 @@ import os                                               as _os
 from apodeixi.util.a6i_error                            import ApodeixiError
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
+from apodeixi.xli.uid_store                             import UID_Store
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle, \
-                                                                PostingLabelHandle, FormRequestResponse
+                                                                PostingLabelHandle, FormRequestResponse, ManifestHandle
 from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.representers.as_dataframe                 import AsDataframe_Representer
 from apodeixi.representers.as_excel                     import Manifest_Representer
@@ -77,8 +78,8 @@ class SkeletonController(PostingController):
 
         Returns a FormRequestResponse object, as well as a string corresponding the log made during the processing.
         '''
-        ME                                  = SkeletonController
-        my_trace                            = parent_trace.doing("Loading manifests requested in the form")
+        ME                      = SkeletonController
+        my_trace                = parent_trace.doing("Loading manifests requested in the form")
         if True:
             manifest_handles_dict               = form_request.manifestHandles(my_trace)
             manifestInfo_dict                   = {}
@@ -97,38 +98,39 @@ class SkeletonController(PostingController):
                 data_df                         = manifest_info.getManifestContents(my_trace)
                 contents_df_dict[key]           = data_df
 
-        my_trace                            = parent_trace.doing("Creating Excel layouts for manifests")
-        config_table                        = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
-                                                                                manifestInfo_dict   = manifestInfo_dict)
+        my_trace                = parent_trace.doing("Creating Excel layouts for manifests")
+        config_table            = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
+                                                                    manifestInfo_dict   = manifestInfo_dict)
 
-        my_trace                            = parent_trace.doing("Creating Excel layouts for posting label")
-        label, label_config                 = self._build_labelXLconfig(my_trace, manifestInfo_dict)
+        my_trace                = parent_trace.doing("Creating Excel layouts for posting label")
+        label, label_config     = self._build_labelXLconfig(my_trace, manifestInfo_dict)
         config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-        my_trace                            = parent_trace.doing("Writing out the Excel spreadsheet requested")
+        my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")
         
         if True:
-            rep                             = Manifest_Representer( config_table    = config_table,
-                                                                    label_ctx       = label.ctx,
-                                                                    content_df_dict = contents_df_dict,)
-            filename                        = self.store.uploadForm(my_trace, 
+            rep                 = Manifest_Representer( config_table    = config_table,
+                                                        label_ctx       = label.ctx,
+                                                        content_df_dict = contents_df_dict,)
+            filename            = self.store.uploadForm(my_trace, 
                                                                     form_request    = form_request, 
                                                                     representer     = rep)
 
-        my_trace                            = parent_trace.doing("Assembling FormRequest response")     
+        my_trace                = parent_trace.doing("Assembling FormRequest response")     
         if True:
-            response_handle                     = PostingLabelHandle(   
-                                                        parent_trace            = my_trace,
+            response_handle     = PostingLabelHandle(   parent_trace            = my_trace,
                                                         excel_filename          = filename,
                                                         excel_sheet             = SkeletonController.POSTING_LABEL_SHEET,
                                                         excel_range             = SkeletonController.POSTING_LABEL_RANGE,
                                                         posting_api             = form_request.getPostingAPI(my_trace), 
                                                         filing_coords           = form_request.getFilingCoords(my_trace), 
-                                                        )
+                                            )
 
-            env_config                          = self.store.current_environment(parent_trace).config(parent_trace)
-            response                            = FormRequestResponse(self.store.getClientURL(my_trace),
-                                                                        path_mask   = env_config.path_mask)
+            env_config          = self.store.current_environment(parent_trace).config(parent_trace)
+            response            = FormRequestResponse(  clientURL       = self.store.getClientURL(my_trace),
+                                                        posting_api     = form_request.getPostingAPI(my_trace),
+                                                        filing_coords   = form_request.getFilingCoords(my_trace),
+                                                        path_mask       = env_config.path_mask)
             response.recordClientURLCreation(parent_trace=my_trace, response_handle=response_handle)
 
             self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
@@ -274,14 +276,6 @@ class SkeletonController(PostingController):
                                                 + "ahead of this point in the processing?",
                                                 data = {"manifest key": str(self._key)})
 
-
-    def nextVersion(self, parent_trade, manifest_nb):
-        '''
-        Returns an int, corresponding to the version number that should be used if the manifest identified by
-        the int `manifest_nb` needs to be persisted.
-        '''
-        return 1 # Hard-coded for now. TODO - compute it based on a lookup in the store for the last version of the manifest
-
     def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
         Implemented by concrete controller classes.
@@ -361,6 +355,15 @@ class SkeletonController(PostingController):
             result.append(data_handle)
         return result
 
+    def buildManifestName(self, parent_trace, posting_data_handle, label):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        posting_data_handle and label
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'buildManifestName' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__})         
+
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Returns a  dictionary corresponding to the manifest that was built in this method
@@ -375,30 +378,37 @@ class SkeletonController(PostingController):
         estimated_by                = label.estimatedBy         (parent_trace)
         estimated_on                = label.estimatedOn         (parent_trace)
 
-        _VERSION                    = "version" # Refers to the version of the manifest, not of the posting
-        my_trace                    = parent_trace.doing("Computing the version number to use for the manifest",
-                                                            data = {    "manifest_nb":  str(manifest_nb),
-                                                                        "kind":         str(kind)})
-        next_version                = self.nextVersion(my_trace,manifest_nb)
-        
+        FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        namespace                   = FMT(organization + '.' + environment)
+        manifest_name               = self.buildManifestName(parent_trace, posting_data_handle, label)
+
+        my_trace                    = parent_trace.doing("Checking if this is an update")
+        if True:
+            prior_version           = label.priorVersion        (parent_trace, manifest_nb)
+            config                  = self.getPostingConfig(    parent_trace        = my_trace, 
+                                                                kind                = kind,
+                                                                manifest_nb         = manifest_nb)
+            if prior_version != None: # we are updating
+                next_version        = prior_version + 1
+            else:
+                next_version        = 1
+
         relative_path                   = posting_data_handle.getRelativePath(my_trace)
         my_trace                        = parent_trace.doing("Creating BreakoutTree from Excel", 
                                                                 data = {"relative_path": relative_path},
                                                                 origination = {'signaled_from': __file__})
         if True:
-            config                      = self.getPostingConfig(    parent_trace        = my_trace, 
-                                                                    kind                = kind,
-                                                                    manifest_nb         = manifest_nb)
-            tree                        = self._xl_2_tree(my_trace, posting_data_handle, config)
+            tree                        = self._xl_2_tree(my_trace, posting_data_handle, label, config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
                                                                 data = {'organization': organization},
                                                                 origination = {'signaled_from': __file__})
         if True:
-            FMT                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
+            
             manifest_dict               = {}
-            metadata                    = { 'namespace':    FMT(organization + '.' + environment), 
+            metadata                    = { 'namespace':    namespace, 
+                                            'name':         manifest_name,
                                             'labels':       {   label._ORGANIZATION:    organization,
                                                                 label._ENVIRONMENT:     environment,
                                                                 label._RECORDED_BY:     recorded_by,
@@ -421,6 +431,52 @@ class SkeletonController(PostingController):
                                                     manifest_dict       = manifest_dict, 
                                                     manifest_version    = next_version)
         return manifest_dict
+
+    def initialize_UID_Store(self, parent_trace, posting_data_handle, label, config):
+        '''
+        Creates and returns a UID_Store object.
+
+        It also initializes it to contain all UIDs that might have been used previously by the preceding version
+        of the manifest being updated by the posting referenced by `posting_data_handel`, if such a prior
+        version exists and if `config`'s update policy is set to reuse UIDs.
+        '''
+        store                   = UID_Store(parent_trace)
+
+        my_trace                    = parent_trace.doing("Determining previously used UIDs to re-use")
+        manifest_nb             = posting_data_handle.manifest_nb
+        prior_version           = label.priorVersion        (parent_trace, manifest_nb)
+        if config.update_policy.reuse_uids == True and prior_version != None:
+            
+            kind                    = posting_data_handle.kind
+
+            organization            = label.organization        (parent_trace)
+            environment             = label.environment         (parent_trace)  
+                        
+            FMT                     = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+            namespace               = FMT(organization + '.' + environment)
+            manifest_name           = self.buildManifestName(parent_trace, posting_data_handle, label)
+            
+            config                  = self.getPostingConfig(    parent_trace        = my_trace, 
+                                                                kind                = kind,
+                                                                manifest_nb         = manifest_nb)
+            # Load the prior manifest, to determine which UIDs are already in use so that we don't
+            # re-generate them for different data items
+            prior_handle    = ManifestHandle(   apiVersion  = self.api_version(my_trace),
+                                                namespace   = namespace, 
+                                                name        = manifest_name, 
+                                                kind        = kind,
+                                                version     = prior_version)
+            prior_manifest, prior_manifest_path     = self.store.retrieveManifest(my_trace, prior_handle) 
+
+            if prior_manifest == None:
+                raise ApodeixiError(my_trace, "Prior version of manifest does not exist, but it should",
+                                            data = {"prior version":            prior_version,
+                                                    "prior manifest handle":    prior_handle.display(my_trace)})                                                       
+            
+            store.initializeFromManifest(my_trace, prior_manifest)
+
+        return store
+        
 
     class _MyPostingLabel(PostingLabel):
         '''
@@ -449,7 +505,7 @@ class SkeletonController(PostingController):
                                                         ME._DATA_RANGE]
             combined_mandatory_fields.extend(mandatory_fields)
 
-            combined_optional_fields                = [ME._DATA_SHEET]
+            combined_optional_fields                = [ME._DATA_SHEET, ME._PRIOR_VERSION]
             combined_optional_fields.extend(optional_fields)
 
             combined_date_fields                    = [ME._ESTIMATED_ON]
@@ -570,6 +626,16 @@ class SkeletonController(PostingController):
             dt  = self._getField(parent_trace, ME._ESTIMATED_ON)
             return dt
 
+        def priorVersion(self, parent_trace, manifest_nb):
+            # Shortcut to reference class static variables
+            ME = SkeletonController._MyPostingLabel
+
+            field_name      = ME._PRIOR_VERSION + "." + str(manifest_nb)
+            if not field_name in self.ctx.keys():
+                return None
+            val  = self._getField(parent_trace, field_name)
+            return val
+
         def _initialize_show_your_work(self, parent_trace, posting_label_handle):
             '''
             Used to prepare the information needed to retrieve the data for each of the manifests (1 or more) that
@@ -603,7 +669,7 @@ class SkeletonController(PostingController):
                 '''
                 Helper function to avoid repetitive code in both branches of an if-else
                 '''
-                FMT                 = PostingController.format_as_yaml_fieldname # Abbreviation for readability
+                FMT                 = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
                 kind_val            = FMT(self.ctx[kind_field])
                 range_val           = self.ctx[range_field]
                 sheet_val           = self.ctx[sheet_field]

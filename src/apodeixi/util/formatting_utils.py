@@ -23,6 +23,19 @@ class StringUtils():
         li = input_txt.rsplit(old, nb_replaments)
         return new.join(li)
 
+    def format_as_yaml_fieldname(self, txt):
+        '''
+        Returns a re-formatting of the string `txt` to adhere to the standards controller apply to field names.
+        Specifically, no spaces and all lower case. Internal spaces are replaced by a hyphen
+        '''
+        tyt     = txt
+        if type(txt) == float and _math.isnan(txt):
+            tyt = ''
+        else:
+            tyt = str(txt) # Precaution in case somebody passes a non-string, like a float (Pandas might put a 0.0 on an empty field instead of '')
+        
+        return tyt.strip().lower().replace(' ', '-')
+
 class NotebookUtils():
     '''
     Utilities to process Jupyter notebooks

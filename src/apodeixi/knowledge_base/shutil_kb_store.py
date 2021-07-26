@@ -3,6 +3,7 @@ import shutil                                           as _shutil
 import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KBStore_Impl
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils
 
@@ -201,7 +202,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
             label_df                    = super().loadPostingLabel(parent_trace, posting_label_handle)          
         except ApodeixiError as ex:
             # Try again in parent environment if failover is configured and error is a missing file
-            if self._file_not_found_error(ex) and self._failover_reads_to_parent(parent_trace):
+            if self._file_not_found_error(ex) and self._failover_posting_reads_to_parent(parent_trace):
                 my_trace                = parent_trace.doing("Searching in parent environment")
                 # Temporarily switch to the environment in which to search
                 original_env            = self.current_environment(my_trace)
@@ -233,7 +234,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
             df                      = super().loadPostingData(parent_trace, data_handle, config)
         except ApodeixiError as ex:
             # Try again in parent environment if failover is configured and error is a missing file
-            if self._file_not_found_error(ex) and self._failover_reads_to_parent(parent_trace):
+            if self._file_not_found_error(ex) and self._failover_posting_reads_to_parent(parent_trace):
                 my_trace                = parent_trace.doing("Searching in parent environment")
                 # Temporarily switch to the environment in which to search
                 original_env            = self.current_environment(my_trace)
@@ -256,7 +257,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
 
         return df
 
-    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None):
         '''
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
         the given criteria:
@@ -270,13 +271,10 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
                             Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
-        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
-                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.n.
         '''
         ME                          = Shutil_KBStore_Impl
 
-        if self._failover_reads_to_parent(parent_trace):
+        if self._failover_posting_reads_to_parent(parent_trace):
             # Search in parent first, and copy anything found to the current environment
 
             my_trace                = parent_trace.doing("Searching in parent environment")
@@ -286,8 +284,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
             parent_handles          = self.searchPostings(
                                                 parent_trace                = my_trace,
                                                 posting_api                 = posting_api,
-                                                filing_coordinates_filter   = filing_coordinates_filter,
-                                                posting_version_filter      = posting_version_filter)
+                                                filing_coordinates_filter   = filing_coordinates_filter)
             # Now that search in parent environment is done, reset back to original environment
             self.activate(my_trace, original_env.name(my_trace))
 
@@ -310,16 +307,79 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         scanned_handles             = super().searchPostings(
                                                 parent_trace                = my_trace, 
                                                 posting_api                 = posting_api, 
-                                                filing_coordinates_filter   = filing_coordinates_filter, 
-                                                posting_version_filter      = posting_version_filter)
+                                                filing_coordinates_filter   = filing_coordinates_filter)
         return scanned_handles
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
         Persists manifest_dict as a yaml object and returns a ManifestHandle that uniquely identifies it.
+
+        Will raise an ApodeixiError if version consistency is violated, i.e., can only save
+        manifest_dict with version N+1 if N is the highest version existing in the KnowledgeStore, if any. 
+        If no prior version of the manifests exists then the manifest_dict must have version number equal to 1.
         '''
-        handle              = super().persistManifest(parent_trace, manifest_dict)
+        my_trace                        = parent_trace.doing("Checking version consistency")
+        if True:
+            self.checkDuplicateManifest(my_trace, manifest_dict)
+
+            prior_manifest = self.retrievePreviousManifest(my_trace, manifest_dict)
+
+            new_handle                  = ManifestUtils().inferHandle(my_trace, manifest_dict)
+            new_version                 = new_handle.version
+
+            # Check that if we are doing an update a prior version does exist
+            if new_version > 1 and prior_manifest == None: 
+                raise ApodeixiError(my_trace, "Can't persist manifest with version " + str(new_version) 
+                                                + " because no prior manifest exist with version " + str(new_version - 1),
+                                            data = {"manifest handle": new_handle.display(my_trace)})
+            
+        my_trace                        = parent_trace.doing("Persisting manifest")
+        handle                          = super().persistManifest(parent_trace, manifest_dict)
         return handle
+
+    def retrievePreviousManifest(self, parent_trace, manifest_dict):
+        '''
+        Given a manifest expressed as a dict with a certain version N, will retrieve the same manifest
+        but with version N-1, and return is a dict.
+
+        If no prior version exists, it returns None
+        '''
+        new_handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+        new_version                 = new_handle.version
+
+        if new_version < 1: # versions should be 1, 2, 3, .. etc, not 0 or below
+            raise ApodeixiError(parent_trace, "Invalid manifest with a version below 1",
+                                            data = {"version given": str(new_version),
+                                                    "manifest handle": new_handle.display(parent_trace)})
+        # Check that if we are doing an update a prior version does exist
+        prior_handle            = new_handle
+        prior_handle.version    = new_version - 1
+        prior_manifest, prior_manifest_path     = self.retrieveManifest(parent_trace, prior_handle)
+
+        return prior_manifest
+
+    def checkDuplicateManifest(self, parent_trace, manifest_dict):
+        '''
+        Given a manifest expressed as a dict with a certain version N, will confirm that the store
+        does not already have a manifest with version N.
+
+        If it does, this method raises an ApodeixiError
+
+        '''
+        new_handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+        new_version                 = new_handle.version
+
+        if new_version < 1: # versions should be 1, 2, 3, .. etc, not 0 or below
+            raise ApodeixiError(parent_trace, "Invalid manifest with a version below 1",
+                                            data = {"version given": str(new_version),
+                                                    "manifest handle": new_handle.display(parent_trace)})
+        # Check that no manifest exists with this version
+        duplicate_manifest, duplicate_manifest_path     = self.retrieveManifest(parent_trace, new_handle)
+        if duplicate_manifest != None:
+            raise ApodeixiError(parent_trace, "Invalid duplicate manifest: one already exists for the given version",
+                                            data = {"version given": str(new_version),
+                                                    "manifest handle": new_handle.display(parent_trace)})
+
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
@@ -340,7 +400,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         if manifest == None:
             # Not found, so normally we should return None. But before giving up, look in parent environment
             # if we have been configured to fail over the parent environment whenver we can't find something
-            if self._failover_reads_to_parent(parent_trace):
+            if self._failover_manifest_reads_to_parent(parent_trace):
                 # Search in parent first, and copy anything found to the current environment
 
                 my_trace                = parent_trace.doing("Searching in parent environment")

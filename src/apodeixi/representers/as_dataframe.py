@@ -198,7 +198,7 @@ class AsDataframe_Representer:
         else:
             UID_COL             = UID + '-' + str(len(parent_uid.split('.')))
         
-        my_trace                = parent_trace.doing("Processing interval for '" + entity_name + "''",
+        my_trace                = parent_trace.doing("Processing interval for '" + entity_name + "'",
                                                         data = {'signaledFrom': __file__})
         all_intervals           = []
         my_interval             = Interval(parent_trace = my_trace, columns = [UID_COL, entity_name], entity_name = entity_name)
@@ -213,7 +213,7 @@ class AsDataframe_Representer:
                 full_e_uid      = parent_uid + '.' + e_uid
                 
             e_path              = parent_path  + '.' + e_uid
-            loop_trace          = parent_trace.doing("Looping on entity with path '" + e_path + "''",
+            loop_trace          = parent_trace.doing("Looping on entity with path '" + e_path + "'",
                                                     data = {'signaledFrom': __file__})
             e_dict              = content_dict[e_uid]
 
@@ -234,7 +234,8 @@ class AsDataframe_Representer:
                 # Check e.g. parent.workstreams[W2][UID] == W2
                 if e_dict[UID] != full_e_uid:
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected '" + e_path
-                                                   + "[" + UID + "] = '" + full_e_uid)
+                                                   + "[" + UID + "] = " + full_e_uid + "'", 
+                                                   data = {"expected": full_e_uid, "actual": str(e_dict[UID])})
                 # Check e.g. parent.workstreams[W2]['name'] exists
                 if not NAME in e_dict.keys():
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected a child called '" + NAME

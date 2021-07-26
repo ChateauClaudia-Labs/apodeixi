@@ -25,33 +25,29 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
         TEST_NAME                       = 'test_workstream_aggregator'
         INITIATIVE                      = 'S1'
-        ENVIRONMENT_NAME                = TEST_NAME + "_ENV"
+        #ENVIRONMENT_NAME                = TEST_NAME + "_ENV"
         self.setScenario("aggregate_workstream_metrics")
+        self.setCurrentTestName(TEST_NAME)
+
         try:
             root_trace                  = FunctionalTrace(None).doing("Testing Workstream Aggregators")
 
-            my_trace                    = root_trace.doing("Removing previously created environment, if any",
-                                                        data = {'environment name': ENVIRONMENT_NAME})
-            stat                        = self.stack().store().removeEnvironment(parent_trace = my_trace, name = ENVIRONMENT_NAME)
+            my_trace                        = self.trace_environment(root_trace, "Isolating test case")
 
-            my_trace                    = root_trace.doing("Creating a sub-environment to do postings in")
-            env_config                  = KB_Environment_Config(
-                                                root_trace, 
-                                                read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
-                                                use_timestamps      = False,
-                                                path_mask           = self._path_mask)
-            self.stack().store().current_environment(my_trace).addSubEnvironment(my_trace, ENVIRONMENT_NAME, env_config,
-                                                                            isolate_collab_area = True)
-            self.stack().store().activate(parent_trace = my_trace, environment_name = ENVIRONMENT_NAME)
-
+            # The inputs for this test are Excel postings residing in the Knowledge Base itself, so only
+            # partially isolate the environment for this test, since we want to retrieve such postings.
+            # So the read_misses_policy will failover on posting reads only, but *should not* failover on manifest
+            # reads because version checks would prevent creating manifests (with version 1) since such exist
+            # in the parent environment for historical reasons.
+            self.provisionIsolatedEnvironment(my_trace, read_misses_policy = KB_Environment_Config.FAILOVER_POSTING_READS_TO_PARENT)
+ 
             my_trace                    = root_trace.doing("Running WorkstreamAggregator")
             aggregator                  = WorkstreamAggregator(         parent_trace                = my_trace,
                                                                         initiative_UID              = INITIATIVE, 
                                                                         knowledge_base              = self.stack().kb())
 
             result_df, errors           = aggregator.aggregateMetrics(  parent_trace                = my_trace, 
-                                                                        filing_coordinates_filter   = None, 
-                                                                        posting_version_filter      = None)
+                                                                        filing_coordinates_filter   = None)
 
             explanation_txt             = "++++++++++++++++++++ Successes +++++++++++++++\n"
             if not result_df is None:

@@ -153,7 +153,7 @@ class KnowledgeBaseStore():
         '''
         return self._impl.loadPostingData(parent_trace, data_handle, config)      
         
-    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None):
         '''
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
         the given criteria:
@@ -167,11 +167,8 @@ class KnowledgeBaseStore():
         @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
                             Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
-        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
-                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.n.
         '''
-        return self._impl.searchPostings(parent_trace, posting_api, filing_coordinates_filter, posting_version_filter)
+        return self._impl.searchPostings(parent_trace, posting_api, filing_coordinates_filter)
 
     def persistManifest(self, parent_trace, manifest_dict):
         '''
@@ -179,6 +176,15 @@ class KnowledgeBaseStore():
         ManifestHandle that uniquely identifies it.
         '''
         return self._impl.persistManifest(parent_trace, manifest_dict)
+
+    def retrievePreviousManifest(self, parent_trace, manifest_dict):
+        '''
+        Given a manifest expressed as a dict with a certain version N, will retrieve the same manifest
+        but with version N-1, and return is a dict.
+
+        If no prior version exists, it returns None
+        '''
+        return self._impl.retrievePreviousManifest(parent_trace, manifest_dict)
 
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''

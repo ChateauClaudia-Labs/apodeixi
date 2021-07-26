@@ -2,6 +2,7 @@ import re                                       as _re
 import pandas
 
 from apodeixi.util.a6i_error                    import ApodeixiError
+from apodeixi.util.formatting_utils             import StringUtils
 from apodeixi.xli.interval                      import IntervalUtils, Interval
 from apodeixi.xli.uid_store                     import UID_Store
 from apodeixi.util.dataframe_utils              import DataFrameUtils
@@ -44,8 +45,6 @@ class BreakdownTree():
         self.children               = {} # Dictionary of _EntityInstance's, keyed by UID
         self.last_path              = {} # Keys are entity types, and value is an _EntityInstance
         self.acronyms               = {} # Keys are entity types, and value is the acronym used for it
-
-    
 
     def as_dicts(self):
         '''
@@ -133,11 +132,7 @@ class BreakdownTree():
                             another example, how to handle a situation where there is a need to put a referential link
                             the UIDs in branches of another previously generated manifest.
         @returns The full UID of the new _EntityInstance node that was added as a child to this tree, or None if no node was added.
-        '''
-        update_policy                       = None
-        if config != None:
-            update_policy                   = config.update_policy
-            
+        ''' 
         encountered_new_entity              = False
         entity_column_idx                   = None
         known_entity_types                  = list(self.last_path.keys())
@@ -191,7 +186,7 @@ class BreakdownTree():
                 return cleaned_col == interval.entity_name
 
 
-            #idxs                        = [idx for idx in range(len(columns)) if GIST_OF(my_trace, columns[idx])==interval.entity_name]
+
             idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
             if len(idxs)>1:
                 raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
@@ -202,7 +197,10 @@ class BreakdownTree():
             # Check that if interval's entity is blank, all of interval is bank
             blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
             encountered_new_entity      = not interval.entity_name in blank_cols
-            uid_to_overwrite             = None # This will be used later when looking for a docking UID
+            if self._keep_user_provided_UID(my_trace, config=config, user_provided_data=row[1][interval.columns]):
+                uid_to_overwrite        = row[1][Interval.UID]
+            else:
+                uid_to_overwrite             = None # This will be used later when looking for a docking UID
             if not encountered_new_entity and len(blank_cols) < len(interval.columns):
                 # Before raising an error, attempt to recover: perhaps user entered the entity_name in the previous
                 # row, left the rest of that previous row blank, and then moved to this one. If so, pretend that
@@ -211,7 +209,6 @@ class BreakdownTree():
                 
                 if self._can_infer_entity_from_prior_row(my_trace, interval.entity_name, row, all_rows):
                     encountered_new_entity  = True # Reverse prior impression so we dock values onto the tree
-                    #uid_to_overwrite = TODO
                     instance_to_overwrite   = self.last_path[interval.entity_name]
                     uid_to_overwrite        = instance_to_overwrite.UID
 
@@ -266,6 +263,65 @@ class BreakdownTree():
         else: # Didn't encounter a new entity - so nothing to do for this interval
             return None
 
+    def _keep_user_provided_UID(self, parent_trace, config, user_provided_data):
+        '''
+        Helper method, to determine if all conditions are met for purposes of reading the UID from
+        the row, instead of generating one.
+
+        Retruns a boolean.
+
+        @param user_provided_data A Pandas series that presumably has an entry with for index 'UID'
+                which is what the user provided
+        '''
+        # Necessary condition: policy is set to reuse UIDs
+        if config.update_policy.reuse_uids == False:
+            return False 
+        
+        # Necessary condition: user data includes an entry for a UID
+        uid_columns = [col for col in user_provided_data.index if IntervalUtils().is_a_UID_column(parent_trace, col)]
+        if len(uid_columns) > 1:
+            raise ApodeixiError(parent_trace, "Badly configured columns: have multipe UIDs for a single entity",
+                                        data = {"interval": str(user_provided_data.index),
+                                                "uid columns": str(uid_columns)})
+        if len(uid_columns) == 0: # There isn't a UID column, so user was not able to even attempt to give us a UID
+            return False
+
+        # Necessary condition: user-provided UID must not be blank
+        UID_COLUMN          = uid_columns[0]
+        if IntervalUtils().is_blank(user_provided_data[UID_COLUMN]):
+            return False
+        
+        # We passed all the necessary conditions, so accept
+        return True
+
+    def reserve_user_provided_uids(self, parent_trace, config, data_df):
+        '''
+        Utility method used before this class is used to read content (i.e., before `readDataframeFragment`)
+        to tell the store of any user-provided UIDs that should be kept, as long as that is consistent
+        with the configured policy and that user-provided UIDs are not blank.
+        '''
+        my_trace                = parent_trace.doing("Checking if user-provided UIDs should be kept")
+        if True:
+            # Necessary condition: policy is set to reuse UIDs
+            if config.update_policy.reuse_uids == False:
+                return
+            
+            # Necessary condition: user data includes a unique entry for a UID
+            uid_columns = [col for col in data_df.columns if IntervalUtils().is_a_UID_column(parent_trace, col)]
+            if len(uid_columns) > 1:
+                raise ApodeixiError(my_trace, "Badly configured columns: have multipe UIDs for a single entity",
+                                            data = {"all columns": str(data_df.columns),
+                                                    "uid columns": str(uid_columns)})
+            if len(uid_columns) == 0: # There isn't a UID column, so user was not able to even attempt to give us a UID
+                return
+        
+        my_trace                = parent_trace.doing("Marking user-provided UIDs as reserved")
+        UID_COLUMN              = uid_columns[0]
+        for uid in data_df[UID_COLUMN]:
+            if not IntervalUtils().is_blank(uid):
+                self.uid_store.add_known_uid(my_trace, uid)
+
+
     def _can_infer_entity_from_prior_row(self, parent_trace, entity_column, row, all_rows):
         '''
         Helper method to try to "forgive" the user if the user fails to enter a value for an entity_column in a row
@@ -293,7 +349,6 @@ class BreakdownTree():
         row[1][entity_column]       = prior_entity
         return True
 
-
     def _discover_docking_uid(self, parent_trace, interval, entity_column_idx, original_row_nb, current_row_nb, all_rows, config):
         '''
         Helper method used when a new entity is encountered in dataframe cell, where the cell's coordinates
@@ -317,6 +372,7 @@ class BreakdownTree():
         If in the process the search never finds a UID, then it raises an ApodeixiError unless the `entity_column_idx`
         corresponds to the first (highest level) entity, in which case self.parent_UID is returned
         '''
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         known_entity_types              = list(self.last_path.keys())
         row_data                        = all_rows[current_row_nb][1]
         columns                         = list(row_data.index)
@@ -326,7 +382,10 @@ class BreakdownTree():
             my_trace                    = parent_trace.doing("Validating we are the root entity", 
                                             data={'self.entity_type': self.entity_type,
                                                     'entity_column_idx': entity_column_idx})
-            if interval.entity_name != self.entity_type:
+            # GOTCHA: use FMT to neutralize artifical difference e.g., 'Big Rock' vs 'big-rock'. Such difference
+            #           may arise because generated forms use normalized column names like 'big-rock', but manual
+            #           postings or the entity_type might not.
+            if FMT(interval.entity_name) != FMT(self.entity_type):
                 raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'."
                                     + "  You should have a column called '" + str(self.entity_type)
                                     + "' with a non-blank value") 
@@ -388,7 +447,7 @@ class BreakdownTree():
         @param entity_type      A string for the kind of entity to be added under the full_docking_uid
         @param data_to_attach A Pandas Series   
         @uid_to_overwrite    A string. If set to None (normal when creating), a new UID will be generated
-            for the data_to_attach. Otherwise whatever exists at `uic_to_overwrite` will be replaced by 
+            for the data_to_attach. Otherwise whatever exists at `uid_to_overwrite` will be replaced by 
             `data_to_attach`
         @return the full UID of the _EntityInstance node that was created and attached to this BreakdownTree
         '''
@@ -440,7 +499,7 @@ class BreakdownTree():
         for idx in data_to_attach.index:
             property_name       = idx
             if IntervalUtils().is_a_UID_column(my_trace, property_name):
-                if config.update_policy.reuse_uids == False:
+                if not self._keep_user_provided_UID(my_trace, config=config, user_provided_data=data_to_attach):
                     continue # Don't change the UID value we just generated - ignore whatever the user entered
                 else:
                     # Keep the user UID values, but "correct" the property name in case the user got "creative"
@@ -521,7 +580,7 @@ class BreakdownTree():
             if entity_instance == None: # First cycle in loop, so search in root tree
                 next_tree                   = self
             else:
-                uid_acronym, uid_nb         = _parse_leaf_uid(leaf_uid, loop_trace)
+                uid_acronym, uid_nb         = self._parse_leaf_uid(leaf_uid, loop_trace)
                 sub_trace                   = loop_trace.doing("Looking for a subtree for the '" + uid_acronym + "' acronym",
                                                                 origination = {'signaled_from': __file__})
                 next_tree                   = entity_instance.find_subtree(uid_acronym, self, sub_trace) 
@@ -543,13 +602,13 @@ class BreakdownTree():
         if entity_type not in self.acronyms.keys():
             already_used        = [self.acronyms[e] for e in self.acronyms.keys()]
             nb_letters          = 1
-            candidate           = _acronym(parent_trace, entity_type, nb_letters=nb_letters)
+            candidate           = self._acronym(parent_trace, entity_type, nb_letters=nb_letters)
             while candidate in already_used:
                 loop_trace      = parent_trace.doing("Looping through already used acronyms, searching for a candidate to re-use",
                                                         data            = {'candidate':             candidate},
                                                         origination     = {'signaled_from':         __file__})
                 nb_letters      += 1
-                new_candidate   = _acronym(loop_trace, entity_type, nb_letters=nb_letters)
+                new_candidate   = self._acronym(loop_trace, entity_type, nb_letters=nb_letters)
 
                 if len(candidate)==len(new_candidate):
                     # We ran out of letters. Just keep adding letters. Ugly, but should happen very, very rarely
@@ -561,13 +620,50 @@ class BreakdownTree():
         acronym                 = self.acronyms[entity_type] 
         return acronym
 
+    def _acronym(self, parent_trace, txt, nb_letters=1):
+        '''
+        Returns a string of initials for 'txt', in uppercase, where each 'initial' consists of 1 or
+        more letters, depending on the `nb_letters` parameter.
+
+        Also, it ignores any sub-text within `txt` that is in parenthesis. 
+        
+        For example, if txt is 'Effort (man days) to deliver', this is treated the same as 'Effort to deliver', which results
+        in a returned value of 'ETD' if nb_letters=1
+
+        It considers both spaces and hyphens valid delimeters. Thus, if txt is 'Big Rock' this is treated the
+        same as 'big-rock', which results in a returned value of 'BR' if nb_letters=1. 
+        '''
+        parenthesis_free_txt        = IntervalUtils().without_comments_in_parenthesis(parent_trace, txt)
+        # Now we got parenthesized text removed. So now we can go for the initials that compose the acronym
+        
+        # First replace any hyphen by a space, so that we split on either hyphens or spaces
+        hyphen_free_txt             = parenthesis_free_txt.replace('-', ' ')
+
+        tokens                      = hyphen_free_txt.split(' ')
+        acronym                     = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
+        return acronym
+
+    def _parse_leaf_uid(self, leaf_uid, parent_trace):
+        '''
+        Parses a string like 'AC43' and returns two things: the acronym string 'AC' and the int 43
+        '''
+        REGEX               = '([a-zA-Z]+)([0-9])+'
+        m                   = _re.match(REGEX, leaf_uid)
+        my_trace            = parent_trace.doing("Parsing leaf_uid into acronym and number",
+                                                    origination = {'signaled_from': __file__})
+        if m == None or len(m.groups()) != 2:
+            raise ApodeixiError(parent_trace, "Couldn't parse leaf_uid '" + leaf_uid + "'")
+        acronym             = m.group(1)
+        nb                  = int(m.group(2))
+        return acronym, nb
+
     class _EntityInstance():
         '''
         Represents an immediate child of the root of a BreakdownTree
         '''
         def __init__(self, uid_store, name, uid, leaf_uid):
             self.uid_store           = uid_store
-            #self.entity_type         = entity_type
+
 
             # The four kinds of possible "children"
             self.name                = name
@@ -605,38 +701,8 @@ class BreakdownTree():
                 result_tree                 = all_subtrees[found_root]
             return result_tree
 
-def _acronym(parent_trace, txt, nb_letters=1):
-    '''
-    Returns a string of initials for 'txt', in uppercase, where each 'initial' consists of 1 or
-    more letters, depending on the `nb_letters` parameter.
 
-    Also, it ignores any sub-text within `txt` that is in parenthesis. 
-    
-    For example, if txt is 'Effort (man days) to deliver', this is treated the same as 'Effort to deliver', which results
-    in a returned value of 'ETD' if nb_letters=1
-    '''
-    parentheis_free_txt         = IntervalUtils().without_comments_in_parenthesis(parent_trace, txt)
-    # Now we got parenthesized text removed. So now we can go for the initials that compose the acronym
-    tokens                      = parentheis_free_txt.split(' ')
-    acronym                     = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
-    return acronym
-    '''
-    tokens       = stripped_txt.split(' ')
-    acronym      = ''.join([token[0:min(nb_letters, len(token))].upper() for token in tokens])
-    return acronym
-    '''
 
-def _parse_leaf_uid(leaf_uid, parent_trace):
-    '''
-    Parses a string like 'AC43' and returns two things: the acronym string 'AC' and the int 43
-    '''
-    REGEX               = '([a-zA-Z]+)([0-9])+'
-    m                   = _re.match(REGEX, leaf_uid)
-    my_trace            = parent_trace.doing("Parsing leaf_uid into acronym and number",
-                                                origination = {'signaled_from': __file__})
-    if m == None or len(m.groups()) != 2:
-        raise ApodeixiError(parent_trace, "Couldn't parse leaf_uid '" + leaf_uid + "'")
-    acronym             = m.group(1)
-    nb                  = int(m.group(2))
-    return acronym, nb
+
+
 

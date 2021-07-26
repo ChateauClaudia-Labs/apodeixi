@@ -1,5 +1,6 @@
 from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
+from apodeixi.util.formatting_utils                 import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats, ExcelFormulas
@@ -45,7 +46,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         '''
         ME                          = BigRocksEstimate_Controller
         if kind == 'big-rock':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._BigRocksConfig(           kind            = kind, 
                                                                         update_policy   = update_policy,
                                                                         manifest_nb     = manifest_nb, 
@@ -167,6 +168,20 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
+    def buildManifestName(self, parent_trace, posting_data_handle, label):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        posting_data_handle and label
+        '''
+        product                         = label.product             (parent_trace)
+        journey                         = label.journey             (parent_trace) 
+        scenario                        = label.scenario            (parent_trace)
+        scoring_cycle                   = label.scoring_cycle       (parent_trace)
+
+        FMT                                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        name                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
+        return name
+
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
@@ -189,9 +204,7 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                                 + "specific to BigRocksEstimate_Controller")
         
         if True:
-            FMT                                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
             metadata                                    = manifest_dict['metadata']
-            metadata['name']                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
 
             MY_PL                                       = BigRocksEstimate_Controller._MyPostingLabel # Abbreviation for readability
             labels                                      = metadata['labels']
@@ -236,7 +249,7 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         def entity_as_yaml_fieldname(self):
             ME                          = BigRocksEstimate_Controller._BigRocksConfig
-            return PostingController.format_as_yaml_fieldname(ME._ENTITY_NAME)
+            return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
 
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
@@ -252,9 +265,16 @@ class BigRocksEstimate_Controller(SkeletonController):
             anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
             '''
             ME                              = BigRocksEstimate_Controller._BigRocksConfig
-            posted_cols                     = list(posted_content_df.columns)
-            mandatory_cols                  = [ME._ENTITY_NAME]
-            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+
+            # GOTCHA: A mandatory column like "Big Rocks" might become "big-rocks" after the first posting, i.e.,
+            #           the generated form used for updates will have a column called "big-rocks", not "Big Rocks".
+            #           To avoid erroring out when the situation is rather innocent, the check below does
+            #           not compare "raw column names", but "formatted columns names" using a formatter that
+            #           converts things like "Big Rocks" to "big-rocks"
+            FMT                                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+
+            posted_cols                     = [FMT(col) for col in posted_content_df.columns]
+            mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
                 raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
@@ -285,7 +305,7 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         def entity_as_yaml_fieldname(self):
             ME                          = BigRocksEstimate_Controller._BigRocksEstimatesConfig
-            return PostingController.format_as_yaml_fieldname(ME._ENTITY_NAME)
+            return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
 
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
@@ -301,9 +321,16 @@ class BigRocksEstimate_Controller(SkeletonController):
             anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
             '''
             ME                              = BigRocksEstimate_Controller._BigRocksEstimatesConfig
-            posted_cols                     = list(posted_content_df.columns)
-            mandatory_cols                  = [ME._ENTITY_NAME]
-            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+
+            # GOTCHA: A mandatory column like "Effort" might become "effort" after the first posting, i.e.,
+            #           the generated form used for updates will have a column called "effort", not "Effort".
+            #           To avoid erroring out when the situation is rather innocent, the check below does
+            #           not compare "raw column names", but "formatted columns names" using a formatter that
+            #           converts things like "Effort" to "effort"
+            FMT                                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+
+            posted_cols                     = [FMT(col) for col in posted_content_df.columns]
+            mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
                 raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
@@ -334,7 +361,7 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         def entity_as_yaml_fieldname(self):
             ME                          = BigRocksEstimate_Controller._InvestmentConfig
-            return PostingController.format_as_yaml_fieldname(ME._ENTITY_NAME)
+            return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
 
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
@@ -350,9 +377,16 @@ class BigRocksEstimate_Controller(SkeletonController):
             anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
             '''
             ME                              = BigRocksEstimate_Controller._InvestmentConfig
-            posted_cols                     = list(posted_content_df.columns)
-            mandatory_cols                  = [ME._ENTITY_NAME]
-            #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
+
+            # GOTCHA: A mandatory column like "Period" might become "period" after the first posting, i.e.,
+            #           the generated form used for updates will have a column called "period", not "Period".
+            #           To avoid erroring out when the situation is rather innocent, the check below does
+            #           not compare "raw column names", but "formatted columns names" using a formatter that
+            #           converts things like "Period" to "period"
+            FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+
+            posted_cols                     = [FMT(col) for col in posted_content_df.columns]
+            mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
                 raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",

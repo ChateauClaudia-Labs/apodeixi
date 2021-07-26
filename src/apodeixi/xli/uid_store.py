@@ -1,5 +1,7 @@
 import re                                       as _re
+
 from apodeixi.util.a6i_error                    import ApodeixiError
+from apodeixi.xli.interval                      import Interval
 
 class UID_Store:
     '''
@@ -37,16 +39,18 @@ class UID_Store:
             
         MAX_LEVELS = 100
         
-        def initialize(self, parent_trace, tokens):
+        def addToken(self, parent_trace, token):
             '''
-            Used in cases where the top level is determined externally
+            Given a string `token` such as P4, it adds it to this tree
             '''
-            for t in tokens:
-                acronym, val           = self.parseToken(parent_trace, t)
-                if acronym not in self.vals.keys():
-                    self.vals[acronym] = []
-                self.vals[acronym].append(val)
-                self.children[t]       = UID_Store._TokenTree(parent_trace, self.level + 1)             
+            acronym, nb     = self.parseToken(parent_trace, token) #TODO Finish this up
+            if not acronym in self.vals.keys():
+                self.vals[acronym] = []
+            nb_list         = self.vals[acronym]
+            if not nb in nb_list:
+                nb_list.append(nb)
+            if not token in self.children.keys():
+                self.children[token] = UID_Store._TokenTree(parent_trace, self.level + 1)           
         
         def _generateHere(self, parent_trace, acronym):
             if acronym not in self.vals.keys():
@@ -149,9 +153,60 @@ class UID_Store:
         branch        = self._tokenize(parent_trace, parent_UID)
         return self.tree.generateNextUID(parent_trace, branch, acronym)
     
-    def initialize(self, parent_trace, tokens):
-        self.tree.initialize(parent_trace, tokens)
-    
+    def initializeFromManifest(self, parent_trace, manifest_dict):
+        '''
+        Given a dictionary `manifest_dict`, it recursively searches in the manifest for any node called
+        "UID", expecting a value like "JTBD1.C1.F1.S1". It then tokenizes it like [JTBD1, C1, F1, S1]
+        and adds it as a branch of this token tree.
+
+        @param manifest_dict A dict object representing a manifest
+        '''
+        for key in manifest_dict.keys():
+            val             = manifest_dict[key]
+            if key == Interval.UID:
+                self.add_known_uid(parent_trace, val)
+            elif type(val) == dict: #Recursive call
+                self.initializeFromManifest(parent_trace, val)
+
+    def add_known_uid(self, parent_trace, uid):
+        '''
+        Records that the `uid` is already used, and therefore no generated UID should be like it.
+
+        Use with caution: normally this method should not be used, since normally a user's posting
+        should normally include a UID that was generated previously during processing of an earlier posting
+        that gave rise to a manifest being persisted. That manifest would have the UID and normally if the
+        user makes an update to the posting, that update controller logic would call the method
+        `initializeFromManifest` on the UID Store to seed the UID Store with such previously generated
+        UIDs.
+
+        So it rare when we need to *forcefully* tell the UID store that a UID is already reserved,
+        and mainly in internal Apodeix low-level code, not by application code.
+
+        @param uid A string such as "JTBD1.C1.F1.S1"
+        '''
+        self._mark_uid_as_used(parent_trace, uid, self.tree)
+
+    def _mark_uid_as_used(self, parent_trace, uid, token_tree):
+        '''
+        Recursive implementation of `add_known_uid`
+        '''
+        tokens              = self._tokenize(parent_trace, uid)
+        if len(tokens) == 0:
+            return # Nothing to do
+
+        head                = tokens[0]
+        tail                = tokens[1:]
+        token_tree.addToken(parent_trace, head)
+        if len(tail) > 0: #recurse
+            subtree         = token_tree.children[head]
+            sub_uid         = '.'.join(tail)
+            self._mark_uid_as_used(self, parent_trace, sub_uid, subtree)
+
+
+            
+
+
+
     def _tokenize(self, parent_trace, uid):
         if uid==None:
             return []

@@ -1,5 +1,6 @@
 from apodeixi.controllers.util.manifest_api                     import ManifestAPI
 from apodeixi.util.a6i_error                                    import ApodeixiError
+from apodeixi.util.formatting_utils                             import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller              import SkeletonController
 from apodeixi.xli.interval                                      import GreedyIntervalSpec
@@ -107,6 +108,21 @@ class MilestonesController(SkeletonController):
 
         return all_manifests_dict, label
 
+    def buildManifestName(self, parent_trace, posting_data_handle, label):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        posting_data_handle and label
+        '''
+        product                         = label.product             (parent_trace)
+        journey                         = label.journey             (parent_trace) 
+        scenario                        = label.scenario            (parent_trace)
+        scoring_cycle                   = label.scoring_cycle       (parent_trace)
+
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        name                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
+
+        return name
+
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
@@ -130,9 +146,7 @@ class MilestonesController(SkeletonController):
                                                                 + "specific to Milestone_Controller")
         
         if True:
-            FMT                                         = PostingController.format_as_yaml_fieldname # Abbreviation for readability
             metadata                                    = manifest_dict['metadata']
-            metadata['name']                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
 
             MY_PL                                       = MilestonesController._MyPostingLabel # Abbreviation for readability
             labels                                      = metadata['labels']

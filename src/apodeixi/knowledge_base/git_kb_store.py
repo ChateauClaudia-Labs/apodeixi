@@ -328,7 +328,7 @@ class GIT_KBStore_Impl(Isolation_KBStore_Impl):
 
         return df
 
-    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None):
         '''
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
         the given criteria:
@@ -342,9 +342,6 @@ class GIT_KBStore_Impl(Isolation_KBStore_Impl):
         @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
                             Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
                             If set to None then no filtering is done.
-        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
-                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.n.
         '''
 
         
@@ -357,8 +354,7 @@ class GIT_KBStore_Impl(Isolation_KBStore_Impl):
         scanned_handles             = super().searchPostings(
                                                 parent_trace                = parent_trace, 
                                                 posting_api                 = posting_api, 
-                                                filing_coordinates_filter   = filing_coordinates_filter, 
-                                                posting_version_filter      = posting_version_filter)
+                                                filing_coordinates_filter   = filing_coordinates_filter)
         return scanned_handles
 
     def persistManifest(self, parent_trace, manifest_dict):

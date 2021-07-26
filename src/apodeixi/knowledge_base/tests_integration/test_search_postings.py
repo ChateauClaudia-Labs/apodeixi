@@ -48,8 +48,7 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
 
             scanned_handles                  = self.stack().store().searchPostings(    parent_trace                = root_trace,
                                                                             posting_api                 = posting_api, 
-                                                                            filing_coordinates_filter   = _coords_filter, 
-                                                                            posting_version_filter      = None)
+                                                                            filing_coordinates_filter   = _coords_filter)
 
             stringified_coords_dict         = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
             idx = 1
@@ -104,8 +103,7 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
 
             scanned_handles             = self.stack().store().searchPostings(    parent_trace                = root_trace, 
                                                                     posting_api                 = posting_api, 
-                                                                    filing_coordinates_filter   = _coords_filter, 
-                                                                    posting_version_filter      = None)
+                                                                    filing_coordinates_filter   = _coords_filter)
 
             stringified_coords_dict     = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
 

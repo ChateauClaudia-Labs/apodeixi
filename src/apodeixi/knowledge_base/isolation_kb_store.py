@@ -143,7 +143,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         root_trace                  = FunctionalTrace(None).doing("Creating KB's store's base environment")
         env_config                  = KB_Environment_Config(
                                             root_trace, 
-                                            read_misses_policy  = KB_Environment_Config.FAILOVER_READS_TO_PARENT,
+                                            read_misses_policy  = KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT,
                                             use_timestamps      = True,
                                             path_mask           = None)
         base_env_impl               = File_KBEnv_Impl(  parent_trace            = root_trace, 
@@ -232,7 +232,16 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             
         
         name                        = self._gen_transaction_name(parent_trace)
-        isolation_env               = env.addSubEnvironment(parent_trace, name, env.config(parent_trace))
+
+        # The subenvironment will "almost" have the same configuration as its parent (self), except that
+        # it will default read misses to the parent, regardless of whether the parent was thus configured
+        my_env_config               = env.config(parent_trace)
+        subenv_config               = KB_Environment_Config(    parent_trace        = parent_trace,
+                                                                read_misses_policy  = KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT,
+                                                                use_timestamps      = my_env_config.use_timestamps,
+                                                                path_mask           = my_env_config.path_mask)
+
+        isolation_env               = env.addSubEnvironment(parent_trace, name, subenv_config)
 
         self.activate(parent_trace, name)
 
@@ -297,10 +306,10 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         self.removeEnvironment(parent_trace, env.name(parent_trace)) 
         self.activate(parent_trace, parent_env.name(parent_trace))
 
-    def _failover_reads_to_parent(self, parent_trace):
+    def _failover_manifest_reads_to_parent(self, parent_trace):
         '''
-        Returns a boolean to determine if parent environment should be used to retrieve data that is not
-        present in the current environment.
+        Returns a boolean to determine if parent environment should be used to retrieve manifests that are not
+        present in the current environment. 
 
         It is used by the I/O read services of the store whenever a read operation results in a "miss": if the
         current environment lacks the data in question, the I/O read service will search in the parent 
@@ -308,7 +317,27 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         '''
         if self._current_env.parent(parent_trace) == None: # Can't failover to a non-existent parent
             return False
-        if self._current_env.config(parent_trace).read_misses_policy == KB_Environment_Config.FAILOVER_READS_TO_PARENT:
+        KBEC                    = KB_Environment_Config
+        policy                  = self._current_env.config(parent_trace).read_misses_policy
+        if  policy in [KBEC.FAILOVER_ALL_READS_TO_PARENT, KBEC.FAILOVER_MANIFEST_READS_TO_PARENT]:
+            return True
+        else:
+            return False
+
+    def _failover_posting_reads_to_parent(self, parent_trace):
+        '''
+        Returns a boolean to determine if parent environment should be used to retrieve postings that are not
+        present in the current environment. 
+
+        It is used by the I/O read services of the store whenever a read operation results in a "miss": if the
+        current environment lacks the data in question, the I/O read service will search in the parent 
+        environment and, if it finds it, will copy it to the current environment. 
+        '''
+        if self._current_env.parent(parent_trace) == None: # Can't failover to a non-existent parent
+            return False
+        KBEC                    = KB_Environment_Config
+        policy                  = self._current_env.config(parent_trace).read_misses_policy
+        if  policy in [KBEC.FAILOVER_ALL_READS_TO_PARENT, KBEC.FAILOVER_POSTING_READS_TO_PARENT]:
             return True
         else:
             return False
@@ -469,7 +498,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         '''
         self._current_env               = self._base_env
                                                                             
-    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None, posting_version_filter=None):
+    def searchPostings(self, parent_trace, posting_api, filing_coordinates_filter=None):
         '''
         Returns a list of PostingLabelHandle objects, one for each posting in the Knowledge Base that matches
         the given criteria:
@@ -482,17 +511,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                             such as 'opus_milestone.modernization.a6i.xlsx' will be located by this method.
         @param filing_coordinates_filter A function that takes a FilingCoordinates instance as a parameter and returns a boolean. 
                             Any FilingCoordinates instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.
-        @param posting_version_filter A function that takes a PostingVersion instance as a parameter and returns a boolean. 
-                            Any PostingVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.n.
+                            If set to None then no filtering is done..
         '''
-        # TODO - Implement logic to filter by posting version. Until such time, abort if user needs such filtering
-        if posting_version_filter != None:
-            raise ApodeixiError(parent_trace, "Apologies, but filtering postings by version is not yet implemented in "
-                                                + "Isolation_KBStore_Impl. Aborting the effort to searchPostings.")
-
-
         my_trace                    = parent_trace.doing("Scanning existing filing coordinates",
                                                 data = {"environment":  
                                                         self.current_environment(parent_trace).name(parent_trace)})
