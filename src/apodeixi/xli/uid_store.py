@@ -52,6 +52,33 @@ class UID_Store:
             if not token in self.children.keys():
                 self.children[token] = UID_Store._TokenTree(parent_trace, self.level + 1)           
         
+        def genAcronymList(self, parent_trace):
+            '''
+            Many _TokenTree objects have a unique acronym at each level of the tree.
+            If so, this returns that list, as a list of strings ordered from the top of the tree
+            to the leaves.
+
+            In situations where there are multiple acronyms at a given level, it returns a random
+            path of acronyms through the tree
+            '''
+            result                  = []
+            if len(self.vals.keys()) != 1:
+                return []
+
+            top_level_acronym       = next(iter(self.vals))
+            result.append(top_level_acronym)
+
+            idxs                    = self.vals[top_level_acronym]
+            if len(idxs) > 0: # Choose the first path, which is why we can't guarantee the result is only possible list of acronyms in the tree
+                child_uid           = top_level_acronym + str(idxs[0])
+                my_trace            = parent_trace.doing("Getting acronym list below uid '" + child_uid + "'")
+                child               = self.children[child_uid]
+                sub_result          = child.genAcronymList(my_trace)
+                result.extend(sub_result)
+
+            return result
+
+
         def _generateHere(self, parent_trace, acronym):
             if acronym not in self.vals.keys():
                 self.vals[acronym] = []
@@ -168,7 +195,7 @@ class UID_Store:
             elif type(val) == dict: #Recursive call
                 self.initializeFromManifest(parent_trace, val)
 
-    def add_known_uid(self, parent_trace, uid):
+    def add_known_uid(self, parent_trace, uid, last_acronym):
         '''
         Records that the `uid` is already used, and therefore no generated UID should be like it.
 
@@ -183,14 +210,29 @@ class UID_Store:
         and mainly in internal Apodeix low-level code, not by application code.
 
         @param uid A string such as "JTBD1.C1.F1.S1"
+        @param last_acronym A string for the entity of the leaf UID. In the example ""JTBD1.C1.F1.S1",
+                    perhaps "S" stands for "Story", and "S" would be the last_acronym passed.
+                    The reason for needing this parameter is that for usability reasons the user may
+                    abbreviate the UID to something like "1.1.1.1", and the system needs to infer 
+                    the acronyms. The UID Store would already now about the ancestors (JTBD, C, F) but
+                    might not yet know about the leaf UID acronym ("S"), which is therefore passed
+                    by the caller (the caller typically is the BreakdownTree class that would know
+                    how to get such "last acronym")
         '''
-        self._mark_uid_as_used(parent_trace, uid, self.tree)
+        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
+        # are adding a uid for that entity for the first time
+        known_acronym_list  = self.tree.genAcronymList(parent_trace) 
 
-    def _mark_uid_as_used(self, parent_trace, uid, token_tree):
+        if not last_acronym in known_acronym_list:
+            known_acronym_list.append(last_acronym)
+        
+        self._mark_uid_as_used(parent_trace, uid, known_acronym_list, self.tree)
+
+    def _mark_uid_as_used(self, parent_trace, uid, acronym_list, token_tree):
         '''
         Recursive implementation of `add_known_uid`
         '''
-        tokens              = self._tokenize(parent_trace, uid)
+        tokens              = self._tokenize(parent_trace, uid, acronym_list)
         if len(tokens) == 0:
             return # Nothing to do
 
@@ -200,21 +242,73 @@ class UID_Store:
         if len(tail) > 0: #recurse
             subtree         = token_tree.children[head]
             sub_uid         = '.'.join(tail)
-            self._mark_uid_as_used(self, parent_trace, sub_uid, subtree)
+            self._mark_uid_as_used(parent_trace, sub_uid, acronym_list[1:], subtree)
 
+    def _tokenize(self, parent_trace, uid, acronym_list=None):
+        '''
+        Returns a list of strings which are the individual tokens of the uid. It disabbreviates them if 
+        necessary.
 
-            
+        For example, if the uid is "M3.T2" this method returns ["M3", "T2"].
 
+        On the other hand, if the uid is an abbreviation like "3.2", this method will attempt to 
+        figure out what were the acronyms, and if a successful guess (i.e., a valid acronym list as judged
+        by what the UI store knows) it returns something like ["M3", "T2"]. It never returns abbreviated
+        tokens, i.e., rather than returning ["3", "2"] when unabbreviation is not possible, this method
+        will raise an ApodeixiError.
 
-
-    def _tokenize(self, parent_trace, uid):
+        @param acronym_list Optional parameter, used only when the caller wants to have a recovery behavior
+                            if the UID is things like "3.2" instead of "M3.T2". The acronym list would
+                            be a list of strings, such as ["M", "T"] in this example
+        '''
         if uid==None:
             return []
-        tokens        = uid.split('.')
+        raw_tokens                          = uid.split('.')
+        result                              = []
         # Something like P3 pr AV456. 
-        REGEX         = '^[a-zA-Z]+[0-9]+$' 
-        for t in tokens:
-            m         = _re.match(REGEX, t)
+        REGEX                               = '^[a-zA-Z]+[0-9]+$' 
+        for idx in range(len(raw_tokens)):
+            t                               = raw_tokens[idx]
+            m                               = _re.match(REGEX, t)
             if m == None:
-                raise ApodeixiError(parent_trace, "Invalid uid='" + uid + "': expected something like P3 or AV45.P1.E12")
-        return tokens
+                # Before we fail, let's try to recover. It may be that the user entered something like
+                # "45.1.12" for usability reasons, expecting us to infer that the user meant "AV45.P1.E12".
+                # This kind of "abbreviated UIDs" are expected when doing joins, for example, since the user
+                # needs to type the UIDs and it is more user-friendly to type abbreviated UIDs than the full thing.
+                ABBREVIATED_REGEX           = '^[0-9]+$'
+                m2                          = _re.match(ABBREVIATED_REGEX, t)
+                if m2 == None: # Recovery attempt did not work, so abort
+                    raise ApodeixiError(parent_trace, "Invalid uid='" + uid 
+                            + "': expected something like P3 or AV45.P1.E12, or abbreviations like 45.1.12")
+                else: # t is something like 12
+                    if acronym_list != None and len(acronym_list) <= idx:
+                        raise ApodeixiError(parent_trace, "Too few known acronyms to infer them for uid='" + uid  + "'",
+                                                    data = {"known acronyms": str(acronym_list)})
+                    full_t                  = acronym_list[idx] + str(t)
+            else: # t is someting like E12
+                full_t                      = t 
+            result.append(full_t)
+
+        return result
+
+    def unabbreviate_uid(self, parent_trace, uid, last_acronym):
+        '''
+        Returns a possibly modified UID. For example, a UID like "4.3" might be replaced by "P4.C3".
+        In other words, if the uid is one of those "abbreviated UIDs" that lacks acronyms (they arise
+        for usability reasons in user-provided UIDs), attempt to infer the acronyms that are missing and
+        return the full UID ("P4.C3" in the example)
+        '''
+        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
+        # are adding a uid for that entity for the first time
+        known_acronym_list  = self.tree.genAcronymList(parent_trace) 
+
+        if not last_acronym in known_acronym_list:
+            known_acronym_list.append(last_acronym)
+
+        # Calling self._tokenize produces "unabbreviated" tokens
+        tokens              = self._tokenize(parent_trace, uid, known_acronym_list)
+        if len(tokens) == 0:
+            raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
+            
+        full_uid = ".".join(tokens)
+        return full_uid

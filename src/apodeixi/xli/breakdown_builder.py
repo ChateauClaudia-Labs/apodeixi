@@ -198,7 +198,20 @@ class BreakdownTree():
             blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
             encountered_new_entity      = not interval.entity_name in blank_cols
             if self._keep_user_provided_UID(my_trace, config=config, user_provided_data=row[1][interval.columns]):
-                uid_to_overwrite        = row[1][Interval.UID]
+                # The user-provided UID might skip acronyms. For example, it might be 4.2 instead
+                # BR4.C2 for previty when using joins. In those cases Pandas might have thought that the
+                # UID was a number, so force conversion to string "4.2" to prevent problems.
+                uid_column              = self._identify_uid_column(parent_trace, interval.columns)
+                uid_raw                 = row[1][uid_column]
+                uid_to_overwrite        = str(uid_raw)
+                # The uid_to_overwrite might be abbreviated, e.g., "4.2". Need to unabbreviate it to the 
+                # full uid, e.g., "BR4.T2"
+                last_acronym            = self.getAcronym(parent_trace, interval.entity_name)
+                uid_to_overwrite        = self.uid_store.unabbreviate_uid(  parent_trace        = parent_trace, 
+                                                                            uid                 = uid_to_overwrite,
+                                                                            last_acronym        = last_acronym)
+                
+
             else:
                 uid_to_overwrite             = None # This will be used later when looking for a docking UID
             if not encountered_new_entity and len(blank_cols) < len(interval.columns):
@@ -268,7 +281,7 @@ class BreakdownTree():
         Helper method, to determine if all conditions are met for purposes of reading the UID from
         the row, instead of generating one.
 
-        Retruns a boolean.
+        Returns a boolean.
 
         @param user_provided_data A Pandas series that presumably has an entry with for index 'UID'
                 which is what the user provided
@@ -277,24 +290,41 @@ class BreakdownTree():
         if config.update_policy.reuse_uids == False:
             return False 
         
-        # Necessary condition: user data includes an entry for a UID
-        uid_columns = [col for col in user_provided_data.index if IntervalUtils().is_a_UID_column(parent_trace, col)]
-        if len(uid_columns) > 1:
-            raise ApodeixiError(parent_trace, "Badly configured columns: have multipe UIDs for a single entity",
-                                        data = {"interval": str(user_provided_data.index),
-                                                "uid columns": str(uid_columns)})
-        if len(uid_columns) == 0: # There isn't a UID column, so user was not able to even attempt to give us a UID
+        # Necessary condition: user data includes an unique column for a UID
+        uid_column         = self._identify_uid_column(parent_trace, user_provided_data.index)
+        if uid_column == None:
             return False
 
         # Necessary condition: user-provided UID must not be blank
-        UID_COLUMN          = uid_columns[0]
-        if IntervalUtils().is_blank(user_provided_data[UID_COLUMN]):
+        if IntervalUtils().is_blank(user_provided_data[uid_column]):
             return False
         
         # We passed all the necessary conditions, so accept
         return True
 
-    def reserve_user_provided_uids(self, parent_trace, config, data_df):
+    def _identify_uid_column(self, parent_trace, interval_columns):
+        '''
+        Helper method to retrieve the 1 column in the interval that corresponds to a UID.
+        Because of how Pandas loads files with multiple columns using the same name, it is not necessarily
+        called "UID". It might be called "UID.1", "UID.2", etc., hence the need for this method.
+
+        Raises an error if it finds more than 1.
+
+        If it finds no UID column, returns None
+        '''
+        uid_columns = [col for col in interval_columns if IntervalUtils().is_a_UID_column(parent_trace, col)]
+        if len(uid_columns) > 1:
+            raise ApodeixiError(parent_trace, "Badly configured columns: have multipe UIDs for a single entity",
+                                        data = {"interval": str(interval_columns),
+                                                "uid columns": str(uid_columns)})
+        if len(uid_columns) == 0: # There isn't a UID column, so user was not able to even attempt to give us a UID
+            return None
+
+        # Necessary condition: user-provided UID must not be blank
+        UID_COLUMN          = uid_columns[0]
+        return UID_COLUMN
+
+    def reserve_user_provided_uids(self, parent_trace, config, data_df, entity_name):
         '''
         Utility method used before this class is used to read content (i.e., before `readDataframeFragment`)
         to tell the store of any user-provided UIDs that should be kept, as long as that is consistent
@@ -319,8 +349,12 @@ class BreakdownTree():
         UID_COLUMN              = uid_columns[0]
         for uid in data_df[UID_COLUMN]:
             if not IntervalUtils().is_blank(uid):
-                self.uid_store.add_known_uid(my_trace, uid)
-
+                # The user-provided UID might skip acronyms. For example, it might be 4.2 instead
+                # BR4.C2 for previty when using joins. In those cases Pandas might have thought that the
+                # UID was a number, so force conversion to string to prevent problems.
+                uid_txt         = str(uid)
+                last_acronym    = self.getAcronym(parent_trace, entity_name)
+                self.uid_store.add_known_uid(my_trace, uid_txt, last_acronym) 
 
     def _can_infer_entity_from_prior_row(self, parent_trace, entity_column, row, all_rows):
         '''
@@ -496,18 +530,32 @@ class BreakdownTree():
                                                                     uid         = full_uid,
                                                                     leaf_uid    = leaf_uid)
 
+        my_trace                = parent_trace.doing("Populating new node to attach",
+                                                    data = {"node name": data_to_attach[entity_type], 
+                                                            "full_uid": full_uid})
         for idx in data_to_attach.index:
             property_name       = idx
-            if IntervalUtils().is_a_UID_column(my_trace, property_name):
-                if not self._keep_user_provided_UID(my_trace, config=config, user_provided_data=data_to_attach):
+            val                 = data_to_attach[idx]
+            loop_trace          = my_trace.doing("Considering to set property to new node",
+                                                    data = {"property name": str(property_name),
+                                                            "raw value":     str(val) })
+            if IntervalUtils().is_a_UID_column(loop_trace, property_name):
+                if not self._keep_user_provided_UID(loop_trace, config=config, user_provided_data=data_to_attach):
                     continue # Don't change the UID value we just generated - ignore whatever the user entered
                 else:
                     # Keep the user UID values, but "correct" the property name in case the user got "creative"
                     # and named them things like "UID.1", "UID.2", etc., since in the YAML manifest only "UID"
                     # makes sense
                     property_name   = Interval.UID
+                    # The user might have entered an abbreviated uid value, like "4.3". So unabbreviate before
+                    # saving it to the tree
+                    last_acronym    = self.getAcronym(loop_trace, entity_type)
+                    val             = self.uid_store.unabbreviate_uid(  parent_trace        = loop_trace, 
+                                                                        uid                 = str(val),
+                                                                        last_acronym        = last_acronym)
+
             if property_name != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
-                val             = data_to_attach[idx]
+                
                 cleaned_val     = DataFrameUtils().clean(val) # Get rid of nan, bad dates, NaT, etc
                 new_node.setProperty(property_name, cleaned_val)
 
@@ -588,7 +636,11 @@ class BreakdownTree():
                     raise ApodeixiError(sub_trace, "Can't a subtree for acronym '" + uid_acronym + "'")
 
             # Set for next cycle of loop, or final value if we are in the last cycle
-            entity_instance                 = next_tree.children[leaf_uid]
+            try:
+                entity_instance                 = next_tree.children[leaf_uid]
+            except Exception as ex:
+                raise ApodeixiError(loop_trace, "Encountered problem walking down the parsing tree",
+                                            data = {"next level uid": str(leaf_uid)})
 
         # Return the last entity instance we got into
         return entity_instance

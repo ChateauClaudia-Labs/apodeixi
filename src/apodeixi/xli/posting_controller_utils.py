@@ -95,7 +95,7 @@ class PostingController():
         #
         # At most one UID column per interval, hence the loop so that uniqueness of UID column per interval can be enforced
         for interval in config.buildIntervals(my_trace, list(df.columns)):
-            tree.reserve_user_provided_uids(parent_trace, config, df[interval.columns])  
+            tree.reserve_user_provided_uids(parent_trace, config, df[interval.columns], interval.entity_name)  
 
         rows                    = list(df.iterrows())
         my_trace                = parent_trace.doing("Processing DataFrame", data={ 'tree.entity_type'  : tree.entity_type,

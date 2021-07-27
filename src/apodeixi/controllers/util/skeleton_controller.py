@@ -54,8 +54,10 @@ class SkeletonController(PostingController):
                                                         data = {'manifest_nb': manifest_nb}, 
                                                         origination = {'signaled_from' : __file__})
             manifest_dict           = all_manifests_dicts[manifest_nb]
-            self.store.persistManifest(root_trace, manifest_dict)
-            response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict)
+            read_only               = label.readOnly            (parent_trace, manifest_nb)
+            if read_only == None or read_only == False:
+                self.store.persistManifest(root_trace, manifest_dict)
+                response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict)
 
         my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
                                                             + "creating manifests",
@@ -385,10 +387,11 @@ class SkeletonController(PostingController):
         my_trace                    = parent_trace.doing("Checking if this is an update")
         if True:
             prior_version           = label.priorVersion        (parent_trace, manifest_nb)
+            read_only               = label.readOnly            (parent_trace, manifest_nb)
             config                  = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                 kind                = kind,
                                                                 manifest_nb         = manifest_nb)
-            if prior_version != None: # we are updating
+            if prior_version != None and (read_only == None or read_only == False): # we are updating
                 next_version        = prior_version + 1
             else:
                 next_version        = 1
@@ -488,6 +491,13 @@ class SkeletonController(PostingController):
         _DATA_RANGE                 = "data.range"
         _DATA_SHEET                 = "data.sheet"
         _PRIOR_VERSION              = "priorVersion"
+
+        # True or False, per manifest. Read-only datasets won't be persisted when posted. For example, 
+        # a posting may come from a form that includes multiple datasets from multiple manifests, and some
+        # of them might be reference data used for "joins" with other datasets. If so the reference
+        # datasets should not be persisted as new versions of the manifests from whence they came.
+        _READ_ONLY                  = "readOnly" 
+        
         
         _ORGANIZATION               = 'organization'
         _ENVIRONMENT                = 'environment'
@@ -505,7 +515,7 @@ class SkeletonController(PostingController):
                                                         ME._DATA_RANGE]
             combined_mandatory_fields.extend(mandatory_fields)
 
-            combined_optional_fields                = [ME._DATA_SHEET, ME._PRIOR_VERSION]
+            combined_optional_fields                = [ME._DATA_SHEET, ME._PRIOR_VERSION, ME._READ_ONLY]
             combined_optional_fields.extend(optional_fields)
 
             combined_date_fields                    = [ME._ESTIMATED_ON]
@@ -631,6 +641,16 @@ class SkeletonController(PostingController):
             ME = SkeletonController._MyPostingLabel
 
             field_name      = ME._PRIOR_VERSION + "." + str(manifest_nb)
+            if not field_name in self.ctx.keys():
+                return None
+            val  = self._getField(parent_trace, field_name)
+            return val
+
+        def readOnly(self, parent_trace, manifest_nb):
+            # Shortcut to reference class static variables
+            ME = SkeletonController._MyPostingLabel
+
+            field_name      = ME._READ_ONLY + "." + str(manifest_nb)
             if not field_name in self.ctx.keys():
                 return None
             val  = self._getField(parent_trace, field_name)
