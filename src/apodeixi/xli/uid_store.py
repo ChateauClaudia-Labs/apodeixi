@@ -195,7 +195,7 @@ class UID_Store:
             elif type(val) == dict: #Recursive call
                 self.initializeFromManifest(parent_trace, val)
 
-    def add_known_uid(self, parent_trace, uid, last_acronym):
+    def add_known_uid(self, parent_trace, uid, last_acronym=None):
         '''
         Records that the `uid` is already used, and therefore no generated UID should be like it.
 
@@ -223,7 +223,7 @@ class UID_Store:
         # are adding a uid for that entity for the first time
         known_acronym_list  = self.tree.genAcronymList(parent_trace) 
 
-        if not last_acronym in known_acronym_list:
+        if last_acronym != None and not last_acronym in known_acronym_list:
             known_acronym_list.append(last_acronym)
         
         self._mark_uid_as_used(parent_trace, uid, known_acronym_list, self.tree)

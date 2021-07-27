@@ -15,14 +15,14 @@ assertion:
     BR3-name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
     BR4:
       UID: BR4
-      name: Services
-    BR4-name: Services
+      name: Services (but for this v2, only the key ones)
+    BR4-name: Services (but for this v2, only the key ones)
     BR5:
       UID: BR5
       name: Containerization
     BR5-name: Containerization
     BR6:
-      UID: ''
+      UID: BR6
       name: Feature flags for optional bundles
     BR6-name: Feature flags for optional bundles
   entity_type: Big Rock
