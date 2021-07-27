@@ -22,7 +22,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
 
     def test_big_rocks(self):
 
-        self.setScenario("basic_posting_flows")
+        self.setScenario("basic_posting_flows.big_rocks.burnout")
         self.setCurrentTestName('big_rocks')
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"

@@ -1,4 +1,4 @@
-basic_posting_flows.big_rocks_ENV:
+basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
   external-collaboration:
     journeys:
       Dec 2020:
@@ -13,7 +13,7 @@ basic_posting_flows.big_rocks_ENV:
                   '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  2389
+                  Size (in bytes):  2407
 
                   '
   kb:
@@ -31,7 +31,7 @@ basic_posting_flows.big_rocks_ENV:
                     '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  2389
+                    Size (in bytes):  2407
 
                     '
               big-rocks.journeys.a6i.xlsx: '
