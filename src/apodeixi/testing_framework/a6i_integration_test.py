@@ -2,6 +2,7 @@ import sys                                              as _sys
 import os                                               as _os
 import shutil                                           as _shutil
 import inspect
+import re                                               as _re
 
 from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
 
@@ -334,10 +335,54 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         description_dict    = current_env.describe(parent_trace, include_timestamps = False)
 
+        '''
         self._compare_to_expected_yaml( parent_trace        = parent_trace,
                                         output_dict         = description_dict,
                                         test_output_name    = snapshot_name, 
                                         save_output_dict    = True)
+        '''
+        def tolerance_lambda(key, output_val, expected_val):
+            '''
+            When an Excel filename is displayed as a key in a folder hierarchy, and it has a 
+            description given by a string that includes things like "Size (in bytes):  7677",
+            we want to tolerate a small deviation from the number of bytes in the size.
+            For example, "Size (in bytes):  7678" would not be considered a test failure
+            '''
+            TOLERANCE               = 4 # We will tolerate up to these many bites of difference
+            if type(key) == str and key.endswith(".xlsx"): # This is an Excel file, apply tolerance
+                output_bytes        = _extract_bytes(output_val)
+                expected_bytes      = _extract_bytes(expected_val)
+                if output_bytes == None or expected_bytes == None: # Default to default comparison
+                    return output_val == expected_val
+                else:
+                    return abs(output_bytes - expected_bytes) <= TOLERANCE
+
+            # If we get this far we were unable to detect the conditions for which tolerance applies, so
+            # do a straight compare
+            return output_val == expected_val
+
+        def _extract_bytes(file_info_message):
+            '''
+            @param file_info_message A string, expected to contain subtrings like "Size (in bytes):  7677"
+
+            @returns The number of bytes in the message as an int (7677 in the example), or None if the
+                    file_info_message does not contain a substring as indicated
+            '''
+            if type(file_info_message) != str:
+                return None
+            REGEX               = "Size \(in bytes\):  ([0-9]+)"
+            m                   = _re.search(REGEX, file_info_message)
+            if m == None or len(m.groups()) != 1:
+                return None
+            nb_bytes            = int(m.group(1))
+            return nb_bytes
+
+        self._compare_yaml_within_tolerance(    parent_trace        = parent_trace,
+                                                output_dict         = description_dict,
+                                                test_output_name    = snapshot_name, 
+                                                save_output_dict    = True,
+                                                tolerance_lambda    = tolerance_lambda)
+                              
 
     def trace_environment(self, parent_trace, activity):
         '''
@@ -356,7 +401,6 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                 origination = { 'concrete class':   str(self.__class__.__name__), 
                                                 'signaled_from':    __file__})
         return my_trace
-
 
     def snapshot_generated_form(self, parent_trace, form_request_response):     
         '''
@@ -500,6 +544,22 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                             output_data_dir     = self._regression_output_dir(parent_trace), 
                                             expected_data_dir   = self._regression_expected_dir(parent_trace), 
                                             save_output_dict    = save_output_dict)
+
+    def _compare_yaml_within_tolerance(self, parent_trace, output_dict, test_output_name, save_output_dict, tolerance_lambda):
+        '''
+        Utility method for derived classes that create YAML files and need to check they match an expected output
+        previously saves as a YAML file as well. 
+
+        It also saves the output as a yaml file, which can be copied to be the expected output when test case is created.
+        '''
+        super()._compare_yaml_within_tolerance(  parent_trace,
+                                            output_dict, 
+                                            test_output_name    = test_output_name, 
+                                            output_data_dir     = self._regression_output_dir(parent_trace), 
+                                            expected_data_dir   = self._regression_expected_dir(parent_trace), 
+                                            save_output_dict    = save_output_dict,
+                                            tolerance_lambda    = tolerance_lambda)
+
 
     def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, save_output_txt=False):
         '''

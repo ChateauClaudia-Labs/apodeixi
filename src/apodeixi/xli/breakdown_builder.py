@@ -699,7 +699,7 @@ class BreakdownTree():
         '''
         Parses a string like 'AC43' and returns two things: the acronym string 'AC' and the int 43
         '''
-        REGEX               = '([a-zA-Z]+)([0-9])+'
+        REGEX               = '([a-zA-Z]+)([0-9]+)'
         m                   = _re.match(REGEX, leaf_uid)
         my_trace            = parent_trace.doing("Parsing leaf_uid into acronym and number",
                                                     origination = {'signaled_from': __file__})

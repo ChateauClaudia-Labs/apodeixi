@@ -210,7 +210,6 @@ class DictionaryUtils():
         val                     = sub_dict[path_list[-1]]
         return val
              
-
     def set_val(self, parent_trace, root_dict, root_dict_name, path_list, val):
         '''
         Thinking of `root_dict` dictionary as a tree, and of `path_list` as a branch, this method adds the branch to the
@@ -248,3 +247,70 @@ class DictionaryUtils():
                             val             = val)  
         return
 
+    def compare(self, parent_trace, left_dict, right_dict, tolerance_lambda=None):
+        '''
+        Compares two dictionaries, left_dict and right_dict, and returns a boolean if they are equal
+        or, at least, "within tolerance", if the tolerance_lambda is provided.
+
+        The tolerance_lambda is function that takes three parameters and returns a boolean:
+
+                            boolean = tolerance_lambda(key, left_val, right_val)
+
+        To understand these parameters, to think of dictionaries as "trees", where
+        the keys of dictionary are the "children names" and the values for each key
+        is either a "sub-tree" (if the value is a dict) or a "leaf" of the tree (if the value is 
+        not a dict). 
+
+        The prototypical use case is when the "leafs" are scalar-valued nodes, or at least have a value
+        that is some "simple" object. 
+
+        
+        The tolerance function is applied during this recursive process when comparing a given
+        leaf node in this tree. 
+        
+        A leaf in the output tree would be a pair <key, left_val>, wheras
+        a leaf in the expected tree would be another pair <key, right_val>.
+
+        In this situation, tolerance_lambda(key, left_val, right_val) returns true if
+        left_val is "within tolerance" of right_val, as judged by the implementation of the
+        tolerance_lambda
+
+        @param tolerance_lambda A function that takes three parameters and returns a boolean:
+
+                        boolean = tolerance_lambda(key, left_val, right_val)
+        '''
+        if type(left_dict) != dict:
+            raise ApodeixiError(parent_trace, "Unable to compare dictionaries because the left_dict is not a dictionary",
+                                    data = {"type(left_dict)": str(type(left_dict))})
+        if type(right_dict) != dict:
+            raise ApodeixiError(parent_trace, "Unable to compare dictionaries because the right_dict is not a dictionary",
+                                    data = {"type(right_dict)": str(type(right_dict))})
+
+        left_keys                       = list(left_dict.keys())
+        right_keys                      = list(left_dict.keys())
+
+        if left_keys != right_keys:
+            return False
+
+        for key in left_keys:
+            my_trace                    = parent_trace.doing("Comparing sub-dictionaries for key = '" + key + "'")
+            left_val                    = left_dict[key]
+            right_val                   = right_dict[key]
+
+            if type(left_val) != type(right_val):
+                return False
+            
+            if type(left_val) == dict: # Recursion
+                subtree_comparison_b    = self.compare(my_trace, left_val, right_val, tolerance_lambda)
+                if subtree_comparison_b == False:
+                    return False
+            elif tolerance_lambda == None:
+                if left_val != right_val:
+                    return False
+            else: # apply tolerance function
+                if tolerance_lambda(key, left_val, right_val) == False:
+                    return False
+
+        # If we get this far, we checked all the children recursively and have not yet found a difference
+        # outside of tolerance. So accept by returning True
+        return True

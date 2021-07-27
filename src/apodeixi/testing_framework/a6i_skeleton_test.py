@@ -7,6 +7,7 @@ from io                     import StringIO
 
 
 from apodeixi.util.formatting_utils                 import DictionaryFormatter
+from apodeixi.util.dictionary_utils                 import DictionaryUtils
 from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.dataframe_utils                  import DataFrameUtils, DataFrameComparator
 from apodeixi.util.a6i_error                        import ApodeixiError
@@ -101,6 +102,42 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         @param output_data_dir Directory to which to save any output.
         @param expected_data_dir Directory from which to retrieve any previously saved expected output.
         '''
+        expected_dict               = self._prepare_yaml_comparison(    parent_trace        = parent_trace,
+                                                                        output_dict         = output_dict, 
+                                                                        test_output_name    = test_output_name, 
+                                                                        output_data_dir     = output_data_dir, 
+                                                                        expected_data_dir   = expected_data_dir, 
+                                                                        save_output_dict    = save_output_dict)
+        output_stream               = StringIO()
+        _yaml.dump(output_dict, output_stream)
+        result_yaml                 = output_stream.getvalue()
+
+        expected_stream             = StringIO()
+        _yaml.dump(expected_dict, expected_stream)
+        expected_yaml               = expected_stream.getvalue()
+
+        self.assertEqual(result_yaml, expected_yaml)
+
+
+    def _prepare_yaml_comparison(self, parent_trace, output_dict, test_output_name, 
+                                    output_data_dir, expected_data_dir, save_output_dict=False):
+        '''
+        Helper method that does most of the heavy lifting when we seek to compare yaml-based
+        expected output.
+
+        On success, this returns a dictionary corresponding to the expected output, that the caller can then compare
+        with the parameter `output_dict`
+        
+        The motivation for the existence of this method is that there are different ways of comparing yaml
+        files. For example:
+        * A "pure" comparison, done by method `_compare_to_expected_yaml`
+        * A "tolerance-based" comparison, done by method `_compare_yaml_within_tolerance`. This is used, for 
+          example, to validate expected output where the contents of file systems is displayed. In such cases,
+          generated Excel files may display a size that differs by 1 or 2 bytes because of the non-determinism involved
+          in creating Excel files since "xlsx" files are really zip files with XML contents, and it is well
+          known that zip files are non-deterministcically created (for example, see 
+          https://medium.com/@pat_wilson/building-deterministic-zip-files-with-built-in-commands-741275116a19)
+        '''
         # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
         # (at least it would erroneously pass when the expected output is set to an empty file)
         self.assertIsNotNone(output_dict)
@@ -126,15 +163,61 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         with open(expected_data_dir + '/' + test_output_name + '_EXPECTED.yaml', 'r', encoding="utf8") as file:
             expected_dict           = _yaml.load(file, Loader=_yaml.FullLoader)
 
-        output_stream               = StringIO()
-        _yaml.dump(output_dict, output_stream)
-        result_yaml                 = output_stream.getvalue()
+        return expected_dict
 
-        expected_stream             = StringIO()
-        _yaml.dump(expected_dict, expected_stream)
-        expected_yaml               = expected_stream.getvalue()
+    def _compare_yaml_within_tolerance(self, parent_trace, output_dict, test_output_name, 
+                                    output_data_dir, expected_data_dir, save_output_dict,
+                                    tolerance_lambda):
+        '''
+        Asserts if the `output_dict` is within tolerance of expected output. 
 
-        self.assertEqual(result_yaml, expected_yaml)
+        Used to avoid spurious test failures due to small deviations in expected output arising from
+        non-deterministic behavior.
+
+        A primary use case is when validating the contents of file systems (e.g., when doing snapshots of
+        KnowledgeBaseStore environments). 
+        
+        In such cases, generated Excel files may display a size that differs by 1 or 2 bytes because of the 
+        non-determinism involved in creating Excel files since "xlsx" files are really zip files with XML contents, 
+        and it is well known that zip files are non-deterministcically created (for example, see 
+        https://medium.com/@pat_wilson/building-deterministic-zip-files-with-built-in-commands-741275116a19).
+        
+        To address this problem when doing regression testing, Apodeixi provides this method which allows
+        a usage of a function (`tolerance_labmda`) to pass as "valid" some output that varies within a range
+        considered "fine" by the `tolerance_lambda`.
+
+        @param tolerance_lambda A function that takes three parameters and returns a boolean:
+
+                            boolean = tolerance_lambda(key, val_output, val_expected)
+
+                        To understand these parameters, it is helpful to remember we are ultimately
+                        comparing dict-based representation of YAML content, and therefore we
+                        can think of the `output_dict` and the expected dict as "trees". That is,  
+                        for each key the value is either another dict that is also a "tree", or
+                        some other value, typically a scalar (a "leaf" in the tree).
+                        
+                        The tolerance function is applied during this recursive process when comparing a given
+                        leaf node in this tree. 
+                        
+                        A leaf in the output tree would be a pair <key, val_output>, wheras
+                        a leaf in the expected tree would be another pair <key, val_expected>.
+
+                        In this situation, tolerance_lambda(key, val_output, val_expected) returns true if
+                        val_output is "within tolerance" of val_expected, as judged by the implementation of the
+                        tolerance_lambda
+        '''
+        expected_dict               = self._prepare_yaml_comparison(    parent_trace        = parent_trace,
+                                                                        output_dict         = output_dict, 
+                                                                        test_output_name    = test_output_name, 
+                                                                        output_data_dir     = output_data_dir, 
+                                                                        expected_data_dir   = expected_data_dir, 
+                                                                        save_output_dict    = save_output_dict)
+
+        self.assertTrue(DictionaryUtils().compare(  parent_trace        = parent_trace, 
+                                                    left_dict           = output_dict, 
+                                                    right_dict          = expected_dict, 
+                                                    tolerance_lambda    = tolerance_lambda))
+        
 
     def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, 
                                 output_data_dir, expected_data_dir, save_output_txt=False):
