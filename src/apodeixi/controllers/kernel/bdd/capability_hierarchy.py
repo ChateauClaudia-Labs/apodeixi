@@ -39,7 +39,7 @@ class CapabilityHierarchy_Controller(SkeletonController):
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
         ME                          = CapabilityHierarchy_Controller
-        update_policy               = UpdatePolicy(         reuse_uids      = False,            merge   = False)
+        update_policy               = UpdatePolicy(         reuse_uids      = True,            merge   = False)
         config                      = ME._MyPostingConfig(  update_policy   = update_policy,    
                                                             kind            = kind, 
                                                             manifest_nb     = manifest_nb,    

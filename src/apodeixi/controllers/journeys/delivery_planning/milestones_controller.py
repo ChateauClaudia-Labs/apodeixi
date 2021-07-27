@@ -45,7 +45,7 @@ class MilestonesController(SkeletonController):
         '''
         ME                              = MilestonesController
         if kind == ME.MY_KIND:
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._MilestonesConfig( update_policy       = update_policy, 
                                                                 kind                = kind, 
                                                                 manifest_nb         = manifest_nb,

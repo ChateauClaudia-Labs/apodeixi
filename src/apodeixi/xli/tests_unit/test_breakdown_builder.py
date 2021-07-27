@@ -171,7 +171,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         intervals       = [interval_A, interval_B, interval_C]
         root_trace      = FunctionalTrace(None).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})
-        #update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
+
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 
@@ -208,7 +208,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                                                                     'columns'           : list(df_to_attach.columns)},
                                                                             origination = {
                                                                                     'signaled_from': __file__})
-        #update_policy   = UpdatePolicy(reuse_uids=False, merge=False)
+
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})

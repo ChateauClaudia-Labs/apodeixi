@@ -50,19 +50,19 @@ class Mock_Controller(SkeletonController):
         '''
         ME                          = Mock_Controller
         if kind == 'hierarchy':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._AccountHierarchyConfig(       update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,
                                                                             controller          = self)
         elif kind == 'balances':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._AccountBalancesConfig(        update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,
                                                                             controller          = self)
         elif kind == 'properties':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._AccountPropertiesConfig(      update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,

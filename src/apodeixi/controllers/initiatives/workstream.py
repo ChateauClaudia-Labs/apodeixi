@@ -42,7 +42,7 @@ class Workstream_Controller(SkeletonController):
         '''
         ME                          = Workstream_Controller
         if kind == 'workstream-milestone':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
             config                      = ME._WorkstreamMilestoneConfig(    update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,

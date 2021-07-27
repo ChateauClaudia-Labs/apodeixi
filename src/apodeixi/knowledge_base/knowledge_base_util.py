@@ -175,14 +175,14 @@ class ManifestUtils():
 
         missed_keys                 = [key for key in REQUIRED_KEYS if not key in manifest_dict.keys()]
         if len(missed_keys) > 0:
-            raise ApodeixiError(parent_trace, "Can't record manifest creation because these mandatory fields were absent in the "
+            raise ApodeixiError(parent_trace, "Can't infer manifest handle because these mandatory fields were absent in the "
                                                 "manifest: " + str(missed_keys),
                                                 origination = {'signaled_from': __file__})
 
         metadata_dict               = manifest_dict[METADATA]
         missed_metadata_subkeys     = [key for key in REQUIRED_METADATA_SUBKEYS if not key in metadata_dict.keys()]
         if len(missed_metadata_subkeys) > 0:
-            raise ApodeixiError(parent_trace, "Can't record manifest creation because these mandatory fields were absent in the "
+            raise ApodeixiError(parent_trace, "Can't infer manifest handle because these mandatory fields were absent in the "
                                                 "manifest's metadata: " + str(missed_metadata_subkeys),
                                                 origination = {'signaled_from': __file__})
 
