@@ -333,7 +333,12 @@ class BigRocksEstimate_Controller(SkeletonController):
             mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
-                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. Are you sure your "
+                                                    + "'data.range.n' settings in the PostingLabel are correctly "
+                                                    + " describing the real estate for the various data sets?"
+                                                    + " (that is a common cause for this problem - for example, "
+                                                    + " the range for the effort dataset should start where you "
+                                                    + " positioned the effort column)",
                                                     data = {    'Missing columns':    missing_cols,
                                                                 'Posted columns':     posted_cols})
 

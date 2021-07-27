@@ -15,8 +15,17 @@ assertion:
     BR3-name: "Modernization \u2013 Persona Based Dashboard, Improved UI/UX"
     BR4:
       UID: BR4
-      name: Services (but for this v2, only the key ones)
-    BR4-name: Services (but for this v2, only the key ones)
+      name: Services (per area)
+      sub rocks:
+        SR1:
+          UID: BR4.SR1
+          name: Lending services
+        SR1-name: Lending services
+        SR2:
+          UID: BR4.SR2
+          name: Treasury services
+        SR2-name: Treasury services
+    BR4-name: Services (per area)
     BR5:
       UID: BR5
       name: Containerization

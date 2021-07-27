@@ -30,7 +30,7 @@ assertion:
       name: FY 2025
     P5-name: FY 2025
     P6:
-      Incremental: 999
+      Incremental: 998
       UID: P6
       name: FY 2026
     P6-name: FY 2026

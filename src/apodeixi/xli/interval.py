@@ -136,7 +136,8 @@ class GreedyIntervalSpec(IntervalSpec):
 
 class MinimalistIntervalSpec(IntervalSpec):
     '''
-    Concrete interval spec class which builds minimalist intervals, where each interval has exactly 1 non-UID column from the linear space.
+    Concrete interval spec class which builds minimalist intervals, where each interval has exactly 1 non-UID column 
+    from the linear space.
 
     For example, if the linear space is 
     
@@ -209,8 +210,8 @@ class ClosedOpenIntervalSpec(IntervalSpec):
     * [A, T, Y, U]
     * [F, G, W]
 
-    @param start_column The column of at which the to-be-built Interval starts
-    @param following_column The first column in the (runtime-determined) linear space that lies after the to-be-build Interval
+    @param splitting_columns The columns inside the interval that partition it. In the above example,
+                            that would be [A, F]
     '''
     def __init__(self, parent_trace, splitting_columns, entity_name):
         super().__init__(entity_name)

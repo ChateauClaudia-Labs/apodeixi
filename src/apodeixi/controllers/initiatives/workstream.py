@@ -190,8 +190,6 @@ class Workstream_Controller(SkeletonController):
 
         _ENTITY_NAME                            = 'Metric'
 
-        #_SPLITTING_COLUMNS                      = ['Metric']
-
         def __init__(self, update_policy, kind, manifest_nb, controller):
             ME                                  = Workstream_Controller._WorkstreamMetricConfig
 
@@ -201,10 +199,6 @@ class Workstream_Controller(SkeletonController):
                                 controller      = controller)
 
             interval_spec_metrics               = GreedyIntervalSpec(parent_trace = None, entity_name = ME._ENTITY_NAME) 
-
-            #interval_spec_metrics    = ClosedOpenIntervalSpec(  parent_trace        = None, 
-            #                                                    splitting_columns   = ME._SPLITTING_COLUMNS,
-            #                                                    entity_name         = ME._ENTITY_NAME) 
 
             self.interval_spec                  = interval_spec_metrics
 

@@ -18,19 +18,24 @@ assertion:
     E3-name: 4500
     E4:
       UID: E4
-      bigRock: BR4
-      name: 10351
-    E4-name: 10351
+      bigRock: BR4.SR1
+      name: 5100
+    E4-name: 5100
     E5:
       UID: E5
-      bigRock: BR6
-      name: 999
-    E5-name: 999
+      bigRock: BR4.SR2
+      name: 5250
+    E5-name: 5250
     E6:
       UID: E6
+      bigRock: BR6
+      name: 999
+    E6-name: 999
+    E7:
+      UID: E7
       bigRock: BR5
       name: 525
-    E6-name: 525
+    E7-name: 525
   entity_type: Effort
   estimatedBy: joe.thedevhead@mycorp.com
   estimatedOn: &id001 2021-04-29 00:00:00
