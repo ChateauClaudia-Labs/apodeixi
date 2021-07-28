@@ -5,4 +5,4 @@ CREATED FORM:
 		 excel_filename  = 'big-rocks.journeys.a6i.xlsx'
 		 excel_sheet     = 'Posting Label'
 		 excel_range     = 'B2:C100'
-clientURL =          <MASKED>/apodeixi/test_db/knowledge-base/envs/basic_posting_flows.big_rocks.burnout.big_rocks_ENV/external-collaboration
+clientURL =          <MASKED>/apodeixi/test_db/knowledge-base/envs/basic_posting_flows.big_rocks.burnout.brb_opus_ENV/external-collaboration

@@ -23,9 +23,6 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         * Request update form
         * Submit an update to initial posting
         '''
-        all_manifests_dicts                 = []
-        test_case_name = 'big_rocks_posting'
-
         try:
             root_trace                      = FunctionalTrace(parent_trace=None).doing("Test scenario", 
                                                     data={  'excel_file'    : excel_file,

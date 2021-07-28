@@ -21,7 +21,7 @@ util:
     '
   dictionary_utils.py: '
 
-    Size (in bytes):  19060
+    Size (in bytes):  19178
 
     '
   excel_writer_utils.py: '
@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  14300
+    Size (in bytes):  14455
 
     '
   tests_unit:
@@ -201,7 +201,7 @@ util:
       '
     test_folder_hierarchy.py: '
 
-      Size (in bytes):  2280
+      Size (in bytes):  2300
 
       '
     test_formatting_utils.py: '

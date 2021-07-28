@@ -194,20 +194,29 @@ class FolderHierarchy():
         Constructs and returns a new FolderHierarchy structure.
 
         @param rootdir A string, representing the root of the folder structure
-        @param filter A function that takes a string as an argument and returns a boolean. All filenames that appear
-                        under rootdir or under a descendent subfolder of rootdir are tested with the filter,
-                        and the constructed FolderHierarchy only includes the filenames for which the filter is true.
-                        Any folder that has no descendent filename that passes the filter is also excluded. If None, then
-                        all filenames are included
-            '''
-        try:
+        @param filter A function that takes a string as an argument and returns a boolean:
 
+                            filter(object)
+
+        where object is either the name of a file or the full path of a subdirectory in the
+        of rootdir (i.e, object = rootdir/<something>)
+
+        As we recurse through the descendent folders beneath `rootdir`, if the filter is not None
+        then paths like rootdir/<something> will be included only if filter(rootdir/<something>) = True
+
+        Likewise, a file called myFileName would only be included if filter(myFileName) = True 
+        '''
+        try:
+            
             hierarchy_dict                      = {}
             parent_folder                       = _os.path.split(rootdir)[1]
             path_to_parent                      = _os.path.split(rootdir)[0]
             hierarchy_dict[parent_folder]       = {}
             for currentdir, dirs, files in _os.walk(rootdir):
-                #for subdir in dirs:
+                
+                if filter != None and not filter(currentdir):
+                    continue
+
                 for a_file in files:
                     if filter == None or filter(a_file):
                         loop_trace              = parent_trace.doing("Adding file '" + a_file + "'")

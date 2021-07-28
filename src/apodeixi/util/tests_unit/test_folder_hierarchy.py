@@ -22,8 +22,8 @@ class Test_FolderHierarchy(ApodeixiUnitTest):
 
             ROOT_DIR                        = _os.path.dirname(_os.path.dirname(INPUT_FOLDER))
 
-            def filter(filename):
-                return not filename.endswith(".pyc")
+            def filter(filename_or_subdir):
+                return not filename_or_subdir.endswith(".pyc")
 
             hierarchy                       = FolderHierarchy.build(parent_trace        = root_trace, 
                                                                     rootdir             = ROOT_DIR, 

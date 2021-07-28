@@ -1,4 +1,4 @@
-basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
+basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
   external-collaboration:
     journeys:
       Dec 2020:
@@ -8,7 +8,7 @@ basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
               (Timestamp omitted) Posting:
                 FORM_REQUEST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  389
+                  Size (in bytes):  388
 
                   '
                 OPUS_big-rocks.journeys.a6i.xlsx: '
@@ -18,7 +18,7 @@ basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
                   '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  2406
+                  Size (in bytes):  2405
 
                   '
                 big-rocks.journeys.a6i.xlsx: '
@@ -26,6 +26,13 @@ basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
                   Size (in bytes):  19126
 
                   '
+        LedgerPro:
+          OfficialPlan:
+            LedgerPro.big-rocks.journeys.a6i.xlsx: '
+
+              Size (in bytes):  30059
+
+              '
   kb:
     excel-postings:
       journeys:
@@ -36,7 +43,7 @@ basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
                 (Timestamp omitted) Posting:
                   FORM_REQUEST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  389
+                    Size (in bytes):  388
 
                     '
                   OPUS_big-rocks.journeys.a6i.xlsx: '
@@ -46,7 +53,7 @@ basic_posting_flows.big_rocks.burnout.big_rocks_ENV:
                     '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  2406
+                    Size (in bytes):  2405
 
                     '
                   big-rocks.journeys.a6i.xlsx: '

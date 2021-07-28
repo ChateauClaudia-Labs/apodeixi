@@ -439,17 +439,26 @@ class File_KBEnv_Impl(KB_Environment):
         '''
         Returns a FolderHierarchy object that describes the current contents of this environment
         '''
-        ME                          = File_KBEnv_Impl
+        ME                      = File_KBEnv_Impl
 
+        root_dir                = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
         if self.name(parent_trace) == self._store.base_environment(parent_trace).name(parent_trace):
-            my_dir                      = self._store.base_environment(parent_trace).manifestsURL(parent_trace)
+            my_dir              = root_dir
+            # If we are showing the base environment, exclude the transient envs subfolder that is not part
+            # of the "official data" of the base environment
+            def avoid_envs_folder(subdir):
+                p1              = _os.path.normpath(root_dir + "/" + ME.ENVS_FOLDER)
+                p2              = _os.path.normpath(subdir)
+                return not p2.startswith(p1)
+            filter              = avoid_envs_folder
         else:        
-            root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
-            my_dir                      = root_dir + "/" + ME.ENVS_FOLDER + "/" + self._name
+            my_dir              = root_dir + "/" + ME.ENVS_FOLDER + "/" + self._name
+            # In this case, include everything under my_dir
+            filter              = None
 
 
         hierarchy                   = FolderHierarchy.build(    parent_trace        = parent_trace, 
                                                                 rootdir             = my_dir, 
-                                                                filter              = None,
+                                                                filter              = filter,
                                                                 include_timestamps  = include_timestamps)
         return hierarchy

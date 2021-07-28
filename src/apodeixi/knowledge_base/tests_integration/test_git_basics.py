@@ -3,7 +3,6 @@ import sys                                              as _sys
 from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, GITStoreTestStack
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
-from apodeixi.util.path_utils              			    import FolderHierarchy
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config

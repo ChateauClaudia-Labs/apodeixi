@@ -20,10 +20,10 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
         '''
         self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
 
-    def test_big_rocks(self):
+    def test_big_rocks_burnout(self):
 
         self.setScenario("basic_posting_flows.big_rocks.burnout")
-        self.setCurrentTestName('big_rocks')
+        self.setCurrentTestName('brb_opus') # big rock burnout for product Opus
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"
         EXCEL_FILE                      = "OPUS_big-rocks.journeys.a6i.xlsx"
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         T = Test_BasicPostingFlows()
         T.setUp()
         what_to_do = args[1]
-        if what_to_do=='big_rocks':
-            T.test_big_rocks()
+        if what_to_do=='big_rocks_burnout':
+            T.test_big_rocks_burnout()
 
     main(_sys.argv)

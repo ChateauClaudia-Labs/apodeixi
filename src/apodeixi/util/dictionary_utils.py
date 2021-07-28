@@ -287,7 +287,12 @@ class DictionaryUtils():
                                     data = {"type(right_dict)": str(type(right_dict))})
 
         left_keys                       = list(left_dict.keys())
-        right_keys                      = list(left_dict.keys())
+        
+        right_keys                      = list(right_dict.keys())
+
+        # Sort so that we can compare element wise
+        left_keys.sort()
+        right_keys.sort()
 
         if left_keys != right_keys:
             return False
