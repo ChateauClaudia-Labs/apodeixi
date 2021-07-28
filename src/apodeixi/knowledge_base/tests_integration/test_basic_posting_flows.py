@@ -35,6 +35,21 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET)
 
+    def NOTREADYtest_big_rocks_explained(self):
+
+        self.setScenario("basic_posting_flows.big_rocks.explained")
+        self.setCurrentTestName('bre_ledger_pro') # big rock explained for product LedgerPro
+
+        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OficialPlan"
+        EXCEL_FILE                      = "LedgerPro.big-rocks.journeys.a6i.xlsx"
+        NB_MANIFESTS_EXPECTED           = 3
+
+        
+        self._run_basic_flow(   excel_relative_path         = EXCEL_RELATIVE_PATH,
+                                excel_file                  = EXCEL_FILE,
+                                nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
+                                generated_form_worksheet    = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

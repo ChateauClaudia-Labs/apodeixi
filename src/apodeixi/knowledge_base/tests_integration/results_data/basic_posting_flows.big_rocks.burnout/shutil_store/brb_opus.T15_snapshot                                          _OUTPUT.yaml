@@ -13,7 +13,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                   '
                 OPUS_big-rocks.journeys.a6i.xlsx: '
 
-                  Size (in bytes):  25163
+                  Size (in bytes):  25146
 
                   '
                 POST_EVENT_LOG.txt: '
@@ -23,14 +23,14 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                   '
                 big-rocks.journeys.a6i.xlsx: '
 
-                  Size (in bytes):  19126
+                  Size (in bytes):  19113
 
                   '
         LedgerPro:
           OfficialPlan:
             LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  30059
+              Size (in bytes):  28512
 
               '
   kb:
@@ -48,7 +48,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                     '
                   OPUS_big-rocks.journeys.a6i.xlsx: '
 
-                    Size (in bytes):  25163
+                    Size (in bytes):  25146
 
                     '
                   POST_EVENT_LOG.txt: '
@@ -58,12 +58,12 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                     '
                   big-rocks.journeys.a6i.xlsx: '
 
-                    Size (in bytes):  19126
+                    Size (in bytes):  19113
 
                     '
               big-rocks.journeys.a6i.xlsx: '
 
-                Size (in bytes):  19126
+                Size (in bytes):  19113
 
                 '
     manifests:
@@ -71,31 +71,31 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
         modernization.default.dec-2020.fusionopus:
           big-rock-estimate.1.yaml: '
 
-            Size (in bytes):  1272
+            Size (in bytes):  1256
 
             '
           big-rock-estimate.2.yaml: '
 
-            Size (in bytes):  1438
+            Size (in bytes):  1422
 
             '
           big-rock.1.yaml: '
 
-            Size (in bytes):  1426
+            Size (in bytes):  1410
 
             '
           big-rock.2.yaml: '
 
-            Size (in bytes):  1808
+            Size (in bytes):  1792
 
             '
           investment.1.yaml: '
 
-            Size (in bytes):  1320
+            Size (in bytes):  1304
 
             '
           investment.2.yaml: '
 
-            Size (in bytes):  1411
+            Size (in bytes):  1395
 
             '

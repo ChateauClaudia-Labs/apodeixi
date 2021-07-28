@@ -13,7 +13,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                   '
                 OPUS_big-rocks.journeys.a6i.xlsx: '
 
-                  Size (in bytes):  25163
+                  Size (in bytes):  25146
 
                   '
                 POST_EVENT_LOG.txt: '
@@ -23,14 +23,14 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                   '
             big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  7676
+              Size (in bytes):  7672
 
               '
         LedgerPro:
           OfficialPlan:
             LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  30059
+              Size (in bytes):  28512
 
               '
   kb:
@@ -48,7 +48,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                     '
                   OPUS_big-rocks.journeys.a6i.xlsx: '
 
-                    Size (in bytes):  25163
+                    Size (in bytes):  25146
 
                     '
                   POST_EVENT_LOG.txt: '
@@ -58,7 +58,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                     '
               big-rocks.journeys.a6i.xlsx: '
 
-                Size (in bytes):  25163
+                Size (in bytes):  25146
 
                 '
     manifests:
@@ -66,16 +66,16 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
         modernization.default.dec-2020.fusionopus:
           big-rock-estimate.1.yaml: '
 
-            Size (in bytes):  1272
+            Size (in bytes):  1256
 
             '
           big-rock.1.yaml: '
 
-            Size (in bytes):  1426
+            Size (in bytes):  1410
 
             '
           investment.1.yaml: '
 
-            Size (in bytes):  1320
+            Size (in bytes):  1304
 
             '
