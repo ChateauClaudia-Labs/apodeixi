@@ -34,7 +34,7 @@ assertion:
   scenario: Default
   scoringCycle: Dec 2020
   scoringMaturity: Draft
-  variant: simple; burnout
+  variant: burnout
 kind: investment
 metadata:
   labels:
@@ -49,7 +49,7 @@ metadata:
     scenario: Default
     scoringCycle: Dec 2020
     scoringMaturity: Draft
-    variant: simple; burnout
+    variant: burnout
     version: 1
   name: modernization.default.dec-2020.fusionopus
   namespace: my-corp.production

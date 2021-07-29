@@ -1,0 +1,217 @@
+apiVersion: delivery-planning.journeys.a6i.io/v1a
+assertion:
+  big-rock:
+    BR1:
+      Breakdown:
+        B1:
+          UID: BR1.B1
+          name: Replace Oracle with  SQL PaaS
+        B1-name: Replace Oracle with  SQL PaaS
+      UID: BR1
+      name: "Move to\_Azure Managed SQL PaaS "
+    BR1-name: "Move to\_Azure Managed SQL PaaS "
+    BR10:
+      Breakdown:
+        B1:
+          UID: BR10.B1
+          name: Autmated batch opertions
+        B1-name: Autmated batch opertions
+        B2:
+          UID: BR10.B2
+          name: Business Monitoring
+        B2-name: Business Monitoring
+      UID: BR10
+      name: Cloud Operation(CI/CD,EOD,Monitoring)
+    BR10-name: Cloud Operation(CI/CD,EOD,Monitoring)
+    BR2:
+      Breakdown:
+        B1:
+          UID: BR2.B1
+          name: Event Generation and Consumption
+        B1-name: Event Generation and Consumption
+      UID: BR2
+      name: Events and Notification
+    BR2-name: Events and Notification
+    BR3:
+      Breakdown:
+        B1:
+          UID: BR3.B1
+          name: Authentication
+        B1-name: Authentication
+        B2:
+          UID: BR3.B2
+          name: Authorization
+        B2-name: Authorization
+        B3:
+          UID: BR3.B3
+          name: User Management
+        B3-name: User Management
+        B4:
+          UID: BR3.B4
+          name: Role Management
+        B4-name: Role Management
+        B5:
+          UID: BR3.B5
+          name: Consent & Mandate
+        B5-name: Consent & Mandate
+        B6:
+          UID: BR3.B6
+          name: Audit
+        B6-name: Audit
+      UID: BR3
+      name: Security
+    BR3-name: Security
+    BR4:
+      Breakdown:
+        B1:
+          UID: BR4.B1
+          name: 'CASA '
+        B1-name: 'CASA '
+        B2:
+          UID: BR4.B2
+          name: Deposits
+        B2-name: Deposits
+        B3:
+          UID: BR4.B3
+          name: Customer Management
+        B3-name: Customer Management
+        B4:
+          UID: BR4.B4
+          name: Digital Branch
+        B4-name: Digital Branch
+        B5:
+          UID: BR4.B5
+          name: Online Banking
+        B5-name: Online Banking
+        B6:
+          UID: BR4.B6
+          name: Lending
+        B6-name: Lending
+        B7:
+          UID: BR4.B7
+          name: Core
+        B7-name: Core
+        B8:
+          UID: BR4.B8
+          name: Common Services
+        B8-name: Common Services
+      UID: BR4
+      name: UI/UX
+    BR4-name: UI/UX
+    BR5:
+      Breakdown:
+        B1:
+          UID: BR5.B1
+          name: Native reporting
+        B1-name: Native reporting
+        B2:
+          UID: BR5.B2
+          name: 'Adavanced analytics '
+        B2-name: 'Adavanced analytics '
+        B3:
+          UID: BR5.B3
+          name: Operational Analytics
+        B3-name: Operational Analytics
+      UID: BR5
+      name: Data  Analytics and Reporting
+    BR5-name: Data  Analytics and Reporting
+    BR6:
+      Breakdown:
+        B1:
+          UID: BR6.B1
+          name: Interfaces/integration
+        B1-name: Interfaces/integration
+      UID: BR6
+      name: Interfaces/integration
+    BR6-name: Interfaces/integration
+    BR7:
+      Breakdown:
+        B1:
+          UID: BR7.B1
+          name: 'CASA '
+        B1-name: 'CASA '
+        B10:
+          UID: BR7.B10
+          name: Basic treasury
+        B10-name: Basic treasury
+        B2:
+          UID: BR7.B2
+          name: Deposits
+        B2-name: Deposits
+        B3:
+          UID: BR7.B3
+          name: Customer Management
+        B3-name: Customer Management
+        B4:
+          UID: BR7.B4
+          name: Digital Branch
+        B4-name: Digital Branch
+        B5:
+          UID: BR7.B5
+          name: Online Banking
+        B5-name: Online Banking
+        B6:
+          UID: BR7.B6
+          name: Lending
+        B6-name: Lending
+        B7:
+          UID: BR7.B7
+          name: Core
+        B7-name: Core
+        B8:
+          UID: BR7.B8
+          name: Common Services
+        B8-name: Common Services
+        B9:
+          UID: BR7.B9
+          name: Foundation Service
+        B9-name: Foundation Service
+      UID: BR7
+      name: 'Decomposition into microservices '
+    BR7-name: 'Decomposition into microservices '
+    BR8:
+      Breakdown:
+        B1:
+          UID: BR8.B1
+          name: Containerization Essence
+        B1-name: Containerization Essence
+      UID: BR8
+      name: Containerization Essence
+    BR8-name: Containerization Essence
+    BR9:
+      Breakdown:
+        B1:
+          UID: BR9.B1
+          name: QA Automation
+        B1-name: QA Automation
+      UID: BR9
+      name: QA Automation
+    BR9-name: QA Automation
+  entity_type: Big Rock
+  estimatedBy: joe.thedevhead@mycorp.com
+  estimatedOn: &id001 2021-06-14 00:00:00
+  planType: Marathon
+  recordedBy: jill.thearchitect@mycorp.com
+  scenario: OfficialPlan
+  scoringCycle: Dec 2020
+  scoringMaturity: Committed
+  variant: explained
+kind: big-rock
+metadata:
+  labels:
+    environment: Production
+    estimatedBy: joe.thedevhead@mycorp.com
+    estimatedOn: *id001
+    journey: Modernization
+    organization: My Corp
+    planType: Marathon
+    product: LedgerPro
+    recordedBy: jill.thearchitect@mycorp.com
+    scenario: OfficialPlan
+    scoringCycle: Dec 2020
+    scoringMaturity: Committed
+    variant: explained
+    version: 1
+  name: modernization.officialplan.dec-2020.ledgerpro
+  namespace: my-corp.production
+  version: 1

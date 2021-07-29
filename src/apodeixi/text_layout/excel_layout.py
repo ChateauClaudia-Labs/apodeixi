@@ -188,17 +188,64 @@ class ExcelFormulas:
     '''
     def __init__(self, manifest_name):
         self._manifest_name         = manifest_name
-        self._formulas              = {} # Keys are column names, values are lists of possible formulas from supported types
+
+        # Keys are column names, values are lists of _FormulaProxy objects. For a given column, there 
+        # should be at most one _FormulaProxy object for each _FormulaProxy class
+        self._formulas              = {} 
+
         return
 
-    COLUMN_TOTAL                    = "COLUMN_TOTAL"
-    CUMULATIVE_SUM                  = "CUMULATIVE_SUM" 
+    class _FormulaProxy():
+        '''
+        Parent class for light-weight hierarcy of "glorified statics" (materialized as classes) that 
+        serve as a proxy for different kinds of formulas
 
-    def addTotal(self, parent_trace, column):
-        self._addFormulatType(parent_trace, column, ExcelFormulas.COLUMN_TOTAL)
+        @param parameters A dict, where the keys are strings corresponding to settings that affect the behavior of
+                how Excel formulas are to be laid out when based on this _FormulaProxy object.
+        '''
+        def __init__(self, parameters):
+            self.parameters     = parameters
 
-    def addCumulativeSum(self, parent_trace, column):
-        self._addFormulatType(parent_trace, column, ExcelFormulas.CUMULATIVE_SUM)
+        def __eq__(self, other):
+            if isinstance(other, self.__class__):
+                return self.__dict__ == other.__dict__
+            else:
+                return False
+
+    class COLUMN_TOTAL(_FormulaProxy):
+        '''
+        Proxy for a formula for a cell that adds up other cells values
+
+        @param parameters A dict, where the keys are strings corresponding to settings that affect the behavior of
+                how Excel formulas are to be laid out when based on this _FormulaProxy object. Supported parameters are
+                as follows, where ME stands for the class ExcelFormulas.COLUMN_TOTAL:
+
+                * ME.INCLUDE_LABEL: values are booleans. If True, a label named "Total" should be displayed in Excel
+                                    to the left of the cell where the total are laid. If False, no such label should
+                                    be displayed
+        '''
+        def __init__(self, parameters):
+            super().__init__(parameters)
+
+        INCLUDE_LABEL = "INCLUDE_LABEL" # Used as a key for a boolean parameter
+
+    class CUMULATIVE_SUM(_FormulaProxy):
+        '''
+        Proxy for a formula for a column of cumulative sum of other cells' values
+
+        @param parameters A dict, where the keys are strings corresponding to settings that affect the behavior of
+                how Excel formulas are to be laid out when based on this _FormulaProxy object. 
+
+                At present there are no supported parameters for this class.
+        '''
+        def __init__(self, parameters):
+            super().__init__(parameters)
+
+    def addTotal(self, parent_trace, column, parameters=None):
+        self._addFormulatType(parent_trace, column, ExcelFormulas.COLUMN_TOTAL(parameters))
+
+    def addCumulativeSum(self, parent_trace, column, parameters=None):
+        self._addFormulatType(parent_trace, column, ExcelFormulas.CUMULATIVE_SUM(parameters))
 
     def hasTotal(self, parent_trace, column):
         return self._hasFormulaType(parent_trace, column, ExcelFormulas.COLUMN_TOTAL)
@@ -206,21 +253,45 @@ class ExcelFormulas:
     def hasCumulativeSum(self, parent_trace, column):
         return self._hasFormulaType(parent_trace, column, ExcelFormulas.CUMULATIVE_SUM)
 
-    def _addFormulatType(self, parent_trace, column, formula_type):
+    def _addFormulatType(self, parent_trace, column, formula_proxy):
         if not column in self._formulas.keys():
             self._formulas[column]  = []
         
         formula_list                = self._formulas[column]
-        if not formula_type in formula_list:
-            formula_list.append(formula_type)
+        if type(formula_proxy) not in [type(proxy) for proxy in formula_list]:
+            formula_list.append(formula_proxy)
+        else: # This type of formula proxy is already in the list. Make sure it is identical to the one submitted, else
+            # error out since we should have at most one instance of a formula_proxy type in the formula_list
+            existing_proxy          = [proxy for proxy in formula_list if type(proxy) == type(formula_proxy)][0]
+            if existing_proxy != formula_proxy:
+                raise ApodeixiError(parent_trace, "Can't add formula to Excel because a different formula of the same type "
+                                                    + "has been previously configured")
 
-    def _hasFormulaType(self, parent_trace, column, formula_type):
+    def _hasFormulaType(self, parent_trace, column, formula_proxy_type):
         if not column in self._formulas.keys():
             return False
-        if formula_type in self._formulas[column]:
+        if formula_proxy_type in [type(proxy) for proxy in self._formulas[column]]:
             return True
         else:
             return False
+
+    def getFormulaParameters(self, parent_trace, column, formula_proxy_type):
+        '''
+        Returns a dict of parameters for the formula of type `formula_proxy_type` configured for the given
+        column, if some such formula has been configured.
+
+        If no such formula has been configured, it returns None
+        '''
+        if not column in self._formulas.keys():
+            raise ApodeixiError(parent_trace, "Can't retrieve Excel formula because it was not configured",
+                                                data = {"column": str(column),
+                                                        "formulay type": str(formula_proxy_type)})
+        formula_list                = self._formulas[column]
+        candidates                  = [proxy for proxy in formula_list if type(proxy) == formula_proxy_type]
+        if len(candidates) == 0:
+            return None
+        else:
+            return candidates[0].parameters
                 
 class PostingLayout(Excel_Layout):
     '''

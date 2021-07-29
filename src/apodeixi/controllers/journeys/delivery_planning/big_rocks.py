@@ -1,3 +1,5 @@
+import pandas                                       as _pd
+
 from apodeixi.controllers.util.manifest_api         import ManifestAPI
 from apodeixi.util.a6i_error                        import ApodeixiError
 from apodeixi.util.formatting_utils                 import StringUtils
@@ -5,7 +7,8 @@ from apodeixi.util.formatting_utils                 import StringUtils
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats, ExcelFormulas
 
-from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec
+from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec, \
+                                                            Interval
 from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
 
 class BigRocksEstimate_Controller(SkeletonController):
@@ -29,7 +32,10 @@ class BigRocksEstimate_Controller(SkeletonController):
         self.SUPPORTED_VERSIONS         = ['v1a']
         self.SUPPORTED_KINDS            = ['big-rock-estimate', 'investment', 'big-rock']
 
-    #GENERATED_FORM_WORKSHEET            = "Big Rocks"
+        self.variant                    = None # When reading the label it will be set to VARIANT_BURNOUT or VARIANT_EXPLAINED
+
+    VARIANT_BURNOUT                     = "burnout"
+    VARIANT_EXPLAINED                   = "explained"
 
     def getManifestAPI(self):
         return self.MANIFEST_API
@@ -84,6 +90,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
         '''
+        ME                                  = BigRocksEstimate_Controller
         config_table                        = AsExcel_Config_Table()
         x_offset                            = 1
         y_offset                            = 1
@@ -99,14 +106,33 @@ class BigRocksEstimate_Controller(SkeletonController):
                 num_formats                 = {}
                 excel_formulas              = None
             elif key == 'big-rock-estimate.1':
-                hidden_cols                 = ['UID', 'bigRock']
-                right_margin                = 1
-                num_formats                 = {'effort': NumFormats.INT}
-                excel_formulas              = ExcelFormulas(key)
-                excel_formulas.addTotal(loop_trace, column = "effort")
+
+                if self.variant ==  ME.VARIANT_BURNOUT:
+                    hidden_cols             = ['UID', 'bigRock']
+                    right_margin            = 1                    
+                    num_formats             = {'effort': NumFormats.INT}
+                    excel_formulas          = ExcelFormulas(key)
+                    excel_formulas.addTotal(loop_trace, column = "effort", 
+                                                        parameters = {ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL: True})
+                elif self.variant ==  ME.VARIANT_EXPLAINED:
+                    hidden_cols             = ['UID', 'bigRock', 'effort']
+                    right_margin            = 1      
+                    estimate_cols           = [col for col in editable_cols if not col in hidden_cols] 
+                    num_formats             = {} 
+                    excel_formulas          = ExcelFormulas(key)
+                    for col in estimate_cols:
+                        num_formats[col]    = NumFormats.INT          
+                        excel_formulas.addTotal(loop_trace, column = col,
+                                                            parameters = {ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL: False})                
+                else:
+                    raise ApodeixiError(loop_trace, "Can't format Excel for '" + key + "' because variant is unsupported",
+                                            data = {"variant given":        str(self.variant),
+                                                    "supported variants": str([ME.VARIANT_BURNOUT, ME.VARIANT_EXPLAINED])})
+
             elif key == 'investment.2':
                 hidden_cols                 = ['UID']
                 right_margin                = 1
+
                 num_formats                 = {'Incremental': NumFormats.INT}
                 excel_formulas              = ExcelFormulas(key)
                 excel_formulas.addCumulativeSum(parent_trace, 'Incremental')
@@ -299,6 +325,7 @@ class BigRocksEstimate_Controller(SkeletonController):
                                 manifest_nb     = manifest_nb,
                                 controller      = controller)
 
+            
             interval_spec_big_rocks_estimates   = GreedyIntervalSpec(parent_trace = None) 
 
             self.interval_spec                  = interval_spec_big_rocks_estimates
@@ -321,6 +348,7 @@ class BigRocksEstimate_Controller(SkeletonController):
             anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
             '''
             ME                              = BigRocksEstimate_Controller._BigRocksEstimatesConfig
+            CTRL                            = BigRocksEstimate_Controller
 
             # GOTCHA: A mandatory column like "Effort" might become "effort" after the first posting, i.e.,
             #           the generated form used for updates will have a column called "effort", not "Effort".
@@ -329,18 +357,114 @@ class BigRocksEstimate_Controller(SkeletonController):
             #           converts things like "Effort" to "effort"
             FMT                                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
 
-            posted_cols                     = [FMT(col) for col in posted_content_df.columns]
-            mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
-            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
-            if len(missing_cols) > 0:
-                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. Are you sure your "
-                                                    + "'data.range.n' settings in the PostingLabel are correctly "
-                                                    + " describing the real estate for the various data sets?"
-                                                    + " (that is a common cause for this problem - for example, "
-                                                    + " the range for the effort dataset should start where you "
-                                                    + " positioned the effort column)",
-                                                    data = {    'Missing columns':    missing_cols,
-                                                                'Posted columns':     posted_cols})
+            if self.controller.variant == CTRL.VARIANT_BURNOUT: # In this case we need an "effort" column
+                posted_cols                     = [FMT(col) for col in posted_content_df.columns]
+                mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
+                missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+                if len(missing_cols) > 0:
+                    raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. Are you sure your "
+                                                        + "'data.range.n' settings in the PostingLabel are correctly "
+                                                        + " describing the real estate for the various data sets?"
+                                                        + " (that is a common cause for this problem - for example, "
+                                                        + " the range for the effort dataset should start where you "
+                                                        + " positioned the effort column)",
+                                                        data = {    'Missing columns':    missing_cols,
+                                                                    'Posted columns':     posted_cols})
+
+        def preprocessReadFragment(self, parent_trace, interval, dataframe_row):
+            '''
+            This is called by the BreakdownTree's readDataframeFragment method before attempting to parse a fragment
+            from a row in a DataFrame.
+
+            This method is offered as a "hook" to derived classes in case they want to "enrich" the input to the parser,
+            by overwriting this method with the appropriate "enriching" logic.
+
+            It returns "improved" versions of the `interval` and `dataframe_row` parameters.
+
+            An example of where such "enriching" functionality is needed:
+            some posting APIs choose to present the users with an Excel template that hides some information
+            from the user. An example is the API for posting big rocks estimates: the "Effort" column is not included
+            in the Excel spreadsheet in cases where the user chose the "explained" variant, since in that case the "Effort"
+            is "implied" from the entries at multiple time buckets. Such examples make the Excel spreadsheet more user
+            friendly but cause a side-effect problem for the parser: if it does not see a column like "Effort" in the
+            row, which is mandatory since it is the "entity" for that row, the parser would raise an error. To address 
+            this, the concrete PostingConfig class for the big rocks controller can take advantage of this method
+            and implement it to "enrich" the `dataframe_row` with a synthetic "Effort" property that was not present 
+            in the Excel input provided by the user.
+
+            @param interval         An Interval object, corresponding to the columns in `row` that pertain to an entity being 
+                                    processed in readDataframeFragment
+            @param dataframe_row    A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
+                                    the Dataframe `iterrows()` iterator.
+            @returns                A pair: 1) an Interval object, and 2) tuple `(idx, series)` that may pass for a Pandas row
+            '''
+            CTRL                            = BigRocksEstimate_Controller
+            ME                              = BigRocksEstimate_Controller._BigRocksEstimatesConfig
+
+            # We will only enrich if the user provided some data at all - otherwise there is nothing to do
+            non_blank_cols                  = [col for col in interval.columns \
+                                                    if not IntervalUtils().is_blank(dataframe_row[1][col])]
+            if self.controller.variant ==  CTRL.VARIANT_EXPLAINED and len(non_blank_cols) > 0:
+                # Force the row to have a column called "Effort"
+                enrichment                  = _pd.Series(["DERIVED"], index=[ME._ENTITY_NAME])
+                row_nb                      = dataframe_row[0]
+                row_series                  = dataframe_row[1]
+
+                # The enriched row and interval must be consistent with regards to the columns. So make
+                # sure the first column is the entity being added as an enrichment, followed by the
+                # columns of the input dataframe_row, in that order. Same for the interval
+                enriched_series             = enrichment.append(row_series)
+                enriched_interval_columns   = [ME._ENTITY_NAME]
+                enriched_interval_columns.extend(interval.columns)
+                enriched_interval           = Interval( parent_trace        = parent_trace, 
+                                                        columns             = enriched_interval_columns, 
+                                                        entity_name         = ME._ENTITY_NAME)
+
+                # Make sure to return a tuple for the row, not a list, to make it look like a Pandas row
+                enriched_row                = (row_nb, enriched_series) 
+
+                return enriched_interval, enriched_row
+            else:
+                return interval, dataframe_row
+
+        def cleanFragmentValue(self, parent_trace, field_name, raw_value, data_series):
+            '''
+            Inherited from parent class, and enriched with additional behavior.
+
+            Method to "clean up" a value read from a Pandas DataFrame just before it is inserted into
+            the parsed tree created by the BreakdownTree's readDataframeFragment method.
+
+            For example, a Pandas DataFrame may put some "garbage values" like nan, NaT, etc. That will later
+            cause problems in the YAML created to represent manifests. In such cases, this method simply
+            "cleans up the value" and replaces it with an appropriate default. For nan, that would be an empty string.
+
+            Derived classes can overwrite this method and do additional "cleaning up". For example, a concrete
+            class may know that the field in question represents a number, so may decide to replace any empty string
+            by 0. Such "cleaning up" is important if later other processing code will attempt to do arithmetic on such
+            values on the assumption that they are numbers - encountering an empty string will likely cause such code to
+            error out. Better to pre-empt such situations by cleaning up the values at source, at the moment right before
+            they are inserted into the BreakdownTree from which the manifest will later be built.
+
+            @field_name A string, representing a column name of the DataFrame being processed. This is the column
+                        where the val came from, and provides a hint to implementing code on how such a value should
+                        be "cleaned up". For example, for columns of numbers an empty string should be replaced by a 0.
+            @raw_value A datum, representing a particular cell value in the DataFrame being processed.
+            @data_series A Pandas Series representing a "row" in a DataFrame from where the val came from.
+            '''
+            cleaned_val             = super().cleanFragmentValue(parent_trace, field_name, raw_value, data_series)
+
+            # For the big rocks estimates, all columns are numbers (except for "special" columns like UID
+            # or "effort", which are not passed to this method for cleaning up).
+            # If any of this should-be-numbers value was missing in the Excel spreadsheet 
+            # submitted by the user, chances are that Pandas made it an nan or something bad like that, 
+            # and the parent class's method applied default cleaning logic, turning into an empty string. 
+            # But here in this concrete class we know better, so so if that happened, replace '' by 0
+            if cleaned_val == '':
+                result_val = 0
+            else:
+                result_val = cleaned_val
+
+            return result_val
 
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksEstimatesConfig
@@ -402,6 +526,45 @@ class BigRocksEstimate_Controller(SkeletonController):
             ME                      = BigRocksEstimate_Controller._InvestmentConfig
             return ME._ENTITY_NAME
 
+        def cleanFragmentValue(self, parent_trace, field_name, raw_value, data_series):
+            '''
+            Inherited from parent class, and enriched with additional behavior.
+
+            Method to "clean up" a value read from a Pandas DataFrame just before it is inserted into
+            the parsed tree created by the BreakdownTree's readDataframeFragment method.
+
+            For example, a Pandas DataFrame may put some "garbage values" like nan, NaT, etc. That will later
+            cause problems in the YAML created to represent manifests. In such cases, this method simply
+            "cleans up the value" and replaces it with an appropriate default. For nan, that would be an empty string.
+
+            Derived classes can overwrite this method and do additional "cleaning up". For example, a concrete
+            class may know that the field in question represents a number, so may decide to replace any empty string
+            by 0. Such "cleaning up" is important if later other processing code will attempt to do arithmetic on such
+            values on the assumption that they are numbers - encountering an empty string will likely cause such code to
+            error out. Better to pre-empt such situations by cleaning up the values at source, at the moment right before
+            they are inserted into the BreakdownTree from which the manifest will later be built.
+
+            @field_name A string, representing a column name of the DataFrame being processed. This is the column
+                        where the val came from, and provides a hint to implementing code on how such a value should
+                        be "cleaned up". For example, for columns of numbers an empty string should be replaced by a 0.
+            @raw_value A datum, representing a particular cell value in the DataFrame being processed.
+            @data_series A Pandas Series representing a "row" in a DataFrame from where the val came from.
+            '''
+            cleaned_val             = super().cleanFragmentValue(parent_trace, field_name, raw_value, data_series)
+
+            # For the investment postings, all columns are numbers (except for "special" columns like UID
+            # or "Period", which are not passed to this method for cleaning up).
+            # If any of this should-be-numbers value was missing in the Excel spreadsheet 
+            # submitted by the user, chances are that Pandas made it an nan or something bad like that, 
+            # and the parent class's method applied default cleaning logic, turning into an empty string. 
+            # But here in this concrete class we know better, so so if that happened, replace '' by 0
+            if cleaned_val == '':
+                result_val = 0
+            else:
+                result_val = cleaned_val
+
+            return result_val
+
     class _MyPostingLabel(SkeletonController._MyPostingLabel):
         '''
         Codifies the schema expectations for the posting label when posting big rocks estimates. 
@@ -425,6 +588,19 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                         ME._PLAN_TYPE,      ME._VARIANT,    
                                                         ME._SCORING_CYCLE,  ME._SCORING_MATURITY],
                                 date_fields         = [])
+
+        def read(self, parent_trace, posting_label_handle):
+            '''
+            '''
+            super().read(parent_trace, posting_label_handle)
+
+            # Remember the variant so that later on we can consult it when intializing the posting config objects
+            CTRL                        = BigRocksEstimate_Controller
+            variant                     = self.variant(parent_trace)
+            if variant != CTRL.VARIANT_BURNOUT and variant != CTRL.VARIANT_EXPLAINED:
+                raise ApodeixiError(parent_trace, "Variant in Posting Label has an unsupported value: '" + str(variant) + "'",
+                                    data = {"supported variants": str([CTRL.VARIANT_BURNOUT, CTRL.VARIANT_EXPLAINED])})
+            self.controller.variant     = variant
 
         def infer(self, parent_trace, manifest_dict, manifest_key):
             '''
@@ -458,6 +634,8 @@ class BigRocksEstimate_Controller(SkeletonController):
             _infer(ME._SCORING_MATURITY,    ["assertion",                   ME._SCORING_MATURITY    ])
 
             editable_fields.extend([ME._SCORING_MATURITY])
+
+            self.controller.variant     = self.variant(parent_trace)
             return editable_fields
 
         def product(self, parent_trace):

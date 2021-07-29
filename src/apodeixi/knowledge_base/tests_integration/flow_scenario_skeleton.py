@@ -14,7 +14,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
     and skeleton test drivers that concrete classes can use to succintly define flow test scenarios.
     '''
 
-    def _run_basic_flow(self, excel_relative_path, excel_file, nb_manifests_expected,
+    def _run_basic_flow(self, excel_relative_path, excel_file, excel_sheet, nb_manifests_expected,
                                 generated_form_worksheet):
         '''
         Tests a basic flow for a single posting API consisting of:
@@ -43,7 +43,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                 posting_path                = clientURL + "/" + excel_relative_path + "/" + excel_file
                 response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                                 path_of_file_being_posted   = posting_path, 
-                                                                                excel_sheet                 = "Sheet1")
+                                                                                excel_sheet                 = excel_sheet)
                 self.check_manifest_count(my_trace, response, nb_manifests_expected)
 
                 self.check_manifests_contents(my_trace, response)

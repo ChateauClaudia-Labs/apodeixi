@@ -716,6 +716,59 @@ class PostingConfig():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})
 
+    def preprocessReadFragment(self, parent_trace, interval, dataframe_row):
+        '''
+        This is called by the BreakdownTree's readDataframeFragment method before attempting to parse a fragment
+        from a row in a DataFrame.
+
+        This method is offered as a "hook" to derived classes in case they want to "enrich" the input to the parser,
+        by overwriting this method with the appropriate "enriching" logic.
+
+        It returns "improved" versions of the `interval` and `dataframe_row` parameters.
+
+        An example of where such "enriching" functionality is needed:
+        some posting APIs choose to present the users with an Excel template that hides some information
+        from the user. An example is the API for posting big rocks estimates: the "Effort" column is not included
+        in the Excel spreadsheet in cases where the user chose the "explained" variant, since in that case the "Effort"
+        is "implied" from the entries at multiple time buckets. Such examples make the Excel spreadsheet more user
+        friendly but cause a side-effect problem for the parser: if it does not see a column like "Effort" in the
+        row, which is mandatory since it is the "entity" for that row, the parser would raise an error. To address 
+        this, the concrete PostingConfig class for the big rocks controller can take advantage of this method
+        and implement it to "enrich" the `dataframe_row` with a synthetic "Effort" property that was not present 
+        in the Excel input provided by the user.
+
+        @param interval         An Interval object, corresponding to the columns in `row` that pertain to an entity being 
+                                processed in readDataframeFragment
+        @param dataframe_row    A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
+                                the Dataframe `iterrows()` iterator.
+        @returns                A pair: 1) an Interval object, and 2) tuple `(idx, series)` that may pass for a Pandas row
+        '''
+        return interval, dataframe_row
+
+    def cleanFragmentValue(self, parent_trace, field_name, raw_value, data_series):
+        '''
+        Method to "clean up" a value read from a Pandas DataFrame just before it is inserted into
+        the parsed tree created by the BreakdownTree's readDataframeFragment method.
+
+        For example, a Pandas DataFrame may put some "garbage values" like nan, NaT, etc. That will later
+        cause problems in the YAML created to represent manifests. In such cases, this method simply
+        "cleans up the value" and replaces it with an appropriate default. For nan, that would be an empty string.
+
+        Derived classes can overwrite this method and do additional "cleaning up". For example, a concrete
+        class may know that the field in question represents a number, so may decide to replace any empty string
+        by 0. Such "cleaning up" is important if later other processing code will attempt to do arithmetic on such
+        values on the assumption that they are numbers - encountering an empty string will likely cause such code to
+        error out. Better to pre-empt such situations by cleaning up the values at source, at the moment right before
+        they are inserted into the BreakdownTree from which the manifest will later be built.
+
+        @field_name A string, representing a column name of the DataFrame being processed. This is the column
+                    where the val came from, and provides a hint to implementing code on how such a value should
+                    be "cleaned up". For example, for columns of numbers an empty string should be replaced by a 0.
+        @raw_value A datum, representing a particular cell value in the DataFrame being processed.
+        @data_series A Pandas Series representing a "row" in a DataFrame from where the val came from.
+        '''
+        cleaned_val     = DataFrameUtils().clean(raw_value) # Get rid of nan, bad dates, NaT, etc
+        return cleaned_val
 
     def excel_row_nb(self, parent_trace, dataframe_row_nb):
         show_your_work          = self.controller.show_your_work  

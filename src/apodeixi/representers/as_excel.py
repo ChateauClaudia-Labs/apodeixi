@@ -8,7 +8,7 @@ from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.util.path_utils               import PathUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
-from apodeixi.text_layout.excel_layout      import Palette, NumFormats
+from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 
 class Manifest_Representer:
@@ -222,7 +222,10 @@ class Manifest_Representer:
         '''
         Helper method to set a column width for a worksheet
         '''
-        worksheet.set_column(xl_x,      xl_x,       column_width)
+        # Excel by default uses font size 11, but widths are computed by Excel assuming font size 10.
+        # So need to scale up to get the expected behavior
+        scaled_width    = column_width * self._scale_to_font_size(parent_trace, font_size = 11)
+        worksheet.set_column(xl_x,      xl_x,       scaled_width)
 
     def _write_val(self, parent_trace, workbook, worksheet, layout_x, layout_y, val, layout, num_format):
         
@@ -308,12 +311,11 @@ class Manifest_Representer:
                 col             = xl_columns[xl_idx]
                 loop_trace      = my_trace.doing("Processing XL column '" + col + "'")
                 width           = float(widths_dict[col]['width']) # Cast to float to do float arithmetic in scaling to font size
-                scaled_width    = width * self._scale_to_font_size(loop_trace, font_size = 11) # Excel by default uses font size 11
                 if is_transposed:
                     xl_x        = config.y_offset + xl_idx
                 else:
                     xl_x        = config.x_offset + xl_idx
-                self._set_column_width(loop_trace, worksheet, xl_x, scaled_width, layout)
+                self._set_column_width(loop_trace, worksheet, xl_x, width, layout)
    
         # Now populate headers
         my_trace                        = parent_trace.doing("Populating headers", data = {'layout span': str(span)})
@@ -378,7 +380,7 @@ class Manifest_Representer:
                 # Before exiting this row, write any formulas associated to this column
                 self._add_formulas( parent_trace        = outer_loop_trace,
                                     column              = col,
-                                    column_width        = scaled_width,
+                                    column_width        = width,
                                     first_x             = first_x,
                                     first_y             = first_y,
                                     last_x              = last_x,
@@ -422,11 +424,16 @@ class Manifest_Representer:
                 formula                 = "=SUM(" + cell_first + ":" + cell_last + ")" # For example, "=SUM(C3:C6)"
                 self._write_formula_val(parent_trace, cell_totals, formula, column, config, worksheet, workbook)
 
-            my_trace                    = parent_trace.doing("Writing down label for totals")
+            my_trace                    = parent_trace.doing("Writing down label for totals, if so configured")
             if True:
-                fmt_dict            ={'bold': True, 'align': 'right', 'font_color': Palette.DARK_BLUE}
-                fmt                 = workbook.add_format(fmt_dict)
-                worksheet.write(last_y + 1, last_x - 1, "Total:", fmt)          
+                formula_params      = config.excel_formulas.getFormulaParameters(parent_trace, 
+                                                                        column              = column, 
+                                                                        formula_proxy_type  = ExcelFormulas.COLUMN_TOTAL)
+                FLAG                = ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL
+                if formula_params != None and FLAG in formula_params.keys() and formula_params[FLAG] == True:
+                    fmt_dict            ={'bold': True, 'align': 'right', 'font_color': Palette.DARK_BLUE}
+                    fmt                 = workbook.add_format(fmt_dict)
+                    worksheet.write(last_y + 1, last_x - 1, "Total:", fmt)          
 
         if config.excel_formulas.hasCumulativeSum(parent_trace, column):
             HEADER                      = "Cumulative"
@@ -449,8 +456,7 @@ class Manifest_Representer:
                 # Dictionary - keys are columns of cumsum_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
                 widths_dict             = calc.calc(my_trace)             
                 width                   = float(widths_dict[column]['width']) # Cast to float to do float arithmetic in scaling to font size
-                scaled_width            = width * self._scale_to_font_size(my_trace, font_size = 11) # Excel by default uses font size 11
-                scaled_width            = max(scaled_width, len(HEADER))
+                scaled_width            = max(width, len(HEADER))
                 # Set width of Excel column last_x+1, which is where we will later write the cumulative sums
                 self._set_column_width(my_trace, worksheet, last_x + 1, scaled_width, config.layout)   
 

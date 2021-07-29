@@ -133,6 +133,11 @@ class BreakdownTree():
                             the UIDs in branches of another previously generated manifest.
         @returns The full UID of the new _EntityInstance node that was added as a child to this tree, or None if no node was added.
         ''' 
+        my_trace                            = parent_trace.doing("Preprocessing before parsing an Excel row fragment")
+        interval, row                       = config.preprocessReadFragment(    parent_trace        = my_trace, 
+                                                                                interval            = interval, 
+                                                                                dataframe_row       = row)
+
         encountered_new_entity              = False
         entity_column_idx                   = None
         known_entity_types                  = list(self.last_path.keys())
@@ -151,9 +156,14 @@ class BreakdownTree():
             if row==None or type(row)!=tuple or len(row)!=2 or type(row[1])!=pandas.core.series.Series:
                 raise ApodeixiError(my_trace, "Didn't get a real Pandas row")   
 
+            # Check there is something to do at all - if all fields are blank, return since there's nothing to do
+            blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
+            if len(blank_cols) == len(interval.columns):
+                return # Nothing to do
+
             # Check interval and row are consistent
             columns                     = list(row[1].index)
-            
+
             if len(interval.columns)==0:
                 raise ApodeixiError(my_trace, "Empty interval of columns was given.")
 
@@ -162,7 +172,6 @@ class BreakdownTree():
                                             data = {'interval': interval.columns, 'columns': columns})
 
             # Check entity appears in exactly one column. 
-            
             def _matches_entity(idx):
                 '''
                 Returns a boolean if the column at index `idx` is the same as the interval's entity name
@@ -185,8 +194,6 @@ class BreakdownTree():
                     cleaned_col             = no_parenthesis_col[:cleaned_len]
                 return cleaned_col == interval.entity_name
 
-
-
             idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
             if len(idxs)>1:
                 raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
@@ -194,8 +201,15 @@ class BreakdownTree():
                 raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' missing in given row. Should appear exactly once.")
             entity_column_idx           = idxs[0]
 
-            # Check that if interval's entity is blank, all of interval is bank
-            blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
+            # We say that we "encountered a new entity" if the entity column for the interval is not blank.
+            # That is because if it is blank, then presumably it is because this row is using the same entity
+            # (for this interval) as prior rows.
+            # To justify the inferance that we are simply adding more detail to a prior row's entity, we
+            # need to validate that the full interval is blank, since this interval is for properties
+            # of the entity that was (presumably) entered in a prior row. In theory, in such a case
+            # this row should only have data *after* this interval.
+            # So make the first validation: check that if interval's entity is blank, all of interval is bank
+            
             encountered_new_entity      = not interval.entity_name in blank_cols
             if self._keep_user_provided_UID(my_trace, config=config, user_provided_data=row[1][interval.columns]):
                 # The user-provided UID might skip acronyms. For example, it might be 4.2 instead
@@ -211,10 +225,15 @@ class BreakdownTree():
                                                                             uid                 = uid_to_overwrite,
                                                                             last_acronym        = last_acronym)
                 
-
             else:
                 uid_to_overwrite             = None # This will be used later when looking for a docking UID
             if not encountered_new_entity and len(blank_cols) < len(interval.columns):
+                # This normally is a user error, because it means that the interval has non-blanks somewhere,
+                # yet the entity column is blank. That is "inconsistent user-provided data" because if the
+                # entity column is blank that should mean that this row is adding sub-entities to an entity 
+                # seen in a prior row. That prior row would have all the entity scalar attributes, which is why
+                # this row shouldn't, i.e., th interval should be all blank.
+                # But from the check just mande, that is not the case, so looks like something is inconsistent.
                 # Before raising an error, attempt to recover: perhaps user entered the entity_name in the previous
                 # row, left the rest of that previous row blank, and then moved to this one. If so, pretend that
                 # the user actually entered that entity_name in the current row
@@ -556,7 +575,11 @@ class BreakdownTree():
 
             if property_name != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
                 
-                cleaned_val     = DataFrameUtils().clean(val) # Get rid of nan, bad dates, NaT, etc
+                #cleaned_val     = DataFrameUtils().clean(val) # Get rid of nan, bad dates, NaT, etc
+                cleaned_val     = config.cleanFragmentValue(    parent_trace        = loop_trace, 
+                                                                field_name          = property_name, 
+                                                                raw_value           = val, 
+                                                                data_series         = data_to_attach)
                 new_node.setProperty(property_name, cleaned_val)
 
         tree_to_attach_to.children[leaf_uid]    = new_node

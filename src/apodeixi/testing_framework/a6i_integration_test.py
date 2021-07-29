@@ -407,15 +407,17 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         Helper method to remember a generated form at a given point in time, in case it is subsequently
         modified and submitted as an update posting.
 
-        Basically, this will copy the generated form to self.results_data/self.scenario()
+        Basically, this will copy the generated form to self._regression_output_dir(parent_trace)
 
         @param form_request_response A FormRequestResponse object with the information needed to locate
                         the generated form in question.
         '''
-        form_path   = form_request_response.clientURL(parent_trace) + "/" + form_request_response.getRelativePath(parent_trace)
-        filename = _os.path.split(form_path)[1]
+        form_path       = form_request_response.clientURL(parent_trace) + "/" \
+                            + form_request_response.getRelativePath(parent_trace)
+        filename        = _os.path.split(form_path)[1]
         snapshot_name   = self.next_form(filename)
-        _shutil.copy2(src = form_path, dst = self.results_data + "/" + self.scenario() + "/" + snapshot_name)
+        dst_dir         = self._regression_output_dir(parent_trace)
+        _shutil.copy2(src = form_path, dst = dst_dir + "/" + snapshot_name)
 
     def modify_form(self, parent_trace, form_request_response):     
         '''

@@ -1,0 +1,43 @@
+
+CREATED MANIFEST:        
+		 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+		 namespace      = 'my-corp.production'
+		 kind           = 'big-rock'
+		 name           = 'modernization.officialplan.dec-2020.ledgerpro'
+		 version        = '1'
+
+CREATED MANIFEST:        
+		 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+		 namespace      = 'my-corp.production'
+		 kind           = 'big-rock-estimate'
+		 name           = 'modernization.officialplan.dec-2020.ledgerpro'
+		 version        = '1'
+
+ARCHIVED POSTING FROM:   
+		 posting_api     = 'big-rocks.journeys.a6i'
+		 filing_coords   = 'TBD - Submitted from: <MASKED>/apodeixi/test_db/knowledge-base/envs/basic_posting_flows.big_rocks.explained.bre_ledger_ENV/external-collaboration/journeys/Dec 2020/LedgerPro/OfficialPlan/LedgerPro.big-rocks.journeys.a6i.xlsx'
+		 excel_filename  = 'LedgerPro.big-rocks.journeys.a6i.xlsx'
+		 excel_sheet     = 'broken explained'
+		 excel_range     = 'B2:C1000'
+             TO:         
+		 posting_api     = 'big-rocks.journeys.a6i'
+		 filing_coords   = 'Dec 2020.LedgerPro.OfficialPlan._ARCHIVE.(Timestamp omitted) Posting'
+		 excel_filename  = 'LedgerPro.big-rocks.journeys.a6i.xlsx'
+		 excel_sheet     = 'broken explained'
+		 excel_range     = 'B2:C1000'
+
+PUBLISHED OPTIONAL FORM: 
+		 posting_api     = 'big-rocks.journeys.a6i'
+		 filing_coords   = 'Dec 2020.LedgerPro.OfficialPlan'
+		 *** A ManifestHandle ***
+			 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+			 namespace      = 'my-corp.production'
+			 kind           = 'big-rock'
+			 name           = 'modernization.officialplan.dec-2020.ledgerpro'
+			 version        = '1'
+		 *** A ManifestHandle ***
+			 apiVersion     = 'delivery-planning.journeys.a6i.io/v1a'
+			 namespace      = 'my-corp.production'
+			 kind           = 'big-rock-estimate'
+			 name           = 'modernization.officialplan.dec-2020.ledgerpro'
+			 version        = '1'

@@ -32,21 +32,23 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
         
         self._run_basic_flow(   excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
+                                excel_sheet                 = "Sheet1",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET)
 
-    def NOTREADYtest_big_rocks_explained(self):
+    def test_big_rocks_explained(self):
 
         self.setScenario("basic_posting_flows.big_rocks.explained")
-        self.setCurrentTestName('bre_ledger_pro') # big rock explained for product LedgerPro
+        self.setCurrentTestName('bre_ledger') # big rock explained for product LedgerPro
 
-        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OficialPlan"
+        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OfficialPlan"
         EXCEL_FILE                      = "LedgerPro.big-rocks.journeys.a6i.xlsx"
-        NB_MANIFESTS_EXPECTED           = 3
+        NB_MANIFESTS_EXPECTED           = 2
 
         
         self._run_basic_flow(   excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
+                                excel_sheet                 = "broken explained",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET)
 
@@ -59,5 +61,7 @@ if __name__ == "__main__":
         what_to_do = args[1]
         if what_to_do=='big_rocks_burnout':
             T.test_big_rocks_burnout()
+        elif what_to_do=='big_rocks_explained':
+            T.test_big_rocks_explained()
 
     main(_sys.argv)

@@ -100,12 +100,13 @@ class SkeletonController(PostingController):
                 data_df                         = manifest_info.getManifestContents(my_trace)
                 contents_df_dict[key]           = data_df
 
+        my_trace                = parent_trace.doing("Creating Excel layouts for posting label")
+        label, label_config     = self._build_labelXLconfig(my_trace, manifestInfo_dict)
+
         my_trace                = parent_trace.doing("Creating Excel layouts for manifests")
         config_table            = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
                                                                     manifestInfo_dict   = manifestInfo_dict)
 
-        my_trace                = parent_trace.doing("Creating Excel layouts for posting label")
-        label, label_config     = self._build_labelXLconfig(my_trace, manifestInfo_dict)
         config_table.setPostingLabelXLConfig(my_trace, label_config)
 
         my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")
