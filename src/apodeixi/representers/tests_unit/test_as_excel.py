@@ -5,11 +5,11 @@ from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.formatting_utils             import DictionaryFormatter
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.representers.as_excel             import Manifest_Representer
+from apodeixi.representers.as_excel             import ManfiestRepresenter
 from apodeixi.text_layout.excel_layout          import ManifestXLConfig, AsExcel_Config_Table, PostingLabelXLConfig
 
 
-class Test_Manifest_Representer(ApodeixiUnitTest):
+class Test_ManfiestRepresenter(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
@@ -57,7 +57,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
             my_trace            = root_trace.doing("Creating Excel layout for Posting Label")
             label_dict          = {"Testing from": "test_as_excel.py", 
                                     "Verifying": "Correct population of Excel with respect to data, layout and formatting"}
-            label_config        = PostingLabelXLConfig(     sheet               = Manifest_Representer.POSTING_LABEL_SHEET,
+            label_config        = PostingLabelXLConfig(     sheet               = ManfiestRepresenter.POSTING_LABEL_SHEET,
                                                             viewport_width      = 100,  
                                                             viewport_height     = 40,   
                                                             max_word_length     = 20,  
@@ -66,7 +66,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                             y_offset            = 1)
             config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-            rep                 = Manifest_Representer( config_table    = config_table,
+            rep                 = ManfiestRepresenter( config_table    = config_table,
                                                         label_ctx       = label_dict,
                                                         content_df_dict = {MANIFEST_NAME: data_df},)
 
@@ -75,7 +75,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
                                                         excel_filename  = EXCEL_FILE)
 
             worksheet_info                      = rep.worksheet_info_dict[SHEET]
-            posting_label_ws_info               = rep.worksheet_info_dict[Manifest_Representer.POSTING_LABEL_SHEET]
+            posting_label_ws_info               = rep.worksheet_info_dict[ManfiestRepresenter.POSTING_LABEL_SHEET]
 
             output_dict['status']           = status
             output_dict['layout span']      = rep.span_dict[MANIFEST_NAME]
@@ -126,7 +126,7 @@ class Test_Manifest_Representer(ApodeixiUnitTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_Manifest_Representer()
+        T = Test_ManfiestRepresenter()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='dataframe_2_xl':

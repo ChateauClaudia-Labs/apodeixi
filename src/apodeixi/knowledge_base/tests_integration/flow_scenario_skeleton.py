@@ -2,7 +2,7 @@ from apodeixi.testing_framework.a6i_integration_test            import ApodeixiI
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.representers.as_excel                             import Manifest_Representer
+from apodeixi.representers.as_excel                             import ManfiestRepresenter
 
 
 class FlowScenarioSkeleton(ApodeixiIntegrationTest):
@@ -76,7 +76,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
 
                     self.check_xl_layout(my_trace, layout_info, generated_form_worksheet, api_called)
 
-                    self.check_xl_format(my_trace, pl_fmt_info, Manifest_Representer.POSTING_LABEL_SHEET, api_called)
+                    self.check_xl_format(my_trace, pl_fmt_info, ManfiestRepresenter.POSTING_LABEL_SHEET, api_called)
 
                     self.check_xl_format(my_trace, ws_fmt_info, generated_form_worksheet, api_called)
 
@@ -179,7 +179,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                                                                             a_dict = layout_output_dict)
 
         # Extract Excel formatting for the generated posting label
-        posting_label_ws_info               = fr_rep.worksheet_info_dict[Manifest_Representer.POSTING_LABEL_SHEET]
+        posting_label_ws_info               = fr_rep.worksheet_info_dict[ManfiestRepresenter.POSTING_LABEL_SHEET]
         pl_ws_info_nice                     = self._nice_ws_info(parent_trace, posting_label_ws_info)
 
         # Extract Excel formatting for the main worksheet containing the manifests' information

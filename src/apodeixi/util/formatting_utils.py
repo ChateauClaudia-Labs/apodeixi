@@ -1,5 +1,6 @@
 import inspect                                  as _inspect
 import sys                                      as _sys
+import math                                     as _math
 
 import nbformat                                 as _nbformat
 from nbconvert.preprocessors                    import ExecutePreprocessor
@@ -35,6 +36,25 @@ class StringUtils():
             tyt = str(txt) # Precaution in case somebody passes a non-string, like a float (Pandas might put a 0.0 on an empty field instead of '')
         
         return tyt.strip().lower().replace(' ', '-')
+
+    def is_blank(self, txt):
+        '''
+        Returns True if 'txt' is a string of just spaces. Else it returns False
+        '''
+        if type(txt)==str:
+            stripped_txt = self.strip(txt)
+            return len(stripped_txt)==0
+        else:
+            return False
+
+    def strip(self, txt):
+        '''
+        Removes any whitespace or other "noise" from txt and return sit
+        '''
+        if type(txt)==float and _math.isnan(txt):
+            return ''
+        stripped_txt = str(txt).replace('\n', '').strip(' ')
+        return stripped_txt
 
 class NotebookUtils():
     '''

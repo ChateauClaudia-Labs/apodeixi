@@ -3,6 +3,7 @@ import pandas                           as _pd
 
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
+from apodeixi.util.dataframe_utils      import DataFrameComparator
 
 from apodeixi.representers              import AsDataframe_Representer
 
@@ -19,9 +20,9 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
         OUTPUT_FILE         = 'yaml_2_dataframe_OUTPUT.csv'
         df                  = None
         subtree             = None
+        root_trace   = FunctionalTrace(parent_trace=None).doing("Testing yam_2_df")
         try:
             rep          = AsDataframe_Representer()
-            root_trace   = FunctionalTrace(parent_trace=None).doing("Testing yam_2_df")
             df, subtree  = rep.yaml_2_df(root_trace, MANIFESTS_FOLDER, MANIFEST_FILE, 'scaffolding.jobs-to-be-done')
             # Save DataFrame in case the assertion below fails, so that we can do a visual comparison of OUTPUT vs EXPECTED csv files
             df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
@@ -29,7 +30,12 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
             print(ex.trace_message())                                                                                        
 
         self.assertEqual(subtree,       self._expected_subtree())
-        self.assertTrue(df.             equals(self._expected_df()))
+
+        self._compare_to_expected_df(   root_trace, 
+                                        output_df           = df, 
+                                        test_output_name    = "yaml_2_dataframe", 
+                                        columns_to_ignore   = [], 
+                                        id_column           = None)
 
 
     def _expected_subtree(self):

@@ -11,7 +11,7 @@ from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
 from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 
-class Manifest_Representer:
+class ManfiestRepresenter:
     '''
     Class that can represent an Apodeixi manifest as an Excel spreadsheet
 
@@ -72,7 +72,7 @@ class Manifest_Representer:
             raise ApodeixiError(my_trace, "Encountered a problem saving the Excel spreadsheet",
                             data = {"error": str(ex)})
 
-        return Manifest_Representer.SUCCESS
+        return ManfiestRepresenter.SUCCESS
 
     def _add_data_locations_to_posting_label(self, parent_trace, workbook):
         '''
@@ -142,7 +142,7 @@ class Manifest_Representer:
             loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
             df                  = self.content_df_dict[name]
             config              = self.config_table.getManifestXLConfig(loop_trace, name)
-            worksheet               = workbook.get_worksheet_by_name(config.sheet)
+            worksheet           = workbook.get_worksheet_by_name(config.sheet)
             if worksheet == None:
                 worksheet               = workbook.add_worksheet(config.sheet) 
                 # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
@@ -165,7 +165,7 @@ class Manifest_Representer:
         '''
         Creates and populates a PostingLabel worksheet
         '''
-        ME                      = Manifest_Representer
+        ME                      = ManfiestRepresenter
         label_config            = self.config_table.getPostingLabelXLConfig(parent_trace)
 
 
@@ -246,7 +246,8 @@ class Manifest_Representer:
 
     def _populate_worksheet(self, parent_trace, content_df, config, workbook, worksheet):
         '''
-        Helper method to write the block in Excel that comes from the manifest's content (as opposed to the Posting Label data).
+        Helper method to write the block in Excel that comes from the manifest's content (as opposed to the Posting Label 
+        data).
         Returns the layout against which the `content_df` was pasted.
 
         Transpose functionality is supported. So we have 2 spaces:

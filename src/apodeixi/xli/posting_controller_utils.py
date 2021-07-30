@@ -9,6 +9,8 @@ from apodeixi.xli.interval                      import IntervalUtils
 
 from apodeixi.controllers.util.manifest_api     import ManifestAPIVersion
 
+from apodeixi.tree_math.link_table              import LinkTable
+
 from apodeixi.util.dictionary_utils             import DictionaryUtils
 from apodeixi.util.dataframe_utils              import DataFrameUtils
 from apodeixi.util.a6i_error                    import ApodeixiError
@@ -21,8 +23,20 @@ class PostingController():
     '''
     def __init__(self, parent_trace, store):
         self.store              = store
+        self.init_link_table(parent_trace)
         self.show_your_work     = PostingCtrl_ShowYourWork(parent_trace)
         return
+
+    def init_link_table(self, parent_trace):
+        '''
+        Initializes / resets the LinkTable used by this controller. 
+        
+        This should be called each time the controller switches to processing a different posting (i.e., 
+        a different Excel file) since different Excel files may end up having the same UIDs for the same
+        kind of manifests, and that will be rejected by the LinkTable if we use the same LinkTable across
+        all Excel spreadsheets.s.
+        '''
+        self.link_table         = LinkTable(parent_trace)
 
     def apply(self, parent_trace, posting_label_handle):
         '''
@@ -67,7 +81,7 @@ class PostingController():
         '''
         Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
-        It records some intermediate computations in self.show_your_work. In particular, it records the UID of
+        It records some intermediate computations in self.link_table. In particular, it records the UID of
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
         the UID of the rightmost column in that Excel row that is for an entity)
 
@@ -121,10 +135,11 @@ class PostingController():
                 if a_uid != None: # Improve our working hypothesis of last_uid
                     last_uid = a_uid
             # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
-            self.show_your_work.keep_row_last_UID(  parent_trace        = my_trace, 
-                                                    kind                = config.kind, 
-                                                    row_nb              = idx, 
-                                                    uid                 = last_uid)
+            if last_uid != None: # last_uid will be None if we just processed an empty row, so this check is needed
+                self.link_table.keep_row_last_UID(  parent_trace            = my_trace, 
+                                                    manifest_identifier     = config.kind, 
+                                                    row_nb                  = idx, 
+                                                    uid                     = last_uid)
 
         return tree
 
@@ -175,8 +190,8 @@ class PostingCtrl_ShowYourWork():
     may need to be joined. Typically the join is determined based on Excel: if branch B1 of manifest M1 lies in the
     same Excel row as branch B2 of manifest M2, then it is possible and natural (for example) for B2 to be enriched with a
     foreign key pointing to B1. In order to make this enrichment, given B2 one must find the B1 that lies in the same
-    row. This PostingCrl_ShowYourWork class supports that, by remembering the Excel row in which the UID of B1, B2 appeared, hence
-    they can be matched based on that Excel row number at a stage of the computation when Excel is no longer being 
+    row. This PostingCrl_ShowYourWork class supports that, by remembering the Excel row in which the UID of B1, B2 appeared, 
+    hence they can be matched based on that Excel row number at a stage of the computation when Excel is no longer being 
     processed, thanks to the PostingCrl_ShowYourWork object that remembered that information when it was available earlier
     in the processing.
 
@@ -200,7 +215,8 @@ class PostingCtrl_ShowYourWork():
     def __init__(self, parent_trace):
 
         '''
-        Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a dataframe row for a particular manifest.
+        Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a dataframe row for a particular 
+        manifest.
         That leaf dictionary holds
         all intermediate values that the controller chose to remember in the process of computing that particular
         manifest:
@@ -223,9 +239,9 @@ class PostingCtrl_ShowYourWork():
     _DATA_SHEET             = '_DATA_SHEET'
     _MANIFEST_META          = '_MANIFEST_META'
 
-    def keep_row_last_UID(self, parent_trace, kind, row_nb, uid, posting_label_field=None):
+    def DEPRECATEDkeep_row_last_UID(self, parent_trace, kind, row_nb, uid):
         '''
-        Causes this to happen: self.worklog[kind][posting_label_field][row_nb][_LAST_UID] = uid
+        Causes this to happen: self.worklog[kind][row_nb][_LAST_UID] = uid
         '''
         ME                          = PostingCtrl_ShowYourWork
 
@@ -238,7 +254,7 @@ class PostingCtrl_ShowYourWork():
 
     def as_dict(self, parent_trace):
 
-        return self.context_dict | self.worklog
+        return self.context_dict #| self.worklog
 
     def uid_from_row(self, parent_trace, kind, dataframe_row_nb):
         '''
@@ -337,9 +353,9 @@ class PostingCtrl_ShowYourWork():
 
         Each of them is extracted from the internal representation whereby 
 
-            * self.worklog[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
-            * self.worklog[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
-            * self.worklog[_MANIFEST_META][manifest_nb][_DATA_SHEET]    = excel_sheet
+            * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
+            * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
+            * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_SHEET]    = excel_sheet
         '''
         ME                              = PostingCtrl_ShowYourWork
         result                          = []
@@ -355,9 +371,9 @@ class PostingCtrl_ShowYourWork():
         '''
         Causes this to happen: 
         
-        * self.worklog[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
-        * self.worklog[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
-        * self.worklog[_MANIFEST_META][manifest_nb][_EXCEL_SHEET]   = excel_sheet
+        * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
+        * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
+        * self.context_dict[_MANIFEST_META][manifest_nb][_EXCEL_SHEET]   = excel_sheet
 
         More details:
 
@@ -687,6 +703,9 @@ class PostingConfig():
     @param intervals        A list of lists of Interval objects, enumerated in the order in which they are expected to appear in the
                             Excel to be read. This enforces that the Excel is formatted as was expected.
     @param kind             A string identifying the manifest kind being posted
+    @param manifest_nb      An integer identifying the specific manifest being procssed among other manifests
+                            that are part of the same posting. 
+                            Recommended numbering starting with 1, 2, 3, ...
     @param horizontally     States whether the Excel data is to be read row-by-row (horizontally=True) or column-by-column (horizontally=False)
     '''
     def __init__(self, kind, manifest_nb, update_policy, controller):

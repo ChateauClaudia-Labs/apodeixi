@@ -2,7 +2,7 @@ import yaml                             as _yaml
 import pandas                           as _pd
 
 from apodeixi.util.a6i_error            import ApodeixiError
-from apodeixi.xli                       import BreakdownTree, Interval
+from apodeixi.xli                       import BreakdownTree, Interval, UID_Store
 
 class AsDataframe_Representer:
     '''
@@ -148,7 +148,7 @@ class AsDataframe_Representer:
         Creates the data from which a Pandas DataFrame can be easily created by the caller,
         based on the dictionary `content_dict`: it returns:
         
-        * The list of columns for such a DataFrame-to-be
+        * The list of intervals whose concatenation would yield the columns for such a DataFrame-to-be
         * The list of rows (as dictionaries)
         
         The keys of `content_dict` are expected to be "incremental UID pairs" for the entity type given by the
@@ -162,7 +162,7 @@ class AsDataframe_Representer:
         of its children might be something like `S1.W0, S1.W1, S1.W2`.
         
         However, in `content_dict` only the incremental UIDs would appear as keys: `W0, W1, W2`, each as
-        root to a dictionary.ll 
+        root to a dictionary.
         
         Because of the conventions in apodeixi.xli.breakdown_builder that were
         used to build such `content-dict`, there will also be keys in `content-dict` called
@@ -243,9 +243,14 @@ class AsDataframe_Representer:
                     
             new_level_1_row                 = {}
             # Add the entity column to the level_1 row
-            new_level_1_row[UID_COL]        = full_e_uid
+            # But first replace by "friendly" UID like 1.2 instead of BR1.B2
+            abbreviated_full_e_uid          = UID_Store(parent_trace).abbreviate_uid(parent_trace, uid=full_e_uid, level=1)
+            new_level_1_row[UID_COL]        = abbreviated_full_e_uid #full_e_uid
             new_level_1_row[entity_name]    = e_dict[NAME]
             
+            # While Apodeixi's data model allows more manifests where an entity can branch out in more than one way
+            # for purposes of representing a manifest tree as a DataFrame we can only allow at most one branching out
+            # below any one entity. So check that
             sub_entities                    = self._find_sub_entities(e_dict) # should find at most 1
             if len(sub_entities) > 1:
                 raise ApodeixiError(loop_trace, "At most one sub entity is allowed, but found several: " 
@@ -268,15 +273,30 @@ class AsDataframe_Representer:
 
             self._merge_interval_lists(loop_trace, all_intervals, sub_intervals)
             
+            # Change of algorithm made on July 29, 2021: 
+            #
+            # it used to be that we would display the
+            # first sub-entity in the same row as its parent entity. That was modified to have it displayed
+            # in the *next* row instead, to force that each UID is in a different row and make it easier
+            # to make "joins". 
+            # For example, UIDs "BR1" and "BR1.B1" used to be in the same row, with "BRI1.B2" in a row below.
+            # So these 3 UIDs would appear in 2 rows in the DataFrame.
+            # This caused ambiguity for joins: if the end-user expresses a join in Excel against the row that contains
+            # both "BR1" and "BR1.B1", how can one tell which of these two UIDs is the join with?
+            # To remedy this, after July 29, 2021 we changed that so that each UID would be in its own row.
+            # In our example, that means 3 rows:  one for "BR1", follwed by one for "BR1.B1"
+            # below it, and below that a 3rd row for "BR1.B2".
+            # As a result, the code below was changed to input empty strings into anything that used to be
+            # contributed to the "BR1" row by "BR1.B1" data.
             if len(sub_rows) > 0:
                 # Merge 1st sub_row into the new_level_1_row
                 first_sub_row               = sub_rows[0]
                 for k in first_sub_row.keys():
-                    new_level_1_row[k]      = first_sub_row[k]
+                    new_level_1_row[k]      = '' # Changed to empty string on 7/29/21. Used to be: first_sub_row[k]
                      
             all_rows.append(new_level_1_row)
             # Now add the other sub_rows, the ones after the first one that go after new_level_1_row
-            for idx in range(1, len(sub_rows)):
+            for idx in range(0, len(sub_rows)): # Changed to start from 0 on 7/29/21. Used to start at 1
                 all_rows.append(sub_rows[idx])
         
         # Temporary return value, for testing
@@ -317,10 +337,32 @@ class AsDataframe_Representer:
         procedures:
         
         * If none of the intervals in `interval_list` is for the same entity as `contributing`, then we
-          add `contributing` as another member at the end of `interval_list`
+          add `contributing` as another member at the end of `interval_list`. 
         * If on the other hand there is an index idx such that interval_list[idx] is for the same entity
           as `contributing`, then we enlarge interval_list[idx] so that its columns include those of 
-          `contributing`
+          `contributing`. 
+          This can happen if there are some properties for an entity are "optional". 
+          For example, perhaps we are processing a manifest dict arose from parsing a posting like this:
+
+                UID         |   Big rock        |   Asset classes           | Intended user
+                ===========================================================================
+                BR1         | Lending UI        |  Mortgages, commercial    |
+                BR2         | Treasury UI       |                           | FX traders
+
+          Then the manifest will have a branch for the first row that will make us infer an
+          interval like 
+          
+                [UID, Big rock, Asset classes]
+                
+          Later when we process the manifest's branch that arose from the second row we will instead get 
+          an interval like 
+          
+                [UID, Big rock, Intended user]
+           
+          The correct "merge" behavior in such case is not to treat these as separate intervals, but to merge them 
+          as 
+                [UID, Big rock, Asset classes, Intended user]
+
           
         @param interval_list A list of Interval objects. It is modified by this method
         @param contributing An Interval object

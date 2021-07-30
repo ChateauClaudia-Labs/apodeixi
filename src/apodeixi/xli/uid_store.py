@@ -20,6 +20,9 @@ class UID_Store:
         The children of such top nodes are other _TokenTree objects.
 
         To avoid accidental infinite loops, a _TokenTree has a maximum height of 100 levels.
+
+        @level an int, recording how many levels this _TokenTree is from the root, since a _TokenTree
+                        might be a sub-tree of a larget _TokenTree.
         '''
         def __init__(self, parent_trace, level):
             
@@ -210,7 +213,7 @@ class UID_Store:
         and mainly in internal Apodeix low-level code, not by application code.
 
         @param uid A string such as "JTBD1.C1.F1.S1"
-        @param last_acronym A string for the entity of the leaf UID. In the example ""JTBD1.C1.F1.S1",
+        @param last_acronym A string for the entity of the leaf UID. In the example "JTBD1.C1.F1.S1",
                     perhaps "S" stands for "Story", and "S" would be the last_acronym passed.
                     The reason for needing this parameter is that for usability reasons the user may
                     abbreviate the UID to something like "1.1.1.1", and the system needs to infer 
@@ -312,3 +315,34 @@ class UID_Store:
             
         full_uid = ".".join(tokens)
         return full_uid
+
+    def abbreviate_uid(self, parent_trace, uid, level=1):
+        '''
+        Abbreviates a UID like "P4.C3" by stripping the acronyms, and returns it.
+
+        The degree of abbreviation depends on the `level` parameter, tells the number of tokens
+        above which abbreviation should happen.
+
+        For example, if level=1 then "P4" is abbreviated to "P4" but "P4.C3" is abbreviated to "4.3"
+
+        If instead level=0 then "P4" is abbreviated as "4"
+
+        @level an int, stating the threshold for when to abbreviate a uid or not: abbreviation only
+                    happens for uids whose number of tokens exceeds the level. By "tokens" of a UID
+                    we mean the strings obtained by splitting the UID using "."
+        '''
+
+        tokens                      = self._tokenize(parent_trace, uid=uid, acronym_list=None)
+        if len(tokens)<= level:
+            return uid
+
+        token_tree                  = UID_Store._TokenTree(parent_trace, level=len(tokens))
+        abbreviated_uid             = None
+        for token in tokens:
+            acronym, val = token_tree.parseToken(parent_trace, token)
+            if abbreviated_uid == None:
+                abbreviated_uid     = str(val)
+            else:
+                abbreviated_uid     = abbreviated_uid + "." + str(val)
+        
+        return abbreviated_uid

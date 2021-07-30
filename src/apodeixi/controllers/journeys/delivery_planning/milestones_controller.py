@@ -97,12 +97,12 @@ class MilestonesController(SkeletonController):
         milestones_dict                 = all_manifests_dict[manifest_nb]['assertion']['milestone']
 
         milestones_uids                 = [e_uid for e_uid in milestones_dict.keys() if not e_uid.endswith("-name")]
-        UID_FINDER                      = self.show_your_work.find_referenced_uid # Abbreviation for readability
+        UID_FINDER                      = self.link_table.find_foreign_uid # Abbreviation for readability
         for e_uid in milestones_uids:
-            br_uid                = UID_FINDER(   parent_trace                  = my_trace, 
-                                                        kind1                   = referencing, 
-                                                        kind2                   = referenced, 
-                                                        uid1                    = e_uid)
+            br_uid                      = UID_FINDER(   parent_trace            = my_trace, 
+                                                        our_manifest_id         = referencing, 
+                                                        foreign_manifest_id     = referenced, 
+                                                        our_manifest_uid        = e_uid)
 
             milestones_dict[e_uid][ME.REFERENCED_KIND]  = br_uid
 

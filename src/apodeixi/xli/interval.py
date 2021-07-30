@@ -4,7 +4,7 @@ import pandas                                   as _pd
 
 from apodeixi.util.a6i_error                    import ApodeixiError
 from apodeixi.util.dataframe_utils              import DataFrameUtils
-from apodeixi.util.formatting_utils             import ListUtils
+from apodeixi.util.formatting_utils             import ListUtils, StringUtils
 
 class IntervalUtils():
     def __init__(self):
@@ -38,7 +38,7 @@ class IntervalUtils():
         
         For example, if txt is 'Effort (man days) to deliver', then this function return 'Effort to deliver'
         '''
-        stripped_txt = self._strip(txt)
+        stripped_txt = StringUtils().strip(txt)
         # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
         sexpr                       = SExprTokenizer(strict=False)
         sexpr_tokens                = sexpr.tokenize(stripped_txt)
@@ -46,14 +46,7 @@ class IntervalUtils():
         parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
         return parentheis_free_txt
 
-    def _strip(self, txt):
-        '''
-        Removes any whitespace or other "noise" from txt and return sit
-        '''
-        if type(txt)==float and _math.isnan(txt):
-            return ''
-        stripped_txt = str(txt).replace('\n', '').strip(' ')
-        return stripped_txt
+
 
     def is_blank(self, txt):
         '''
@@ -62,8 +55,7 @@ class IntervalUtils():
         CLEAN           = DataFrameUtils().clean  # Avoid problems with nan, numpy classes, dates, NaTs, etc.
         y               = CLEAN(txt)
         if type(y)==str:
-            stripped_txt = self._strip(y)
-            return len(stripped_txt)==0
+            return StringUtils().is_blank(y)
         else:
             return False
 

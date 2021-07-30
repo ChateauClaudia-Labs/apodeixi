@@ -85,7 +85,9 @@ class KnowledgeBase():
 
             ctrl                    = self.findController(  parent_trace        = my_trace,
                                                                 posting_api     = posting_api)
-
+            # Reset the LinkTable, in case the same controller was previouly used to process another Excel file 
+            # since that implies that any previously stored links are for a different scope of UIDs
+            ctrl.init_link_table(parent_trace)
             my_trace                = parent_trace.doing("Applying controller to process the posting")
             response                = ctrl.apply(   parent_trace                = my_trace, 
                                                         posting_label_handle    = label_handle)
@@ -167,7 +169,7 @@ class KnowledgeBase():
         regression testing:
         
         * a string corresponding the log made during the processing
-        * the Manifest_Representer object that was used to create the form
+        * the ManfiestRepresenter object that was used to create the form
 
         '''
         self.store.beginTransaction(parent_trace)

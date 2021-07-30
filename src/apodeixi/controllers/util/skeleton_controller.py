@@ -9,7 +9,7 @@ from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, Man
                                                                 PostingLabelHandle, FormRequestResponse, ManifestHandle
 from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.representers.as_dataframe                 import AsDataframe_Representer
-from apodeixi.representers.as_excel                     import Manifest_Representer
+from apodeixi.representers.as_excel                     import ManfiestRepresenter
 
 from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLConfig, PostingLabelXLConfig
 from apodeixi.util.formatting_utils                     import StringUtils
@@ -85,7 +85,7 @@ class SkeletonController(PostingController):
         if True:
             manifest_handles_dict               = form_request.manifestHandles(my_trace)
             manifestInfo_dict                   = {}
-            contents_df_dict                    = {} # needed for Manifest_Representer
+            contents_df_dict                    = {} # needed for ManfiestRepresenter
             for key in manifest_handles_dict.keys():
                 manifest_handle                 = manifest_handles_dict[key]
                 loop_trace                      = my_trace.doing("Loading manifest",
@@ -96,7 +96,7 @@ class SkeletonController(PostingController):
                                                                     form_request            = form_request, 
                                                                     controller              = self)
                 manifestInfo_dict[key]          = manifest_info
-                # This other dictionary of dataframes is needed for Manifest_Representer
+                # This other dictionary of dataframes is needed for ManfiestRepresenter
                 data_df                         = manifest_info.getManifestContents(my_trace)
                 contents_df_dict[key]           = data_df
 
@@ -112,7 +112,7 @@ class SkeletonController(PostingController):
         my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")
         
         if True:
-            rep                 = Manifest_Representer( config_table    = config_table,
+            rep                 = ManfiestRepresenter( config_table    = config_table,
                                                         label_ctx       = label.ctx,
                                                         content_df_dict = contents_df_dict,)
             filename            = self.store.uploadForm(my_trace, 
@@ -662,8 +662,8 @@ class SkeletonController(PostingController):
             Used to prepare the information needed to retrieve the data for each of the manifests (1 or more) that
             are being posted within the same Excel spreadsheet using a common PostingLabel.
 
-            This method is expected to be called after super().read has been called, since super().read will cause self.sightings
-            to be populated. 
+            This method is expected to be called after super().read has been called, since super().read will cause 
+            self.sightings to be populated. 
             
             This method looks inside self.sightings['data.kind'] and self.sightings['data.range'], both of which should
             be arrays of the same size. For example, [] (if there is only one manifest) or [0, 1, 2] if there are three.
@@ -676,9 +676,6 @@ class SkeletonController(PostingController):
             this Posting Label by inferring it from the `posting_label_handle`
 
             Based on this it initializes self.controller.show_your_work:
-
-            * Initializes the manifest-specific subdictionaries that are retrieved using kind (e.g., 
-              self.controller.show_your_work[kind])
 
             * Remembers a list of metadata for all manifests, assigning a number to each manifest that can also
               be used as a numerical id of a manifest that is consistent throughout the lifetime of the controller
@@ -695,7 +692,6 @@ class SkeletonController(PostingController):
                 range_val           = self.ctx[range_field]
                 sheet_val           = self.ctx[sheet_field]
                 my_trace            = parent_trace.doing("Initializing show-my-work memory for manifest of kind '" + kind_val + "'")
-                #self.controller.show_your_work.include(parent_trace=my_trace, manifest_kind=kind_val, posting_label_field=ME._DATA_KIND)
 
                 my_trace            = parent_trace.doing("Saving manifest kind, range in show_my_work")
                 self.controller.show_your_work.keep_manifest_meta(  parent_trace    = my_trace, 
