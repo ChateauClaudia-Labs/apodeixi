@@ -1,6 +1,6 @@
-_MANIFEST_META::0::_DATA_KIND		capability-hierarchy
-_MANIFEST_META::0::_DATA_RANGE		E5:I100
-_MANIFEST_META::0::_DATA_SHEET		Feature Injection
+MANIFEST_META::0::_DATA_KIND		capability-hierarchy
+MANIFEST_META::0::_DATA_RANGE		E5:I100
+MANIFEST_META::0::_DATA_SHEET		Feature Injection
 ROW_2_UID_LINK::capability-hierarchy::0		JTBD1.C1.F1.S1
 ROW_2_UID_LINK::capability-hierarchy::1		JTBD1.C1.F1.S2
 ROW_2_UID_LINK::capability-hierarchy::2		JTBD2.C1.F1.S1

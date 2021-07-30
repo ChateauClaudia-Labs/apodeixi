@@ -186,166 +186,39 @@ class PostingCtrl_ShowYourWork():
     Helper class used by PostingControllers to record some intermediate calculations for later reference in
     subsequent processing steps by a PostingController.
 
-    For example, a PostingController might create multiple manifests based on multiple Excel ranges, and they
-    may need to be joined. Typically the join is determined based on Excel: if branch B1 of manifest M1 lies in the
-    same Excel row as branch B2 of manifest M2, then it is possible and natural (for example) for B2 to be enriched with a
-    foreign key pointing to B1. In order to make this enrichment, given B2 one must find the B1 that lies in the same
-    row. This PostingCrl_ShowYourWork class supports that, by remembering the Excel row in which the UID of B1, B2 appeared, 
-    hence they can be matched based on that Excel row number at a stage of the computation when Excel is no longer being 
-    processed, thanks to the PostingCrl_ShowYourWork object that remembered that information when it was available earlier
-    in the processing.
+    For example, when the controller loads a PostingLabel, it will parse information around how many
+    manifests are expected to be in the posting. To make it easier later for the controller to access that
+    information when looping through all the manifest-creating-tasks, the PostingLabel information can be
+    packaged in this class right after the PostingLabel is loaded. The "packaging" of the information is 
+    intended to make it easier to support manifest-by-manifest loops later.
 
-    There are multiple data structure used to record intermediate calculations, either because the information is really 
-    different or because we need to access it from a different "primary key".
+    Logically speaking, data is kept as follows
 
-    Each data structure is a (possibly nested) dictionary representing a mapping from "primary keys" to content".
-    Logically speaking:
-
-    * self.context_dict maps 
+    * self.manifest_props_dict maps 
     
-        * <"_MANIFEST_METADATA", manifest number> => {manifest metadata, as key-value pairs}
-
-    * self.worklog maps
-
-        * <kind, dataframe_row_nb> => {intermediate computations while processing such row as key-value pairs}
-
-        * In particular, the last_UID of each row (i.e., UID for the last non-blank)
+        * <manifest number> => {manifest metadata, as key-value pairs, for kind, excel range, excel sheet}
 
     '''
     def __init__(self, parent_trace):
 
         '''
-        Nested dictionary of dictionaries. The leaf dictionary are at the granularity of a dataframe row for a particular 
-        manifest.
-        That leaf dictionary holds
-        all intermediate values that the controller chose to remember in the process of computing that particular
-        manifest:
-
-        * self.worklog[<kind>][dataframe_row_nb] if the PostingLabel has multiple manifests of the same kind.
-
         '''
-        self.worklog                            = {}
-        self.context_dict                       = {}
-
-        ME                                      = PostingCtrl_ShowYourWork
-        self.context_dict[ME._MANIFEST_META]    = {}
-
+        self.manifest_props_dict                       = {}
         return
 
-    _ROW_WORK               = '_ROW_WORK'
-    _LAST_UID               = '_LAST_UID'
     _DATA_KIND              = '_DATA_KIND'
     _DATA_RANGE             = '_DATA_RANGE'
     _DATA_SHEET             = '_DATA_SHEET'
-    _MANIFEST_META          = '_MANIFEST_META'
-
-    def DEPRECATEDkeep_row_last_UID(self, parent_trace, kind, row_nb, uid):
-        '''
-        Causes this to happen: self.worklog[kind][row_nb][_LAST_UID] = uid
-        '''
-        ME                          = PostingCtrl_ShowYourWork
-
-        path_list                   = [kind, row_nb, ME._LAST_UID]
-        DictionaryUtils().set_val(  parent_trace        = parent_trace,
-                                    root_dict           = self.worklog, 
-                                    root_dict_name      = 'worklog', 
-                                    path_list           = path_list, 
-                                    val                 = uid)
 
     def as_dict(self, parent_trace):
-
-        return self.context_dict #| self.worklog
-
-    def uid_from_row(self, parent_trace, kind, dataframe_row_nb):
         '''
-        Finds and returns the last (i.e., most granular) UID for the given row.
-        If we think of the DataFrame's row as a branch in a tree, the UID returned corresponds to the leaf
-        of the branch.
-
+        Intended to help regression tests, by getting the contents of this object as a dict.
         '''
-        ME                          = PostingCtrl_ShowYourWork
-        path_list               = [kind, dataframe_row_nb, ME._LAST_UID]
-        check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
-                                                                    root_dict           = self.worklog, 
-                                                                    root_dict_name      = 'worklog', 
-                                                                    path_list           = path_list, 
-                                                                    valid_types         = [str])
-        if not check:
-            raise ApodeixiError(parent_trace, "Last UID for this row has not been recorded",
-                                        data = {'kind': kind, 'dataframe_row_nb': dataframe_row_nb})
-        
-        return self.worklog[kind][dataframe_row_nb][ME._LAST_UID]
-
-    def row_from_uid(self, parent_trace, kind, uid):
-        '''
-        This is the inverse function to uid_from_row.
-
-        It finds and returns the unique dataframe row number for the row that contains the given uid as its
-        last UID.
-
-        If we think of the DataFrame rows as branches in a tree, then this returns the branch number given
-        the UID of the branch's leaf node.
-        '''
-        ME                      = PostingCtrl_ShowYourWork
-        my_trace                = parent_trace.doing("Computing row number from last uid",
-                                                        data = {'kind': str(kind), 'uid': str(uid)})
-        path_list               = [kind, DictionaryUtils.WILDCARD, ME._LAST_UID]
-
-        def _filter_lambda(val):
-            return val == uid
-
-        filtered_dict           = DictionaryUtils().filter( parent_trace        = parent_trace, 
-                                                            root_dict           = self.worklog, 
-                                                            root_dict_name      = 'worklog', 
-                                                            path_list           = path_list,
-                                                            filter_lambda       = _filter_lambda)
-
-        path_list               = [kind]
-        check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
-                                                                    root_dict           = filtered_dict, 
-                                                                    root_dict_name      = 'worklog', 
-                                                                    path_list           = path_list, 
-                                                                    valid_types         = [dict])
-        if not check:
-            raise ApodeixiError(parent_trace, "UID has not been previously recorded for this kind of manifest",
-                                        data = {'kind': str(kind), 'uid': str(uid)})
-        
-        matches                 = list(filtered_dict[kind].keys())
-
-        if len(matches) != 1:
-            raise ApodeixiError(my_trace, "Expected exactly 1 Excel rows with the give UID for this kind of manifest "
-                                            + " - found " + str(len(matches)),
-                                            data = {'kind' : kind,    
-                                                    'uid'  : uid,     'rows' : str(matches)})
-        return matches[0]
-
-    def find_referenced_uid(self, parent_trace, kind1, kind2, uid1):
-        '''
-        Finds a uid2 such that the following is true:
-
-        Define row_nb as the unique integer where uid1 appears for <kind1>:
-        
-        * self.worklog[kind1][row_nb][_LAST_UID] = uid1
-
-        Then use the same row_nb but for <kind2>, and get uid2 as
-
-        * self.worklog[kind2][row_nb][_LAST_UID] = uid2
-        '''
-        my_trace                    = parent_trace.doing("Doing row_from_uid for referencing manifest",
-                                                        data = {'kind1': kind1, 'uid1': uid1})
-
-        row_nb                      = self.row_from_uid(    parent_trace        = my_trace,
-                                                            kind                = kind1,
-                                                            uid                 = uid1)
-        
-        my_trace                    = parent_trace.doing("Doing uid_from_row for referenced manifest",
-                                                        data = {'kind2': kind2, 'row_nb': row_nb})
-
-        uid2                        = self.uid_from_row(    parent_trace        = my_trace,
-                                                            kind                = kind2,
-                                                            dataframe_row_nb    = row_nb)
-
-        return uid2
+        information_dict    = {}
+        #Put a prefix to make it easier to tell what this was in regression tests
+        for key in self.manifest_props_dict:
+            information_dict["MANIFEST_META::" + str(key)]  = self.manifest_props_dict[key]
+        return information_dict
 
     def manifest_metas(self):
         '''
@@ -353,13 +226,13 @@ class PostingCtrl_ShowYourWork():
 
         Each of them is extracted from the internal representation whereby 
 
-            * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
-            * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
-            * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_SHEET]    = excel_sheet
+            * self.manifest_props_dict[manifest_nb][_DATA_KIND]     = kind
+            * self.manifest_props_dict[manifest_nb][_DATA_RANGE]    = excel_range
+            * self.manifest_props_dict[manifest_nb][_DATA_SHEET]    = excel_sheet
         '''
         ME                              = PostingCtrl_ShowYourWork
         result                          = []
-        meta_dict                       = self.context_dict[ME._MANIFEST_META]
+        meta_dict                       = self.manifest_props_dict
         for manifest_nb in meta_dict.keys():
             kind                        = meta_dict[manifest_nb][ME._DATA_KIND]
             excel_range                 = meta_dict[manifest_nb][ME._DATA_RANGE]
@@ -371,9 +244,9 @@ class PostingCtrl_ShowYourWork():
         '''
         Causes this to happen: 
         
-        * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_KIND]     = kind
-        * self.context_dict[_MANIFEST_META][manifest_nb][_DATA_RANGE]    = excel_range
-        * self.context_dict[_MANIFEST_META][manifest_nb][_EXCEL_SHEET]   = excel_sheet
+        * self.manifest_props_dict[manifest_nb][_DATA_KIND]     = kind
+        * self.manifest_props_dict[manifest_nb][_DATA_RANGE]    = excel_range
+        * self.manifest_props_dict[manifest_nb][_EXCEL_SHEET]   = excel_sheet
 
         More details:
 
@@ -381,7 +254,7 @@ class PostingCtrl_ShowYourWork():
         information about a manifest during processing, especially when one does not know a priory the kinds or ranges.
         '''
         ME                                          = PostingCtrl_ShowYourWork
-        meta_dict                                   = self.context_dict[ME._MANIFEST_META]
+        meta_dict                                   = self.manifest_props_dict
         if not manifest_nb in meta_dict.keys():
             meta_dict[manifest_nb]                  = {}
 
@@ -391,26 +264,26 @@ class PostingCtrl_ShowYourWork():
 
     def get_excel_range(self, parent_trace, manifest_nb):
         ME                      = PostingCtrl_ShowYourWork
-        path_list               = [ME._MANIFEST_META, manifest_nb, ME._DATA_RANGE]
+        path_list               = [manifest_nb, ME._DATA_RANGE]
         check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
-                                                                    root_dict           = self.context_dict, 
+                                                                    root_dict           = self.manifest_props_dict, 
                                                                     root_dict_name      = 'context_dict', 
                                                                     path_list           = path_list, 
                                                                     valid_types         = [str])
 
-        excel_range             = self.context_dict[ME._MANIFEST_META][manifest_nb][ME._DATA_RANGE]
+        excel_range             = self.manifest_props_dict[manifest_nb][ME._DATA_RANGE]
         return excel_range  
 
     def get_excel_sheet(self, parent_trace, manifest_nb):
         ME                      = PostingCtrl_ShowYourWork
-        path_list               = [ME._MANIFEST_META, manifest_nb, ME._DATA_SHEET]
+        path_list               = [manifest_nb, ME._DATA_SHEET]
         check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
-                                                                    root_dict           = self.context_dict, 
+                                                                    root_dict           = self.manifest_props_dict, 
                                                                     root_dict_name      = 'context_dict', 
                                                                     path_list           = path_list, 
                                                                     valid_types         = [str])
 
-        excel_range             = self.context_dict[ME._MANIFEST_META][manifest_nb][ME._DATA_SHEET]
+        excel_range             = self.manifest_props_dict[manifest_nb][ME._DATA_SHEET]
         return excel_range    
 
 class PostingLabel():

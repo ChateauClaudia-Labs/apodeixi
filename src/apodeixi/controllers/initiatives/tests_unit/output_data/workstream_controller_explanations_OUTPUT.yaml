@@ -1,9 +1,9 @@
-_MANIFEST_META::0::_DATA_KIND		workstream-milestone
-_MANIFEST_META::0::_DATA_RANGE		B2:I100
-_MANIFEST_META::0::_DATA_SHEET		Milestones
-_MANIFEST_META::1::_DATA_KIND		workstream-metric
-_MANIFEST_META::1::_DATA_RANGE		B2:O100
-_MANIFEST_META::1::_DATA_SHEET		Metrics
+MANIFEST_META::0::_DATA_KIND		workstream-milestone
+MANIFEST_META::0::_DATA_RANGE		B2:I100
+MANIFEST_META::0::_DATA_SHEET		Milestones
+MANIFEST_META::1::_DATA_KIND		workstream-metric
+MANIFEST_META::1::_DATA_RANGE		B2:O100
+MANIFEST_META::1::_DATA_SHEET		Metrics
 ROW_2_UID_LINK::workstream-milestone::0		T1.M1.TA1
 ROW_2_UID_LINK::workstream-milestone::1		T1.M1.TA2
 ROW_2_UID_LINK::workstream-milestone::2		T1.M1.TA3
