@@ -66,7 +66,8 @@ class Test_ManfiestRepresenter(ApodeixiUnitTest):
                                                             y_offset            = 1)
             config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-            rep                 = ManfiestRepresenter( config_table    = config_table,
+            rep                 = ManfiestRepresenter(  parent_trace    = root_trace,
+                                                        config_table    = config_table,
                                                         label_ctx       = label_dict,
                                                         content_df_dict = {MANIFEST_NAME: data_df},)
 

@@ -244,7 +244,7 @@ class AsDataframe_Representer:
             new_level_1_row                 = {}
             # Add the entity column to the level_1 row
             # But first replace by "friendly" UID like 1.2 instead of BR1.B2
-            abbreviated_full_e_uid          = UID_Store(parent_trace).abbreviate_uid(parent_trace, uid=full_e_uid, level=1)
+            abbreviated_full_e_uid          = UID_Store(parent_trace).abbreviate_uid(parent_trace, uid=full_e_uid)
             new_level_1_row[UID_COL]        = abbreviated_full_e_uid #full_e_uid
             new_level_1_row[entity_name]    = e_dict[NAME]
             

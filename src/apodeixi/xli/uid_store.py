@@ -316,33 +316,27 @@ class UID_Store:
         full_uid = ".".join(tokens)
         return full_uid
 
-    def abbreviate_uid(self, parent_trace, uid, level=1):
+    def abbreviate_uid(self, parent_trace, uid):
         '''
-        Abbreviates a UID like "P4.C3" by stripping the acronyms, and returns it.
+        Abbreviates the uid by stripping all acronyms except the first, and returns it.
 
-        The degree of abbreviation depends on the `level` parameter, tells the number of tokens
-        above which abbreviation should happen.
-
-        For example, if level=1 then "P4" is abbreviated to "P4" but "P4.C3" is abbreviated to "4.3"
-
-        If instead level=0 then "P4" is abbreviated as "4"
-
-        @level an int, stating the threshold for when to abbreviate a uid or not: abbreviation only
-                    happens for uids whose number of tokens exceeds the level. By "tokens" of a UID
-                    we mean the strings obtained by splitting the UID using "."
+        For example, a uid like "P4.C3.AC2" is abbreviated to "P4.3.2"
         '''
-
         tokens                      = self._tokenize(parent_trace, uid=uid, acronym_list=None)
-        if len(tokens)<= level:
+        if len(tokens)<= 1:
             return uid
 
         token_tree                  = UID_Store._TokenTree(parent_trace, level=len(tokens))
-        abbreviated_uid             = None
-        for token in tokens:
+
+        # GOTCHA: 
+        # We very deliberately keep the first acronym, and only abbreviate the rest. For example, we
+        # don't want to abbreviate BR7.B10 as 7.10. Instead the correct abbreviation should be BR7.10
+        # This is to avoid bugs, because if we abbreviated to 7.10 then the various conversions across Excel and
+        # Pandas will treat it as a number, equal to 7.1. This will cause two UIDs to collide (BR7.B1 and BR7.B10)
+        # and one will overwrite the contents of the other, losing data from a manifest.
+        abbreviated_uid             = tokens[0]
+        for token in tokens[1:]:
             acronym, val = token_tree.parseToken(parent_trace, token)
-            if abbreviated_uid == None:
-                abbreviated_uid     = str(val)
-            else:
-                abbreviated_uid     = abbreviated_uid + "." + str(val)
+            abbreviated_uid     = abbreviated_uid + "." + str(val)
         
         return abbreviated_uid

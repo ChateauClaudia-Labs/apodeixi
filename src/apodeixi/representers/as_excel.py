@@ -7,9 +7,13 @@ from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.util.path_utils               import PathUtils
+from apodeixi.util.formatting_utils         import StringUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
 from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
+from apodeixi.xli.interval                  import IntervalUtils
+
+from apodeixi.tree_math.link_table          import LinkTable
 
 class ManfiestRepresenter:
     '''
@@ -20,10 +24,13 @@ class ManfiestRepresenter:
                 and the values are DataFrames, each representing the content of a manifest.
     @param label_ctx A dictionary representing the key-value pairs representing the content of a PostingLabel
     '''
-    def __init__(self, config_table, label_ctx, content_df_dict):
+    def __init__(self, parent_trace, config_table, label_ctx, content_df_dict):
         self.config_table       = config_table
         self.label_ctx          = label_ctx
         self.content_df_dict    = content_df_dict
+
+        # Used to track a mapping between UIDs and row numbers as we go along creating an Excel worksheet
+        self.link_table         = LinkTable(parent_trace)
 
         # Some intermediate values computed in the course of processing, which are saved as state to facilitate debugging
         self.widths_dict_dict       = {}
@@ -227,14 +234,24 @@ class ManfiestRepresenter:
         scaled_width    = column_width * self._scale_to_font_size(parent_trace, font_size = 11)
         worksheet.set_column(xl_x,      xl_x,       scaled_width)
 
-    def _write_val(self, parent_trace, workbook, worksheet, layout_x, layout_y, val, layout, num_format):
+    def _write_val(self, parent_trace, workbook, worksheet, layout_x, layout_y, excel_row, val, layout, num_format):
+        '''
+
+        @param excel_row An int. Normally this should be the same as layout_y, except in cases where a mapper
+                        has been configured to display the data in a different excel row number than layout_y.
+                        This can happen when there are joins and the referencing manifest has fewer rows than the
+                        referenced manifest, which means that to align the two displays by row there might be
+                        "empty rows" throughout partso of the rferencing manifest's display. Example: a big-rocks-investment
+                        referencing a big-rocks manifest that has multiple breakdown levels, but where the investment
+                        is not at the level of the leaves of the big-rocks, but at a higher level of aggregation.
+        '''
         
         if layout.is_transposed:
-            xl_x            = layout_y
+            xl_x            = excel_row
             xl_y            = layout_x
         else:
             xl_x            = layout_x
-            xl_y            = layout_y
+            xl_y            = excel_row
         
         fmt_dict        = layout.getFormat(parent_trace, layout_x, layout_y)
         if num_format != None:
@@ -298,7 +315,8 @@ class ManfiestRepresenter:
             widths_dict         = calc.calc(inner_trace) 
 
             # Remember these to support debugging
-            name                            = layout.name
+            # The layout.name *must* be the manifest_identifier if we are populating a manifest (as opposed to a posting label)
+            name                            = layout.name 
             self.widths_dict_dict[name]     = widths_dict
             self.span_dict[name]            = span
             self.hidden_cols_dict[name]     = config.hidden_cols
@@ -331,7 +349,7 @@ class ManfiestRepresenter:
                     xl_x                = layout_y
                 else:
                     xl_x                = layout_x
-                self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, col, layout, num_format = None)
+                self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, layout_y, col, layout, num_format = None)
 
         # Now lay out the content
         my_trace                        = parent_trace.doing("Populating content", data = {'layout span': str(span)})
@@ -358,6 +376,9 @@ class ManfiestRepresenter:
                                                                     + "' row = '" + str(row_nb) + "'")
                     layout_x            = config.x_offset + layout_idx 
                     layout_y            = config.y_offset + 1 + row_nb # An extra '1' because of the headers
+                    excel_row, last_excel_row   = config.df_row_2_excel_row(    parent_trace            = parent_trace, 
+                                                                                df_row_number           = row_nb,
+                                                                                representer             = self)
 
                     # If we have inserted formulas that took space, shift accordingly 
                     if config.sheet in self.formula_shift_dict.keys():
@@ -373,12 +394,29 @@ class ManfiestRepresenter:
                     num_format      = None
                     if col in config.num_formats.keys():
                         num_format  = config.num_formats[col]
-                    self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, 
-                                    row_content[col], layout, num_format = num_format)
+
+                    val             = row_content[col]
+                    self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, excel_row,
+                                    val, layout, num_format = num_format)
+
+                    # Remember UID -> row mapping, for aligninig other joined manifests later on. But only if there
+                    # is a value in the UID column, since we allow the case that it be blank in some rows if
+                    # we default it from earlier rows (as when constructing an n-table instead of a b-table: refer
+                    # to the AssertionTree documentation)
+                    if IntervalUtils().is_a_UID_column(parent_trace, col) and not StringUtils().is_blank(val):
+                        self.link_table.keep_row_last_UID(parent_trace, 
+                                                            manifest_identifier     = name, 
+                                                            row_nb                  = excel_row, 
+                                                            uid                     = row_content[col])
 
                     last_x              = layout_x
-                    last_y              = layout_y
+                    last_y              = excel_row
                 # Before exiting this row, write any formulas associated to this column
+                # Sometimes where there are joins, the last_y is not the same as where the manifest's
+                # area should end. In such cases we rely on the last_excel_row to tell us where the manifest's
+                # area ended so we correctly position the formaulae
+                if last_excel_row != None:
+                    last_y              = last_excel_row
                 self._add_formulas( parent_trace        = outer_loop_trace,
                                     column              = col,
                                     column_width        = width,

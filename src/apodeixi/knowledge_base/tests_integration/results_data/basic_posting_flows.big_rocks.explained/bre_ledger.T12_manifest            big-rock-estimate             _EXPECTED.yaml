@@ -1,0 +1,130 @@
+apiVersion: delivery-planning.journeys.a6i.io/v1a
+assertion:
+  effort:
+    E1:
+      FY22: 1000
+      FY23: 0
+      FY24: 0
+      FY25: 0
+      UID: E1
+      bigRock: BR1
+      name: DERIVED
+    E1-name: DERIVED
+    E10:
+      FY22: 500
+      FY23: 500
+      FY24: 533
+      FY25: 500
+      UID: E10
+      bigRock: BR8
+      name: DERIVED
+    E10-name: DERIVED
+    E11:
+      FY22: 1000
+      FY23: 2000
+      FY24: 1500
+      FY25: 1500
+      UID: E11
+      bigRock: BR9
+      name: DERIVED
+    E11-name: DERIVED
+    E2:
+      FY22: 1500
+      FY23: 1500
+      FY24: 1500
+      FY25: 2000
+      UID: E2
+      bigRock: BR10
+      name: DERIVED
+    E2-name: DERIVED
+    E3:
+      FY22: 1000
+      FY23: 3000
+      FY24: 2000
+      FY25: 2000
+      UID: E3
+      bigRock: BR2
+      name: DERIVED
+    E3-name: DERIVED
+    E4:
+      FY22: 500
+      FY23: 500
+      FY24: 0
+      FY25: 0
+      UID: E4
+      bigRock: BR3
+      name: DERIVED
+    E4-name: DERIVED
+    E5:
+      FY22: 500
+      FY23: 1500
+      FY24: 2000
+      FY25: 1000
+      UID: E5
+      bigRock: BR4
+      name: DERIVED
+    E5-name: DERIVED
+    E6:
+      FY22: 3
+      FY23: 33
+      FY24: 333
+      FY25: 3333
+      UID: E6
+      bigRock: BR11
+      name: DERIVED
+    E6-name: DERIVED
+    E7:
+      FY22: 500
+      FY23: 1000
+      FY24: 1000
+      FY25: 1000
+      UID: E7
+      bigRock: BR5
+      name: DERIVED
+    E7-name: DERIVED
+    E8:
+      FY22: 500
+      FY23: 500
+      FY24: 500
+      FY25: 500
+      UID: E8
+      bigRock: BR6
+      name: DERIVED
+    E8-name: DERIVED
+    E9:
+      FY22: 1000
+      FY23: 2033
+      FY24: 3500
+      FY25: 4500
+      UID: E9
+      bigRock: BR7
+      name: DERIVED
+    E9-name: DERIVED
+  entity_type: Effort
+  estimatedBy: joe.thedevhead@mycorp.com
+  estimatedOn: &id001 2021-06-14 00:00:00
+  planType: Marathon
+  recordedBy: jill.thearchitect@mycorp.com
+  scenario: OfficialPlan
+  scoringCycle: Dec 2020
+  scoringMaturity: Committed
+  variant: explained
+kind: big-rock-estimate
+metadata:
+  labels:
+    environment: Production
+    estimatedBy: joe.thedevhead@mycorp.com
+    estimatedOn: *id001
+    journey: Modernization
+    organization: My Corp
+    planType: Marathon
+    product: LedgerPro
+    recordedBy: jill.thearchitect@mycorp.com
+    scenario: OfficialPlan
+    scoringCycle: Dec 2020
+    scoringMaturity: Committed
+    variant: explained
+    version: 2
+  name: modernization.officialplan.dec-2020.ledgerpro
+  namespace: my-corp.production
+  version: 2

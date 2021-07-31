@@ -140,7 +140,8 @@ class NumFormats():
     # Static Excel formats for dates and numbers
     INT                         = '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)'       # Example: 4,500
     DOUBLE                      = '_(* #,##0.00_);_(* (#,##0.00);_(* "-"??_);_(@_)' # Example: 4,500.00
-    DATE                        = "[$-en-US]mmmm d, yyyy;@"                         # Example: August 29, 2021
+    DATE                        = "[$-en-US]mmmm d, yyyy;@"                         # Example: August 29, 2021"
+    TEXT                        = "@"                                               # Example: '7.10'
 
     def xl_to_txt_formatters(xl_formatters_dict):
         '''
@@ -174,6 +175,9 @@ class NumFormats():
                 output_dict[col]    = formatter
             elif xl_fmt == NumFormats.DATE: # Render dates like "August 21, 20220"
                 formatter           = lambda x: _datetime.datetime.strftime(x, "%B %d, %Y")
+                output_dict[col]    = formatter
+            elif xl_fmt == NumFormats.TXT:
+                formatter           = str
                 output_dict[col]    = formatter
 
         return output_dict
@@ -429,6 +433,31 @@ class AsExcel_Config():
         self.num_formats            = num_formats
         self.excel_formulas         = excel_formulas
                
+    def df_row_2_excel_row(self, parent_trace, df_row_number, representer):
+        '''
+        Returns two int: the excel_row from the mapper, and the final_excel_row this manifest might populate.
+
+        1) excel row from mapper:
+                Determines the Excel row number in which to display a piece of datum that is originating on a 
+                DataFrame representation of a manifest, given the datum's row number in the dataframe.
+
+                Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
+                that has been configured in this config object in order to make that determination.
+        2) final excel row for manifest:
+                It also computes the last row in Excel that this manifest would be populating, to demarcate
+                the end of a region.
+    
+        @param df_row_number An int, representing the row number in a DataFrame in which the datum
+                                    to be displayed appears.
+        @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
+                            in question, and which probably led to this method being called. Provided in case the
+                            logic to determine an Excel row needs to access some state of where the overall process
+                            is at, which the ManifestRepresenter tracks.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'df_row_2_excel_row' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
+
 class ManifestXLConfig(AsExcel_Config):
     '''
     The configuration for laying out and formatting a manifest's data on an Excel spreadsheet
@@ -475,10 +504,28 @@ class ManifestXLConfig(AsExcel_Config):
     @param excel_formulas   An ExcelFormulas object that expresses which formulas (if any) should be written
                             to the excel spreadsheet in the vicinity of the area where the manifest was laid out.
 
+    @param df_row_2_excel_row_mapper A function that is needed to figure the Excel row number in which to display
+                            a datum. It's signature as as in this example:
+
+                                def my_mapper(manifest_df, manifest_df_row_number, representer)
+
+                            where parameters are as follows:
+                            
+                            @param manifest_df is a Pandas DataFrame holding all the data for the manifest we
+                                    are displaying in Excel.
+                                    IMPORTANT: this is the *full* manifest data, including manifest data we might not be 
+                                    displaying, such as the UIDs for referencing manifests which need to be consulted in 
+                                    join situations even if not displayed.
+
+                            @param manifest_df_row_number is an int, for the row number in manifest_df that my_mapper
+                                    must map to an Excel row number for displaying data from such row
+                            @param representer A ManifestRepresenter running the process of displaying to Excel, in case
+                                    its state needs to be interrogated.
+
     '''
     def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  
+                                excel_formulas  = None,  df_row_2_excel_row_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
         super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats, excel_formulas = excel_formulas,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
@@ -489,6 +536,11 @@ class ManifestXLConfig(AsExcel_Config):
         self.editable_headers       = editable_headers
 
         self.layout                 =  PostingLayout(manifest_name)
+
+        self.df_row_2_excel_row_mapper  = df_row_2_excel_row_mapper
+
+        # Set during a call to buildLayout
+        self.content_df             = None
 
     def getName(self, parent_trace):
         return self.layout.name
@@ -504,6 +556,44 @@ class ManifestXLConfig(AsExcel_Config):
                                         x_offset            = self.x_offset, 
                                         y_offset            = self.y_offset,
                                         has_headers         = True)
+        # Remember content_df in case it must be interrogated later during processing
+        self.content_df                 = content_df
+
+    def df_row_2_excel_row(self, parent_trace, df_row_number, representer):
+        '''
+        Determines the Excel row number in which to display a piece of datum that is originating on a 
+        DataFrame representation of a manifest, given the datum's row number in the dataframe.
+
+        Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
+        that has been configured in this config object in order to make that determination.
+
+        It supports a "hook" for external code to determine the Excel row number. 
+        An example of such a "hook" usage is for displaying joins: if the desired behavior
+        is for the referencing manifest's rows to align with those of the referenced manifest,
+        then the representer.link_table needs to be consulted to map the foreign key UID in the
+        referencing manifest to the row number in which the corresponding referenced manifest row was displayed.
+
+        @param df_row_number An int, representing the row number in a DataFrame in which the datum
+                                    to be displayed appears.
+        @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
+                            in question, and which probably led to this method being called. Provided in case the
+                            logic to determine an Excel row needs to access some state of where the overall process
+                            is at, which the ManifestRepresenter tracks.
+        '''
+        if self.df_row_2_excel_row_mapper != None:
+            excel_row, final_excel_row  = self.df_row_2_excel_row_mapper(   manifest_df             = self.content_df, 
+                                                                            manifest_df_row_number  = df_row_number, 
+                                                                            representer             = representer)
+        else:
+            excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+
+            manifest_identifer          = self.getName(parent_trace) # Something like "big-rock.0"
+
+            content_df                  = representer.content_df_dict[manifest_identifer]
+
+            final_excel_row             = self.y_offset + len(content_df.index) # Don't do len(index)-1 since headers add a row
+ 
+        return excel_row, final_excel_row
 
 class PostingLabelXLConfig(AsExcel_Config):
     '''
@@ -553,6 +643,39 @@ class PostingLabelXLConfig(AsExcel_Config):
                                         x_offset            = self.x_offset, 
                                         y_offset            = self.y_offset,
                                         has_headers         = True)
+
+
+    def df_row_2_excel_row(self, parent_trace, df_row_number, representer):
+        '''
+        Returns two int: the excel_row from the mapper, and the final_excel_row this posting label might populate.
+
+        1) excel row from mapper:
+                Determines the Excel row number in which to display a piece of datum that is originating on a 
+                DataFrame representation of a manifest, given the datum's row number in the dataframe.
+
+                Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
+                that has been configured in this config object in order to make that determination.
+        2) final excel row for manifest:
+                It also computes the last row in Excel that this manifest would be populating, to demarcate
+                the end of a region.
+    
+        @param df_row_number An int, representing the row number in a DataFrame in which the datum
+                                    to be displayed appears.
+        @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
+                            in question, and which probably led to this method being called. Provided in case the
+                            logic to determine an Excel row needs to access some state of where the overall process
+                            is at, which the ManifestRepresenter tracks.
+        '''
+        excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+
+        #manifest_identifer          = self.getName(parent_trace) # Something like "big-rock.0"
+
+        #content_df                  = representer.content_df_dict[manifest_identifer]
+
+        #final_excel_row             = self.y_offset + len(content_df.index) # Don't do len(index)-1 since headers add a row
+
+        return excel_row, None #final_excel_row
+
 
 class AsExcel_Config_Table():
     '''

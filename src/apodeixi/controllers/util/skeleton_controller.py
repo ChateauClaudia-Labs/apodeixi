@@ -112,12 +112,13 @@ class SkeletonController(PostingController):
         my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")
         
         if True:
-            rep                 = ManfiestRepresenter( config_table    = config_table,
+            rep                 = ManfiestRepresenter(  parent_trace    = my_trace,
+                                                        config_table    = config_table,
                                                         label_ctx       = label.ctx,
                                                         content_df_dict = contents_df_dict,)
             filename            = self.store.uploadForm(my_trace, 
-                                                                    form_request    = form_request, 
-                                                                    representer     = rep)
+                                                        form_request    = form_request, 
+                                                        representer     = rep)
 
         my_trace                = parent_trace.doing("Assembling FormRequest response")     
         if True:

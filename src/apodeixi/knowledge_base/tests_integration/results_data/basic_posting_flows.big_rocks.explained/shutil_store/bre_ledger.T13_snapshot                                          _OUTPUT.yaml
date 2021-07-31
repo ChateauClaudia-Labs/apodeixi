@@ -25,14 +25,14 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                   '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  1956
+                  Size (in bytes):  1920
 
                   '
-            big-rocks.journeys.a6i.xlsx: '
+                big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  9619
+                  Size (in bytes):  21587
 
-              '
+                  '
   kb:
     excel-postings:
       journeys:
@@ -53,12 +53,17 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                     '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  1956
+                    Size (in bytes):  1920
+
+                    '
+                  big-rocks.journeys.a6i.xlsx: '
+
+                    Size (in bytes):  21587
 
                     '
               big-rocks.journeys.a6i.xlsx: '
 
-                Size (in bytes):  28509
+                Size (in bytes):  21587
 
                 '
     manifests:
@@ -69,8 +74,18 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
             Size (in bytes):  2443
 
             '
+          big-rock-estimate.2.yaml: '
+
+            Size (in bytes):  2600
+
+            '
           big-rock.1.yaml: '
 
             Size (in bytes):  5579
+
+            '
+          big-rock.2.yaml: '
+
+            Size (in bytes):  5802
 
             '

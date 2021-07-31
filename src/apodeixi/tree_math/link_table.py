@@ -103,6 +103,19 @@ class LinkTable():
         row_number                                  = links.find_row_number(parent_trace, uid)
         return row_number
 
+    def last_row_number(self, parent_trace, manifest_identifier):
+        '''
+        Returns the biggest row number know to this LikeTable for the given manifest identifier. If there
+        are no rows returns None
+        '''
+        if not manifest_identifier in self.links_dict.keys():
+            raise ApodeixiError(parent_trace, "Can't retrieve larget row number because manifest has no links "
+                                                + "associated with it",
+                                                data = {    "manifest_identifier":      str(manifest_identifier)})
+        links                                       = self.links_dict[manifest_identifier]
+        row_number                                  = links.last_row_number(parent_trace)
+        return row_number
+
     def find_foreign_uid(self, parent_trace, our_manifest_id, foreign_manifest_id, our_manifest_uid):
         '''
         Used to establish joins between manifest by determining the foreign key to use in the join, i.e.,
@@ -124,7 +137,7 @@ class LinkTable():
 
     class _Row_UID_Links():
         '''
-        Helper class that assists LinkTable objects with tracking immutable 1-1 mappings between row numbers and UIDs
+        Helper class that assists LinkTable objects with tracking 1-1 mappings between row numbers and UIDs
         '''
         def __init__(self, parent_trace):
 
@@ -161,26 +174,6 @@ class LinkTable():
                 raise ApodeixiError(parent_trace, "Can't add a link with a blank uid",
                                 data = {    "uid": str(uid)})
 
-            # Enforce immutability for row_number-indexed stuff
-            if row_number in self.row_2_uid.keys():
-                raise ApodeixiError(parent_trace, "Can't add link for a row number that is alreadly linked to another uid",
-                                            data = {    "row_number":   str(row_number),
-                                                        "uid it is already linked to":  str(self.row_2_uid[row_number]),
-                                                        "uid of failed attempt to link it to":  str(uid)})
-            # DO NOT enforce immutability for UIDs, since an Interval may be layed out in more than 1 row (humans
-            # might just do such a thing), and our failover recovery logic in the BreakdownTree will be smart
-            # to use the UID or the prior row when the 2nd row is encountered. So both rows are "really one row",
-            # and it is OK for both to report the same UID
-            #
-            # That's why the code below is commented out ON PURPOSE
-            #
-            '''                                            
-            if uid in self.uid_2_row.keys():
-                raise ApodeixiError(parent_trace, "Can't add link for a uid that is alreadly linked to another row number",
-                                            data = {    "uid":   str(uid),
-                                                        "row number it is already linked to":  str(self.uid_2_row[uid]),
-                                                        "row number of failed attempt to link it to":  str(row_number)})
-            '''
             # If we get this far, all checks passed. So add the link
             self.row_2_uid[row_number]      = uid
             self.uid_2_row[uid]             = row_number
@@ -218,3 +211,13 @@ class LinkTable():
                 return uid
             else:
                 return None
+
+        def last_row_number(self, parent_trace):
+            '''
+            Returns the largest row number known to this object
+            '''
+            row_list            = list(self.row_2_uid.keys())
+            if len(row_list) == 0:
+                return None
+            else:
+                return max(row_list)
