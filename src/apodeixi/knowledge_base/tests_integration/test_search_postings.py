@@ -60,7 +60,6 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
                                                                                     a_dict          = stringified_coords_dict, 
                                                                                     flatten=True)
             
-            #products_in_kb                  = [coords.product for coords in coords_dict.keys()]
             products_in_kb                  = [handle.filing_coords.product for handle in scanned_handles]
 
             # These are legitimate products in the Apodeixi config but with no filing structure in the Knowledge Base

@@ -1,5 +1,6 @@
 from apodeixi.util.a6i_error                                                import ApodeixiError, FunctionalTrace
 
+from apodeixi.controllers.admin.static_data.products                        import ProductsController
 from apodeixi.controllers.kernel.bdd.capability_hierarchy                   import CapabilityHierarchy_Controller
 from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
 from apodeixi.controllers.journeys.delivery_planning.milestones_controller  import MilestonesController
@@ -17,10 +18,13 @@ class KnowledgeBase():
                                         # for such posting API
             'big-rocks.journeys.a6i':                   BigRocksEstimate_Controller,
             'milestone.journeys.a6i':                   MilestonesController,
+
+            'products.static-data.admin.a6i':           ProductsController,
+
             'capability-hierarchy.bdd.kernel.a6i':      CapabilityHierarchy_Controller,
 
-            'workstream.initiatives.a6i':                Workstream_Controller,
-            'charter.initiatives.a6i':                   None, # TODO
+            'workstream.initiatives.a6i':               Workstream_Controller,
+            'charter.initiatives.a6i':                  None, # TODO
         }
 
         return
@@ -65,7 +69,6 @@ class KnowledgeBase():
             else:
                 raise ApodeixiError(parent_trace, "Transaction aborted due to error found in processing",
                                                     data = {"error": str(ex)})
-
 
     def postByLabel(self, parent_trace, label_handle):
         '''

@@ -107,6 +107,18 @@ class BigRocksEstimate_Controller(SkeletonController):
                 excel_formulas              = None
                 df_row_2_excel_row_mapper   = None
             elif key == 'big-rock-estimate.1':
+                # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
+                # make a join, and pass the mapper that effects this associate
+                def my_mapper(manifest_df, manifest_df_row_number, representer):
+                    big_rock_uid        = manifest_df['bigRock'].iloc[manifest_df_row_number]      
+                    link_table          = representer.link_table # Data structure that has join information
+                    excel_row_nb        = link_table.row_from_uid(  parent_trace        = loop_trace, 
+                                                                    manifest_identifier = 'big-rock.0', 
+                                                                    uid                 = big_rock_uid)
+                    final_excel_row     = link_table.last_row_number(   parent_trace        = loop_trace,
+                                                                        manifest_identifier = 'big-rock.0')
+                    return excel_row_nb, final_excel_row
+                df_row_2_excel_row_mapper   = my_mapper  
 
                 if self.variant ==  ME.VARIANT_BURNOUT:
                     hidden_cols             = ['UID', 'bigRock']
@@ -115,7 +127,6 @@ class BigRocksEstimate_Controller(SkeletonController):
                     excel_formulas          = ExcelFormulas(key)
                     excel_formulas.addTotal(loop_trace, column = "effort", 
                                                         parameters = {ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL: True})
-                    df_row_2_excel_row_mapper   = None
                 elif self.variant ==  ME.VARIANT_EXPLAINED:
                     hidden_cols             = ['UID', 'bigRock', 'effort']
                     right_margin            = 1      
@@ -126,18 +137,6 @@ class BigRocksEstimate_Controller(SkeletonController):
                         num_formats[col]    = NumFormats.INT          
                         excel_formulas.addTotal(loop_trace, column = col,
                                                             parameters = {ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL: False})
-                    # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
-                    # make a join, and pass the mapper that effects this associate
-                    def my_mapper(manifest_df, manifest_df_row_number, representer):
-                        big_rock_uid        = manifest_df['bigRock'].iloc[manifest_df_row_number]      
-                        link_table          = representer.link_table # Data structure that has join information
-                        excel_row_nb        = link_table.row_from_uid(  parent_trace        = loop_trace, 
-                                                                        manifest_identifier = 'big-rock.0', 
-                                                                        uid                 = big_rock_uid)
-                        final_excel_row     = link_table.last_row_number(   parent_trace        = loop_trace,
-                                                                            manifest_identifier = 'big-rock.0')
-                        return excel_row_nb, final_excel_row
-                    df_row_2_excel_row_mapper   = my_mapper  
                 else:
                     raise ApodeixiError(loop_trace, "Can't format Excel for '" + key + "' because variant is unsupported",
                                             data = {"variant given":        str(self.variant),
