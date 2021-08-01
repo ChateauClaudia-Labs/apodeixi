@@ -570,6 +570,43 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
+    def findLatestVersionManifest(self, parent_trace, manifest_api, namespace, name, kind):
+        '''
+        For a given manifest API, a manifest is logically identified by its name and kind properties within 
+        a given namespace.
+        However, there might be multiple versions of a logical manifest (versions are integers starting
+        at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
+
+        This method returns the most recent version of the manifest that is logically identified
+        by the parameters.
+        Returns None if no such manifest exists in the KnowledgeBase store.
+
+        Example: for file-based stores, a manifest may be stored in a filename like:
+
+            $KB_STORE/manifests/my-corp.production/modernization.default.dec-2020.fusionopus/big-rock.2.yaml
+
+            In this example, 
+                * the namespace is "my-corp.production"
+                * the name is "modernization.default.dec-2020.fusionopus"
+                * the kind is "big-rock"
+                * the version is 2 (an int)
+                * the manifest api is embedded within the YAML file, and is something like 
+                  "delivery-planning.journeys.a6i.io/v1a"
+
+        @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
+                    manifest kinds subsumed under such API. The search for manifests is filtered to those
+                    whose YAML representation declares itself as falling under this API.
+        @param namespace A string. Represents the namespace in the KnowledgeBase store's manifests area 
+                        where to look for the manifest.
+        @param name A string representing the name of the manifest. Along with kind, this identifies a 
+                    unique logical manifest (other than version number)
+        @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
+                    logical manifest (other than version number)
+        '''
+        raise ApodeixiError(parent_trace, "Sorry, we have not yet implemented findLatestVersionManifest",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
+
     def _remember_posting_write(self, parent_trace, relative_path):
         '''
         Helper method. If we are in a transaction, it will remember the relative path of a write

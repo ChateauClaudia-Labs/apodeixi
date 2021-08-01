@@ -54,10 +54,10 @@ class CapabilityHierarchy_Controller(SkeletonController):
         ME                              = CapabilityHierarchy_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def buildManifestName(self, parent_trace, posting_data_handle, label):
+    def manifestNameFromLabel(self, parent_trace, label):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
-        posting_data_handle and label
+        label
         '''
         scaffolding_purpose             = label.scaffoldingPurpose  (parent_trace)
         project                         = label.project             (parent_trace) 

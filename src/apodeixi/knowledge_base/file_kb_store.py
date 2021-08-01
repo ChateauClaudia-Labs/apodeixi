@@ -62,7 +62,7 @@ class File_KBStore_Impl():
 
         return posting_handle
 
-    def getBlindFormRequest(self, parent_trace, relative_path, posting_api, namespace):
+    def getBlindFormRequest(self, parent_trace, relative_path, posting_api, namespace, subnamespace):
         '''
         Returns an FormRequest that can in turn be used to request a form (an Excel spreadsheet)
         that the end-user can use to make a posting for the create or update the manifests 
@@ -86,19 +86,24 @@ class File_KBStore_Impl():
         @param namespace A string, representing a namespace in the KnowledgeBase store's manifests are that
                         delimits the scope for searching for manfiests in scope of this FormRequest.
                         Example: "my-corp.production"
+        @param subnamespace An optional string representing a slice of the namespace that further restricts
+                        the manifest names to search. If set to None, not subspace is assumed.
+                        Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
+                                token "modernization" is the subnamespace. The other tokens come from filing coordinates
+                                for the posting from whence the manifest arose.
         '''
-        my_trace                        = parent_trace.doing("Building the filing coordinates",
+        my_trace            = parent_trace.doing("Building the filing coordinates",
                                                                 data = {"relative_path": str(relative_path)})
-        filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
-                                                                    posting_api         = posting_api, 
-                                                                    relative_path       = relative_path)
+        filing_coords       = self._buildFilingCoords(  parent_trace        = my_trace, 
+                                                        posting_api         = posting_api, 
+                                                        relative_path       = relative_path)
 
-        my_trace                        = parent_trace.doing("Building the form request")
+        my_trace            = parent_trace.doing("Building the form request")
 
-        form_request                    = FormRequest(  parent_trace            = my_trace, 
-                                                        posting_api             = posting_api, 
-                                                        filing_coords           = filing_coords,
-                                                        scope                   = FormRequest.SearchScope(namespace))
+        form_request        = FormRequest(  parent_trace            = my_trace, 
+                                            posting_api             = posting_api, 
+                                            filing_coords           = filing_coords,
+                                            scope                   = FormRequest.SearchScope(namespace, subnamespace))
 
 
         return form_request

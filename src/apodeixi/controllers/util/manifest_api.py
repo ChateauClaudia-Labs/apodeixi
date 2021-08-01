@@ -22,6 +22,8 @@ class ManifestAPIVersion():
         self.api            = api
         self.version        = ManifestAPI._trimmed(parent_trace,  "version", version)
 
+    API_VERSION                 = 'apiVersion' # Used by other classes as a static string key
+    
     def apiVersion(self):
         '''
         Returns a string such as 'capability-hierarchy.kernel.a6i.xlsx', assembled from the attributes of this class.

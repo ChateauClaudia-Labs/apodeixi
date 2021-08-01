@@ -139,7 +139,7 @@ class KnowledgeBaseStore():
         '''
         return self._impl.buildPostingHandle(parent_trace, excel_posting_path, sheet, excel_range)
 
-    def getBlindFormRequest(self, parent_trace, relative_path, posting_api, namespace):
+    def getBlindFormRequest(self, parent_trace, relative_path, posting_api, namespace, subnamespace):
         '''
         Returns an FormRequest that can in turn be used to request a form (an Excel spreadsheet)
         that the end-user can use to make a posting for the create or update the manifests 
@@ -163,8 +163,13 @@ class KnowledgeBaseStore():
         @param namespace A string, representing a namespace in the KnowledgeBase store's manifests are that
                         delimits the scope for searching for manfiests in scope of this FormRequest.
                         Example: "my-corp.production"
+        @param subnamespace An optional string representing a slice of the namespace that further restricts
+                        the manifest names to search. If set to None, not subspace is assumed.
+                        Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
+                                token "modernization" is the subnamespace. The other tokens come from filing coordinates
+                                for the posting from whence the manifest arose.
         '''
-        return self._impl.getBlindFormRequest(parent_trace, relative_path, posting_api, namespace)
+        return self._impl.getBlindFormRequest(parent_trace, relative_path, posting_api, namespace, subnamespace)
 
     def loadPostingLabel(self, parent_trace, posting_label_handle):
         '''
@@ -226,6 +231,41 @@ class KnowledgeBaseStore():
         @param manifest_handle A ManifestHandle instance that uniquely identifies the manifest we seek to retrieve.
         '''
         return self._impl.retrieveManifest(parent_trace, manifest_handle)
+
+    def findLatestVersionManifest(self, parent_trace, manifest_api, namespace, name, kind):
+        '''
+        For a given manifest API, a manifest is logically identified by its name and kind properties within 
+        a given namespace.
+        However, there might be multiple versions of a logical manifest (versions are integers starting
+        at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
+
+        This method returns the most recent version of the manifest that is logically identified
+        by the parameters.
+        Returns None if no such manifest exists in the KnowledgeBase store.
+
+        Example: for file-based stores, a manifest may be stored in a filename like:
+
+            $KB_STORE/manifests/my-corp.production/modernization.default.dec-2020.fusionopus/big-rock.2.yaml
+
+            In this example, 
+                * the namespace is "my-corp.production"
+                * the name is "modernization.default.dec-2020.fusionopus"
+                * the kind is "big-rock"
+                * the version is 2 (an int)
+                * the manifest api is embedded within the YAML file, and is something like 
+                  "delivery-planning.journeys.a6i.io/v1a"
+
+        @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
+                    manifest kinds subsumed under such API. The search for manifests is filtered to those
+                    whose YAML representation declares itself as falling under this API.
+        @param namespace A string. Represents the namespace in the KnowledgeBase store's manifests area 
+                        where to look for the manifest.
+        @param name A string representing the name of the manifest. Along with kind, this identifies a 
+                    unique logical manifest (other than version number)
+        @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
+                    logical manifest (other than version number)
+        '''
+        return self._impl.findLatestVersionManifest(parent_trace, manifest_api, namespace, name, kind)
 
     def searchManifests(self, parent_trace, manifest_api, labels_filter=None, manifest_version_filter=None):
         '''

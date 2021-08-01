@@ -23,11 +23,12 @@ class StaticData_Controller(SkeletonController):
         super().__init__(parent_trace, store)
 
         self.MANIFEST_API = ManifestAPI(    parent_trace    = parent_trace,
-                                            subdomain       = 'static-data', 
+                                            subdomain       = StaticData_Controller._STATIC_DATA, 
                                             domain          = 'admin', 
                                             api_publisher   = 'a6i',
                                             extension       = 'io')
 
+    _STATIC_DATA                        = 'static-data' 
     def getManifestAPI(self):
         return self.MANIFEST_API
 
@@ -104,15 +105,37 @@ class StaticData_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
-    def buildManifestName(self, parent_trace, posting_data_handle, label):
+    def manifestNameFromLabel(self, parent_trace, label):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
-        posting_data_handle and label
+        label
         '''
         FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
-        name                            = FMT(self.getKind(parent_trace))
+        name                            = FMT(StaticData_Controller._STATIC_DATA)
         return name
 
+    def manifestNameFromCoords(self, parent_trace, subnamespace, coords):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        filing coords, possibly complemented by the subnamespace.
+
+        Example: consider a manifest name like "modernization.default.dec-2020.fusionopus"
+                in namespace "my-corp.production". 
+
+                To build such a name, this method must receive "modernization" as the subnamespace, and
+                filing coords from which to infer "default", "dec-20220", and "fusionopus".
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        '''
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        name                            = FMT(StaticData_Controller._STATIC_DATA)
+        return name
+        
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a 

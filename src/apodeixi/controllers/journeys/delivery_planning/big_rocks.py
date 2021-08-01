@@ -5,6 +5,7 @@ from apodeixi.util.a6i_error                        import ApodeixiError
 from apodeixi.util.formatting_utils                 import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
+from apodeixi.knowledge_base.filing_coordinates     import JourneysFilingCoordinates
 from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats, ExcelFormulas
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec, \
@@ -209,17 +210,53 @@ class BigRocksEstimate_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
-    def buildManifestName(self, parent_trace, posting_data_handle, label):
+    def manifestNameFromLabel(self, parent_trace, label):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
-        posting_data_handle and label
+        label
         '''
         product                         = label.product             (parent_trace)
         journey                         = label.journey             (parent_trace) 
         scenario                        = label.scenario            (parent_trace)
         scoring_cycle                   = label.scoring_cycle       (parent_trace)
 
-        FMT                                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        name                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
+        return name
+
+    def manifestNameFromCoords(self, parent_trace, subnamespace, coords):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        filing coords, possibly complemented by the subnamespace.
+
+        Example: consider a manifest name like "modernization.default.dec-2020.fusionopus"
+                in namespace "my-corp.production". 
+
+                To build such a name, this method must receive "modernization" as the subnamespace, and
+                filing coords from which to infer "default", "dec-20220", and "fusionopus".
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        '''
+        if not type(coords) == JourneysFilingCoordinates:
+            raise ApodeixiError(parent_trace, "Can't build manifest name because received wrong type of filing coordinates",
+                                                data = {"Type of coords received": str(type(coords)),
+                                                        "Expected type of coords": "JourneysFilingCoordinates"})
+
+        if subnamespace == None:
+            raise ApodeixiError(parent_trace, "Can't build manifest name becase subnamespace is null. Should be "
+                                                + "set to a kind of journey. Example: 'modernization'")
+
+        product                         = coords.product
+        journey                         = subnamespace
+        scenario                        = coords.scenario
+        scoring_cycle                   = coords.scoring_cycle
+
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         name                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
         return name
 

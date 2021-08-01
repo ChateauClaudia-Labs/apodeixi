@@ -18,10 +18,17 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                         (i.e., a "blank" form)
     @param namespace A string. Only relevant if from_nothing=True. Used to delimit the search for manifests
                         when generating a form without explicit manifest handles being given.
+    @param subnamespace A string. Only relevant if from_nothing=True. Used to delimit search for manifests.
+                    An optional string representing a slice of the namespace that further restricts
+                    the manifest names to search. If set to None, not subspace is assumed.
+                    Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
+                            token "modernization" is the subnamespace. The other tokens come from filing coordinates
+                            for the posting from whence the manifest arose.
     '''
 
-    def _run_basic_flow(self, from_nothing, namespace, posting_api, excel_relative_path, excel_file, excel_sheet, 
-                                nb_manifests_expected, generated_form_worksheet):
+    def _run_basic_flow(self,   from_nothing,           namespace,                  subnamespace,       posting_api, 
+                                excel_relative_path,    excel_file,                 excel_sheet, 
+                                nb_manifests_expected,  generated_form_worksheet):
         '''
         Tests a basic flow for a single posting API consisting of:
 
@@ -51,7 +58,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     blind_form_request      = store.getBlindFormRequest(    parent_trace    = my_trace, 
                                                                             relative_path   = excel_relative_path, 
                                                                             posting_api     = posting_api,
-                                                                            namespace       = namespace)
+                                                                            namespace       = namespace,
+                                                                            subnamespace    = subnamespace)
 
                     fr_response, fr_log_txt, \
                         fr_rep              = self.stack().kb().requestForm(parent_trace    = root_trace, 

@@ -87,10 +87,10 @@ class Mock_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
-    def buildManifestName(self, parent_trace, posting_data_handle, label):
+    def manifestNameFromLabel(self, parent_trace, label):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
-        posting_data_handle and label
+        label
         '''
         test_family                     = label.test_family         (parent_trace)
         test_case                       = label.test_case           (parent_trace)

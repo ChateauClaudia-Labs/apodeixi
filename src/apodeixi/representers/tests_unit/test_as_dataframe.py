@@ -2,6 +2,7 @@ import sys                              as _sys
 import pandas                           as _pd
 
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
+from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
 from apodeixi.util.a6i_error            import ApodeixiError, FunctionalTrace
 from apodeixi.util.dataframe_utils      import DataFrameComparator
 
@@ -39,7 +40,7 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
 
 
     def _expected_subtree(self):
-        return {'apiVersion':   'kernel.a6i.io/v1dev',
+        return {ManifestAPIVersion.API_VERSION:   'kernel.a6i.io/v1dev',
                 'kind':         'ProjectScaffolding',
                 'metadata':     {   'labels':       {'organization': 'ChateauClaudia Labs', 'project': 'Apodeixi'},
                                     'name':         'bdd-tests.apodeixi',

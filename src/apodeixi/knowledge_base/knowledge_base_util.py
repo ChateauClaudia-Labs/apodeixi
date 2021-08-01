@@ -1,3 +1,4 @@
+from apodeixi.controllers.util.manifest_api                     import ManifestAPIVersion
 from apodeixi.knowledge_base.filing_coordinates                 import TBD_FilingCoordinates
 
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
@@ -162,14 +163,13 @@ class ManifestUtils():
             raise ApodeixiError(parent_trace, "Can't record manifest creation because manifest was not passed as a dictionary. "
                                                 "Instead was given a " + str(type(manifest_dict)),
                                                 origination = {'signaled_from': __file__})
-        API_VERSION                 = 'apiVersion'
         VERSION                     = 'version'
         NAME                        = 'name'
         NAMESPACE                   = 'namespace'
         KIND                        = 'kind'
         METADATA                    = 'metadata'
 
-        REQUIRED_KEYS               = [API_VERSION, METADATA, KIND]
+        REQUIRED_KEYS               = [ManifestAPIVersion.API_VERSION, METADATA, KIND]
 
         REQUIRED_METADATA_SUBKEYS   = [NAME, NAMESPACE, VERSION]
 
@@ -186,7 +186,7 @@ class ManifestUtils():
                                                 "manifest's metadata: " + str(missed_metadata_subkeys),
                                                 origination = {'signaled_from': __file__})
 
-        handle                  = ManifestHandle(   apiVersion  = manifest_dict[API_VERSION],
+        handle                  = ManifestHandle(   apiVersion  = manifest_dict[ManifestAPIVersion.API_VERSION],
                                                     namespace   = metadata_dict[NAMESPACE], 
                                                     name        = metadata_dict[NAME], 
                                                     kind        = manifest_dict[KIND],
@@ -528,14 +528,22 @@ class FormRequest():
         @param namespace A string, representing a namespace in the KnowledgeBase store's manifests are that
                         delimits the scope for searching for manfiests in scope of this FormRequest.
                         Example: "my-corp.production"
+
+        @param subnamespace An optional string representing a slice of the namespace that further restricts
+                        the manifest names to search. If set to None, not subspace is assumed.
+                        Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
+                                token "modernization" is the subnamespace. The other tokens come from filing coordinates
+                                for the posting from whence the manifest arose.
         '''
-        def __init__(self, namespace):
+        def __init__(self, namespace, subnamespace):
             self.namespace      = namespace
+            self.subnamespace   = subnamespace
         
         def display(self, parent_trace):
             '''
             Returns a string friendly representation of this FormRequest scope
             '''
-            msg = "\n\t\t scope namespace = '" + self.namespace + "'"
+            msg = "\n\t\t scope namespace = '" + str(self.namespace) + "'" \
+                   + "\n\t\t scope subnamespace = '" + str(self.subnamespace) + "'"
 
             return msg

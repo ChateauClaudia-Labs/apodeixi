@@ -5,6 +5,8 @@ from apodeixi.util.a6i_error                            import ApodeixiError
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
 from apodeixi.xli.uid_store                             import UID_Store
+
+from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle, \
                                                                 PostingLabelHandle, FormRequestResponse, ManifestHandle, \
                                                                 FormRequest
@@ -279,6 +281,8 @@ class SkeletonController(PostingController):
         Specifically, based on the information in the `form_request` it constructs a dictionary
         whose keys are manifest identifiers (strings) and values are dictionaries representing the
         Manifest content per manifest identifier.
+        For manifest identifiers corresponding to manifests that don't yet exist, the value in the
+        returned dict is None
 
         @param form_request A FormRequest object
         '''
@@ -292,30 +296,31 @@ class SkeletonController(PostingController):
                                                         data = {"handle": manifest_handle.display(parent_trace)})
                 manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, manifest_handle)
                 manifests_in_scope_dict[key]    = manifest_dict
+        elif type(scope) == FormRequest.SearchScope:
+            coords                              = form_request.getFilingCoords(parent_trace)
+            namespace                           = scope.namespace
+            subnamespace                        = scope.subnamespace
+            name                                = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+            manifest_nb                         = 1
+            for kind in self.getSupportedKinds():
+                loop_trace                      = parent_trace.doing("Searching for latest version of manifest",
+                                                        data = {"kind":     str(kind),
+                                                                "namespace":    str(namespace),
+                                                                "name":         str(name)})
+                manifest_identifier             = kind + "." + str(manifest_nb)
+                manifest_api                    = self.getManifestAPI()
+                manifest_dict                   = self.store.findLatestVersionManifest( parent_trace    = loop_trace, 
+                                                                                        manifest_api    = manifest_api,
+                                                                                        namespace       = namespace, 
+                                                                                        name            = name, 
+                                                                                        kind            = kind)
+                    
+                manifests_in_scope_dict[manifest_identifier]    = manifest_dict # NB: may be none if it has to be created
+                manifest_nb                         += 1
         else:
-            '''
-            Algorithm:
-            
-            1) Ask the controller to create a "relative path" and a set of "filename pattern" , using
-               the form as input. 
-               Example: on filing coords [Dec 2020, FusionOpus, Default] the controller produces this:
-
-                relative_path = namespace/name where:
-
-                    namespace tokens: [*(?organization), *(?production)] // From Apodeixi config?? Input to request?
-                    name tokens:    [modernization, default, dec2020, fusionopus]
-
-                    filename pattern: <kind>.<version number>.yaml for the <kind> values supported by controller
-
-            2) Ask the store to return all the manifests that match the pattern for the relative path 
-            3) For each kind for which at least 1 manifest was found, select the one with highest version
-            4) Raise an exception if any manifest thus selected is for an apiVersion not supported by this controller
-            5) Return two data structures:
-                a) A dictionary of manifests, for each kind for which content was found
-                b) A list of kinds for which no manifest was found
-            '''  
-
-            raise ApodeixiError(parent_trace, "Sorry, generating a blind form is not yet supported")
+            raise ApodeixiError("Invalid type of scope in FormRequest",
+                                data = {"type(scope)": str(type(scope)),
+                                        "valid types": str["FormRequest.ExplicitScope", "FormRequest.SearchScope"]})
 
         return manifests_in_scope_dict
 
@@ -398,14 +403,36 @@ class SkeletonController(PostingController):
             result.append(data_handle)
         return result
 
-    def buildManifestName(self, parent_trace, posting_data_handle, label):
+    def manifestNameFromLabel(self, parent_trace, label):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
-        posting_data_handle and label
+        label
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'buildManifestName' in concrete class",
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifestNameFromLabel' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
-                                                                'signaled_from': __file__})         
+                                                                'signaled_from': __file__})  
+
+    def manifestNameFromCoords(self, parent_trace, subnamespace, coords):
+        '''
+        Helper method that returns what the 'name' field should be in the manifest to be created with the given
+        filing coords, possibly complemented by the subnamespace.
+
+        Example: consider a manifest name like "modernization.default.dec-2020.fusionopus"
+                in namespace "my-corp.production". 
+
+                To build such a name, this method must receive "modernization" as the subnamespace, and
+                filing coords from which to infer "default", "dec-20220", and "fusionopus".
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifestNameFromCoords' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__})        
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
@@ -423,7 +450,7 @@ class SkeletonController(PostingController):
 
         FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         namespace                   = FMT(organization + '.' + environment)
-        manifest_name               = self.buildManifestName(parent_trace, posting_data_handle, label)
+        manifest_name               = self.manifestNameFromLabel(parent_trace, label)
 
         my_trace                    = parent_trace.doing("Checking if this is an update")
         if True:
@@ -461,7 +488,7 @@ class SkeletonController(PostingController):
                                                             }
                                             }
 
-            manifest_dict['apiVersion'] = self.api_version(my_trace)
+            manifest_dict[ManifestAPIVersion.API_VERSION] = self.api_version(my_trace)
             manifest_dict['kind']       = kind
             manifest_dict['metadata']   = metadata
 
@@ -498,7 +525,7 @@ class SkeletonController(PostingController):
                         
             FMT                     = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
             namespace               = FMT(organization + '.' + environment)
-            manifest_name           = self.buildManifestName(parent_trace, posting_data_handle, label)
+            manifest_name           = self.manifestNameFromLabel(parent_trace, label)
             
             config                  = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                 kind                = kind,
