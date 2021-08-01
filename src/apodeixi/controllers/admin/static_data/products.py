@@ -1,7 +1,8 @@
 
-from apodeixi.util.a6i_error                            import ApodeixiError
+from apodeixi.util.a6i_error                                    import ApodeixiError
 
-from apodeixi.controllers.admin.static_data.static_data import StaticData_Controller
+from apodeixi.controllers.admin.static_data.static_data         import StaticData_Controller
+
 
 class ProductsController(StaticData_Controller):
     '''
@@ -18,11 +19,21 @@ class ProductsController(StaticData_Controller):
         self.SUPPORTED_VERSIONS         = ['v1a']
         self.SUPPORTED_KINDS            = ['product', 'line-of-business']
 
+        self.POSTING_API                = 'products.static-data.admin.a6i'
+
     def getSupportedVersions(self):
         return self.SUPPORTED_VERSIONS 
 
     def getSupportedKinds(self):
         return self.SUPPORTED_KINDS
+
+    def getPostingAPI(self):
+        '''
+        Implemented by concrete classes.
+        Must return a string corresponding to the posting API supported by this controller.
+        '''
+        return self.POSTING_API
+
 
 
 

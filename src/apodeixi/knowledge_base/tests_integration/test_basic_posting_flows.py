@@ -3,7 +3,7 @@ import sys                                                              as _sys
 from apodeixi.testing_framework.a6i_integration_test                    import ShutilStoreTestStack
 from apodeixi.util.a6i_error                                            import ApodeixiError, FunctionalTrace
 
-from apodeixi.controllers.journeys.delivery_planning.big_rocks          import BigRocksEstimate_Controller
+from apodeixi.controllers.util.skeleton_controller                      import SkeletonController
 from apodeixi.knowledge_base.tests_integration.flow_scenario_skeleton   import FlowScenarioSkeleton
 
 class Test_BasicPostingFlows(FlowScenarioSkeleton):
@@ -30,11 +30,13 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
         NB_MANIFESTS_EXPECTED           = 3
 
         
-        self._run_basic_flow(   excel_relative_path         = EXCEL_RELATIVE_PATH,
+        self._run_basic_flow(   from_nothing                = False,
+                                posting_api                 = 'big-rocks.journeys.a6i',
+                                excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
                                 excel_sheet                 = "Sheet1",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET)
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET)
 
     def test_big_rocks_explained(self):
 
@@ -46,11 +48,13 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
         NB_MANIFESTS_EXPECTED           = 2
 
         
-        self._run_basic_flow(   excel_relative_path         = EXCEL_RELATIVE_PATH,
+        self._run_basic_flow(   from_nothing                = False,
+                                posting_api                 = 'big-rocks.journeys.a6i',
+                                excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
                                 excel_sheet                 = "broken explained",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = BigRocksEstimate_Controller.GENERATED_FORM_WORKSHEET)
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET)
 
 
 if __name__ == "__main__":

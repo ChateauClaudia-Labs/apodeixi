@@ -57,6 +57,29 @@ class FilingCoordinates():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'expected_tokens' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__}) 
+    def getTag(self, parent_trace):
+        '''
+        Abstract method.
+
+        Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
+        filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
+        to these filing coordinates object).
+
+        The Excel filenames created would typically be <tag>.<posting API>.xlsx
+
+        The purpose of such a "tag" is to improve usability by giving the end-user a bit more clarity on
+        what the Excel file contains, expecially in situations where there are multiple Excel spreadsheets
+        for the same posting API. 
+        
+        Example: for posting API 'big-rocks.journeys.a6i', there can be many Excel spreadsheets across all
+        products, scenarios, etc. A product-based tag would help have filenames that differ per product so the
+        user can more easily tell which is which, and also allows the user to simultaneously open more than one 
+        in Excel since they have different filenames (Excel won't allow opening two files with the same
+        filename, even if they are in different folders)
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'getTag' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                                'signaled_from': __file__})
 
 class JourneysFilingCoordinates(FilingCoordinates):
     '''
@@ -154,6 +177,26 @@ class JourneysFilingCoordinates(FilingCoordinates):
         the right input to provide.
         '''
         return "['"+ JourneysFilingCoordinates.JOURNEYS + "', <scoringCycle>, <product>, <scenario>]"
+
+    def getTag(self, parent_trace):
+        '''
+        Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
+        filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
+        to these filing coordinates object).
+
+        The Excel filenames created would typically be <tag>.<posting API>.xlsx
+
+        The purpose of such a "tag" is to improve usability by giving the end-user a bit more clarity on
+        what the Excel file contains, expecially in situations where there are multiple Excel spreadsheets
+        for the same posting API. 
+        
+        Example: for posting API 'big-rocks.journeys.a6i', there can be many Excel spreadsheets across all
+        products, scenarios, etc. A product-based tag would help have filenames that differ per product so the
+        user can more easily tell which is which, and also allows the user to simultaneously open more than one 
+        in Excel since they have different filenames (Excel won't allow opening two files with the same
+        filename, even if they are in different folders)
+        '''
+        return self.product
 
 class InitiativesFilingCoordinates(FilingCoordinates):
     '''
@@ -271,6 +314,26 @@ class InitiativesFilingCoordinates(FilingCoordinates):
 
         return output_txt
 
+    def getTag(self, parent_trace):
+        '''
+        Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
+        filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
+        to these filing coordinates object).
+
+        The Excel filenames created would typically be <tag>.<posting API>.xlsx
+
+        The purpose of such a "tag" is to improve usability by giving the end-user a bit more clarity on
+        what the Excel file contains, expecially in situations where there are multiple Excel spreadsheets
+        for the same posting API. 
+        
+        Example: for posting API 'big-rocks.journeys.a6i', there can be many Excel spreadsheets across all
+        products, scenarios, etc. A product-based tag would help have filenames that differ per product so the
+        user can more easily tell which is which, and also allows the user to simultaneously open more than one 
+        in Excel since they have different filenames (Excel won't allow opening two files with the same
+        filename, even if they are in different folders)
+        '''
+        return self.workstream_UID
+
 class TBD_FilingCoordinates(FilingCoordinates):
     '''
     FilingCoordinates class used temporarily in situations where the real FilingCoordinates class to use
@@ -338,6 +401,31 @@ class TBD_FilingCoordinates(FilingCoordinates):
             path        = self._path_mask(path)
         msg             = "TBD - Submitted from: " + str(path)
         return msg
+
+    def getTag(self, parent_trace):
+        '''
+        Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
+        filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
+        to these filing coordinates object).
+
+        The Excel filenames created would typically be <tag>.<posting API>.xlsx
+
+        The purpose of such a "tag" is to improve usability by giving the end-user a bit more clarity on
+        what the Excel file contains, expecially in situations where there are multiple Excel spreadsheets
+        for the same posting API. 
+        
+        Example: for posting API 'big-rocks.journeys.a6i', there can be many Excel spreadsheets across all
+        products, scenarios, etc. A product-based tag would help have filenames that differ per product so the
+        user can more easily tell which is which, and also allows the user to simultaneously open more than one 
+        in Excel since they have different filenames (Excel won't allow opening two files with the same
+        filename, even if they are in different folders)
+        '''
+        if self._inferred_coords != None:
+            return self._inferred_coords.getTag(parent_trace)
+        else:
+            raise ApodeixiError(parent_trace, "Filename tag is not available because coordinate haven't yet been inferred",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__}) 
 
 class ArchiveFilingCoordinates(FilingCoordinates):
     '''

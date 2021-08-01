@@ -204,7 +204,7 @@ class KnowledgeBase():
             else:
                 raise ApodeixiError(parent_trace, "Transaction aborted due to error found in processing",
                                                     data = {"error": str(ex)})
-        
+ 
     def findController(self, parent_trace, posting_api):
         '''
         Retrieves and returns a PostingController object that knows how to process postings for objects

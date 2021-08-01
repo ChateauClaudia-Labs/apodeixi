@@ -15,22 +15,17 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
               (Timestamp omitted) Posting:
                 FORM_REQUEST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  396
+                  Size (in bytes):  406
 
                   '
                 LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-                  Size (in bytes):  28509
+                  Size (in bytes):  21587
 
                   '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  1920
-
-                  '
-                big-rocks.journeys.a6i.xlsx: '
-
-                  Size (in bytes):  21587
+                  Size (in bytes):  1950
 
                   '
   kb:
@@ -43,22 +38,17 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                 (Timestamp omitted) Posting:
                   FORM_REQUEST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  396
+                    Size (in bytes):  406
 
                     '
                   LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-                    Size (in bytes):  28509
+                    Size (in bytes):  21587
 
                     '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  1920
-
-                    '
-                  big-rocks.journeys.a6i.xlsx: '
-
-                    Size (in bytes):  21587
+                    Size (in bytes):  1950
 
                     '
               big-rocks.journeys.a6i.xlsx: '

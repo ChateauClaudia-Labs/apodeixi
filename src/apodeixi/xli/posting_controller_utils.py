@@ -150,6 +150,13 @@ class PostingController():
         '''
         raise NotImplementedError("Class " + str(self.__class__) + " forgot to implement method getManifestAPI") 
 
+    def getPostingAPI(self):
+        '''
+        Implemented by concrete classes.
+        Must return a string corresponding to the posting API supported by this controller.
+        '''
+        raise NotImplementedError("Class " + str(self.__class__) + " forgot to implement method getPostingAPI")
+
     def getSupportedVersions(self):
         '''
         Implemented by concrete classes.

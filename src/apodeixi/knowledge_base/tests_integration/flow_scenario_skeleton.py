@@ -2,6 +2,7 @@ from apodeixi.testing_framework.a6i_integration_test            import ApodeixiI
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
+from apodeixi.knowledge_base.knowledge_base_util                import FormRequest
 from apodeixi.representers.as_excel                             import ManfiestRepresenter
 
 
@@ -14,11 +15,12 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
     and skeleton test drivers that concrete classes can use to succintly define flow test scenarios.
     '''
 
-    def _run_basic_flow(self, excel_relative_path, excel_file, excel_sheet, nb_manifests_expected,
+    def _run_basic_flow(self, from_nothing, posting_api, excel_relative_path, excel_file, excel_sheet, nb_manifests_expected,
                                 generated_form_worksheet):
         '''
         Tests a basic flow for a single posting API consisting of:
 
+        * Request a blind form (only if "from_nothing" = True)
         * Submit an initial posting
         * Request update form
         * Submit an update to initial posting
@@ -37,13 +39,44 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                 self.provisionIsolatedEnvironment(my_trace)
                 self.check_environment_contents(my_trace)
 
+            if from_nothing: # Make a blind call get `requestForm`, without knowing a priori the manifest handles
+                my_trace                    = self.trace_environment(root_trace, "Blind call to 'requestForm' API")
+                if True: 
+                    store                   = self.stack().kb().store
+                    blind_form_request      = store.getBlindFormRequest(    parent_trace    = my_trace, 
+                                                                            relative_path   = excel_relative_path, 
+                                                                            posting_api     = posting_api)
+
+                    fr_response, fr_log_txt, \
+                        fr_rep              = self.stack().kb().requestForm(parent_trace    = root_trace, 
+                                                                            form_request    = blind_form_request) 
+
+                    self.check_environment_contents(my_trace) 
+                    layout_info, pl_fmt_info, \
+                        ws_fmt_info         = self._generated_form_test_output( my_trace, 
+                                                                                blind_form_request, 
+                                                                                fr_response, 
+                                                                                fr_log_txt, 
+                                                                                fr_rep, 
+                                                                                generated_form_worksheet)
+                    api_called              = "initial requestForm"
+
+                    self.check_log(my_trace, fr_log_txt, api_called=api_called)
+
+                    self.check_xl_layout(my_trace, layout_info, generated_form_worksheet, api_called)
+
+                    self.check_xl_format(my_trace, pl_fmt_info, ManfiestRepresenter.POSTING_LABEL_SHEET, api_called)
+
+                    self.check_xl_format(my_trace, ws_fmt_info, generated_form_worksheet, api_called)
+
+
             my_trace                        = self.trace_environment(root_trace, "Calling 'postByFile' API")
             if True:
                 clientURL                   = self.stack().store().current_environment(my_trace).clientURL(my_trace)
                 posting_path                = clientURL + "/" + excel_relative_path + "/" + excel_file
                 response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
-                                                                                path_of_file_being_posted   = posting_path, 
-                                                                                excel_sheet                 = excel_sheet)
+                                                                            path_of_file_being_posted   = posting_path, 
+                                                                            excel_sheet                 = excel_sheet)
                 self.check_manifest_count(my_trace, response, nb_manifests_expected)
 
                 self.check_manifests_contents(my_trace, response)

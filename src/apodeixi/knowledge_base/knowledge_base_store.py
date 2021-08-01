@@ -139,6 +139,30 @@ class KnowledgeBaseStore():
         '''
         return self._impl.buildPostingHandle(parent_trace, excel_posting_path, sheet, excel_range)
 
+    def getBlindFormRequest(self, parent_trace, relative_path, posting_api):
+        '''
+        Returns an FormRequest that can in turn be used to request a form (an Excel spreadsheet)
+        that the end-user can use to make a posting for the create or update the manifests 
+        in for the posting label embedded within the Excel spreadsheet that resides in 
+        the path provided.
+
+        The FormRequest returned is a "blind" form, in the sense that it does not specify the specific
+        ManifestHandle objects that will populate the Excel template obtainable by submitting the FormRequest.
+        The system will have to do a search within the KnowledgeBase store to find out which manifests, if any,
+        already exist for the filing structure and posting API provided.
+        If not exist the form will be creating them.
+        If on the other hand such manifests already exist, then the Excel template will be generated as an
+        update form that is pre-populated with those manifests' contents.
+
+        @param relative_path: A string, representing the path below the end-user's collaboration area root 
+                                (the store's clientURL) for which the form is requested. This determines the 
+                                filing coordinates for the requested form.
+                                Example: "journeys/Dec 2020/FusionOpus/Default"
+        @param posting_api: A string, representing a posting API supported by the knowledge base.
+                                Example: 'big-rocks.journeys.a6i'
+        '''
+        return self._impl.getBlindFormRequest(parent_trace, relative_path, posting_api)
+
     def loadPostingLabel(self, parent_trace, posting_label_handle):
         '''
         Loads and returns a DataFrame based on the `posting_label_handle` provided

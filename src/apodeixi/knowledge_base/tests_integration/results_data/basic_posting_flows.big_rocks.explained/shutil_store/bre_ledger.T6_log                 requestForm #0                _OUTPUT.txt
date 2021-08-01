@@ -2,7 +2,7 @@
 CREATED FORM:        
 		 posting_api     = 'big-rocks.journeys.a6i'
 		 filing_coords   = 'Dec 2020.LedgerPro.OfficialPlan'
-		 excel_filename  = 'big-rocks.journeys.a6i.xlsx'
+		 excel_filename  = 'LedgerPro.big-rocks.journeys.a6i.xlsx'
 		 excel_sheet     = 'Posting Label'
 		 excel_range     = 'B2:C100'
 clientURL =          <MASKED>/apodeixi/test_db/knowledge-base/envs/basic_posting_flows.big_rocks.explained.bre_ledger_ENV/external-collaboration

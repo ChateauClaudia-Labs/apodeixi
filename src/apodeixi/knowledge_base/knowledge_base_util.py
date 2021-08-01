@@ -365,8 +365,13 @@ class FormRequestResponse(Response):
         which this class is the response.
         '''
         parsed_tokens               = self._filing_coords.path_tokens(parent_trace)
+        tag                         = self._filing_coords.getTag(parent_trace)
+        if type(tag) == str and len(tag) > 0:
+            filename                = tag + "." + self._posting_api + ".xlsx"
+        else:
+            filename                = self._posting_api + ".xlsx"
         excel_path                  = '/'.join(parsed_tokens)
-        return excel_path + "/" + self._posting_api + ".xlsx"
+        return excel_path + "/" + filename
 
 
 class FormRequest():
@@ -449,6 +454,12 @@ class FormRequest():
         should reside
         '''
         parsed_tokens               = self._filing_coords.path_tokens(parent_trace)
+        tag                         = self._filing_coords.getTag(parent_trace)
+        if type(tag) == str and len(tag) > 0:
+            filename                = tag + "." + self._posting_api + ".xlsx"
+        else:
+            filename                = self._posting_api + ".xlsx"
+
         excel_path                  = '/'.join(parsed_tokens)
-        return excel_path + "/" + self._posting_api + ".xlsx"
+        return excel_path + "/" + filename
 

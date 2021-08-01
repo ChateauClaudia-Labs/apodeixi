@@ -8,7 +8,12 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
               (Timestamp omitted) Posting:
                 FORM_REQUEST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  388
+                  Size (in bytes):  399
+
+                  '
+                FusionOpus.big-rocks.journeys.a6i.xlsx: '
+
+                  Size (in bytes):  19113
 
                   '
                 OPUS_big-rocks.journeys.a6i.xlsx: '
@@ -18,12 +23,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                   '
                 POST_EVENT_LOG.txt: '
 
-                  Size (in bytes):  2405
-
-                  '
-                big-rocks.journeys.a6i.xlsx: '
-
-                  Size (in bytes):  19113
+                  Size (in bytes):  2438
 
                   '
         LedgerPro:
@@ -43,7 +43,12 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                 (Timestamp omitted) Posting:
                   FORM_REQUEST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  388
+                    Size (in bytes):  399
+
+                    '
+                  FusionOpus.big-rocks.journeys.a6i.xlsx: '
+
+                    Size (in bytes):  19113
 
                     '
                   OPUS_big-rocks.journeys.a6i.xlsx: '
@@ -53,12 +58,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
                     '
                   POST_EVENT_LOG.txt: '
 
-                    Size (in bytes):  2405
-
-                    '
-                  big-rocks.journeys.a6i.xlsx: '
-
-                    Size (in bytes):  19113
+                    Size (in bytes):  2438
 
                     '
               big-rocks.journeys.a6i.xlsx: '

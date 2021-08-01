@@ -2,6 +2,7 @@ import os                                               as _os
 import shutil                                           as _shutil
 import yaml                                             as _yaml
 
+from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.file_kb_store              import File_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl, KB_Environment_Config, KB_Environment
@@ -162,6 +163,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         self.filing_rules           = { #List of associations of posting API => FilingCoordinate class to use for such posting API
             'big-rocks.journeys.a6i':                               JourneysFilingCoordinates,
             'milestone.journeys.a6i':                               JourneysFilingCoordinates,
+            'products.static-data.admin.a6i':                       StaticDataFilingCoordinates,
             'capability-hierarchy.bdd.kernel.a6i':                  None, # TODO
             'workstream.initiatives.a6i':                           InitiativesFilingCoordinates,
             'charter.initiatives.a6i':                              InitiativesFilingCoordinates, 
