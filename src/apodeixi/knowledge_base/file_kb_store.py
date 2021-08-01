@@ -62,7 +62,7 @@ class File_KBStore_Impl():
 
         return posting_handle
 
-    def getBlindFormRequest(self, parent_trace, relative_path, posting_api):
+    def getBlindFormRequest(self, parent_trace, relative_path, posting_api, namespace):
         '''
         Returns an FormRequest that can in turn be used to request a form (an Excel spreadsheet)
         that the end-user can use to make a posting for the create or update the manifests 
@@ -83,6 +83,9 @@ class File_KBStore_Impl():
                                 Example: "journeys/Dec 2020/FusionOpus/Default"
         @param posting_api: A string, representing a posting API supported by the knowledge base.
                                 Example: 'big-rocks.journeys.a6i'
+        @param namespace A string, representing a namespace in the KnowledgeBase store's manifests are that
+                        delimits the scope for searching for manfiests in scope of this FormRequest.
+                        Example: "my-corp.production"
         '''
         my_trace                        = parent_trace.doing("Building the filing coordinates",
                                                                 data = {"relative_path": str(relative_path)})
@@ -95,7 +98,7 @@ class File_KBStore_Impl():
         form_request                    = FormRequest(  parent_trace            = my_trace, 
                                                         posting_api             = posting_api, 
                                                         filing_coords           = filing_coords,
-                                                        manifest_handle_list    = None)
+                                                        scope                   = FormRequest.SearchScope(namespace))
 
 
         return form_request

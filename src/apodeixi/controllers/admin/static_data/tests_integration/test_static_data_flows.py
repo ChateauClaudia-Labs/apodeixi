@@ -28,9 +28,11 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
         EXCEL_RELATIVE_PATH             = "admin/static-data"
         EXCEL_FILE                      = "products.static-data.admin.a6i.xlsx"
         NB_MANIFESTS_EXPECTED           = 2
+        NAMESPACE                       = "my_corp.production"
 
         
         self._run_basic_flow(   from_nothing                = True,
+                                namespace                   = NAMESPACE,
                                 posting_api                 = 'products.static-data.admin.a6i',
                                 excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,

@@ -13,10 +13,15 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
     Used as a helper class for integration test cases involving flows of multiple KnowledgeBase API calls.
     Provides re-usable utilities for common things to check, consistent naming of regression output files,
     and skeleton test drivers that concrete classes can use to succintly define flow test scenarios.
+
+    @param from_nothing A boolean to determine if we should request a form even before any manifest exists
+                        (i.e., a "blank" form)
+    @param namespace A string. Only relevant if from_nothing=True. Used to delimit the search for manifests
+                        when generating a form without explicit manifest handles being given.
     '''
 
-    def _run_basic_flow(self, from_nothing, posting_api, excel_relative_path, excel_file, excel_sheet, nb_manifests_expected,
-                                generated_form_worksheet):
+    def _run_basic_flow(self, from_nothing, namespace, posting_api, excel_relative_path, excel_file, excel_sheet, 
+                                nb_manifests_expected, generated_form_worksheet):
         '''
         Tests a basic flow for a single posting API consisting of:
 
@@ -45,7 +50,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     store                   = self.stack().kb().store
                     blind_form_request      = store.getBlindFormRequest(    parent_trace    = my_trace, 
                                                                             relative_path   = excel_relative_path, 
-                                                                            posting_api     = posting_api)
+                                                                            posting_api     = posting_api,
+                                                                            namespace       = namespace)
 
                     fr_response, fr_log_txt, \
                         fr_rep              = self.stack().kb().requestForm(parent_trace    = root_trace, 
@@ -194,9 +200,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         '''
         # Check the layout for the generated form is right
         layout_output_nice                  = ""
-        manifest_handles_dict               = form_request.manifestHandles(parent_trace)
-        for key in manifest_handles_dict.keys():
-            manifest_handle                         = manifest_handles_dict[key]
+        for key in fr_response.getManifestIdentifiers(parent_trace): #manifest_handles_dict.keys():
             layout_output_dict                      = {}
 
             layout_output_dict['layout span']       = fr_rep.span_dict[key]

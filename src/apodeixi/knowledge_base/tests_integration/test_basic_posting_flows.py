@@ -31,6 +31,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
 
         
         self._run_basic_flow(   from_nothing                = False,
+                                namespace                   = None, # Only relevant when from_nothing is True
                                 posting_api                 = 'big-rocks.journeys.a6i',
                                 excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
@@ -49,6 +50,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
 
         
         self._run_basic_flow(   from_nothing                = False,
+                                namespace                   = None, # Only relevant when from_nothing is True
                                 posting_api                 = 'big-rocks.journeys.a6i',
                                 excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,

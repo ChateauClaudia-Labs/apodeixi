@@ -139,7 +139,7 @@ class KnowledgeBaseStore():
         '''
         return self._impl.buildPostingHandle(parent_trace, excel_posting_path, sheet, excel_range)
 
-    def getBlindFormRequest(self, parent_trace, relative_path, posting_api):
+    def getBlindFormRequest(self, parent_trace, relative_path, posting_api, namespace):
         '''
         Returns an FormRequest that can in turn be used to request a form (an Excel spreadsheet)
         that the end-user can use to make a posting for the create or update the manifests 
@@ -160,8 +160,11 @@ class KnowledgeBaseStore():
                                 Example: "journeys/Dec 2020/FusionOpus/Default"
         @param posting_api: A string, representing a posting API supported by the knowledge base.
                                 Example: 'big-rocks.journeys.a6i'
+        @param namespace A string, representing a namespace in the KnowledgeBase store's manifests are that
+                        delimits the scope for searching for manfiests in scope of this FormRequest.
+                        Example: "my-corp.production"
         '''
-        return self._impl.getBlindFormRequest(parent_trace, relative_path, posting_api)
+        return self._impl.getBlindFormRequest(parent_trace, relative_path, posting_api, namespace)
 
     def loadPostingLabel(self, parent_trace, posting_label_handle):
         '''

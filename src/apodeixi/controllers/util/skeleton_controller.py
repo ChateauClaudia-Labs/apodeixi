@@ -6,7 +6,8 @@ from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
 from apodeixi.xli.uid_store                             import UID_Store
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle, \
-                                                                PostingLabelHandle, FormRequestResponse, ManifestHandle
+                                                                PostingLabelHandle, FormRequestResponse, ManifestHandle, \
+                                                                FormRequest
 from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.representers.as_dataframe                 import AsDataframe_Representer
 from apodeixi.representers.as_excel                     import ManfiestRepresenter
@@ -83,22 +84,23 @@ class SkeletonController(PostingController):
         ME                      = SkeletonController
         my_trace                = parent_trace.doing("Loading manifests requested in the form")
         if True:
-            manifest_handles_dict               = form_request.manifestHandles(my_trace)
+            manifests_in_scope_dict             = self._manifests_in_scope(parent_trace, form_request)
             manifestInfo_dict                   = {}
-            contents_df_dict                    = {} # needed for ManfiestRepresenter
-            for key in manifest_handles_dict.keys():
-                manifest_handle                 = manifest_handles_dict[key]
-                loop_trace                      = my_trace.doing("Loading manifest",
-                                                                    data = {"handle": manifest_handle.display(my_trace)})
+            contents_df_dict                    = {} # needed for ManifestRepresenter
+            manifest_identifiers                = [] # needed for FormRequestResponse
+            for key in manifests_in_scope_dict.keys():
+                loop_trace                      = my_trace.doing("Extracting content for manifest",
+                                                                    data = {"manifest identifier": str(key)})
+                manifest_dict                   = manifests_in_scope_dict[key]
                 manifest_info                   = ME._ManifestInfo( parent_trace            = loop_trace,
                                                                     key                     = key,
-                                                                    manifest_handle         = manifest_handle, 
-                                                                    form_request            = form_request, 
+                                                                    manifest_dict           = manifest_dict,
                                                                     controller              = self)
                 manifestInfo_dict[key]          = manifest_info
-                # This other dictionary of dataframes is needed for ManfiestRepresenter
+                # This other dictionary of dataframes is needed for ManifestRepresenter
                 data_df                         = manifest_info.getManifestContents(my_trace)
                 contents_df_dict[key]           = data_df
+                manifest_identifiers.append(key)
 
         my_trace                = parent_trace.doing("Creating Excel layouts for posting label")
         label, label_config     = self._build_labelXLconfig(my_trace, manifestInfo_dict)
@@ -131,10 +133,11 @@ class SkeletonController(PostingController):
                                             )
 
             env_config          = self.store.current_environment(parent_trace).config(parent_trace)
-            response            = FormRequestResponse(  clientURL       = self.store.getClientURL(my_trace),
-                                                        posting_api     = form_request.getPostingAPI(my_trace),
-                                                        filing_coords   = form_request.getFilingCoords(my_trace),
-                                                        path_mask       = env_config.path_mask)
+            response            = FormRequestResponse(  clientURL               = self.store.getClientURL(my_trace),
+                                                        posting_api             = form_request.getPostingAPI(my_trace),
+                                                        filing_coords           = form_request.getFilingCoords(my_trace),
+                                                        path_mask               = env_config.path_mask,
+                                                        manifest_identifiers    = manifest_identifiers)
             response.recordClientURLCreation(parent_trace=my_trace, response_handle=response_handle)
 
             self.log_txt                        = self.store.logFormRequestEvent(my_trace, form_request, response)
@@ -214,39 +217,25 @@ class SkeletonController(PostingController):
     
     class _ManifestInfo():
         '''
-        Helper data structure to group related information about a manifest that is gradually built or used in the process
-        of handling a FormRequest that includes such manifest
+        Helper data structure to group related information about a manifest that is in scope for form (i.e.,
+        Excel spreadsheet) being generated in response to a FormRequest.
 
+        @param key A string, which is a unique identifier of this manifest among all manifests in the scope of
+                    a form (i.e., of an Excel spreadsheet intended for postings).
+                    Should be in the format of <kind>.<manifest number>
+                    Example: "big-rock.0"
+        @param manifest_dict A dict, representing the content of a manifest's YAML file. The manifest must be the
+                    one identified by the `key` parameter.
         @param controller A an object of a class derived from SkeletonController, which contains this _Manifest_info
                 class as an inner class
         '''
-        def __init__(self, parent_trace, key, manifest_handle, form_request, controller):
+        def __init__(self, parent_trace, key, manifest_dict, controller): 
             self._key                       = key
-            self._manifest_handle           = manifest_handle  
             self._controller                = controller
-            self._form_request              = form_request
-
-            # These computed 
-            self._manifest_dict             = self._retrieveManifest(parent_trace)
+            self._manifest_dict             = manifest_dict 
             self._contents_df               = self._buildManifestContent(parent_trace)  
             return
 
-        def _retrieveManifest(self, parent_trace):
-            '''
-            Loads the YAML manifest and returns a dict representing it
-            '''
-            manifest_handles_dict           = self._form_request.manifestHandles(parent_trace)
-
-            if self._key == None or not self._key in manifest_handles_dict.keys():
-                raise ApodeixiError(parent_trace, "Key does not identify any ManifestHandle in the FormRequest",
-                                                    data = {"key": self._key})
-
-            manifest_handle                 = manifest_handles_dict[self._key]
-            my_trace                        = parent_trace.doing("Loading manifest as a DataFrame",
-                                                                 data = {"handle": manifest_handle.display(parent_trace)})
-            manifest_dict, manifest_path    = self._controller.store.retrieveManifest(my_trace, manifest_handle)
-            return manifest_dict
-            
         def getManifestDict(self, parent_trace):
             self._abort_if_null_manifest(parent_trace)
             return self._manifest_dict
@@ -262,9 +251,11 @@ class SkeletonController(PostingController):
             self._abort_if_null_manifest(parent_trace)
 
             kind                            = self._manifest_dict['kind']
+            manifest_nb                     = int(self._key.split('.')[1])
+            
             posting_config                  = self._controller.getPostingConfig(parent_trace, 
                                                                     kind, 
-                                                                    self._form_request.manifest_nb(parent_trace, self._key)) 
+                                                                    manifest_nb) 
             entity                          = posting_config.entity_as_yaml_fieldname()
 
             content_dict                    = self._manifest_dict['assertion'][entity]
@@ -279,6 +270,54 @@ class SkeletonController(PostingController):
                 raise ApodeixiError(parent_trace, "_ManifestInfo has a null manifest - did you forget to retrieve it "
                                                 + "ahead of this point in the processing?",
                                                 data = {"manifest key": str(self._key)})
+
+    def _manifests_in_scope(self, parent_trace, form_request):
+        '''
+        Helper method that retrieves from the store the content needed to populate the requested form.
+        It is used during processing of the controller's generateForm method.
+
+        Specifically, based on the information in the `form_request` it constructs a dictionary
+        whose keys are manifest identifiers (strings) and values are dictionaries representing the
+        Manifest content per manifest identifier.
+
+        @param form_request A FormRequest object
+        '''
+        manifests_in_scope_dict                 = {}
+        scope                                   = form_request.getScope(parent_trace)
+        if type(scope) == FormRequest.ExplicitScope:
+            manifest_handles_dict               = scope.manifestHandles(parent_trace)
+            for key in manifest_handles_dict.keys():
+                manifest_handle                 = manifest_handles_dict[key]
+                my_trace                        = parent_trace.doing("Loading manifest as a DataFrame",
+                                                        data = {"handle": manifest_handle.display(parent_trace)})
+                manifest_dict, manifest_path    = self.store.retrieveManifest(my_trace, manifest_handle)
+                manifests_in_scope_dict[key]    = manifest_dict
+        else:
+            '''
+            Algorithm:
+            
+            1) Ask the controller to create a "relative path" and a set of "filename pattern" , using
+               the form as input. 
+               Example: on filing coords [Dec 2020, FusionOpus, Default] the controller produces this:
+
+                relative_path = namespace/name where:
+
+                    namespace tokens: [*(?organization), *(?production)] // From Apodeixi config?? Input to request?
+                    name tokens:    [modernization, default, dec2020, fusionopus]
+
+                    filename pattern: <kind>.<version number>.yaml for the <kind> values supported by controller
+
+            2) Ask the store to return all the manifests that match the pattern for the relative path 
+            3) For each kind for which at least 1 manifest was found, select the one with highest version
+            4) Raise an exception if any manifest thus selected is for an apiVersion not supported by this controller
+            5) Return two data structures:
+                a) A dictionary of manifests, for each kind for which content was found
+                b) A list of kinds for which no manifest was found
+            '''  
+
+            raise ApodeixiError(parent_trace, "Sorry, generating a blind form is not yet supported")
+
+        return manifests_in_scope_dict
 
     def getPostingConfig(self, parent_trace, kind, manifest_nb):
         '''
