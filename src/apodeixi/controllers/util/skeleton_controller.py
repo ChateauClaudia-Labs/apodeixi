@@ -1,5 +1,6 @@
 import yaml                                             as _yaml
 import os                                               as _os
+import datetime                                         as _datetime
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 
@@ -115,8 +116,7 @@ class SkeletonController(PostingController):
 
         config_table.setPostingLabelXLConfig(my_trace, label_config)
 
-        my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")
-        
+        my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")        
         if True:
             rep                 = ManfiestRepresenter(  parent_trace    = my_trace,
                                                         config_table    = config_table,
@@ -240,6 +240,8 @@ class SkeletonController(PostingController):
             self._contents_df               = self._buildManifestContent(parent_trace)  
             return
 
+        TEMPLATE_DF                         = "TEMPLATE_DF" # Used when using a template DataFrame as the assertion
+
         def getManifestDict(self, parent_trace):
             self._abort_if_null_manifest(parent_trace)
             return self._manifest_dict
@@ -257,16 +259,21 @@ class SkeletonController(PostingController):
             kind                            = self._manifest_dict['kind']
             manifest_nb                     = int(self._key.split('.')[1])
             
-            posting_config                  = self._controller.getPostingConfig(parent_trace, 
-                                                                    kind, 
-                                                                    manifest_nb) 
-            entity                          = posting_config.entity_as_yaml_fieldname()
+            assertion_dict                  = self._manifest_dict['assertion']
+            DF_KEY                          = SkeletonController._ManifestInfo.TEMPLATE_DF
+            if DF_KEY in assertion_dict.keys(): # This is not a real manifest - we have content as a DataFrame template
+                contents_df                 = assertion_dict[DF_KEY]
+            else: # This is a real manifest that we parsed, so need to convert parsed tree to a DataFrame
+                posting_config                  = self._controller.getPostingConfig(parent_trace, 
+                                                                        kind, 
+                                                                        manifest_nb) 
+                entity                          = posting_config.entity_as_yaml_fieldname()
 
-            content_dict                    = self._manifest_dict['assertion'][entity]
-            rep                             = AsDataframe_Representer()
-            contents_path                   = 'assertion.' + entity
-            contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path)
-        
+                content_dict                    = assertion_dict[entity]
+                rep                             = AsDataframe_Representer()
+                contents_path                   = 'assertion.' + entity
+                contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path)
+            
             return contents_df
 
         def _abort_if_null_manifest(self, parent_trace):
@@ -326,6 +333,13 @@ class SkeletonController(PostingController):
                                                 data = {"api in manifest":          str(api_found),
                                                         "api version in manifest":  str(api_suffix_found),
                                                         "supperted api versions":   str(self.getSupportedVersions())})
+                else: # There is no manifest with these constraints, so create a template
+                    template_dict, template_df  = self.createTemplate(  parent_trace        = loop_trace,
+                                                                        form_request        = form_request,
+                                                                        kind                = kind)
+                    manifest_dict               = template_dict
+                    DF_KEY                      = SkeletonController._ManifestInfo.TEMPLATE_DF
+                    manifest_dict['assertion'][DF_KEY]   = template_df
                     
                 manifests_in_scope_dict[manifest_identifier]    = manifest_dict # NB: may be none if it has to be created
                 manifest_nb                         += 1
@@ -514,6 +528,67 @@ class SkeletonController(PostingController):
                                                     manifest_dict       = manifest_dict, 
                                                     manifest_version    = next_version)
         return manifest_dict
+
+    def createTemplate(self, parent_trace, form_request, kind):
+        '''
+        Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
+        content) to support a ManifestRepresenter to create an Excel spreadsheet with that information.
+
+        It is intended to support the processing of blind form requests.
+
+        For reasons of convenience (to avoid going back and forth between DataFrames and YAML), it returns
+        the template as a tuple of two data structures:
+
+        * template_dict This is a dictionary of the non-assertion part of the "fake" manifest
+        * template_df   This is a DataFrame for the assertion part of the "fake" manifest
+        '''
+        scope                       = form_request.getScope(parent_trace)
+        label                       = self.getPostingLabel(parent_trace) 
+        if type(scope) != FormRequest.SearchScope:
+            raise ApodeixiError(parent_trace, "Can't create Excel template because FormRequest's scope is of wrong type",
+                                                data = {"type of scope received":   str(type(scope)),
+                                                        "type of scope required":   "FormRequest.SearchScope"},
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__})
+
+        coords                      = form_request.getFilingCoords(parent_trace)
+        namespace                   = scope.namespace
+        subnamespace                = scope.subnamespace
+        manifest_name               = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+
+        organization, environment   = namespace.split(".")
+        recorded_by                 = "yourname.lastname@your_company.com"
+        estimated_by                = "accountableowner.lastname@your_company.com"
+        estimated_on                = _datetime.datetime.today()
+
+        template_dict               = {}   # Will be the non-assertions part of the template
+        template_df                 = None # Will be the assertion part of the template. We leave it concrete classes to populate this
+        metadata                    = { 'namespace':    namespace, 
+                                        'name':         manifest_name,
+                                        'labels':       {   label._ORGANIZATION:    organization,
+                                                            label._ENVIRONMENT:     environment,
+                                                            label._RECORDED_BY:     recorded_by,
+                                                            label._ESTIMATED_BY:    estimated_by,
+                                                            label._ESTIMATED_ON:    estimated_on,
+                                                        }
+                                        }
+
+        template_dict[ManifestAPIVersion.API_VERSION] = self.api_version(parent_trace)
+        template_dict['kind']       = kind
+        template_dict['metadata']   = metadata
+
+        template_dict['assertion']  = { label._RECORDED_BY:                 recorded_by ,
+                                        label._ESTIMATED_BY:                estimated_by, 
+                                        label._ESTIMATED_ON:                estimated_on,
+                                        #'entity_type':                      tree.entity_type,
+                                        #FMT(tree.entity_type):              tree_dict
+                                        }
+        
+        ManifestUtils().set_manifest_version(   parent_trace        = parent_trace, 
+                                                manifest_dict       = template_dict, 
+                                                manifest_version    = -1) # Not a real manifest, so not a real version
+        return template_dict, template_df
+
 
     def initialize_UID_Store(self, parent_trace, posting_data_handle, label, config):
         '''

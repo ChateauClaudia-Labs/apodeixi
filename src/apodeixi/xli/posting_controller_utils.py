@@ -63,6 +63,24 @@ class PostingController():
                                             origination = {'concrete class': str(self.__class__.__name__), 
                                                             'signaled_from': __file__})
 
+    def createTemplate(self, parent_trace, form_request, kind):
+        '''
+        Abstract method
+        Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
+        content) to support a ManifestRepresenter to create an Excel spreadsheet with that information.
+
+        It is intended to support the processing of blind form requests.
+
+        For reasons of convenience (to avoid going back and forth between DataFrames and YAML), it returns
+        the template as a tuple of two data structures:
+
+        * template_dict This is a dictionary of the non-assertion part of the "fake" manifest
+        * template_df   This is a DataFrame for the assertion part of the "fake" manifest
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'createTemplate' in concrete class",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
+
     def initialize_UID_Store(self, parent_trace, posting_data_handle, label, config):
         '''
         Abstract method

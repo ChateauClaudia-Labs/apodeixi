@@ -6,7 +6,7 @@ from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDat
 from apodeixi.knowledge_base.knowledge_base_util                import FormRequest
 
 
-from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLConfig
+#from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLConfig
 
 from apodeixi.util.formatting_utils                             import StringUtils
 from apodeixi.xli.posting_controller_utils                      import UpdatePolicy, PostingConfig
@@ -57,47 +57,7 @@ class StaticData_Controller(SkeletonController):
         ME                              = StaticData_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):
-        '''
-        Overwrites parent's implementation
 
-        Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
-        all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
-        '''
-        config_table                        = AsExcel_Config_Table()
-        x_offset                            = 1
-        y_offset                            = 1
-        for key in manifestInfo_dict:
-            loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
-                                                                + str(key) + "'")
-            manifest_info                   = manifestInfo_dict[key]
-            data_df                         = manifest_info.getManifestContents(parent_trace)
-            editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            if key == self.get_kind(loop_trace) + '.0':
-                hidden_cols                 = []
-                right_margin                = 0
-                num_formats                 = {}
-                excel_formulas              = None
-                df_row_2_excel_row_mapper   = None
-            else:
-                raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
-            config      = ManifestXLConfig( sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                            manifest_name               = key,    
-                                            viewport_width              = 100,  
-                                            viewport_height             = 40,   
-                                            max_word_length             = 20, 
-                                            editable_cols               = editable_cols,
-                                            hidden_cols                 = hidden_cols,  
-                                            num_formats                 = num_formats, 
-                                            excel_formulas              = excel_formulas,
-                                            df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
-                                            editable_headers            = [],   
-                                            x_offset                    = x_offset,    
-                                            y_offset                    = y_offset)
-            # Put next manifest to the right of this one, separated by an empty column
-            x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
-            config_table.addManifestXLConfig(loop_trace, config)
-        return config_table
 
     def _buildAllManifests(self, parent_trace, posting_label_handle):
 
@@ -144,6 +104,23 @@ class StaticData_Controller(SkeletonController):
         manifest_dict                   = super()._buildOneManifest(parent_trace, posting_data_handle, label)
            
         return manifest_dict
+
+    def createTemplate(self, parent_trace, form_request, kind):
+        '''
+        Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
+        content) to support a ManifestRepresenter to create an Excel spreadsheet with that information.
+
+        It is intended to support the processing of blind form requests.
+
+        For reasons of convenience (to avoid going back and forth between DataFrames and YAML), it returns
+        the template as a tuple of two data structures:
+
+        * template_dict This is a dictionary of the non-assertion part of the "fake" manifest
+        * template_df   This is a DataFrame for the assertion part of the "fake" manifest
+        '''
+        template_dict, template_df      = super().createTemplate(parent_trace, form_request, kind)
+
+        return template_dict, template_df
 
     class _StaticDataConfig(PostingConfig):
         '''
