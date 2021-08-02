@@ -3,6 +3,7 @@ import shutil                                           as _shutil
 import yaml                                             as _yaml
 
 from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
+from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.file_kb_store              import File_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl, KB_Environment_Config, KB_Environment
@@ -13,6 +14,7 @@ from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoo
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
 from apodeixi.representers.as_excel                     import ManfiestRepresenter
 from apodeixi.util.path_utils                           import PathUtils
+from apodeixi.util.dictionary_utils                     import DictionaryUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 class TransactionEvents():
@@ -590,8 +592,9 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 * the name is "modernization.default.dec-2020.fusionopus"
                 * the kind is "big-rock"
                 * the version is 2 (an int)
-                * the manifest api is embedded within the YAML file, and is something like 
-                  "delivery-planning.journeys.a6i.io/v1a"
+                * the manifest api is embedded within the YAML file. The YAML file has a field called
+                  "apiVersion" with a value like "delivery-planning.journeys.a6i.io/v1a", and the manifest api
+                  is the substring without the suffix: "delivery-planning.journeys.a6i.io"
 
         @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
                     manifest kinds subsumed under such API. The search for manifests is filtered to those
@@ -603,9 +606,141 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
                     logical manifest (other than version number)
         '''
-        raise ApodeixiError(parent_trace, "Sorry, we have not yet implemented findLatestVersionManifest",
-                                            origination = {'concrete class': str(self.__class__.__name__), 
-                                                            'signaled_from': __file__})
+        my_trace                                    = parent_trace.doing("Looking for the latest manifest file",
+                                                                            data = {'namespace':        namespace,
+                                                                                    'name':             name,
+                                                                                    'kind':             kind})
+        folder                                      = self._current_env.manifestsURL(parent_trace) + '/' + namespace + '/' + name
+        result_dict                                 = None
+        result_api_version_suffix                   = None
+        latest_version                              = -1 # Will overwrite as we find higher versions in the loop
+        for filename in self._getFilenames(parent_trace, folder):
+            loop_trace                              = my_trace.doing("Considering filename candidate",
+                                                                data = {'filename':         filename,
+                                                                        'folder':           folder},
+                                                                origination = {
+                                                                        'concrete class':   str(self.__class__.__name__), 
+                                                                        'signaled_from':    __file__})
+
+            # Example: filename might be 'big-rock.2.yaml' so tokens becomes ['big-rock', '2', 'yaml']
+            tokens                                  = filename.split(".") 
+            
+            if len(tokens) != 3:
+                raise ApodeixiError(loop_trace, "Encountered unrecognized YAML in manifests' area of Knowledge Base store",
+                                                    data = {"bad filename":     str(filename),
+                                                            "expected structure":   "<kind>.<version nb>.yaml"})
+            if tokens[0] != kind: # This file is a manifest for a different kind
+                continue
+            version_found                           = int(tokens[1])
+            if version_found <= latest_version:
+                continue
+            # So far so good. But check API just in case different manifest APIs have the same 'kind' in 
+            # their schemas
+            with open(folder + '/' + filename, 'r') as file:
+                manifest_dict                       = _yaml.load(file, Loader=_yaml.FullLoader)
+                # We will look inside the manifest to make some consistency checks:
+                if not self._check_manifest_matches(parent_trace, 
+                                                    manifest_filename       = filename,
+                                                    manifest_dict           = manifest_dict, 
+                                                    manifest_api            = manifest_api, 
+                                                    namespace               = namespace, 
+                                                    name                    = name, 
+                                                    kind                    = kind,
+                                                    minimal_version         = latest_version + 1):
+                    continue
+                # If we get this far then this is a bona fide manifest matching our search criteria and also
+                # of a more recent version than anything we found previously
+                result_dict                         = manifest_dict
+                latest_version                      = version_found # increase latest_version for next cycle of loop
+
+        return result_dict
+    
+    def _check_manifest_matches(self, parent_trace, manifest_filename, manifest_dict, 
+                                        manifest_api, namespace, name, kind, minimal_version):
+        '''
+        Helper method for self.findLatestVersionManifest. It verifies that the manifest_dict has
+        all the fields as stated in the parameters.
+
+        Returns True if it does, False if it doesn't. Raises an error if in the process it finds
+        any corruption (e.g., fields inside the manifest_dict not matching the expectations
+        of the parameters)
+
+        @param manifest_dict A dict object representing the YAML content of a manifest
+        @minimal_version An int, stating the minimal value that the version field must have for this
+                            manifest to be considered a match
+        '''
+        UTILS                               = DictionaryUtils()
+
+        my_trace                            = parent_trace.doing("Checking apiVersion matches")
+        if True:
+            api_found, api_suffix_found     = ManifestUtils().get_manifest_apiversion(my_trace, manifest_dict)
+            if api_found != manifest_api: 
+                # This is a manifest for a different API, just happens to have one schema named the same kind as ours
+                return False 
+
+        my_trace                            = parent_trace.doing("Checking namespace matches")
+        if True:
+            UTILS.validate_path(            parent_trace    = my_trace, 
+                                            root_dict       = manifest_dict, 
+                                            root_dict_name  = manifest_filename, 
+                                            path_list       = ['metadata', 'namespace'], 
+                                            valid_types     = [str])            
+            namespace_found                 = manifest_dict['metadata']['namespace']
+            if namespace_found != namespace:
+                # This YAML file is corrupted, since it is under the namespace directory but internally has a different
+                # namespace
+                raise ApodeixiError(my_trace, "Encountered corrupted YAML file: inconsistent namespace",
+                                data = {"YAML file":                        str(manifest_filename),
+                                        "namespace in YAML file":           str(namespace_found),
+                                        "namespace in folder structure":    str(namespace)})
+
+        my_trace                            = parent_trace.doing("Checking name matches")
+        if True:
+            UTILS.validate_path(            parent_trace    = my_trace, 
+                                            root_dict       = manifest_dict, 
+                                            root_dict_name  = manifest_filename, 
+                                            path_list       = ['metadata', 'name'], 
+                                            valid_types     = [str])
+            name_found                      = manifest_dict['metadata']['name']
+            if name_found != name:
+                # This YAML file is corrupted, since it is under the names directory but internally has a different
+                # names
+                raise ApodeixiError(my_trace, "Encountered corrupted YAML file: inconsistent name",
+                                data = {"YAML file":                        str(manifest_filename),
+                                        "name in YAML file":           str(name_found),
+                                        "name in folder structure":    str(name)})
+                return False
+
+        my_trace                            = parent_trace.doing("Checking kind matches")
+        if True:
+            UTILS.validate_path(            parent_trace    = my_trace, 
+                                            root_dict       = manifest_dict, 
+                                            root_dict_name  = manifest_filename, 
+                                            path_list       = ['kind'], 
+                                            valid_types     = [str])
+        
+            kind_found                      = manifest_dict['kind']
+            if kind_found != kind:
+                # This YAML file is corrupted, since it is named after a different kind than what it internally has
+                raise ApodeixiError(my_trace, "Encountered corrupted YAML file: inconsistent kind",
+                                data = {"YAML file":                        str(manifest_filename),
+                                        "kind in YAML file":                str(kind_found),
+                                        "kind in filename":                 str(kind)})
+
+        my_trace                            = parent_trace.doing("Checking version is high enough")
+        if True:
+            UTILS.validate_path(            parent_trace    = my_trace, 
+                                            root_dict       = manifest_dict, 
+                                            root_dict_name  = manifest_filename, 
+                                            path_list       = ['metadata', 'version'], 
+                                            valid_types     = [int])
+            version_found                 = manifest_dict['metadata']['version']
+            if version_found <=minimal_version:
+                return False
+
+        # If we got this far then all checks pass
+        return True
+
 
     def _remember_posting_write(self, parent_trace, relative_path):
         '''
@@ -737,9 +872,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
     def _getFilenames(self, parent_trace, folder):
         '''
-        Helper method that looks at all files in the given folder that end in the given suffix and returns their filenames
-
-        The suffix might be ".yaml" to retrieve manifests, or even "_<version>.yaml" for versioned manifests
+        Helper method that looks at all files in the given folder that end in the "yaml" suffix and returns their filenames
         '''
         matches                         = []
         if  _os.path.isdir(folder):

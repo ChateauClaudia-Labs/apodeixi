@@ -94,6 +94,8 @@ class SkeletonController(PostingController):
                 loop_trace                      = my_trace.doing("Extracting content for manifest",
                                                                     data = {"manifest identifier": str(key)})
                 manifest_dict                   = manifests_in_scope_dict[key]
+                if manifest_dict == None:
+                    raise ApodeixiError(loop_trace, "Sorry, blind form requests are not yet supported") # TODO - Implement it!
                 manifest_info                   = ME._ManifestInfo( parent_trace            = loop_trace,
                                                                     key                     = key,
                                                                     manifest_dict           = manifest_dict,
@@ -314,6 +316,16 @@ class SkeletonController(PostingController):
                                                                                         namespace       = namespace, 
                                                                                         name            = name, 
                                                                                         kind            = kind)
+
+                # If we did find something (i.e., manifest-dict isn't null), check this manifest is for an API version we support.
+                # This call returns something like ("delivery-planning.journeys.a6i.io", "v1a")
+                if manifest_dict != None:
+                    api_found, api_suffix_found     = ManifestUtils().get_manifest_apiversion(loop_trace, manifest_dict)
+                    if not api_suffix_found in self.getSupportedVersions():
+                        raise ApodeixiError(loop_trace, "This distribution does not support the API version of the latest manifest",
+                                                data = {"api in manifest":          str(api_found),
+                                                        "api version in manifest":  str(api_suffix_found),
+                                                        "supperted api versions":   str(self.getSupportedVersions())})
                     
                 manifests_in_scope_dict[manifest_identifier]    = manifest_dict # NB: may be none if it has to be created
                 manifest_nb                         += 1

@@ -193,6 +193,35 @@ class ManifestUtils():
                                                     version     = metadata_dict[VERSION])
         return handle
 
+    def get_manifest_apiversion(self, parent_trace, manifest_dict):
+        '''
+        Examines the manifest content in `manifest_dict` and returns the manifest API inside it,
+        parsed as two separate strings: the API itself, and the version suffix
+
+        For example, if the apiVersion field inside the manifest_dict is 
+        
+                        "delivery-planning.journeys.a6i.io/v1a",
+
+        this method will return:
+
+                        ("delivery-planning.journeys.a6i.io", "v1a")
+        '''
+        DictionaryUtils().validate_path(parent_trace    = parent_trace, 
+                                        root_dict       = manifest_dict, 
+                                        root_dict_name  = "manifest_dct", 
+                                        path_list       = [ManifestAPIVersion.API_VERSION], 
+                                        valid_types     = [str])
+        # Example of apiVersion: "delivery-planning.journeys.a6i.io/v1a"
+        apiVersion                      = manifest_dict[ManifestAPIVersion.API_VERSION] 
+        api_tokens                      = apiVersion.split("/")
+        if len(api_tokens) != 2:
+            raise ApodeixiError(parent_trace, "Encountered corrupted api version in YAML file",
+                            data = {"bad api version":  apiVersion,
+                                    "Example of good structure":   "delivery-planning.journeys.a6i.io/v1a"})
+        api_found                       = api_tokens[0]
+        api_suffix_found                = api_tokens[1]  
+        return api_found, api_suffix_found      
+
 class ManifestHandle():
     '''
     Object that uniquely identifies a manifest in an Apodeixi knowledge base
