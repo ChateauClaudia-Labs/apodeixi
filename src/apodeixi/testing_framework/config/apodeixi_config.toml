@@ -8,6 +8,8 @@ external-collaboration-folder = "C:/Users/aleja/Documents/Code/chateauclaudia-la
 
 [organization-settings]
 month-fiscal-year-starts = 6
+organization = "My Corporation"
+knowledge-base-areas = ["Production", "Testing Area"]
 
 # ------------------------------------- Corporate Banking Products
 [products.corporate]

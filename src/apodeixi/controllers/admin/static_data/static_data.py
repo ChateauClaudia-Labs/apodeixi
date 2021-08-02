@@ -18,9 +18,12 @@ class StaticData_Controller(SkeletonController):
 
     Implements common controller functionality across different types of static data. It is intended for simple
     controllers that support just one kind of manifest.
+
+    @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
+    @param a6i_config The ApodeixiConfig instance for the Python process in which we are running.
     '''
-    def __init__(self, parent_trace, store):
-        super().__init__(parent_trace, store)
+    def __init__(self, parent_trace, store, a6i_config):
+        super().__init__(parent_trace, store, a6i_config)
 
         self.MANIFEST_API = ManifestAPI(    parent_trace    = parent_trace,
                                             subdomain       = StaticData_Controller._STATIC_DATA, 

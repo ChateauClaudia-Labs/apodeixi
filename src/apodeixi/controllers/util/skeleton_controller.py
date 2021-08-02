@@ -26,9 +26,10 @@ class SkeletonController(PostingController):
     Controllers. It helps by implementing those conventions as a common skeleton that can be re-used by derived classes.
 
     @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
+    @param a6i_config The ApodeixiConfig instance for the Python process in which we are running.
     '''
-    def __init__(self, parent_trace, store):
-        super().__init__(parent_trace, store)
+    def __init__(self, parent_trace, store, a6i_config):
+        super().__init__(parent_trace, store, a6i_config)
 
         # Internally computed data, maintained to assist with testing and debugging.
         self.log_txt                = None

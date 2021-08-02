@@ -20,9 +20,11 @@ class PostingController():
     Abstract parent class for controllers that parse Excel spreadsheet to create manifests in the KnowledgeBase
 
     @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
+    @param a6i_config The ApodeixiConfig instance for the Python process in which we are running.
     '''
-    def __init__(self, parent_trace, store):
+    def __init__(self, parent_trace, store, a6i_config):
         self.store              = store
+        self.a6i_config         = a6i_config
         self.init_link_table(parent_trace)
         self.show_your_work     = PostingCtrl_ShowYourWork(parent_trace)
         return

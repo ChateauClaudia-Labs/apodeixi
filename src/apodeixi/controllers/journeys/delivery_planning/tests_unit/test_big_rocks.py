@@ -46,7 +46,7 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)")
 
-            controller          = big_rocks.BigRocksEstimate_Controller(root_trace, STORE)
+            controller          = big_rocks.BigRocksEstimate_Controller(root_trace, STORE, a6i_config = self._config)
             all_manifests_dict, label,   = controller._buildAllManifests(root_trace, posting_handle)
 
             NB_MANIFESTS_EXPECTED   = 3

@@ -109,7 +109,7 @@ class ApodeixiConfig():
         return self.config_dict[KB][EXTERNAL_FOLDER]
 
     def getMonthFiscalYearStarts(self, parent_trace):
-        my_trace            = parent_trace.doing("Retrieving Knowledge Base's root postings folder from the Apodeixi Configuration ")
+        my_trace            = parent_trace.doing("Retrieving Knowledge Base's fiscal year start from the Apodeixi Configuration ")
         SETTINGS            = 'organization-settings'
         FY_START            = 'month-fiscal-year-starts'
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
@@ -118,9 +118,37 @@ class ApodeixiConfig():
                                                                 path_list       = [SETTINGS, FY_START],
                                                                 valid_types     = [int])
         if not check:
-            raise ApodeixiError(my_trace, "Can't locate root folder for postings: " + explanation)
+            raise ApodeixiError(my_trace, "Can't locate Knowledge Base's fiscal year start: " + explanation)
         
         return self.config_dict[SETTINGS][FY_START]
+
+    def getOrganization(self, parent_trace):
+        my_trace            = parent_trace.doing("Retrieving Knowledge Base's organization from the Apodeixi Configuration ")
+        SETTINGS            = 'organization-settings'
+        ORGANIZATION        = 'organization'
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
+                                                                root_dict       = self.config_dict, 
+                                                                root_dict_name  = 'apodeixi',
+                                                                path_list       = [SETTINGS, ORGANIZATION],
+                                                                valid_types     = [str])
+        if not check:
+            raise ApodeixiError(my_trace, "Can't locate Knowledge Base's organization: " + explanation)
+        
+        return self.config_dict[SETTINGS][ORGANIZATION]
+
+    def getKnowledgeBaseAreas(self, parent_trace):
+        my_trace            = parent_trace.doing("Retrieving Knowledge Base's areas from the Apodeixi Configuration ")
+        SETTINGS            = 'organization-settings'
+        ORGANIZATION        = 'knowledge-base-areas'
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
+                                                                root_dict       = self.config_dict, 
+                                                                root_dict_name  = 'apodeixi',
+                                                                path_list       = [SETTINGS, ORGANIZATION],
+                                                                valid_types     = [list])
+        if not check:
+            raise ApodeixiError(my_trace, "Can't locate Knowledge Base's areas: " + explanation)
+        
+        return self.config_dict[SETTINGS][ORGANIZATION]
 
     def getProducts(self, parent_trace):
         '''

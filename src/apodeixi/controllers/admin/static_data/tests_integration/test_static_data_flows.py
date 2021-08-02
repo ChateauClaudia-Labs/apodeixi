@@ -28,7 +28,10 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
         EXCEL_RELATIVE_PATH             = "admin/static-data"
         EXCEL_FILE                      = "products.static-data.admin.a6i.xlsx"
         NB_MANIFESTS_EXPECTED           = 2
-        NAMESPACE                       = "my_corp.production"
+        root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
+        ORGANIZATION                    = self._config.getOrganization(root_trace)
+        KNOWLEDGE_BASE_AREAS            = self._config.getKnowledgeBaseAreas(root_trace)
+        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.production"
         SUBNAMESPACE                    = None
 
         

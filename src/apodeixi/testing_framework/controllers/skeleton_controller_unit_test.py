@@ -52,7 +52,7 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
         try:
             my_trace          = parent_trace.doing("Generating manifest(s)")
 
-            controller                  = controller_class(my_trace, STORE)
+            controller                  = controller_class(my_trace, STORE, a6i_config = self._config)
             t120                         = time.time()
             all_manifests_dict, label,   = controller._buildAllManifests(my_trace, posting_handle)
 

@@ -10,9 +10,11 @@ from apodeixi.util.dictionary_utils                                         impo
 class KnowledgeBase():
     '''
     @param store A KnowledgeBaseStore instance. Handles all I/O for this KnowledgeBase.
+    @param a6i_config The ApodeixiConfig instance for the Python process in which we are running.
     '''
-    def __init__(self, parent_trace, store):
+    def __init__(self, parent_trace, store, a6i_config):
         self.store              = store
+        self.a6i_config         = a6i_config
         
         self.controllers           = { #List of associations of posting API => dict of kind=> PostingController class to use 
                                         # for such posting API
@@ -239,7 +241,7 @@ class KnowledgeBase():
                                                                 'posting_api':  str(posting_api)})
         
         try:
-            ctrl            = klass(my_trace, self.store)
+            ctrl            = klass(my_trace, self.store, a6i_config=self.a6i_config)
         except Exception as ex:
             raise ApodeixiError(my_trace, "Unable to instantiate a controller from given class. Is it the right type?",
                                                 data = {    'controller_class':     str(klass),

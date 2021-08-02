@@ -10,7 +10,9 @@ from apodeixi.util.formatting_utils                 import DictionaryFormatter
 from apodeixi.util.dictionary_utils                 import DictionaryUtils
 from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.dataframe_utils                  import DataFrameUtils, DataFrameComparator
-from apodeixi.util.a6i_error                        import ApodeixiError
+from apodeixi.util.a6i_error                        import FunctionalTrace, ApodeixiError
+
+from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
 class ApodeixiSkeletonTest(unittest.TestCase):  
     '''
@@ -36,6 +38,10 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Used by derived classes to mask some paths that are logged out so that regressino output is
         # deterministic
         self._path_mask                                     = _path_mask
+
+        root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
+                                                                        origination = {'signaled_from': __file__})
+        self._config                = ApodeixiConfig(root_trace)
 
     def tearDown(self):
         super().tearDown()

@@ -14,7 +14,6 @@ from apodeixi.knowledge_base.shutil_kb_store            import Shutil_KBStore_Im
 from apodeixi.knowledge_base.git_kb_store               import GIT_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
 
-from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 from apodeixi.util.path_utils                           import PathUtils
 
 class IntegrationTestStack():
@@ -82,7 +81,7 @@ class ShutilStoreTestStack(IntegrationTestStack):
                                                                         clientURL       = self._clientURL)
         self._store                     = KnowledgeBaseStore(my_trace, store_impl)
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
-        self._kb                        = KnowledgeBase(my_trace, self._store)
+        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self._config)
 
     MY_NAME                             = "shutil_store"
     def name(self, parent_trace):
@@ -126,7 +125,7 @@ class GITStoreTestStack(IntegrationTestStack):
 
         self._store                     = KnowledgeBaseStore(my_trace, store_impl)
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
-        self._kb                        = KnowledgeBase(my_trace, self._store)
+        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self._config)
 
     MY_NAME                             = "git_store"
     def name(self, parent_trace):
@@ -207,9 +206,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
         self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
-        root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
-                                                                        origination = {'signaled_from': __file__})
-        self._config                = ApodeixiConfig(root_trace)
+
         root_trace                  = FunctionalTrace(None).doing("Provisioning stack for integration test",
                                                                     origination = {'signaled_from': __file__})
 
