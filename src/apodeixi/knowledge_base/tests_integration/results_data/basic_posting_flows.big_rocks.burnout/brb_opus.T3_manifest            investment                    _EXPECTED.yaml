@@ -38,10 +38,10 @@ assertion:
 kind: investment
 metadata:
   labels:
-    environment: Production
     estimatedBy: joe.thedevhead@mycorp.com
     estimatedOn: *id001
     journey: Modernization
+    knowledgeBase: Production
     organization: My Corp
     planType: Marathon
     product: FusionOpus

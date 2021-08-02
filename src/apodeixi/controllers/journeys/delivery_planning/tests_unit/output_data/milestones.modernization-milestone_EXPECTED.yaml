@@ -39,10 +39,10 @@ assertion:
 kind: modernization-milestone
 metadata:
   labels:
-    environment: Production
     estimatedBy: joe@my-org.com
     estimatedOn: *id001
     journey: Modernization
+    knowledgeBase: Production
     organization: CCL
     product: Opus Health Pro
     recordedBy: tulia@my-org.com

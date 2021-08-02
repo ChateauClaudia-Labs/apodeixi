@@ -56,8 +56,6 @@ class KB_Environment_Config():
                             FAILOVER_POSTING_READS_TO_PARENT,
                             FAIL_ON_READ_MISSES]
 
-
-
 class KB_Environment():
     '''
     Represents a logical "environment", which can be thought of as a slice of a KnowledgeBaseStore that has 

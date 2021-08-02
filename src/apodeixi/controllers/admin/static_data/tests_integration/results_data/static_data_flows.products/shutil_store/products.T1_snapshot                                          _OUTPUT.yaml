@@ -11,7 +11,7 @@ static_data_flows.products.products_ENV:
               '
         products.static-data.admin.a6i.xlsx: '
 
-          Size (in bytes):  6850
+          Size (in bytes):  7045
 
           '
     journeys:
@@ -27,7 +27,7 @@ static_data_flows.products.products_ENV:
           OfficialPlan:
             LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  28509
+              Size (in bytes):  28512
 
               '
   kb:

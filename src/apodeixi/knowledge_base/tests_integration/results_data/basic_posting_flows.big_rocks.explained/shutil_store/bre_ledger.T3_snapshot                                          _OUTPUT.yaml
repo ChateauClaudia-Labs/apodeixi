@@ -15,7 +15,7 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
               (Timestamp omitted) Posting:
                 LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-                  Size (in bytes):  28509
+                  Size (in bytes):  28512
 
                   '
                 POST_EVENT_LOG.txt: '
@@ -33,7 +33,7 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                 (Timestamp omitted) Posting:
                   LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-                    Size (in bytes):  28509
+                    Size (in bytes):  28512
 
                     '
                   POST_EVENT_LOG.txt: '
@@ -43,7 +43,7 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                     '
               big-rocks.journeys.a6i.xlsx: '
 
-                Size (in bytes):  28509
+                Size (in bytes):  28512
 
                 '
     manifests:
@@ -51,11 +51,11 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
         modernization.officialplan.dec-2020.ledgerpro:
           big-rock-estimate.1.yaml: '
 
-            Size (in bytes):  2443
+            Size (in bytes):  2445
 
             '
           big-rock.1.yaml: '
 
-            Size (in bytes):  5579
+            Size (in bytes):  5581
 
             '

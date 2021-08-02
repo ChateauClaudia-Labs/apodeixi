@@ -180,10 +180,10 @@ assertion:
 kind: workstream-metric
 metadata:
   labels:
-    environment: Production
     estimatedBy: joe.theworkstreamlead@mycorp.com
     estimatedOn: *id001
     initiative: S1
+    knowledgeBase: Production
     organization: My Corp
     program: Amplify
     recordedBy: jill.theinitiativepmo@mycorp.com

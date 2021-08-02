@@ -137,9 +137,9 @@ assertion:
 kind: capability-hierarchy
 metadata:
   labels:
-    environment: Production
     estimatedBy: alejandro@chateauclaudia-labs.com
     estimatedOn: *id001
+    knowledgeBase: Production
     organization: ChateauClaudia Labs
     project: Apodeixi
     recordedBy: alejandro@chateauclaudia-labs.com

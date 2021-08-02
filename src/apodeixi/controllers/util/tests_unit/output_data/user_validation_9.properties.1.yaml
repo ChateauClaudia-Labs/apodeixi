@@ -102,9 +102,9 @@ assertion:
 kind: properties
 metadata:
   labels:
-    environment: Production
     estimatedBy: joe.thetestlead@mycorp.com
     estimatedOn: *id001
+    knowledgeBase: Production
     organization: My Corp
     recordedBy: jill.thesprintmaster@mycorp.com
     testCase: user_validation_9

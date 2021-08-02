@@ -20,7 +20,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
           OfficialPlan:
             LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  28509
+              Size (in bytes):  28512
 
               '
   kb:
@@ -51,16 +51,16 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
         modernization.default.dec-2020.fusionopus:
           big-rock-estimate.1.yaml: '
 
-            Size (in bytes):  1256
+            Size (in bytes):  1258
 
             '
           big-rock.1.yaml: '
 
-            Size (in bytes):  1410
+            Size (in bytes):  1412
 
             '
           investment.1.yaml: '
 
-            Size (in bytes):  1304
+            Size (in bytes):  1306
 
             '

@@ -468,14 +468,14 @@ class SkeletonController(PostingController):
         kind                        = posting_data_handle.kind
 
         organization                = label.organization        (parent_trace)
-        environment                 = label.environment         (parent_trace)  
+        kb_area                     = label.knowledgeBaseArea         (parent_trace)  
                     
         recorded_by                 = label.recordedBy          (parent_trace)
         estimated_by                = label.estimatedBy         (parent_trace)
         estimated_on                = label.estimatedOn         (parent_trace)
 
         FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
-        namespace                   = FMT(organization + '.' + environment)
+        namespace                   = FMT(organization + '.' + kb_area)
         manifest_name               = self.manifestNameFromLabel(parent_trace, label)
 
         my_trace                    = parent_trace.doing("Checking if this is an update")
@@ -506,11 +506,11 @@ class SkeletonController(PostingController):
             manifest_dict               = {}
             metadata                    = { 'namespace':    namespace, 
                                             'name':         manifest_name,
-                                            'labels':       {   label._ORGANIZATION:    organization,
-                                                                label._ENVIRONMENT:     environment,
-                                                                label._RECORDED_BY:     recorded_by,
-                                                                label._ESTIMATED_BY:    estimated_by,
-                                                                label._ESTIMATED_ON:    estimated_on,
+                                            'labels':       {   label._ORGANIZATION:        organization,
+                                                                label._KNOWLEDGE_BASE_AREA: kb_area,
+                                                                label._RECORDED_BY:         recorded_by,
+                                                                label._ESTIMATED_BY:        estimated_by,
+                                                                label._ESTIMATED_ON:        estimated_on,
                                                             }
                                             }
 
@@ -565,11 +565,11 @@ class SkeletonController(PostingController):
         template_df                 = None # Will be the assertion part of the template. We leave it concrete classes to populate this
         metadata                    = { 'namespace':    namespace, 
                                         'name':         manifest_name,
-                                        'labels':       {   label._ORGANIZATION:    organization,
-                                                            label._ENVIRONMENT:     environment,
-                                                            label._RECORDED_BY:     recorded_by,
-                                                            label._ESTIMATED_BY:    estimated_by,
-                                                            label._ESTIMATED_ON:    estimated_on,
+                                        'labels':       {   label._ORGANIZATION:        organization,
+                                                            label._KNOWLEDGE_BASE_AREA: environment,
+                                                            label._RECORDED_BY:         recorded_by,
+                                                            label._ESTIMATED_BY:        estimated_by,
+                                                            label._ESTIMATED_ON:        estimated_on,
                                                         }
                                         }
 
@@ -608,10 +608,10 @@ class SkeletonController(PostingController):
             kind                    = posting_data_handle.kind
 
             organization            = label.organization        (parent_trace)
-            environment             = label.environment         (parent_trace)  
+            kb_area                 = label.knowledgeBaseArea   (parent_trace)  
                         
             FMT                     = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
-            namespace               = FMT(organization + '.' + environment)
+            namespace               = FMT(organization + '.' + kb_area)
             manifest_name           = self.manifestNameFromLabel(parent_trace, label)
             
             config                  = self.getPostingConfig(    parent_trace        = my_trace, 
@@ -655,7 +655,7 @@ class SkeletonController(PostingController):
         
         
         _ORGANIZATION               = 'organization'
-        _ENVIRONMENT                = 'environment'
+        _KNOWLEDGE_BASE_AREA                = 'knowledgeBase' #'environment'
         _RECORDED_BY                = 'recordedBy'
         _ESTIMATED_BY               = 'estimatedBy'
         _ESTIMATED_ON               = 'estimatedOn'
@@ -664,8 +664,8 @@ class SkeletonController(PostingController):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
-            combined_mandatory_fields               = [ ME._MANIFEST_API,       ME._DATA_KIND,              # Determine apiVersion
-                                                        ME._ORGANIZATION,       ME._ENVIRONMENT,            # Determine namespace
+            combined_mandatory_fields               = [ ME._MANIFEST_API,       ME._DATA_KIND,           # Determine apiVersion
+                                                        ME._ORGANIZATION,       ME._KNOWLEDGE_BASE_AREA, # Determine namespace
                                                         ME._RECORDED_BY,        ME._ESTIMATED_BY,       ME._ESTIMATED_ON,
                                                         ME._DATA_RANGE]
             combined_mandatory_fields.extend(mandatory_fields)
@@ -746,24 +746,24 @@ class SkeletonController(PostingController):
                                     path_list               = path_list, 
                                     manifest_dict           = manifest_dict)
 
-            _infer(ME._MANIFEST_API,        ["apiVersion"                                       ])
-            _infer(ME._ORGANIZATION,        ["metadata",    "labels",       ME._ORGANIZATION    ])
-            _infer(ME._ENVIRONMENT,         ["metadata",    "labels",       ME._ENVIRONMENT     ])
-            _infer(ME._RECORDED_BY,         ["assertion",                   ME._RECORDED_BY     ])
-            _infer(ME._ESTIMATED_BY,        ["assertion",                   ME._ESTIMATED_BY    ])
-            _infer(ME._ESTIMATED_ON,        ["assertion",                   ME._ESTIMATED_ON    ])
+            _infer(ME._MANIFEST_API,        ["apiVersion"                                           ])
+            _infer(ME._ORGANIZATION,        ["metadata",    "labels",       ME._ORGANIZATION        ])
+            _infer(ME._KNOWLEDGE_BASE_AREA, ["metadata",    "labels",       ME._KNOWLEDGE_BASE_AREA ])
+            _infer(ME._RECORDED_BY,         ["assertion",                   ME._RECORDED_BY         ])
+            _infer(ME._ESTIMATED_BY,        ["assertion",                   ME._ESTIMATED_BY        ])
+            _infer(ME._ESTIMATED_ON,        ["assertion",                   ME._ESTIMATED_ON        ])
 
             version_fieldname       = ME._PRIOR_VERSION + "." + str(nb)
-            _infer(version_fieldname,       ["metadata",    "version"                           ])
+            _infer(version_fieldname,       ["metadata",    "version"                               ])
 
             editable_fields = [ME._RECORDED_BY, ME._ESTIMATED_BY, ME._ESTIMATED_ON]
             return editable_fields
 
-        def environment(self, parent_trace):
+        def knowledgeBaseArea(self, parent_trace):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
-            return self._getField(parent_trace, ME._ENVIRONMENT)
+            return self._getField(parent_trace, ME._KNOWLEDGE_BASE_AREA)
 
         def organization(self, parent_trace):
             # Shortcut to reference class static variables

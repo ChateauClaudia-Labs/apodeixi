@@ -53,12 +53,18 @@ class ProductsController(StaticData_Controller):
         template_dict, template_df      = super().createTemplate(parent_trace, form_request, kind)
 
         # Discard whatever the parent class did for the templated content. Here we decide how we want it to look
-        list_of_blanks                  = ["", "", "", ""]
+        list_of_blanks                   = [""] *15
         if kind == "product":
-            template_df                     = _pd.DataFrame({   "Product":      list_of_blanks,
-                                                                "Alias names":  list_of_blanks})
+            p_list                          = ["MYPROD"]
+            p_list.extend(list_of_blanks)
+            an_list                         = ["My Product, My product, myprod"]
+            an_list.extend(list_of_blanks)
+            template_df                     = _pd.DataFrame({   "Product":      p_list,
+                                                                "Alias names":  an_list})
         elif kind == "line-of-business":
-            template_df                     = _pd.DataFrame({   "LOB":          list_of_blanks})
+            lob_list                        = ["My business unit"]
+            lob_list.extend(list_of_blanks)
+            template_df                     = _pd.DataFrame({   "LOB":          lob_list})
         else:
             raise ApodeixiError(parent_trace, "Invalid kind was provided: '" + str(kind) + "'",
                                                 origination = { 'concrete class': str(self.__class__.__name__), 
@@ -74,7 +80,7 @@ class ProductsController(StaticData_Controller):
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
         '''
         config_table                        = AsExcel_Config_Table()
-        x_offset                            = 1
+        #x_offset                            = 1
         y_offset                            = 1
         for key in manifestInfo_dict:
             loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
@@ -83,12 +89,14 @@ class ProductsController(StaticData_Controller):
             data_df                         = manifest_info.getManifestContents(parent_trace)
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             if key == 'product.1':
+                x_offset                    = 2 # Start 2 columns over so that line of business can go to the left
                 hidden_cols                 = []
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
                 df_row_2_excel_row_mapper   = None
             elif key == 'line-of-business.2':
+                x_offset                    = 1 # Lay LOB column to the left of product
                 hidden_cols                 = []
                 right_margin                = 0
                 num_formats                 = {}
