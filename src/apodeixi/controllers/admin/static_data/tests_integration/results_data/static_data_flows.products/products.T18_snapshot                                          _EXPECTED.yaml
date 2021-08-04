@@ -16,7 +16,7 @@ static_data_flows.products.products_ENV:
               '
             products.static-data.admin.a6i.xlsx: '
 
-              Size (in bytes):  7139
+              Size (in bytes):  18015
 
               '
     journeys:
@@ -53,12 +53,12 @@ static_data_flows.products.products_ENV:
                 '
               products.static-data.admin.a6i.xlsx: '
 
-                Size (in bytes):  7139
+                Size (in bytes):  18015
 
                 '
           products.static-data.admin.a6i.xlsx: '
 
-            Size (in bytes):  7139
+            Size (in bytes):  18015
 
             '
     manifests:
@@ -69,8 +69,18 @@ static_data_flows.products.products_ENV:
             Size (in bytes):  800
 
             '
+          line-of-business.2.yaml: '
+
+            Size (in bytes):  807
+
+            '
           product.1.yaml: '
 
             Size (in bytes):  1039
+
+            '
+          product.2.yaml: '
+
+            Size (in bytes):  1544
 
             '

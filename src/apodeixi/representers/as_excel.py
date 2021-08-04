@@ -106,8 +106,12 @@ class ManifestRepresenter:
 
             x_0                 = xlw_config.x_offset
             
+            
+            # Some "hidden cols" arising from joins may not be in df_columns at this stage of the lifecyle
+            real_hidden_cols    = [col for col in xlw_config.hidden_cols if col in df.columns] 
+            
             # The "-1" is because x_0 was one of the columns, so count one less column
-            x_1                 = x_0 + len(df.columns) - 1 - len(xlw_config.hidden_cols)
+            x_1                 = x_0 + len(df.columns) - 1 - len(real_hidden_cols)
             
             y_0                 = xlw_config.y_offset
             # The "- 1" is because y_0 was one of the rows, so count one less row. 

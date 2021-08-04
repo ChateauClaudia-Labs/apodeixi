@@ -19,6 +19,11 @@ static_data_flows.products.products_ENV:
               Size (in bytes):  7139
 
               '
+        products.static-data.admin.a6i.xlsx: '
+
+          Size (in bytes):  7025
+
+          '
     journeys:
       Dec 2020:
         FusionOpus:

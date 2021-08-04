@@ -104,7 +104,7 @@ class ProductsController(StaticData_Controller):
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
         '''
         xlw_config_table                    = AsExcel_Config_Table()
-        #x_offset                            = 1
+        #x_offset                            = 3 
         y_offset                            = 1
         for key in manifestInfo_dict:
             loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
@@ -112,14 +112,14 @@ class ProductsController(StaticData_Controller):
             manifest_info                   = manifestInfo_dict[key]
             data_df                         = manifest_info.getManifestContents(parent_trace)
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            if key == 'product.1':
-                x_offset                    = 2 # Start 2 columns over so that line of business can go to the left
-                hidden_cols                 = []
+            if key == 'product.0':
+                x_offset                    = 3 # Start 3 columns over so that line of business can go to the left
+                hidden_cols                 = ["lineOfBusiness"]
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
                 df_row_2_excel_row_mapper   = None
-            elif key == 'line-of-business.2':
+            elif key == 'line-of-business.1':
                 x_offset                    = 1 # Lay LOB column to the left of product
                 hidden_cols                 = []
                 right_margin                = 0
@@ -141,8 +141,8 @@ class ProductsController(StaticData_Controller):
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)
-                # Put next manifest to the right of this one, separated by an empty column
-            x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
+            
+            #x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
             xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)
         return xlw_config_table
 

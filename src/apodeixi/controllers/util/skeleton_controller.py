@@ -313,7 +313,7 @@ class SkeletonController(PostingController):
             namespace                           = scope.namespace
             subnamespace                        = scope.subnamespace
             name                                = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
-            manifest_nb                         = 1
+            manifest_nb                         = 0
             for kind in self.getSupportedKinds():
                 loop_trace                      = parent_trace.doing("Searching for latest version of manifest",
                                                         data = {"kind":     str(kind),

@@ -1,0 +1,31 @@
+apiVersion: static-data.admin.a6i.io/v1a
+assertion:
+  entity_type: line-of-business
+  estimatedBy: krater.ruptive@telrus.com
+  estimatedOn: &id001 2021-08-05 00:00:00
+  line-of-business:
+    LOB1:
+      UID: LOB1
+      name: Cereal Department
+    LOB1-name: Cereal Department
+    LOB2:
+      UID: LOB2
+      name: Chocolate Office
+    LOB2-name: Chocolate Office
+    LOB3:
+      UID: LOB3
+      name: Cookie Depot
+    LOB3-name: Cookie Depot
+  recordedBy: fido.cat@telrus.com
+kind: line-of-business
+metadata:
+  labels:
+    estimatedBy: krater.ruptive@telrus.com
+    estimatedOn: *id001
+    knowledgeBase: Testing Area
+    organization: My Corporation
+    recordedBy: fido.cat@telrus.com
+    version: 2
+  name: static-data
+  namespace: my-corporation.testing-area
+  version: 2
