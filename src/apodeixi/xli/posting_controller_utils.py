@@ -3,7 +3,7 @@ import math                                     as _math
 from collections                                import Counter
 import datetime                                 as _datetime
 
-from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader
+from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader, ManifestXLReadConfig
 from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree
 from apodeixi.xli.interval                      import IntervalUtils
 
@@ -83,7 +83,7 @@ class PostingController():
                                             origination = {'concrete class': str(self.__class__.__name__), 
                                                             'signaled_from': __file__})
 
-    def initialize_UID_Store(self, parent_trace, posting_data_handle, label, config):
+    def initialize_UID_Store(self, parent_trace, posting_data_handle, xlr_config):
         '''
         Abstract method
 
@@ -97,7 +97,7 @@ class PostingController():
                                             origination = {'concrete class': str(self.__class__.__name__), 
                                                             'signaled_from': __file__})
 
-    def _xl_2_tree(self, parent_trace, data_handle, label, config):
+    def _xl_2_tree(self, parent_trace, data_handle, xlr_config):
         '''
         Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
 
@@ -105,9 +105,9 @@ class PostingController():
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
         the UID of the rightmost column in that Excel row that is for an entity)
 
-        @config A PostingConfig object
+        @xlr_config A PostingConfig object whose posting_label attribute has been previously set
         '''
-        df                      = self.store.loadPostingData(parent_trace, data_handle, config)
+        df                      = self.store.loadPostingData(parent_trace, data_handle, xlr_config)
 
         cols=list(df.columns)
 
@@ -117,19 +117,19 @@ class PostingController():
 
         my_trace                = parent_trace.doing("Sanity check that user complied with right schema")
 
-        config.preflightPostingValidation(parent_trace = my_trace, posted_content_df = df)
+        xlr_config.preflightPostingValidation(parent_trace = my_trace, posted_content_df = df)
         
 
         
-        store                   = self.initialize_UID_Store(parent_trace, data_handle, label, config)
-        tree                    = BreakdownTree(uid_store = store, entity_type=config.entity_name(), parent_UID=None)
+        store                   = self.initialize_UID_Store(parent_trace, data_handle, xlr_config=xlr_config)
+        tree                    = BreakdownTree(uid_store = store, entity_type=xlr_config.entity_name(), parent_UID=None)
         
         # If we are supposed to use user-generated UIDs (when available) instead of generating them,
         # tell the tree's UID store to keep them. 
         #
         # At most one UID column per interval, hence the loop so that uniqueness of UID column per interval can be enforced
-        for interval in config.buildIntervals(my_trace, list(df.columns)):
-            tree.reserve_user_provided_uids(parent_trace, config, df[interval.columns], interval.entity_name)  
+        for interval in xlr_config.buildIntervals(my_trace, list(df.columns)):
+            tree.reserve_user_provided_uids(parent_trace, xlr_config, df[interval.columns], interval.entity_name)  
 
         rows                    = list(df.iterrows())
         my_trace                = parent_trace.doing("Processing DataFrame", data={ 'tree.entity_type'  : tree.entity_type,
@@ -140,7 +140,7 @@ class PostingController():
         
         for idx in range(len(rows)):
             last_uid            = None # Will represent the 
-            for interval in config.buildIntervals(my_trace, list(df.columns)):
+            for interval in xlr_config.buildIntervals(my_trace, list(df.columns)):
                 loop_trace      = my_trace.doing(   activity="Processing fragment", 
                                                     data={  'excel row': ExcelTableReader.df_2_xl_row(  
                                                                             parent_trace    = my_trace, 
@@ -151,13 +151,13 @@ class PostingController():
                                                             'signaled_from': __file__,
                                                              })
                 a_uid           = tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, 
-                                                                config=config, all_rows=rows)
+                                                                xlr_config=xlr_config, all_rows=rows)
                 if a_uid != None: # Improve our working hypothesis of last_uid
                     last_uid = a_uid
             # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
             if last_uid != None: # last_uid will be None if we just processed an empty row, so this check is needed
                 self.link_table.keep_row_last_UID(  parent_trace            = my_trace, 
-                                                    manifest_identifier     = config.kind, 
+                                                    manifest_identifier     = xlr_config.kind, 
                                                     row_nb                  = idx, 
                                                     uid                     = last_uid)
 
@@ -592,7 +592,7 @@ class PostingLabel():
                                                                                                 int, float])
         self.ctx[fieldname]         = val
                                                                         
-class PostingConfig():
+class PostingConfig(ManifestXLReadConfig):
     '''
     Helper class serving as a container for various configurations settings impacting how a BreakdownTree is to be
     built from an Excel file
@@ -606,15 +606,17 @@ class PostingConfig():
     @param manifest_nb      An integer identifying the specific manifest being procssed among other manifests
                             that are part of the same posting. 
                             Recommended numbering starting with 1, 2, 3, ...
-    @param horizontally     States whether the Excel data is to be read row-by-row (horizontally=True) or column-by-column (horizontally=False)
+    @param horizontally     States whether the Excel data is to be read row-by-row (horizontally=True) or 
+                            column-by-column (horizontally=False)
     '''
     def __init__(self, kind, manifest_nb, update_policy, controller):
+        super().__init__()
         self.update_policy          = update_policy
         self.interval_spec          = None # Should be initialized in constructor of concrete derived class
         self.kind                   = kind
         self.manifest_nb            = manifest_nb
         self.controller             = controller
-        self.horizontally           = True
+        
 
     def preflightPostingValidation(self, parent_trace, posted_content_df):
         '''

@@ -116,21 +116,34 @@ class LinkTable():
         row_number                                  = links.last_row_number(parent_trace)
         return row_number
 
-    def find_foreign_uid(self, parent_trace, our_manifest_id, foreign_manifest_id, our_manifest_uid):
+    def find_foreign_uid(self, parent_trace, our_manifest_id, foreign_manifest_id, our_manifest_uid, many_to_one):
         '''
         Used to establish joins between manifest by determining the foreign key to use in the join, i.e.,
         a way for "our manifest" to reference a "foreign manifest".
 
         Specifically, it assumes a link exists in this LinkTable between one of our manifest's UIDs and
         one of the foreign manifest's and finds and return's that foreign manifest's UIDs that our UID is linked to.
+
+        @param manyToOne A boolean. If True, it is that multiple rows of our manifest correspond to the same
+                                row of the foreign manifest, and only the first such row would have displayed
+                                the foreign UID. That triggers a need to "search" for earlier row numbers
         '''
         row_nb              = self.row_from_uid(    parent_trace            = parent_trace,
                                                     manifest_identifier     = our_manifest_id,
                                                     uid                     = our_manifest_uid)
 
-        foreign_uid         = self.uid_from_row(    parent_trace            = parent_trace,
+        if many_to_one == False: # search only in row_nb
+            foreign_uid     = self.uid_from_row(    parent_trace            = parent_trace,
                                                     manifest_identifier     = foreign_manifest_id,
                                                     row_number              = row_nb)
+        else: # search first in row_nb, and if nothing is found keep looking in earlier rows
+            foreign_uid     = None
+            for current_row in reversed(range(row_nb + 1)):
+                foreign_uid = self.uid_from_row(    parent_trace            = parent_trace,
+                                                    manifest_identifier     = foreign_manifest_id,
+                                                    row_number              = current_row)
+                if foreign_uid != None:
+                    break
 
         return foreign_uid
 

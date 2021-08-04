@@ -42,16 +42,16 @@ class Workstream_Controller(SkeletonController):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
-        ME                          = Workstream_Controller
+        ME                              = Workstream_Controller
         if kind == 'workstream-milestone':
             update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-            config                      = ME._WorkstreamMilestoneConfig(    update_policy       = update_policy, 
+            xlr_config                  = ME._WorkstreamMilestoneConfig(    update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,
                                                                             controller          = self)
         elif kind == 'workstream-metric':
             update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-            config                      = ME._WorkstreamMetricConfig(       update_policy       = update_policy, 
+            xlr_config                  = ME._WorkstreamMetricConfig(       update_policy       = update_policy, 
                                                                             kind                = kind, 
                                                                             manifest_nb         = manifest_nb,
                                                                             controller          = self)
@@ -60,7 +60,7 @@ class Workstream_Controller(SkeletonController):
                                                 + ", ".join(self.SUPPORTED_KINDS),
                                                 origination = {'signaled_from': __file__})
 
-        return config 
+        return xlr_config 
 
     def getPostingLabel(self, parent_trace):
         '''

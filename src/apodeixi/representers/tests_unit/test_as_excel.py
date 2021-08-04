@@ -5,11 +5,11 @@ from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.formatting_utils             import DictionaryFormatter
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.representers.as_excel             import ManfiestRepresenter
-from apodeixi.text_layout.excel_layout          import ManifestXLConfig, AsExcel_Config_Table, PostingLabelXLConfig
+from apodeixi.representers.as_excel             import ManifestRepresenter
+from apodeixi.text_layout.excel_layout          import ManifestXLWriteConfig, AsExcel_Config_Table, PostingLabelXLWriteConfig
 
 
-class Test_ManfiestRepresenter(ApodeixiUnitTest):
+class Test_ManifestRepresenter(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
@@ -41,42 +41,42 @@ class Test_ManfiestRepresenter(ApodeixiUnitTest):
             # Make editable any column not starting with "UID"
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             
-            config              = ManifestXLConfig( sheet               = SHEET,
-                                                    manifest_name       = MANIFEST_NAME,    
-                                                    viewport_width      = 100,  
-                                                    viewport_height     = 40,   
-                                                    max_word_length     = 20, 
-                                                    editable_cols       = editable_cols, 
-                                                    hidden_cols         = [],  
-                                                    editable_headers    = [],   
-                                                    x_offset            = 0,    
-                                                    y_offset            = 0)
-            config_table        = AsExcel_Config_Table()
-            config_table.addManifestXLConfig(my_trace, config)
+            xlw_config          = ManifestXLWriteConfig(sheet               = SHEET,
+                                                        manifest_name       = MANIFEST_NAME,    
+                                                        viewport_width      = 100,  
+                                                        viewport_height     = 40,   
+                                                        max_word_length     = 20, 
+                                                        editable_cols       = editable_cols, 
+                                                        hidden_cols         = [],  
+                                                        editable_headers    = [],   
+                                                        x_offset            = 0,    
+                                                        y_offset            = 0)
+            xlw_config_table        = AsExcel_Config_Table()
+            xlw_config_table.addManifestXLWriteConfig(my_trace, xlw_config)
 
             my_trace            = root_trace.doing("Creating Excel layout for Posting Label")
             label_dict          = {"Testing from": "test_as_excel.py", 
                                     "Verifying": "Correct population of Excel with respect to data, layout and formatting"}
-            label_config        = PostingLabelXLConfig(     sheet               = ManfiestRepresenter.POSTING_LABEL_SHEET,
+            label_xlw_config    = PostingLabelXLWriteConfig(     sheet               = ManifestRepresenter.POSTING_LABEL_SHEET,
                                                             viewport_width      = 100,  
                                                             viewport_height     = 40,   
                                                             max_word_length     = 20,  
                                                             editable_fields     = [],   
                                                             x_offset            = 1,    
                                                             y_offset            = 1)
-            config_table.setPostingLabelXLConfig(my_trace, label_config)
+            xlw_config_table.setPostingLabelXLWriteConfig(my_trace, label_xlw_config)
 
-            rep                 = ManfiestRepresenter(  parent_trace    = root_trace,
-                                                        config_table    = config_table,
-                                                        label_ctx       = label_dict,
-                                                        content_df_dict = {MANIFEST_NAME: data_df},)
+            rep                 = ManifestRepresenter(  parent_trace        = root_trace,
+                                                        xlw_config_table    = xlw_config_table,
+                                                        label_ctx           = label_dict,
+                                                        content_df_dict     = {MANIFEST_NAME: data_df},)
 
             status              = rep.dataframe_to_xl(  parent_trace    = root_trace, 
                                                         excel_folder    = OUTPUT_FOLDER, 
                                                         excel_filename  = EXCEL_FILE)
 
             worksheet_info                      = rep.worksheet_info_dict[SHEET]
-            posting_label_ws_info               = rep.worksheet_info_dict[ManfiestRepresenter.POSTING_LABEL_SHEET]
+            posting_label_ws_info               = rep.worksheet_info_dict[ManifestRepresenter.POSTING_LABEL_SHEET]
 
             output_dict['status']           = status
             output_dict['layout span']      = rep.span_dict[MANIFEST_NAME]
@@ -127,7 +127,7 @@ class Test_ManfiestRepresenter(ApodeixiUnitTest):
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):
-        T = Test_ManfiestRepresenter()
+        T = Test_ManifestRepresenter()
         T.setUp()
         what_to_do = args[1]
         if what_to_do=='dataframe_2_xl':

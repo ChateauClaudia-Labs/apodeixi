@@ -1,11 +1,13 @@
 import yaml                                             as _yaml
 import os                                               as _os
 import datetime                                         as _datetime
+import pandas                                           as _pd
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
 from apodeixi.xli.uid_store                             import UID_Store
+from apodeixi.xli.xlimporter                            import ExcelTableReader, SchemaUtils
 
 from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle, \
@@ -13,9 +15,9 @@ from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, Man
                                                                 FormRequest
 from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.representers.as_dataframe                 import AsDataframe_Representer
-from apodeixi.representers.as_excel                     import ManfiestRepresenter
+from apodeixi.representers.as_excel                     import ManifestRepresenter
 
-from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLConfig, PostingLabelXLConfig
+from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLWriteConfig, PostingLabelXLWriteConfig
 from apodeixi.util.formatting_utils                     import StringUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
 
@@ -109,23 +111,23 @@ class SkeletonController(PostingController):
                 manifest_identifiers.append(key)
 
         my_trace                = parent_trace.doing("Creating Excel layouts for posting label")
-        label, label_config     = self._build_labelXLconfig(my_trace, manifestInfo_dict)
+        label, label_xlw_config = self._build_labelXLWriteconfig(my_trace, manifestInfo_dict)
 
         my_trace                = parent_trace.doing("Creating Excel layouts for manifests")
-        config_table            = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
+        xlw_config_table       = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
                                                                     manifestInfo_dict   = manifestInfo_dict)
 
-        config_table.setPostingLabelXLConfig(my_trace, label_config)
+        xlw_config_table.setPostingLabelXLWriteConfig(my_trace, label_xlw_config)
 
         my_trace                = parent_trace.doing("Writing out the Excel spreadsheet requested")        
         if True:
-            rep                 = ManfiestRepresenter(  parent_trace    = my_trace,
-                                                        config_table    = config_table,
-                                                        label_ctx       = label.ctx,
-                                                        content_df_dict = contents_df_dict,)
+            rep                 = ManifestRepresenter(  parent_trace        = my_trace,
+                                                        xlw_config_table    = xlw_config_table,
+                                                        label_ctx           = label.ctx,
+                                                        content_df_dict     = contents_df_dict,)
             filename            = self.store.uploadForm(my_trace, 
-                                                        form_request    = form_request, 
-                                                        representer     = rep)
+                                                        form_request        = form_request, 
+                                                        representer         = rep)
 
         my_trace                = parent_trace.doing("Assembling FormRequest response")     
         if True:
@@ -155,40 +157,40 @@ class SkeletonController(PostingController):
         Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
         '''
-        config_table                        = AsExcel_Config_Table()
-        x_offset                            = 1
-        y_offset                            = 1
+        xlw_config_table        = AsExcel_Config_Table()
+        x_offset                = 1
+        y_offset                = 1
         for key in manifestInfo_dict:
-            loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
+            loop_trace          = parent_trace.doing("Creating layout configurations for manifest '"
                                                                 + str(key) + "'")
-            manifest_info                   = manifestInfo_dict[key]
-            data_df                         = manifest_info.getManifestContents(parent_trace)
+            manifest_info       = manifestInfo_dict[key]
+            data_df             = manifest_info.getManifestContents(parent_trace)
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-            config                          = ManifestXLConfig( sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                                                manifest_name       = key,    
-                                                                viewport_width      = 100,  
-                                                                viewport_height     = 40,   
-                                                                max_word_length     = 20, 
-                                                                editable_cols       = editable_cols,
-                                                                hidden_cols         = [],
-                                                                num_formats         = {},   
-                                                                editable_headers    = [],   
-                                                                x_offset            = x_offset,    
-                                                                y_offset            = y_offset)
+            xlw_config          = ManifestXLWriteConfig(sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                        manifest_name       = key,    
+                                                        viewport_width      = 100,  
+                                                        viewport_height     = 40,   
+                                                        max_word_length     = 20, 
+                                                        editable_cols       = editable_cols,
+                                                        hidden_cols         = [],
+                                                        num_formats         = {},   
+                                                        editable_headers    = [],   
+                                                        x_offset            = x_offset,    
+                                                        y_offset            = y_offset)
             # Put next manifest to the right of this one, separated by an empty column
             x_offset                        += data_df.shape[1] + 1 
-            config_table.addManifestXLConfig(loop_trace, config)
-        return config_table
+            xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)
+        return xlw_config_table
 
-    def _build_labelXLconfig(self, parent_trace, manifestInfo_dict):
+    def _build_labelXLWriteconfig(self, parent_trace, manifestInfo_dict):
         '''
         Helper method used as part of processing a FormRequest
 
-        It creates a PostingLabelXLConfig object that should be used in the generation of the
+        It creates a PostingLabelXLWriteConfig object that should be used in the generation of the
         Excel spreadsheet (the "form") that was requested by the FormRequest. In the process it also creates a 
         PostingLabel object.
 
-        It returns a pair: the PostingLabel, and the PostingLabelXLConfig
+        It returns a pair: the PostingLabel, and the PostingLabelXLWriteConfig
         '''
         label                               = self.getPostingLabel(parent_trace)
         label.ctx                           = {} # It gest populated in the loop below, with each manifest contributing
@@ -209,16 +211,16 @@ class SkeletonController(PostingController):
 
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
-        label_config                        = PostingLabelXLConfig( sheet               = SkeletonController.POSTING_LABEL_SHEET,
-                                                                    viewport_width      = 100,  
-                                                                    viewport_height     = 40,   
-                                                                    max_word_length     = 20, 
-                                                                    editable_fields     = label_editable_fields, 
-                                                                    date_fields         = label.date_fields,  
-                                                                    x_offset            = 1,    
-                                                                    y_offset            = 1)
+        label_xlw_config    = PostingLabelXLWriteConfig(    sheet          = SkeletonController.POSTING_LABEL_SHEET,
+                                                            viewport_width      = 100,  
+                                                            viewport_height     = 40,   
+                                                            max_word_length     = 20, 
+                                                            editable_fields     = label_editable_fields, 
+                                                            date_fields         = label.date_fields,  
+                                                            x_offset            = 1,    
+                                                            y_offset            = 1)
 
-        return label, label_config
+        return label, label_xlw_config
     
     class _ManifestInfo():
         '''
@@ -483,9 +485,13 @@ class SkeletonController(PostingController):
         if True:
             prior_version           = label.priorVersion        (parent_trace, manifest_nb)
             read_only               = label.readOnly            (parent_trace, manifest_nb)
-            config                  = self.getPostingConfig(    parent_trace        = my_trace, 
+            xlr_config              = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                 kind                = kind,
                                                                 manifest_nb         = manifest_nb)
+            # Set label in xlr_config. It is needed later but can only be set at this point in the coding
+            # path, so it was left out of the self.getPostingConfig which is sometimes called in situations
+            # where the label is not known or needed.
+            xlr_config.posting_label    = label
             if prior_version != None and (read_only == None or read_only == False): # we are updating
                 next_version        = prior_version + 1
             else:
@@ -496,7 +502,7 @@ class SkeletonController(PostingController):
                                                                 data = {"relative_path": relative_path},
                                                                 origination = {'signaled_from': __file__})
         if True:
-            tree                        = self._xl_2_tree(my_trace, posting_data_handle, label, config)
+            tree                        = self._xl_2_tree(my_trace, posting_data_handle, xlr_config)
             tree_dict                   = tree.as_dicts()
         
         my_trace                        = parent_trace.doing("Creating manifest from BreakoutTree", 
@@ -529,6 +535,171 @@ class SkeletonController(PostingController):
                                                     manifest_dict       = manifest_dict, 
                                                     manifest_version    = next_version)
         return manifest_dict
+
+    def manifest_nb_from_kind(self, parent_trace, kind):
+        '''
+        Helper method for situations where there are not multiple manifests of the same kind. In such case
+        this method will return the manifest number (an int) that uniquely corresponds to the
+        manifest for kind `kind`.
+
+        @param kind A string, representing the `kind` property of the manifest in question
+        '''
+        # Expect exactly 1 match
+        matching_nbs                    = [manifest_nb 
+                                            for manifest_nb, manifest_kind, excel_range, excel_sheet 
+                                            in self.show_your_work.manifest_metas()
+                                            if manifest_kind == kind]
+        if len(matching_nbs)==0:
+            raise ApodeixiError(parent_trace, "Unable to find metadata in controller's show_your_work for kind='" + kind + "'")
+        if len(matching_nbs) > 1:
+            raise ApodeixiError(parent_trace, "Too many matches in controller's show_your_work metadata for kind='" + kind 
+                                            + "': expected exactly one match",
+                                            data = {'kind': kind, 'matching_nbs': str(matching_nbs)})
+
+        # After checks above, this is safe:
+        manifest_nb                     = matching_nbs[0]
+        return manifest_nb
+
+    def linkReferenceManifest(self, parent_trace, manifest_dict, entity, linkField, refKind, many_to_one):
+        '''
+        Links the manifest_dict to the manifest of kind `refKind`, by inserting in manifest_dict a UID 
+        in manifest_dict's entity `entity` that corresponds to a UID in the manifest for `refKind`.
+
+        The association is done based on Excel rows: if the Excel row for the UID of manifest_dict's entity
+        is the same Excel row containing a UID for the `refKind` manifest, these two will be linked.
+
+        In situations where there are many-to-one relationships, the match is done on the "most recent Excel
+        row": i.e., if a manifest_dict's entity is in row N, then it will be associated to a UID
+        for the `refKind` list that lies in the biggest row that is less or equal to N.
+
+        Example: suppose 
+                        manifest_dict['kind']   =`big-rock-estimate` 
+                        refKind                 =`big-rock`
+                        entity                  =`effort`
+                        linkField               = 'bigRock'
+
+                    Then if big rock "BR5" is in the same row as effort "E9", this method will cause
+                    the manifest_dict to add the following:
+
+                    manifest_dict['assertion']['effort']['E9']['bigRock'] = 'BR5'
+
+        @param manyToOne A boolean. If True, it is assumed that there are multiple entities in manifest_dict
+                        reference the same UID in the `refKind` manifest, in which case the `refKind` UID is
+                        assumed to potentially be in an earlier row than the manifest_dict entity that references
+                        it
+        '''
+        kind                            = manifest_dict['kind']
+        my_trace                        = parent_trace.doing("Linking " + str(kind) + " manifest to UIDs from "
+                                                                + str(refKind) + " manifest ")
+        entity_dict                     = manifest_dict['assertion'][entity]                                                        
+        entity_uids                     = [e_uid for e_uid in entity_dict.keys() if not e_uid.endswith("-name")]
+        UID_FINDER                      = self.link_table.find_foreign_uid # Abbreviation for readability
+
+        for e_uid in entity_uids:
+            ref_uid                     = UID_FINDER(   parent_trace            = my_trace, 
+                                                        our_manifest_id         = kind, 
+                                                        foreign_manifest_id     = refKind, 
+                                                        our_manifest_uid        = e_uid,
+                                                        many_to_one             = many_to_one)
+            
+            entity_dict[e_uid][linkField]   = ref_uid
+
+    def linkMappedManifest(self, parent_trace, refKind, raw_df, first_row, last_row):
+        '''
+        '''
+        if refKind == None:
+            raise ApodeixiError(parent_trace, "Can't read mapping manifest information because the `kind` "
+                                                + "of the manifest we map from was not set in the PostingConfig "
+                                                + "ahead of time")
+        
+        my_trace                        = parent_trace.doing("Determining rows for reference manifest")
+        if True:
+            matches                     = [(excel_range, manifest_nb) 
+                                                for manifest_nb, manifest_kind, excel_range, excel_sheet 
+                                                in self.show_your_work.manifest_metas()
+                                                if manifest_kind == refKind]
+            if len(matches)==0:
+                raise ApodeixiError(parent_trace, "Unable to find metadata in controller's show_your_work for kind='" 
+                                                    + refKind + "'")
+            if len(matches) > 1:
+                raise ApodeixiError(parent_trace, "Too many matches in controller's show_your_work metadata for kind='" 
+                                                + refKind 
+                                                + "': expected exactly one match",
+                                                data = {'kind': refKind, 'matching_nbs': str(matches)})
+            # After checks above, this is safe:
+            refRange, refManifest_nb    = matches[0]
+
+            if not refKind in self.link_table.links_dict.keys():
+                raise ApodeixiError(my_trace, "Unable to parse mappings from manifest '" 
+                                                + str(refKind) + "." + str(refManifest_nb) + "' "
+                                                + "because there are no entries in the link table for it. "
+                                                + "Are you sure you listed it in the Posting Label before any "
+                                                + "other manifest that is mapped from it?")
+
+            first_refColumn, last_refColumn, first_refRow, last_refRow  \
+                                            = ExcelTableReader.parse_range(my_trace, refRange)
+
+        my_trace                        = parent_trace.doing("Split raw_df into dataset_df and mapping_df, "
+                                                                + "indexed by Excel row numbers")
+        if True:
+            # Re-index raw_df so that its row indices are exactly the same as Excel row numbers.
+            # We start at first_row+1 since first_row is the headers of raw_df
+            working_df                  = raw_df.copy()
+            working_df.index            = range(first_row + 1, first_row + 1 + len(working_df.index))
+
+            # NB: loc is inclusive, so loc[3:5] includes rows 3, 4, and 5 (not just 3,4)
+            mapping_df                  = working_df.loc[first_refRow + 1: last_refRow] 
+            ds1_df                      = working_df.loc[:first_refRow] 
+            ds2_df                      = working_df.loc[last_refRow + 1:]
+            dataset_df                  = _pd.concat([ds1_df, ds2_df])
+
+        my_trace                        = parent_trace.doing("Creating manifest DataFrame")
+        if True:
+            manifest_columns            = list(dataset_df.columns)[0] # These will be the manifest columns
+            df2                         = SchemaUtils.drop_blanks(dataset_df, manifest_columns)
+            df2                         = df2.set_index(manifest_columns) # That way when we transpose these become the columns
+            df2.index.name              = None
+            df2                         = df2.transpose()
+            df2                         = df2.reset_index() # Ensures columns of dataset_df become the first column of df2
+            renamed_columns             = ["Milestone"]
+            renamed_columns.extend(df2.columns[1:])
+            df2.columns                 = renamed_columns
+
+            manifest_df                 = df2
+            
+        my_trace                        = parent_trace.doing("Create mapped vectors per milestone")
+        if True:
+            # The first column of mapping_df are the columns of manifest_df. But the rest correspond to milestones,
+            # which are rows in manifest_df
+            milestone_mappings          = {}
+            for milestone in list(mapping_df.columns)[1:]:
+                uid_list                = []
+                
+                for row_nb in mapping_df.index:
+                    val                 = mapping_df[milestone].loc[row_nb]
+                    # The link_table has *dataframe* row numbers for the reference manifest, so convert
+                    # from the Excel row_nb to the dataframe row number ref_df_row_nb before the lookup
+                    ref_df_row_nb       = row_nb - (first_refRow + 1)
+                    cleaned_val         = StringUtils().strip(val)
+                    if cleaned_val.strip().lower() == 'x': # There is a mapping
+                        refUID          = self.link_table.uid_from_row( parent_trace            = my_trace,
+                                                                        manifest_identifier     = refKind,
+                                                                        row_number              = ref_df_row_nb)
+                        if refUID != None:
+                            uid_list.append(refUID)
+                milestone_mappings[milestone] = uid_list
+
+        my_trace                        = parent_trace.doing("Adding a column of mappings to manifest_df")
+        if True:
+            def assign_ref_uids(row):
+                milestone               = row['Milestone']
+                uid_list                = milestone_mappings[milestone]
+                return uid_list
+
+            manifest_df[refKind]        = manifest_df.apply(lambda row: assign_ref_uids(row), axis=1)
+
+        return manifest_df
+
 
     def createTemplate(self, parent_trace, form_request, kind):
         '''
@@ -584,27 +755,30 @@ class SkeletonController(PostingController):
                                         #'entity_type':                      tree.entity_type,
                                         #FMT(tree.entity_type):              tree_dict
                                         }
-        
+        ''' DO NOT SET VERSION FOR A TEMPLATE - IT WILL LATER CAUSE ERRORS WHEN POSTING, THINKING ITS AN UPDATE
         ManifestUtils().set_manifest_version(   parent_trace        = parent_trace, 
                                                 manifest_dict       = template_dict, 
                                                 manifest_version    = -1) # Not a real manifest, so not a real version
+        '''
         return template_dict, template_df
 
 
-    def initialize_UID_Store(self, parent_trace, posting_data_handle, label, config):
+    def initialize_UID_Store(self, parent_trace, posting_data_handle, xlr_config):
         '''
         Creates and returns a UID_Store object.
 
         It also initializes it to contain all UIDs that might have been used previously by the preceding version
         of the manifest being updated by the posting referenced by `posting_data_handel`, if such a prior
         version exists and if `config`'s update policy is set to reuse UIDs.
+
+        @xlr_config A PostingConfig object whose posting_label attribute has been previously set
         '''
         store                   = UID_Store(parent_trace)
-
-        my_trace                    = parent_trace.doing("Determining previously used UIDs to re-use")
+        label                   = xlr_config.posting_label
+        my_trace                = parent_trace.doing("Determining previously used UIDs to re-use")
         manifest_nb             = posting_data_handle.manifest_nb
         prior_version           = label.priorVersion        (parent_trace, manifest_nb)
-        if config.update_policy.reuse_uids == True and prior_version != None:
+        if xlr_config.update_policy.reuse_uids == True and prior_version != None:
             
             kind                    = posting_data_handle.kind
 
@@ -615,9 +789,11 @@ class SkeletonController(PostingController):
             namespace               = FMT(organization + '.' + kb_area)
             manifest_name           = self.manifestNameFromLabel(parent_trace, label)
             
+            '''
             config                  = self.getPostingConfig(    parent_trace        = my_trace, 
                                                                 kind                = kind,
                                                                 manifest_nb         = manifest_nb)
+            '''
             # Load the prior manifest, to determine which UIDs are already in use so that we don't
             # re-generate them for different data items
             prior_handle    = ManifestHandle(   apiVersion  = self.api_version(my_trace),
@@ -754,8 +930,20 @@ class SkeletonController(PostingController):
             _infer(ME._ESTIMATED_BY,        ["assertion",                   ME._ESTIMATED_BY        ])
             _infer(ME._ESTIMATED_ON,        ["assertion",                   ME._ESTIMATED_ON        ])
 
-            version_fieldname       = ME._PRIOR_VERSION + "." + str(nb)
-            _infer(version_fieldname,       ["metadata",    "version"                               ])
+            # Prior version is optional, since it would not apply for situations where manifests haven't
+            # been created previously (and in that case the manifest_dict parameter given to this method
+            # is really a "template", not the contents of a real manifest.)
+            # In such cases we should not expect a prior version to exist, and if we insist on 
+            # retrieving it from the manifest will get an error when nothing is really wrong. So extract
+            # prior version only if it exists.
+            check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
+                                                                        root_dict           = manifest_dict, 
+                                                                        root_dict_name      = str(manifest_key), 
+                                                                        path_list           = ["metadata", "version"], 
+                                                                        valid_types         = [int])
+            if check:
+                version_fieldname       = ME._PRIOR_VERSION + "." + str(nb)
+                _infer(version_fieldname,   ["metadata",    "version"                               ])
 
             editable_fields = [ME._RECORDED_BY, ME._ESTIMATED_BY, ME._ESTIMATED_ON]
             return editable_fields

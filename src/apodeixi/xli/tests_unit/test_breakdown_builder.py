@@ -76,14 +76,14 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         entity_instance             = None
         try:
             tree                    = self._create_breakdown_tree()
-            config                  = self._create_posting_config()
+            xlr_config              = self._create_posting_config()
             my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
                                     data_to_attach      = DATA_TO_ATTACH, 
                                     parent_trace        = my_trace,
                                     uid_to_overwrite    = None,
-                                    config              = config)
+                                    xlr_config          = xlr_config)
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -103,14 +103,14 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         entity_instance             = None
         try:
             tree                    = self._create_breakdown_tree()
-            config                  = self._create_posting_config()
+            xlr_config              = self._create_posting_config()
             my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
                                     data_to_attach      = DATA_TO_ATTACH,
                                     uid_to_overwrite    = None, 
                                     parent_trace        = my_trace,
-                                    config              = config)
+                                    xlr_config          = xlr_config)
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -136,14 +136,14 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         try:
             tree1                   = self._create_breakdown_tree()
             subtree_df              = self._create_df2()
-            config                  = self._create_posting_config()
+            xlr_config              = self._create_posting_config()
             subtree_intervals = [   Interval(None, ['Expectation', 'Description']), 
                                     Interval(None, [ 'Acceptance Criteria', 'Artifact'])]
             self._attach_subtree(   df_to_attach            = subtree_df, 
                                     intervals               = subtree_intervals, 
                                     tree_to_attach_to       = tree1, 
                                     docking_uid             = 'A2.B1.C1', 
-                                    config = config)
+                                    xlr_config              = xlr_config)
             result_dict             = tree1.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -153,7 +153,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
     def _create_breakdown_tree(self):
         root_trace      = FunctionalTrace(None).doing("Creating UID Store")
         store           = UID_Store(root_trace)
-        config          = self._create_posting_config()
+        xlr_config      = self._create_posting_config()
         entity_type     = 'A'
         parent_UID      = None
         root_trace      = FunctionalTrace(None).doing("Creating BreakdownTree", data={  'entity_type'   : entity_type,
@@ -182,7 +182,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                             row                 = rows[idx], 
                                             parent_trace        = my_trace, 
                                             all_rows            = rows, 
-                                            config              = config)
+                                            xlr_config          = xlr_config)
 
         return tree
 
@@ -191,14 +191,14 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         Returns a dummy PostingConfig object. Needed only because some of the functions we test in this module
         require it as a parameter, though all that they require is an UpdatePolicy object within the PostingConfig
         '''
-        update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-        config = PostingConfig( kind            = None, 
-                                manifest_nb     = None, 
-                                update_policy   = update_policy, 
-                                controller      = None)
-        return config
+        update_policy       = UpdatePolicy(reuse_uids=True, merge=False)
+        xlr_config          = PostingConfig(    kind            = None, 
+                                                manifest_nb     = None, 
+                                                update_policy   = update_policy, 
+                                                controller      = None)
+        return xlr_config
 
-    def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid, config):
+    def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid, xlr_config):
         store           = tree_to_attach_to.uid_store
         entity_type     = intervals[0].entity_name
         subtree         = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=docking_uid)
@@ -216,7 +216,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                                 row                 = rows[idx],    
                                                 parent_trace        = my_trace, 
                                                 all_rows            = rows, 
-                                                config              = config)
+                                                xlr_config          = xlr_config)
 
         root_trace      = FunctionalTrace(None).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
                                                                                     "entity_type"  : "'" + entity_type + "'"})

@@ -393,8 +393,9 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         @param activity  A string corresponding to the description of the functional behavior that the resulting
                         trace is about.
         '''
-        my_trace        = parent_trace.doing(activity,
-                                data        = { "environment":      self.current_environment_name(parent_trace)},
+        current_env_name    = self.stack().store().current_environment(parent_trace).name(parent_trace)
+        my_trace            = parent_trace.doing(activity,
+                                data        = { "environment":     current_env_name },
                                 origination = { 'concrete class':   str(self.__class__.__name__), 
                                                 'signaled_from':    __file__})
         return my_trace

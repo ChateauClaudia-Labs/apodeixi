@@ -4,7 +4,7 @@ from apodeixi.util.a6i_error                                    import ApodeixiE
 from apodeixi.controllers.util.skeleton_controller              import SkeletonController
 from apodeixi.controllers.admin.static_data.static_data         import StaticData_Controller
 
-from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLConfig
+from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 
 
 class ProductsController(StaticData_Controller):
@@ -38,6 +38,19 @@ class ProductsController(StaticData_Controller):
         '''
         return self.POSTING_API
 
+    def _buildAllManifests(self, parent_trace, posting_label_handle):
+
+        all_manifests_dict, label              = super()._buildAllManifests(parent_trace, posting_label_handle)
+
+        # Link product entities of products manifest to the line of business they correspond to
+        bre_manifest_nb                 = self.manifest_nb_from_kind(parent_trace, 'product')
+        bre_manifest_dict               = all_manifests_dict[bre_manifest_nb]
+        self.linkReferenceManifest(parent_trace, bre_manifest_dict,     entity      = 'product', 
+                                                                        linkField   = 'lineOfBusiness', 
+                                                                        refKind     = 'line-of-business',
+                                                                        many_to_one = True)
+        return all_manifests_dict, label
+
     def createTemplate(self, parent_trace, form_request, kind):
         '''
         Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
@@ -54,18 +67,28 @@ class ProductsController(StaticData_Controller):
         template_dict, template_df      = super().createTemplate(parent_trace, form_request, kind)
 
         # Discard whatever the parent class did for the templated content. Here we decide how we want it to look
-        list_of_blanks                   = [""] *15
+        list_of_blanks                   = [""] *6
         if kind == "product":
-            p_list                          = ["MYPROD"]
+            p_list                          = ["MYPROD_A"]
             p_list.extend(list_of_blanks)
-            an_list                         = ["My Product, My product, myprod"]
+            p_list.append('MYPROD_B')
+            p_list.append('MYPROD_C')
+            p_list.extend(list_of_blanks)
+            an_list                         = ["My Product A, My product A, myprod A"]
             an_list.extend(list_of_blanks)
+            an_list.append("My Product B, My product B, myprod B")
+            an_list.append("My Product C, My product C, myprod C")
+            an_list.extend(list_of_blanks)
+
             template_df                     = _pd.DataFrame({   "Product":      p_list,
                                                                 "Alias names":  an_list})
         elif kind == "line-of-business":
             lob_list                        = ["My business unit"]
             lob_list.extend(list_of_blanks)
-            template_df                     = _pd.DataFrame({   "LOB":          lob_list})
+            lob_list.append("The other business unit")
+            lob_list.append("")
+            lob_list.extend(list_of_blanks)
+            template_df                     = _pd.DataFrame({   "Line of Business":          lob_list})
         else:
             raise ApodeixiError(parent_trace, "Invalid kind was provided: '" + str(kind) + "'",
                                                 origination = { 'concrete class': str(self.__class__.__name__), 
@@ -80,7 +103,7 @@ class ProductsController(StaticData_Controller):
         Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
         '''
-        config_table                        = AsExcel_Config_Table()
+        xlw_config_table                    = AsExcel_Config_Table()
         #x_offset                            = 1
         y_offset                            = 1
         for key in manifestInfo_dict:
@@ -105,23 +128,23 @@ class ProductsController(StaticData_Controller):
                 df_row_2_excel_row_mapper   = None
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
-            config      = ManifestXLConfig( sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                            manifest_name               = key,    
-                                            viewport_width              = 100,  
-                                            viewport_height             = 40,   
-                                            max_word_length             = 20, 
-                                            editable_cols               = editable_cols,
-                                            hidden_cols                 = hidden_cols,  
-                                            num_formats                 = num_formats, 
-                                            excel_formulas              = excel_formulas,
-                                            df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
-                                            editable_headers            = [],   
-                                            x_offset                    = x_offset,    
-                                            y_offset                    = y_offset)
-            # Put next manifest to the right of this one, separated by an empty column
+            xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                manifest_name               = key,    
+                                                viewport_width              = 100,  
+                                                viewport_height             = 40,   
+                                                max_word_length             = 20, 
+                                                editable_cols               = editable_cols,
+                                                hidden_cols                 = hidden_cols,  
+                                                num_formats                 = num_formats, 
+                                                excel_formulas              = excel_formulas,
+                                                df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
+                                                editable_headers            = [],   
+                                                x_offset                    = x_offset,    
+                                                y_offset                    = y_offset)
+                # Put next manifest to the right of this one, separated by an empty column
             x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
-            config_table.addManifestXLConfig(loop_trace, config)
-        return config_table
+            xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)
+        return xlw_config_table
 
 
 

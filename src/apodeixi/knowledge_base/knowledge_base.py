@@ -174,7 +174,7 @@ class KnowledgeBase():
         regression testing:
         
         * a string corresponding the log made during the processing
-        * the ManfiestRepresenter object that was used to create the form
+        * the ManifestRepresenter object that was used to create the form
 
         '''
         self.store.beginTransaction(parent_trace)

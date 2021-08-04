@@ -321,4 +321,9 @@ class Interval():
         '''
         Returns a list of strings, corresponding to the Interval's columns that are not the entity type
         '''
-        return list(set(self.columns).difference(set([self.entity_name])))
+        #GOTCHA: Don't compare column names to the entity name directly, since there might be spurious
+        #       differences due to lower/upper case. Instead, format as a yaml field to have a standard
+        #       policy on case, space, hyphens, etc. prior to comparison
+        FMT         = StringUtils().format_as_yaml_fieldname
+        result      = [col for col in self.columns if FMT(col) != FMT(self.entity_name)]
+        return result

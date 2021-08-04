@@ -41,12 +41,12 @@ class CapabilityHierarchy_Controller(SkeletonController):
         '''
         ME                          = CapabilityHierarchy_Controller
         update_policy               = UpdatePolicy(         reuse_uids      = True,            merge   = False)
-        config                      = ME._MyPostingConfig(  update_policy   = update_policy,    
+        xlr_config                  = ME._MyPostingConfig(  update_policy   = update_policy,    
                                                             kind            = kind, 
                                                             manifest_nb     = manifest_nb,    
                                                             controller      = self)
 
-        return config 
+        return xlr_config 
 
     def getPostingLabel(self, parent_trace):
         '''

@@ -15,7 +15,7 @@ from apodeixi.xli.interval                  import IntervalUtils
 
 from apodeixi.tree_math.link_table          import LinkTable
 
-class ManfiestRepresenter:
+class ManifestRepresenter:
     '''
     Class that can represent an Apodeixi manifest as an Excel spreadsheet
 
@@ -24,8 +24,8 @@ class ManfiestRepresenter:
                 and the values are DataFrames, each representing the content of a manifest.
     @param label_ctx A dictionary representing the key-value pairs representing the content of a PostingLabel
     '''
-    def __init__(self, parent_trace, config_table, label_ctx, content_df_dict):
-        self.config_table       = config_table
+    def __init__(self, parent_trace, xlw_config_table, label_ctx, content_df_dict):
+        self.xlw_config_table   = xlw_config_table
         self.label_ctx          = label_ctx
         self.content_df_dict    = content_df_dict
 
@@ -79,7 +79,7 @@ class ManfiestRepresenter:
             raise ApodeixiError(my_trace, "Encountered a problem saving the Excel spreadsheet",
                             data = {"error": str(ex)})
 
-        return ManfiestRepresenter.SUCCESS
+        return ManifestRepresenter.SUCCESS
 
     def _add_data_locations_to_posting_label(self, parent_trace, workbook):
         '''
@@ -91,11 +91,11 @@ class ManfiestRepresenter:
 
         to the `self.label_ctx`
         '''
-        label_config            = self.config_table.getPostingLabelXLConfig(parent_trace)
+        label_xlw_config        = self.xlw_config_table.getPostingLabelXLWriteConfig(parent_trace)
         for name in self.content_df_dict.keys():
             loop_trace          = parent_trace.doing("Adding location information for '" + str(name) + "'")
             df                  = self.content_df_dict[name]
-            config              = self.config_table.getManifestXLConfig(loop_trace, name)
+            xlw_config          = self.xlw_config_table.getManifestXLWriteConfig(loop_trace, name)
 
             try:
                 kind, nb            = name.split(".")
@@ -104,16 +104,16 @@ class ManfiestRepresenter:
                                                 data = {"dataset name":     "'" + name + "'",
                                                         "error":            str(ex)})
 
-            x_0                 = config.x_offset
+            x_0                 = xlw_config.x_offset
             
             # The "-1" is because x_0 was one of the columns, so count one less column
-            x_1                 = x_0 + len(df.columns) - 1 - len(config.hidden_cols)
+            x_1                 = x_0 + len(df.columns) - 1 - len(xlw_config.hidden_cols)
             
-            y_0                 = config.y_offset
+            y_0                 = xlw_config.y_offset
             # The "- 1" is because y_0 was one of the rows, so count one less row. 
             y_1                 = y_0 + len(df.index) -1 
 
-            if config.layout.is_transposed:
+            if xlw_config.layout.is_transposed:
                 # Add an extra columns, for the headers
                 x_1             += 1
             else: 
@@ -130,9 +130,9 @@ class ManfiestRepresenter:
             DATA_SHEET          = 'data.sheet.'    + str(nb)
             self.label_ctx['data.kind.'     + str(nb)]     = kind
             self.label_ctx['data.range.'    + str(nb)]     = cell_0 + ":" + cell_1
-            self.label_ctx['data.sheet.'    + str(nb)]     = config.sheet
+            self.label_ctx['data.sheet.'    + str(nb)]     = xlw_config.sheet
 
-            label_config.editable_fields.extend([DATA_RANGE, DATA_SHEET])
+            label_xlw_config.editable_fields.extend([DATA_RANGE, DATA_SHEET])
 
     def _write_dataframes(self, parent_trace, workbook):
         '''
@@ -140,7 +140,7 @@ class ManfiestRepresenter:
         Each manifest's data is inputed as a DataFrame.
 
         The worksheet onto which a manifest's data is laid out is the worksheet whose name is listed in
-        self.config_table[key] where key is a string identifying a manifest (i.e., a dataset). These
+        self.xlw_config_table[key] where key is a string identifying a manifest (i.e., a dataset). These
         `key' strings are the same as the dictionary keys in content_df_dict.
         '''
 
@@ -148,7 +148,7 @@ class ManfiestRepresenter:
         for name in self.content_df_dict.keys():
             loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
             df                  = self.content_df_dict[name]
-            config              = self.config_table.getManifestXLConfig(loop_trace, name)
+            config              = self.xlw_config_table.getManifestXLWriteConfig(loop_trace, name)
             worksheet           = workbook.get_worksheet_by_name(config.sheet)
             if worksheet == None:
                 worksheet               = workbook.add_worksheet(config.sheet) 
@@ -172,8 +172,8 @@ class ManfiestRepresenter:
         '''
         Creates and populates a PostingLabel worksheet
         '''
-        ME                      = ManfiestRepresenter
-        label_config            = self.config_table.getPostingLabelXLConfig(parent_trace)
+        ME                      = ManifestRepresenter
+        label_xlw_config        = self.xlw_config_table.getPostingLabelXLWriteConfig(parent_trace)
 
 
         tmp_dict                = {}
@@ -181,16 +181,16 @@ class ManfiestRepresenter:
             tmp_dict[key] = [self.label_ctx[key]]
         label_df         = _pd.DataFrame(tmp_dict)
         
-        posting_label_worksheet  = workbook.add_worksheet(label_config.sheet) 
+        posting_label_worksheet  = workbook.add_worksheet(label_xlw_config.sheet) 
         # We want to protect only some cells that we put in. For their protection to turn on, we must protect the worksheet. 
         posting_label_worksheet.protect(options = {'insert_rows': True, 'insert_columns': True})
-        self._populate_worksheet(parent_trace, label_df, label_config, workbook, posting_label_worksheet)
+        self._populate_worksheet(parent_trace, label_df, label_xlw_config, workbook, posting_label_worksheet)
 
         # Write the title above the PostingLabel
         self._write_text_label( parent_trace    = parent_trace, 
                                 workbook        = workbook,
                                 worksheet       = posting_label_worksheet, 
-                                xl_config       = label_config, 
+                                xl_config       = label_xlw_config, 
                                 text            = ME.POSTING_LABEL_SHEET)
 
         self._remember_formatting(posting_label_worksheet, ME.POSTING_LABEL_SHEET)
@@ -560,7 +560,7 @@ class ManfiestRepresenter:
         '''
         LIMIT                           = 500
 
-        layouts                         = [config.layout for config in self.config_table.manifest_configs()]
+        layouts                         = [config.layout for config in self.xlw_config_table.manifest_configs()]
 
         # Recall that layout.getSpan return [[xmin, ymin], [xmax, ymax]]
         global_xmin                     = min([layout.getSpan(my_trace)[0][0] for layout in layouts])

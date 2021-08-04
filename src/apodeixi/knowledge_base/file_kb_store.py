@@ -6,7 +6,7 @@ from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordin
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils
 
-from apodeixi.xli.xlimporter                            import ExcelTableReader
+from apodeixi.xli.xlimporter                            import ExcelTableReader, PostingLabelXLReadConfig, ManifestXLReadConfig
 
 '''
 Abstract class
@@ -118,7 +118,13 @@ class File_KBStore_Impl():
         path                    = self._getPostingFullPath(parent_trace, posting_label_handle)
         relative_path           = posting_label_handle.getRelativePath(parent_trace)
         sheet                   = posting_label_handle.excel_sheet
-        reader                  = ExcelTableReader(path, sheet, excel_range, horizontally=False)
+        label_xlr_config        = PostingLabelXLReadConfig()
+
+        reader                  = ExcelTableReader( parent_trace        = parent_trace, 
+                                                    excel_fullpath      = path, 
+                                                    excel_sheet         = sheet,
+                                                    excel_range         = excel_range, 
+                                                    xlr_config          = label_xlr_config)
         my_trace                = parent_trace.doing("Loading Posting Label data from Excel into a DataFrame",
                                                 data = {"relative_path": relative_path, "excel range": excel_range})
         label_df                = reader.read(my_trace)
@@ -134,8 +140,11 @@ class File_KBStore_Impl():
         relative_path           = data_handle.getRelativePath(parent_trace)
         sheet                   = data_handle.excel_sheet
         excel_range             = data_handle.excel_range
-        r                       = ExcelTableReader(path, sheet,excel_range = excel_range, 
-                                                    horizontally = config.horizontally)
+        r                       = ExcelTableReader( parent_trace        = parent_trace, 
+                                                    excel_fullpath      = path, 
+                                                    excel_sheet         = sheet,
+                                                    excel_range         = excel_range, 
+                                                    xlr_config          = config)
         my_trace                = parent_trace.doing("Loading Excel posting data into a DataFrame",
                                                         data = {"relative_path": relative_path, "excel range": excel_range})
         df                      = r.read(my_trace)

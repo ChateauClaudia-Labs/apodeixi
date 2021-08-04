@@ -99,6 +99,205 @@ class SchemaUtils:
                 
             return self.val        
 
+class XLReadConfig():
+    '''
+    Abstract class.
+
+    Concrete classes know how the layout on an Excel spreadsheet should be interpreted to create a DataFrame
+    representation of a manifest. It handles issues like:
+
+    * Knowing whether to read Excel rows as DataFrame rows or as columns
+    * Whether the Excel columns (or rows) reprsent properties for an entity in the manifest, or something else
+      (such as a mapping between two manifests)
+    '''
+    def __init__(self):
+        return
+
+    def pandasRowParameters(self, parent_trace, first_row, last_row):
+        '''
+        Returns two ints: header and number_of_rows, which are the row parameters Pandas
+        needs to load a portion of Excel real estate.
+
+        @first_row An int, representing the first Excel row (numbering starts at 1
+                            of real estate that is to be loaded
+        @last_row An int, representing the first Excel row (numbering starts at 1)
+                            of real estate that is to be loaded
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'pandasRowParameters' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__})   
+
+    def toManifestDF(self, parent_trace, raw_df, first_row, last_row):
+        '''
+        Abstract method 
+
+        Based on a raw DataFrame as loaded by Pandas from Excel, it computes and returns a potentially different
+        DataFrame which represents the manifest whose content was diplayed in Excel.
+
+        The reason both might be different is that the visualization in Excel may introduce additional
+        elements, such as:
+
+        * Perhaps manifest is rotated, so rows in Excel correspond to manifest DataFrame columns, not rows
+        * Perhaps some rows (or columns) in Excel are not entity properties of the manifest, but are visual
+          expressions of a mapping/join between two manifests
+
+        @param raw_df A DataFrame for a dataset loaded by Pandas from Excel
+        @param first_row An int, corresponding to the row number in Excel where the dataset starts
+        @param last_row An int, corresponding to the last row number in Excel where the dataset appears
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'toManifestDF' in concrete class",
+                                        origination = {'concrete class': str(self.__class__.__name__), 
+                                                        'signaled_from': __file__}) 
+
+class PostingLabelXLReadConfig(XLReadConfig):
+    '''
+    Configuration on how to read the Excel content corresponding to a PostingLabel.
+    '''
+    def __init__(self):
+        super().__init__()
+        return
+
+    def pandasRowParameters(self, parent_trace, first_row, last_row):
+        '''
+        Returns two ints: header and number_of_rows, which are the row parameters Pandas
+        needs to load a portion of Excel real estate.
+
+        @first_row An int, representing the first Excel row (numbering starts at 1
+                            of real estate that is to be loaded
+        @last_row An int, representing the first Excel row (numbering starts at 1)
+                            of real estate that is to be loaded
+        '''
+        if first_row > 1:
+            header = first_row -2 
+        else:
+            header = None 
+        nrows  = last_row - first_row +1 # First row must be included, so nrows is 1 bigger
+
+        return header, nrows
+
+    def toManifestDF(self, parent_trace, raw_df, first_row, last_row):
+        '''
+        Based on a raw DataFrame as loaded by Pandas from Excel, it computes and returns a potentially different
+        DataFrame which represents the manifest whose content was diplayed in Excel.
+
+        The reason both might be different is that the visualization in Excel may introduce additional
+        elements, such as:
+
+        * Perhaps manifest is rotated, so rows in Excel correspond to manifest DataFrame columns, not rows
+        * Perhaps some rows (or columns) in Excel are not entity properties of the manifest, but are visual
+          expressions of a mapping/join between two manifests
+
+        @param raw_df A DataFrame for a dataset loaded by Pandas from Excel
+        @param first_row An int, corresponding to the row number in Excel where the dataset starts
+        @param last_row An int, corresponding to the last row number in Excel where the dataset appears
+        '''
+        #In the case of a PostingLabel, we must rotate the raw_df and eliminate any Excel rows where
+        # the first column is blank (since the first column are the PostingLabel field names, and a blank
+        # field name is not allowed)
+        keys_p          = list(raw_df.columns)[0] # "pointer" to the list of keys, i.e., Excel header for column of keys
+        df2             = SchemaUtils.drop_blanks(raw_df, keys_p)
+        df2             = df2.set_index(keys_p)
+        df2.index.name = None
+        df2             = df2.transpose()
+        df2             = df2.reset_index()
+        df2             = df2.drop(columns=['index'])
+
+        manifest_df     = df2
+        
+        return manifest_df 
+
+class ManifestXLReadConfig(XLReadConfig):
+    '''
+    Abstract class
+    Configuration on how to read the Excel content corresponding to a manifest.
+    '''
+    def __init__(self):
+        super().__init__()
+        self.horizontally           = True # Default. Derived classes my overwrite
+        self.is_a_mapping           = False # Default. Derived classes my overwrite
+         
+        # If this is mapping, must be set to the `kind` of the manifest we are mapped from
+        self.kind_mapped_from       = None
+
+        # If this is a mapping, must be set in calling path before self.toManifestDF is called
+        self.posting_label          = None
+
+        return
+
+    def pandasRowParameters(self, parent_trace, first_row, last_row):
+        '''
+        Returns two ints: header and number_of_rows, which are the row parameters Pandas
+        needs to load a portion of Excel real estate.
+
+        @first_row An int, representing the first Excel row (numbering starts at 1
+                            of real estate that is to be loaded
+        @last_row An int, representing the first Excel row (numbering starts at 1)
+                            of real estate that is to be loaded
+        '''
+        if self.horizontally==True:
+            header = first_row - 1
+            nrows  = last_row - first_row
+        elif self.is_a_mapping == False:
+            if first_row > 1:
+                header = first_row -2 
+            else:
+                header = None 
+            nrows  = last_row - first_row +1 # First row must be included, so nrows is 1 bigger
+        else: # We are processing a mapping
+            header = first_row - 1
+            nrows  = last_row - first_row
+
+        return header, nrows
+
+    def toManifestDF(self, parent_trace, raw_df, first_row, last_row):
+        '''
+        Based on a raw DataFrame as loaded by Pandas from Excel, it computes and returns a potentially different
+        DataFrame which represents the manifest whose content was diplayed in Excel.
+
+        The reason both might be different is that the visualization in Excel may introduce additional
+        elements, such as:
+
+        * Perhaps manifest is rotated, so rows in Excel correspond to manifest DataFrame columns, not rows
+        * Perhaps some rows (or columns) in Excel are not entity properties of the manifest, but are visual
+          expressions of a mapping/join between two manifests
+
+        @param raw_df A DataFrame for a dataset loaded by Pandas from Excel
+        @param first_row An int, corresponding to the row number in Excel where the dataset starts
+        @param last_row An int, corresponding to the last row number in Excel where the dataset appears
+        '''
+        if self.horizontally == True:
+            manifest_df     = raw_df
+
+        elif self.is_a_mapping == False:
+            #In thise case we must rotate the raw_df and eliminate any Excel rows where
+            # the first column is blank (since those will become the columns of the manifest DataFrame, and
+            # shouldn't be blank)
+            keys_p          = list(raw_df.columns)[0] # "pointer" to the list of keys, i.e., Excel header for column of keys
+            df2             = SchemaUtils.drop_blanks(raw_df, keys_p)
+            df2             = df2.set_index(keys_p)
+            df2.index.name = None
+            df2             = df2.transpose()
+            df2             = df2.reset_index()
+            df2             = df2.drop(columns=['index'])
+
+            manifest_df     = df2
+        
+        else: # We must process a mapping
+            if self.posting_label == None:
+                raise ApodeixiError(parent_trace, "Can't read mapping manifest information because the posting label "
+                                                    + "was not set in the PostingConfig ahead of time")
+            if self.kind_mapped_from == None:
+                raise ApodeixiError(parent_trace, "Can't read mapping manifest information because the `kind` "
+                                                    + "of the manifest we map from was not set in the PostingConfig "
+                                                    + "ahead of time")
+            manifest_df     = self.controller.linkMappedManifest(   parent_trace, 
+                                                                    refKind         = self.kind_mapped_from, 
+                                                                    raw_df          = raw_df, 
+                                                                    first_row       = first_row, 
+                                                                    last_row        = last_row)
+        
+        return manifest_df 
+
 class ExcelTableReader:
     '''
     Reads a table of data from an Excel spreadsheet and creates a Pandas DataFrame from it.
@@ -108,35 +307,24 @@ class ExcelTableReader:
     @param excel_sheet Name of the worksheet in the Excel spreadsheet where we should retrieve content from.
     @param excel_range A string representing a range in Excel. The first row must be the column headers.
                        Example: "A3:D10"
-    @param horizontally A boolean to determine whether the data to be read is arranged in rows (horizontally=True)
-                        or columns (horizontally=False). It is True by default
     @return A Pandas DataFrame built from the data provided.
     '''
-    def __init__(self, excel_fullpath, excel_sheet, excel_range, horizontally=True):
+    def __init__(self, parent_trace, excel_fullpath, excel_sheet, excel_range, xlr_config):
         self.excel_fullpath     = excel_fullpath
         self.excel_sheet        = excel_sheet
         self.excel_range        = excel_range.upper()
-        self.horizontally       = horizontally
+        self.xlr_config         = xlr_config
         
-    def read(self, parent_trace, horizontally=True):
-       
+    def read(self, parent_trace):
+        '''
+        Loads the Apodeixi object in Excel that this ExcelTableReader was initialized for, and returns it
+        as a Pandas DataFrame 
+        '''
         my_trace                = parent_trace.doing("Parsing excel range",
                                                          data = {"excel_range": str(self.excel_range)})        
-        first_column, last_column, first_row, last_row  = ExcelTableReader.__parse_range(my_trace, self.excel_range)
+        first_column, last_column, first_row, last_row  = ExcelTableReader.parse_range(my_trace, self.excel_range)
         
-
-        
-        # Note that Excel columns start at 1, but Pandas counts rows from 0, so need to offset the
-        # header by 1
-        if self.horizontally==True:
-            header = first_row - 1
-            nrows  = last_row - first_row
-        else:
-            if first_row > 1:
-                header = first_row -2
-            else:
-                header = None 
-            nrows  = last_row - first_row +1 # First row is data, not header, so nrows is 1 bigger
+        header, nrows           = self.xlr_config.pandasRowParameters(parent_trace, first_row, last_row)
         my_trace                = parent_trace.doing("Loading Excel spreadsheet",
                                                         data = {"excel_fullpath": str(self.excel_fullpath)})
         try:
@@ -182,13 +370,16 @@ class ExcelTableReader:
                               origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
             
-        if self.horizontally==False:
-            df = self.__rotate(df)
+        my_trace                = parent_trace.doing("Computing manifest DataFrame from raw DataFrame loaded from Excel")
+        manifest_df             = self.xlr_config.toManifestDF( parent_trace        = my_trace, 
+                                                                raw_df              = df, 
+                                                                first_row           = first_row, 
+                                                                last_row            = last_row)
         
-        return df
+        return manifest_df
     
 
-    def __parse_range(parent_trace, excel_range):
+    def parse_range(parent_trace, excel_range):
         '''
         Parses strings for Excel ranges like 'C5:DA15' and returns the columns and rows: 'C', 'DA', 5, 15.
         If the given range is not correctly formatted then throws an exception
@@ -226,7 +417,7 @@ class ExcelTableReader:
         Helper method available to other Apodeixi classes. Particularly helpful in creating user-friendly error messages by
         inferring user-visible information (a row number in Excel) from an internal parsing information (a DataFrame row number)
         '''
-        first_column, last_column, first_row, last_row = ExcelTableReader.__parse_range( parent_trace = parent_trace, 
+        first_column, last_column, first_row, last_row = ExcelTableReader.parse_range( parent_trace = parent_trace, 
                                                                                     excel_range     = excel_range)
 
         # DataFrame rows start at 0, which in Excel is the row after the row of column headers.
@@ -234,24 +425,7 @@ class ExcelTableReader:
         return first_row + 1 + df_row_nb
 
 
-    def __rotate(self, df):
-        '''
-        Used when self.horizontally is false, and we read from Excel that needs to be transposed.
-        In that case, the first column of the parameter 'df' is considered to be the columns of the
-        rotated dataframe to be computed
-        '''
-        #df2 = df.dropna()
-        keys_p = list(df.columns)[0] # "pointer" to the list of keys, i.e., Excel header for column of keys
-        #df2 = df[df.apply(remove_blanks(header_for_list_of_keys), 
-        #                  axis=1)] # Drops keys that are NaN, blanks, etc.
-        df2 = SchemaUtils.drop_blanks(df, keys_p)
-        df2 = df2.set_index(keys_p)
-        df2.index.name = None
-        df2 = df2.transpose()
-        df2 = df2.reset_index()
-        df2 = df2.drop(columns=['index'])
-        
-        return df2       
+      
 
 
 

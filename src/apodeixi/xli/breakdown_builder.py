@@ -75,7 +75,7 @@ class BreakdownTree():
 
         return result
         
-    def readDataframeFragment(self, interval, row, parent_trace, config, all_rows): 
+    def readDataframeFragment(self, interval, row, parent_trace, xlr_config, all_rows): 
         '''
         Used to attach or enrich an immediate child to the root of this BreakdownTree based on information in a row
         in a Pandas DataFrame.
@@ -126,7 +126,7 @@ class BreakdownTree():
                             the Dataframe `iterrows()` iterator.
         @param parent_trace A apodeixi.util.a6i_error.FunctionalTrace object. It contains human-friendly information 
                             for humans to troubleshoot problems when error are raised.
-        @param config An PostingConfig object to help steer some of the stateful handling that sometimes is needed.
+        @param xlr_config An PostingConfig object to help steer some of the stateful handling that sometimes is needed.
                             For example, how to handle the eventuality that the
                             user's postings includes UIDs already (e.g., as when the user updates instead of create). Or as
                             another example, how to handle a situation where there is a need to put a referential link
@@ -134,7 +134,7 @@ class BreakdownTree():
         @returns The full UID of the new _EntityInstance node that was added as a child to this tree, or None if no node was added.
         ''' 
         my_trace                            = parent_trace.doing("Preprocessing before parsing an Excel row fragment")
-        interval, row                       = config.preprocessReadFragment(    parent_trace        = my_trace, 
+        interval, row                       = xlr_config.preprocessReadFragment(parent_trace        = my_trace, 
                                                                                 interval            = interval, 
                                                                                 dataframe_row       = row)
 
@@ -182,6 +182,7 @@ class BreakdownTree():
                 Also, if the user put comments to itself in the form of parenthesis, we remove that
                 '''
                 GIST_OF                     = IntervalUtils().without_comments_in_parenthesis # Abbreviation for readability
+                FMT                         = StringUtils().format_as_yaml_fieldname
                 raw_col                     = columns[idx]
                 no_parenthesis_col          = GIST_OF(my_trace, raw_col)
                 REGEX                       = "(\.[0-9]+)$"
@@ -192,7 +193,7 @@ class BreakdownTree():
                     suffix                  = suffix_search.group(0)
                     cleaned_len             = len(no_parenthesis_col) - len(suffix)
                     cleaned_col             = no_parenthesis_col[:cleaned_len]
-                return cleaned_col == interval.entity_name
+                return FMT(cleaned_col) == FMT(interval.entity_name) # Format as yaml fieldname to avoid spurious differences due to e.g. upper/lower case
 
             idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
             if len(idxs)>1:
@@ -211,7 +212,7 @@ class BreakdownTree():
             # So make the first validation: check that if interval's entity is blank, all of interval is bank
             
             encountered_new_entity      = not interval.entity_name in blank_cols
-            if self._keep_user_provided_UID(my_trace, config=config, user_provided_data=row[1][interval.columns]):
+            if self._keep_user_provided_UID(my_trace, xlr_config=xlr_config, user_provided_data=row[1][interval.columns]):
                 # The user-provided UID might skip acronyms. For example, it might be 4.2 instead
                 # BR4.C2 for previty when using joins. In those cases Pandas might have thought that the
                 # UID was a number, so force conversion to string "4.2" to prevent problems.
@@ -246,8 +247,8 @@ class BreakdownTree():
 
                 else:
                     # Create a friendly error message 
-                    excel_row_nb            = config.excel_row_nb(my_trace, row[0])
-                    excel_sheet             = config.excel_sheet(my_trace)
+                    excel_row_nb            = xlr_config.excel_row_nb(my_trace, row[0])
+                    excel_sheet             = xlr_config.excel_sheet(my_trace)
                     non_black_cols          = [col for col in interval.columns if not col in blank_cols]
                     raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
                                                     + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
@@ -279,23 +280,29 @@ class BreakdownTree():
                                                                             original_row_nb     = row[0], 
                                                                             current_row_nb      = row[0], 
                                                                             all_rows            = all_rows, 
-                                                                            config              = config)
+                                                                            xlr_config          = xlr_config)
 
             my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
                                                                     + "' below docking_uid '" + str(docking_uid) + "'",
                                                                     origination = {'signaled_from': __file__})
+            # GOTCHA: When passing the entity type to self.dockEntityData, don't use interval.entity_name 
+            #           since due to lower/upper case differences it may not
+            #           match the actual column name in the DataFrame and that will trigger a key error. 
+            #           Instead, actually use the column name of the DataFrame, which we previously checked
+            #           that is "equivalent" to interval.entity_name when converted to a YAML field
+            entity_type                     = columns[entity_column_idx]                                                       
             subtree_full_uid                = self.dockEntityData(  parent_trace        = my_trace,
                                                                     full_docking_uid    = docking_uid, 
-                                                                    entity_type         = interval.entity_name, 
+                                                                    entity_type         = entity_type, 
                                                                     data_to_attach      = row[1][interval.columns],
                                                                     uid_to_overwrite     = uid_to_overwrite,
-                                                                    config              = config)
+                                                                    xlr_config           = xlr_config)
             return subtree_full_uid
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
             return None
 
-    def _keep_user_provided_UID(self, parent_trace, config, user_provided_data):
+    def _keep_user_provided_UID(self, parent_trace, xlr_config, user_provided_data):
         '''
         Helper method, to determine if all conditions are met for purposes of reading the UID from
         the row, instead of generating one.
@@ -306,7 +313,7 @@ class BreakdownTree():
                 which is what the user provided
         '''
         # Necessary condition: policy is set to reuse UIDs
-        if config.update_policy.reuse_uids == False:
+        if xlr_config.update_policy.reuse_uids == False:
             return False 
         
         # Necessary condition: user data includes an unique column for a UID
@@ -343,7 +350,7 @@ class BreakdownTree():
         UID_COLUMN          = uid_columns[0]
         return UID_COLUMN
 
-    def reserve_user_provided_uids(self, parent_trace, config, data_df, entity_name):
+    def reserve_user_provided_uids(self, parent_trace, xlr_config, data_df, entity_name):
         '''
         Utility method used before this class is used to read content (i.e., before `readDataframeFragment`)
         to tell the store of any user-provided UIDs that should be kept, as long as that is consistent
@@ -352,7 +359,7 @@ class BreakdownTree():
         my_trace                = parent_trace.doing("Checking if user-provided UIDs should be kept")
         if True:
             # Necessary condition: policy is set to reuse UIDs
-            if config.update_policy.reuse_uids == False:
+            if xlr_config.update_policy.reuse_uids == False:
                 return
             
             # Necessary condition: user data includes a unique entry for a UID
@@ -402,7 +409,8 @@ class BreakdownTree():
         row[1][entity_column]       = prior_entity
         return True
 
-    def _discover_docking_uid(self, parent_trace, interval, entity_column_idx, original_row_nb, current_row_nb, all_rows, config):
+    def _discover_docking_uid(self, parent_trace, interval, entity_column_idx, original_row_nb, current_row_nb, 
+                                    all_rows, xlr_config):
         '''
         Helper method used when a new entity is encountered in dataframe cell, where the cell's coordinates
         are:
@@ -461,9 +469,9 @@ class BreakdownTree():
             if current_row_nb == 0: # No preceding row, so search stops with failure
                 # Search failed bacause we have only seen blanks in all rows, so fail with an error message explaining
                 # to the user which part of the Excel spreadsheet is blank and needs fixing
-                excel_original_row_nb   = config.excel_row_nb(my_trace, original_row_nb)
-                excel_current_row_nb    = config.excel_row_nb(my_trace, current_row_nb)
-                excel_sheet             = config.excel_sheet(my_trace)
+                excel_original_row_nb   = xlr_config.excel_row_nb(my_trace, original_row_nb)
+                excel_current_row_nb    = xlr_config.excel_row_nb(my_trace, current_row_nb)
+                excel_sheet             = xlr_config.excel_sheet(my_trace)
                 ancestor_entities       = [columns[idx] for idx in ancestor_entities_idxs]
                 msg                     = "You left blank columns \n['" + "', '".join(ancestor_entities) + "']" \
                                             + "\nfor excel rows " + str(excel_current_row_nb) + "-" + str(excel_original_row_nb) + "." \
@@ -477,14 +485,14 @@ class BreakdownTree():
                                                     original_row_nb         = original_row_nb, 
                                                     current_row_nb          = current_row_nb -1, 
                                                     all_rows                = all_rows,
-                                                    config                  = config)
+                                                    xlr_config              = xlr_config)
         else: # We found it!
             parent_entity               = columns[max(non_blank_ancestors_idx)]
             parent_entity_instance      = self.last_path[parent_entity]
             docking_uid                 = parent_entity_instance.UID
             return docking_uid
 
-    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, uid_to_overwrite, config):
+    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, uid_to_overwrite, xlr_config):
         '''
         Method to attach a descendent to the tree. When an entity A links 1:n with an entity B,
         this method can be used to "attach" an instance 'bi' of B to an instance 'a' of A.
@@ -559,7 +567,7 @@ class BreakdownTree():
                                                     data = {"property name": str(property_name),
                                                             "raw value":     str(val) })
             if IntervalUtils().is_a_UID_column(loop_trace, property_name):
-                if not self._keep_user_provided_UID(loop_trace, config=config, user_provided_data=data_to_attach):
+                if not self._keep_user_provided_UID(loop_trace, xlr_config=xlr_config, user_provided_data=data_to_attach):
                     continue # Don't change the UID value we just generated - ignore whatever the user entered
                 else:
                     # Keep the user UID values, but "correct" the property name in case the user got "creative"
@@ -575,8 +583,8 @@ class BreakdownTree():
 
             if property_name != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
                 
-                #cleaned_val     = DataFrameUtils().clean(val) # Get rid of nan, bad dates, NaT, etc
-                cleaned_val     = config.cleanFragmentValue(    parent_trace        = loop_trace, 
+                # Get rid of nan, bad dates, NaT, etc
+                cleaned_val     = xlr_config.cleanFragmentValue(parent_trace        = loop_trace, 
                                                                 field_name          = property_name, 
                                                                 raw_value           = val, 
                                                                 data_series         = data_to_attach)

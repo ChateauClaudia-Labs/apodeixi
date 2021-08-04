@@ -315,7 +315,7 @@ class KnowledgeBaseStore():
 
         @param form_request A FormRequest object that specifies what form should be uploaded and to which
                             coordinates within the ClientURL area.
-        @param representer A ManfiestRepresenter object that can be used to generate the form to be uploaded.
+        @param representer A ManifestRepresenter object that can be used to generate the form to be uploaded.
 
         @return The filename (a string) under which the form was uploaded
         '''

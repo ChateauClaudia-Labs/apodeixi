@@ -6,7 +6,7 @@ from apodeixi.util.formatting_utils                 import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 from apodeixi.knowledge_base.filing_coordinates     import JourneysFilingCoordinates
-from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLConfig, NumFormats, ExcelFormulas
+from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLWriteConfig, NumFormats, ExcelFormulas
 
 from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec, \
                                                             Interval
@@ -55,19 +55,19 @@ class BigRocksEstimate_Controller(SkeletonController):
         ME                          = BigRocksEstimate_Controller
         if kind == 'big-rock':
             update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-            config                      = ME._BigRocksConfig(           kind            = kind, 
+            xlr_config                  = ME._BigRocksConfig(           kind            = kind, 
                                                                         update_policy   = update_policy,
                                                                         manifest_nb     = manifest_nb, 
                                                                         controller      = self)
         elif kind == 'big-rock-estimate':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._BigRocksEstimatesConfig(  kind            = kind, 
+            xlr_config                  = ME._BigRocksEstimatesConfig(  kind            = kind, 
                                                                         update_policy   = update_policy, 
                                                                         manifest_nb     = manifest_nb,
                                                                         controller      = self)
         elif kind == 'investment':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
-            config                      = ME._InvestmentConfig(         kind            = kind, 
+            xlr_config                  = ME._InvestmentConfig(         kind            = kind, 
                                                                         update_policy   = update_policy, 
                                                                         manifest_nb     = manifest_nb,
                                                                         controller      = self)
@@ -76,7 +76,7 @@ class BigRocksEstimate_Controller(SkeletonController):
                                                 + ", ".join(self.SUPPORTED_KINDS),
                                                 origination = {'signaled_from': __file__})
 
-        return config 
+        return xlr_config 
 
     def getPostingLabel(self, parent_trace):
         '''
@@ -93,7 +93,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
         '''
         ME                                  = BigRocksEstimate_Controller
-        config_table                        = AsExcel_Config_Table()
+        xlw_config_table                    = AsExcel_Config_Table()
         x_offset                            = 1
         y_offset                            = 1
         for key in manifestInfo_dict:
@@ -154,61 +154,35 @@ class BigRocksEstimate_Controller(SkeletonController):
                 df_row_2_excel_row_mapper   = None
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
-            config      = ManifestXLConfig( sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                            manifest_name               = key,    
-                                            viewport_width              = 100,  
-                                            viewport_height             = 40,   
-                                            max_word_length             = 20, 
-                                            editable_cols               = editable_cols,
-                                            hidden_cols                 = hidden_cols,  
-                                            num_formats                 = num_formats, 
-                                            excel_formulas              = excel_formulas,
-                                            df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
-                                            editable_headers            = [],   
-                                            x_offset                    = x_offset,    
-                                            y_offset                    = y_offset)
+            xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                manifest_name               = key,    
+                                                viewport_width              = 100,  
+                                                viewport_height             = 40,   
+                                                max_word_length             = 20, 
+                                                editable_cols               = editable_cols,
+                                                hidden_cols                 = hidden_cols,  
+                                                num_formats                 = num_formats, 
+                                                excel_formulas              = excel_formulas,
+                                                df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
+                                                editable_headers            = [],   
+                                                x_offset                    = x_offset,    
+                                                y_offset                    = y_offset)
             # Put next manifest to the right of this one, separated by an empty column
             x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
-            config_table.addManifestXLConfig(loop_trace, config)
-        return config_table
+            xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)
+        return xlw_config_table
 
     def _buildAllManifests(self, parent_trace, posting_label_handle):
 
-        all_manifests_dict, label              = super()._buildAllManifests(parent_trace, posting_label_handle)
+        all_manifests_dict, label       = super()._buildAllManifests(parent_trace, posting_label_handle)
 
-        my_trace                        = parent_trace.doing("Linking big-rock-estimate manifest to UIDs from big-rock manifest "
-                                                                + "in BigRocksEstimate_Controller")
-        referencing                     = 'big-rock-estimate'
-        referenced                      = 'big-rock'
-
-        # Expect exactly 1 match
-        matching_nbs                    = [manifest_nb 
-                                            for manifest_nb, kind, excel_range, excel_sheet 
-                                            in self.show_your_work.manifest_metas()
-                                            if kind == referencing]
-        if len(matching_nbs)==0:
-            raise ApodeixiError(my_trace, "Unable to find metadata in controller's show_your_work for kind='" + referencing + "'")
-        if len(matching_nbs) > 1:
-            raise ApodeixiError(my_trace, "Too many matches in controller's show_your_work metadata for kind='" + referencing 
-                                            + "': expected exactly one match",
-                                            data = {'kind': referencing, 'matching_nbs': str(matching_nbs)})
-
-        # After checks above, this is safe:
-        manifest_nb                     = matching_nbs[0]
-        # The 'big-rock-estimate' is the 2nd manifest, hence index 1 (we start at index 0)
-
-        effort_dict                     = all_manifests_dict[manifest_nb]['assertion']['effort']
-
-        effort_uids                     = [e_uid for e_uid in effort_dict.keys() if not e_uid.endswith("-name")]
-        UID_FINDER                      = self.link_table.find_foreign_uid # Abbreviation for readability
-        for e_uid in effort_uids:
-            br_uid                      = UID_FINDER(   parent_trace            = my_trace, 
-                                                        our_manifest_id         = referencing, 
-                                                        foreign_manifest_id     = referenced, 
-                                                        our_manifest_uid        = e_uid)
-
-            effort_dict[e_uid]['bigRock']  = br_uid
-
+        # Link effort entities of big-rock-estimate manifest to the big rock they correspond to
+        bre_manifest_nb                 = self.manifest_nb_from_kind(parent_trace, 'big-rock-estimate')
+        bre_manifest_dict               = all_manifests_dict[bre_manifest_nb]
+        self.linkReferenceManifest(parent_trace, bre_manifest_dict,     entity      = 'effort', 
+                                                                        linkField   = 'bigRock', 
+                                                                        refKind     = 'big-rock',
+                                                                        many_to_one = False)
         return all_manifests_dict, label
 
     def manifestNameFromLabel(self, parent_trace, label):

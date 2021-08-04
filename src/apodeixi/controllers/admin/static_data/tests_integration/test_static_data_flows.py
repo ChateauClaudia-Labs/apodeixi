@@ -41,7 +41,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
                                 posting_api                 = 'products.static-data.admin.a6i',
                                 excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
-                                excel_sheet                 = "Sheet1",
+                                excel_sheet                 = "Posting Label",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET)
 

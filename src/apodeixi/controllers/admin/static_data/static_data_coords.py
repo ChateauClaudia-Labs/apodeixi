@@ -12,7 +12,7 @@ class StaticDataFilingCoordinates(FilingCoordinates):
         return
     
     ADMIN                           = "admin"
-    STATIC_DATA                     = "static_data"
+    STATIC_DATA                     = "static-data"
 
     '''
     This method is mandated by abstract parent classes, and is intended to "finish up" the construction of a 
@@ -48,7 +48,8 @@ class StaticDataFilingCoordinates(FilingCoordinates):
         return {}
 
     def __format__(self, format_spec):
-        msg     = ""
+        ME                  = StaticDataFilingCoordinates
+        msg     = ''
         return msg
 
     def __str__(self):

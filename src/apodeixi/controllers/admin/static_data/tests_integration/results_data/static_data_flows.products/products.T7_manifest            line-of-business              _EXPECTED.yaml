@@ -1,0 +1,27 @@
+apiVersion: static-data.admin.a6i.io/v1a
+assertion:
+  entity_type: line-of-business
+  estimatedBy: accountableowner.lastname@your_company.com
+  estimatedOn: &id001 2021-08-04 00:00:00
+  line-of-business:
+    LOB1:
+      UID: LOB1
+      name: My business unit
+    LOB1-name: My business unit
+    LOB2:
+      UID: LOB2
+      name: The other business unit
+    LOB2-name: The other business unit
+  recordedBy: yourname.lastname@your_company.com
+kind: line-of-business
+metadata:
+  labels:
+    estimatedBy: accountableowner.lastname@your_company.com
+    estimatedOn: *id001
+    knowledgeBase: Testing Area
+    organization: My Corporation
+    recordedBy: yourname.lastname@your_company.com
+    version: 1
+  name: static-data
+  namespace: my-corporation.testing-area
+  version: 1

@@ -6,7 +6,7 @@ from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDat
 from apodeixi.knowledge_base.knowledge_base_util                import FormRequest
 
 
-#from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLConfig
+#from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 
 from apodeixi.util.formatting_utils                             import StringUtils
 from apodeixi.xli.posting_controller_utils                      import UpdatePolicy, PostingConfig
@@ -39,10 +39,9 @@ class StaticData_Controller(SkeletonController):
         '''
         Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
         '''
-        CONFIG_CLASS                    = self.getPostingConfigClass(parent_trace)
         if kind in self.SUPPORTED_KINDS:
             update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-            config                      = StaticData_Controller._StaticDataConfig(  kind            = kind, 
+            xlr_config                  = StaticData_Controller._StaticDataConfig(  kind            = kind, 
                                                                                     update_policy   = update_policy,
                                                                                     manifest_nb     = manifest_nb, 
                                                                                     controller      = self)
@@ -51,7 +50,7 @@ class StaticData_Controller(SkeletonController):
                                                 + ", ".join(self.SUPPORTED_KINDS),
                                                 origination = {'signaled_from': __file__})
 
-        return config 
+        return xlr_config 
 
     def getPostingLabel(self, parent_trace):
         '''
@@ -127,7 +126,7 @@ class StaticData_Controller(SkeletonController):
 
     class _StaticDataConfig(PostingConfig):
         '''
-        Codifies the schema and integrity expectations for products.
+        Codifies the schema and integrity expectations for static data datasets.
         '''
         def __init__(self, kind, manifest_nb, update_policy, controller):
             ME                          = StaticData_Controller._StaticDataConfig
@@ -141,10 +140,13 @@ class StaticData_Controller(SkeletonController):
                                                         )
 
             self.interval_spec  = interval_spec
-            self.entity_name    = kind
+            self._entity_name    = kind
+
+        def entity_name(self):
+            return self._entity_name
 
         def entity_as_yaml_fieldname(self):
-            return StringUtils().format_as_yaml_fieldname(self.entity_name)
+            return StringUtils().format_as_yaml_fieldname(self._entity_name)
 
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
@@ -168,14 +170,12 @@ class StaticData_Controller(SkeletonController):
             FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
 
             posted_cols                     = [FMT(col) for col in posted_content_df.columns]
-            mandatory_cols                  = [FMT(self.entity_name)]
+            mandatory_cols                  = [FMT(self._entity_name)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
                 raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
                                                     data = {    'Missing columns':    missing_cols,
                                                                 'Posted columns':     posted_cols})
-        def entity_name(self):
-            self.entity_name
 
     class _MyPostingLabel(SkeletonController._MyPostingLabel):
         '''

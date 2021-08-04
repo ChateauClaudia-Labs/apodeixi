@@ -12,7 +12,7 @@ from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoo
                                                                 ArchiveFilingCoordinates, LogFilingCoordinates, \
                                                                 TBD_FilingCoordinates    
 from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
-from apodeixi.representers.as_excel                     import ManfiestRepresenter
+from apodeixi.representers.as_excel                     import ManifestRepresenter
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
@@ -1093,7 +1093,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
         @param form_request A FormRequest object that specifies what form should be uploaded and to which
                             coordinates within the ClientURL area.
-        @param representer A ManfiestRepresenter object that can be used to generate the form to be uploaded.
+        @param representer A ManifestRepresenter object that can be used to generate the form to be uploaded.
 
         @return The filename (a string) under which the form was uploaded
         '''
@@ -1108,7 +1108,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                                     excel_filename  = filename)  
 
         self._remember_clientURL_write(parent_trace, form_request.getRelativePath(parent_trace))
-        if status != ManfiestRepresenter.SUCCESS:
+        if status != ManifestRepresenter.SUCCESS:
             raise ApodeixiError(parent_trace, "Encountered a problem creating the Excel spreadsheet requested")
         
         return filename

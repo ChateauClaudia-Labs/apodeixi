@@ -48,13 +48,13 @@ class MilestonesController(SkeletonController):
         ME                              = MilestonesController
         if kind == ME.MY_KIND:
             update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-            config                      = ME._MilestonesConfig( update_policy       = update_policy, 
+            xlr_config                  = ME._MilestonesConfig( update_policy       = update_policy, 
                                                                 kind                = kind, 
                                                                 manifest_nb         = manifest_nb,
                                                                 controller          = self)
         elif kind == ME.REFERENCED_KIND:
             update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
-            config                      = BigRocksEstimate_Controller._BigRocksConfig(  update_policy       = update_policy, 
+            xlr_config                  = BigRocksEstimate_Controller._BigRocksConfig(  update_policy       = update_policy, 
                                                                                         kind                = kind,
                                                                                         manifest_nb         = manifest_nb,
                                                                                         controller          = self)
@@ -64,7 +64,7 @@ class MilestonesController(SkeletonController):
                                                 + ", ".join(self.SUPPORTED_KINDS),
                                                 origination = {'signaled_from': __file__})
 
-        return config 
+        return xlr_config 
 
     def getPostingLabel(self, parent_trace):
         '''
@@ -76,37 +76,6 @@ class MilestonesController(SkeletonController):
     def _buildAllManifests(self, parent_trace, posting_label_handle):
         ME                              = MilestonesController
         all_manifests_dict, label       = super()._buildAllManifests(parent_trace, posting_label_handle)
-
-        my_trace                        = parent_trace.doing("Linking " + ME.MY_KIND + " manifest to UIDs from " + ME.REFERENCED_KIND + " manifest "
-                                                                + "in MilestonesController")
-        referencing                     = ME.MY_KIND
-        referenced                      = ME.REFERENCED_KIND
-
-        # Expect exactly 1 match
-        matching_nbs                    = [manifest_nb  for manifest_nb, kind, excel_range, excel_sheet 
-                                                        in self.show_your_work.manifest_metas()
-                                                        if kind == referencing]
-        if len(matching_nbs)==0:
-            raise ApodeixiError(my_trace, "Unable to find metadata in controller's show_your_work for kind='" + referencing + "'")
-        if len(matching_nbs) > 1:
-            raise ApodeixiError(my_trace, "Too many matches in controller's show_your_work metadata for kind='" + referencing 
-                                            + "': expected exactly one match",
-                                            data = {'kind': referencing, 'matching_nbs': str(matching_nbs)})
-
-        # After checks above, this is safe:
-        manifest_nb                     = matching_nbs[0]
-
-        milestones_dict                 = all_manifests_dict[manifest_nb]['assertion']['milestone']
-
-        milestones_uids                 = [e_uid for e_uid in milestones_dict.keys() if not e_uid.endswith("-name")]
-        UID_FINDER                      = self.link_table.find_foreign_uid # Abbreviation for readability
-        for e_uid in milestones_uids:
-            br_uid                      = UID_FINDER(   parent_trace            = my_trace, 
-                                                        our_manifest_id         = referencing, 
-                                                        foreign_manifest_id     = referenced, 
-                                                        our_manifest_uid        = e_uid)
-
-            milestones_dict[e_uid][ME.REFERENCED_KIND]  = br_uid
 
         return all_manifests_dict, label
 
@@ -214,7 +183,13 @@ class MilestonesController(SkeletonController):
                                 update_policy   = update_policy, 
                                 manifest_nb     = manifest_nb,
                                 controller      = controller)
-            self.horizontally                   = False # Replaces parent class's default, so we read Excel by columns, not by rows
+
+            # These three settings replace the parent class's defaults. That ensures wwe read Excel by columns, 
+            # not by rows, and that we realize a fair amount of rows in Excel are really a mapping to big rock, not
+            # manifest entities' properties.
+            self.horizontally                   = False 
+            self.is_a_mapping                   = True
+            self.kind_mapped_from               = 'big-rock'
 
             interval_spec_milestones   = GreedyIntervalSpec( parent_trace = None, entity_name = ME._ENTITY_NAME) 
 

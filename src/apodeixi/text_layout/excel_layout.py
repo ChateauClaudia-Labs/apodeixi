@@ -458,7 +458,7 @@ class AsExcel_Config():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
-class ManifestXLConfig(AsExcel_Config):
+class ManifestXLWriteConfig(AsExcel_Config):
     '''
     The configuration for laying out and formatting a manifest's data on an Excel spreadsheet
 
@@ -595,7 +595,7 @@ class ManifestXLConfig(AsExcel_Config):
  
         return excel_row, final_excel_row
 
-class PostingLabelXLConfig(AsExcel_Config):
+class PostingLabelXLWriteConfig(AsExcel_Config):
     '''
     The configuration for laying out and formatting a Posting Label data on an Excel spreadsheet
 
@@ -623,7 +623,7 @@ class PostingLabelXLConfig(AsExcel_Config):
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
-        ME                          = PostingLabelXLConfig
+        ME                          = PostingLabelXLWriteConfig
         self.editable_fields        = editable_fields
 
         self.layout                 =  PostingLayout(ME._POSTING_LABEL)
@@ -632,7 +632,7 @@ class PostingLabelXLConfig(AsExcel_Config):
     _POSTING_LABEL              = "Posting Label"
 
     def buildLayout(self, parent_trace, label_df):
-        ME                          = PostingLabelXLConfig
+        ME                          = PostingLabelXLWriteConfig
         fields                      = label_df.columns
 
         self.layout.build(parent_trace, columns             = fields,
@@ -682,47 +682,48 @@ class AsExcel_Config_Table():
     Encapsulates set of AsExcel_Config objects, identified by their name
     '''
     def __init__(self):
-        self.manifest_config_dict           = {}
-        self.posting_label_config           = None
+        self.manifest_xlw_config_dict       = {}
+        self.posting_label_xlw_config       = None
         return
     
-    def addManifestXLConfig(self, parent_trace, config):
+    def addManifestXLWriteConfig(self, parent_trace, xlw_config):
         '''
-        @param config A ManifestXLConfig object for a manifest
+        @param config A ManifestXLWriteConfig object for a manifest
         '''
-        if type(config) != ManifestXLConfig:
-            raise ApodeixiError(parent_trace, "Expected a ManifestXLConfig, but instead was given a " + str(type(config)))
+        if type(xlw_config) != ManifestXLWriteConfig:
+            raise ApodeixiError(parent_trace, "Expected a ManifestXLWriteConfig, but instead was given a " + str(type(config)))
     
-        name                                = config.getName(parent_trace)
-        self.manifest_config_dict[name]     = config
+        name                                = xlw_config.getName(parent_trace)
+        self.manifest_xlw_config_dict[name] = xlw_config
 
-    def getManifestXLConfig(self, parent_trace, name):
+    def getManifestXLWriteConfig(self, parent_trace, name):
         '''
-        Returns a ManifestXLConfig object for the manifest that is uniquely identified by the given `name`, and 
+        Returns a ManifestXLWriteConfig object for the manifest that is uniquely identified by the given `name`, and 
         raises an ApodeixiError if none exists
 
-        @param name The unique name of the ManifestXLConfig in self
+        @param name The unique name of the ManifestXLWriteConfig in self
         '''
-        if not name in self.manifest_config_dict.keys():
-            raise ApodeixiError(parent_trace, "No ManifestXLConfig exists with name '" + str(name) + "'")
+        if not name in self.manifest_xlw_config_dict.keys():
+            raise ApodeixiError(parent_trace, "No ManifestXLWriteConfig exists with name '" + str(name) + "'")
     
-        return self.manifest_config_dict[name]
+        return self.manifest_xlw_config_dict[name]
 
     def manifest_configs(self):
-        return self.manifest_config_dict.values()
+        return self.manifest_xlw_config_dict.values()
 
-    def setPostingLabelXLConfig(self, parent_trace, config):
+    def setPostingLabelXLWriteConfig(self, parent_trace, label_xlw_config):
         '''
-        @param config A PostingLabelXLConfig object for a posting label
+        @param config A PostingLabelXLWriteConfig object for a posting label
         '''
-        if type(config) != PostingLabelXLConfig:
-            raise ApodeixiError(parent_trace, "Expected a PostingLabelXLConfig, but instead was given a " + str(type(config)))
+        if type(label_xlw_config) != PostingLabelXLWriteConfig:
+            raise ApodeixiError(parent_trace, "Expected a PostingLabelXLWriteConfig, but instead was given a " 
+                                                    + str(type(label_xlw_config)))
     
-        self.posting_label_config     = config
+        self.posting_label_xlw_config     = label_xlw_config
 
-    def getPostingLabelXLConfig(self, parent_trace):
+    def getPostingLabelXLWriteConfig(self, parent_trace):
         '''
-        Returns the PostingLabelXLConfig object for this object.
+        Returns the PostingLabelXLWriteConfig object for this object.
 
         '''
-        return self.posting_label_config
+        return self.posting_label_xlw_config

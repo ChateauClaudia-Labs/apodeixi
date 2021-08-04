@@ -1,13 +1,9 @@
-MANIFEST_META::0::_DATA_KIND		modernization-milestone
-MANIFEST_META::0::_DATA_RANGE		L2:P30
+MANIFEST_META::0::_DATA_KIND		big-rock
+MANIFEST_META::0::_DATA_RANGE		E7:J50
 MANIFEST_META::0::_DATA_SHEET		Sheet1
-MANIFEST_META::1::_DATA_KIND		big-rock
-MANIFEST_META::1::_DATA_RANGE		E7:J50
+MANIFEST_META::1::_DATA_KIND		modernization-milestone
+MANIFEST_META::1::_DATA_RANGE		L2:P30
 MANIFEST_META::1::_DATA_SHEET		Sheet1
-ROW_2_UID_LINK::modernization-milestone::0		M1
-ROW_2_UID_LINK::modernization-milestone::1		M2
-ROW_2_UID_LINK::modernization-milestone::2		M3
-ROW_2_UID_LINK::modernization-milestone::3		M4
 ROW_2_UID_LINK::big-rock::0		BR1.B1
 ROW_2_UID_LINK::big-rock::1		BR1.B2
 ROW_2_UID_LINK::big-rock::2		BR1.B3.SB1
@@ -29,3 +25,7 @@ ROW_2_UID_LINK::big-rock::17		BR3.B3.SB1
 ROW_2_UID_LINK::big-rock::18		BR3.B3.SB2
 ROW_2_UID_LINK::big-rock::19		BR3.B3.SB3
 ROW_2_UID_LINK::big-rock::20		BR3.B3.SB4
+ROW_2_UID_LINK::modernization-milestone::0		M1
+ROW_2_UID_LINK::modernization-milestone::1		M2
+ROW_2_UID_LINK::modernization-milestone::2		M3
+ROW_2_UID_LINK::modernization-milestone::3		M4
