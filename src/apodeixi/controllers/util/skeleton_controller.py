@@ -731,7 +731,7 @@ class SkeletonController(PostingController):
         organization, environment   = namespace.split(".")
         recorded_by                 = "yourname.lastname@your_company.com"
         estimated_by                = "accountableowner.lastname@your_company.com"
-        estimated_on                = _datetime.datetime.today()
+        estimated_on                = _datetime.datetime(2021, 8, 4) # Random date just to make it deterministic
 
         template_dict               = {}   # Will be the non-assertions part of the template
         template_df                 = None # Will be the assertion part of the template. We leave it concrete classes to populate this
