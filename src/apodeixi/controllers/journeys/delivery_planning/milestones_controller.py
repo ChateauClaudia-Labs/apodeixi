@@ -1,14 +1,16 @@
-from apodeixi.controllers.util.manifest_api                     import ManifestAPI
-from apodeixi.util.a6i_error                                    import ApodeixiError
-from apodeixi.util.formatting_utils                             import StringUtils
+from apodeixi.controllers.util.manifest_api                                 import ManifestAPI
+from apodeixi.util.a6i_error                                                import ApodeixiError
+from apodeixi.util.formatting_utils                                         import StringUtils
 
-from apodeixi.controllers.util.skeleton_controller              import SkeletonController
-from apodeixi.knowledge_base.filing_coordinates                 import JourneysFilingCoordinates
-from apodeixi.xli.interval                                      import GreedyIntervalSpec
+from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
+from apodeixi.controllers.journeys.delivery_planning.journey_posting_label  import JourneyPostingLabel
 
-from apodeixi.xli.posting_controller_utils                      import PostingConfig, PostingController
-from apodeixi.xli                                               import UpdatePolicy
-from apodeixi.controllers.journeys.delivery_planning.big_rocks  import BigRocksEstimate_Controller
+from apodeixi.knowledge_base.filing_coordinates                             import JourneysFilingCoordinates
+from apodeixi.xli.interval                                                  import GreedyIntervalSpec
+
+from apodeixi.xli.posting_controller_utils                                  import PostingConfig, PostingController
+from apodeixi.xli                                                           import UpdatePolicy
+from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
 
 class MilestonesController(SkeletonController):
     '''
@@ -223,15 +225,10 @@ class MilestonesController(SkeletonController):
             ME                      = MilestonesController._MilestonesConfig
             return ME._ENTITY_NAME
 
-    class _MyPostingLabel(SkeletonController._MyPostingLabel):
+    class _MyPostingLabel(JourneyPostingLabel):
         '''
         Codifies the schema expectations for the posting label when posting modernization milestones. 
         '''
-        _PRODUCT                    = "product"
-        _JOURNEY                    = "journey"
-        _SCENARIO                   = "scenario"
-        _SCORING_CYCLE              = "scoringCycle"
-        _SCORING_MATURITY           = "scoringMaturity"
 
         def __init__(self, parent_trace, controller):
             # Shortcut to reference class static variables
@@ -240,40 +237,51 @@ class MilestonesController(SkeletonController):
             super().__init__(   parent_trace        = parent_trace,
                                 controller          = controller,
 
-                                mandatory_fields    = [ ME._PRODUCT,        ME._JOURNEY,            ME._SCENARIO,    # Determine name
-                                                        ME._SCORING_CYCLE,  ME._SCORING_MATURITY,
-                                                        ME._ESTIMATED_BY,   ME._ESTIMATED_ON],
-                                date_fields         = [ME._ESTIMATED_ON])
+                                mandatory_fields    = [],
+                                date_fields         = [])
+
+        def read(self, parent_trace, posting_label_handle):
+            '''
+            '''
+            super().read(parent_trace, posting_label_handle)
+
+        def  checkReferentialIntegrity(self, parent_trace):
+            '''
+            Used to check that the values of Posting Label fields are valid. Does not return a value, but will
+            raise an exception if any field is "invalid".
+
+            Sometimes this validation might be against data configured in the ApodeixiConfig. Example: "organization"
+
+            In other situations the validation is against the existence of static data objects which the label
+            references. Example: "product" in the case of the Journeys domain.
+
+            NOTE: This method is intended to be called *after* label.read(-) has completed, including any label.read(-)
+            implemented by derived classes. 
+            That is why it can't be called within label.read(-) at the PostingLabel parent class level,
+            and why the design choice was made to have the calling code invoke this check right after calling label.read()
+            '''
+            super().checkReferentialIntegrity(parent_trace)
+
+        def infer(self, parent_trace, manifest_dict, manifest_key):
+            '''
+            Used in the context of generating a form to build the posting label information that should be
+            embedded in the generated form.
+
+            Accomplishes this by extracting the necesssary information from the manifest given by the `manifest_dict`
+
+            Returns a list of the fields that may be editable
+
+            @param manifest_dict A dict object containing the information of a manifest (such as obtained after loading
+                                a manifest YAML file into a dict)
+            @param manifest_key A string that identifies this manifest among others. For example, "big-rock.0". Typically
+                        it should be in the format <kind>.<number>
+            '''
+            editable_fields     = super().infer(parent_trace, manifest_dict, manifest_key)
+
+            return editable_fields
 
 
-        def product(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
 
-            return self._getField(parent_trace, ME._PRODUCT)
 
-        def journey(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._JOURNEY)
-
-        def scenario(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._SCENARIO)
-
-        def scoring_cycle(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._SCORING_CYCLE)
-
-        def scoring_maturity(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._SCORING_MATURITY)
 
 
