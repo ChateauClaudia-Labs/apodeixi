@@ -285,15 +285,17 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
     def changeResultDataLocation(self):
         '''
-        Changes self.result_data if that was configured in self.test_config_dict.
+        Changes self.result_data and self.input_data if that was configured in self.test_config_dict.
         This should only be called after self.setScenario(-) has been set, since the look up in the configuration
         is based on scenario.
         '''
         result_directories          = self.test_config_dict['integration-tests-results']
         if self.scenario() in result_directories.keys():
             test_id                 = result_directories[self.scenario()]
-            new_location            = self.test_db_dir + "/results_data/" + str(test_id)
-            self.results_data       = new_location
+            new_results_location    = self.test_db_dir + "/results_data/" + str(test_id)
+            self.results_data       = new_results_location
+            new_input_location    = self.test_db_dir + "/input_data/" + str(test_id)
+            self.input_data       = new_input_location
 
     def provisionIsolatedEnvironment(self, parent_trace, environment_name = None, 
                                             read_misses_policy  = KB_Environment_Config.FAIL_ON_READ_MISSES,):

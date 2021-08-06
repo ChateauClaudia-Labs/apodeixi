@@ -24,6 +24,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
 
         self.setScenario("basic_posting_flows.big_rocks.burnout")
         self.setCurrentTestName('brb_opus') # big rock burnout for product Opus
+        self.changeResultDataLocation()
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"
         EXCEL_FILE                      = "OPUS_big-rocks.journeys.a6i.xlsx"
@@ -45,6 +46,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
 
         self.setScenario("basic_posting_flows.big_rocks.explained")
         self.setCurrentTestName('bre_ledger') # big rock explained for product LedgerPro
+        self.changeResultDataLocation()
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OfficialPlan"
         EXCEL_FILE                      = "LedgerPro.big-rocks.journeys.a6i.xlsx"

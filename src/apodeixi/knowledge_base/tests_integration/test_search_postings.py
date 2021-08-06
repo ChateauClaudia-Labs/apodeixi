@@ -28,12 +28,14 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
         POSTING_API                     = 'milestone.journeys.a6i'
         TEST_NAME                       = 'test_locate_milestone_postings'
         self.setScenario("search_milestone_postings")
+        self.changeResultDataLocation()
         self._locate_product_postings(POSTING_API, TEST_NAME)
 
     def test_locate_big_rocks_postings(self):
         POSTING_API                     = 'big-rocks.journeys.a6i'
         TEST_NAME                       = 'test_locate_big_rocks_postings'
         self.setScenario("search_big_rocks_postings")
+        self.changeResultDataLocation()
         self._locate_product_postings(POSTING_API, TEST_NAME)
 
     def _locate_product_postings(self, posting_api, test_name):
@@ -88,6 +90,7 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
         POSTING_API                     = 'workstream.initiatives.a6i'
         TEST_NAME                       = 'test_locate_initiative_milestone_postings'
         self.setScenario("search_workstream_postings")
+        self.changeResultDataLocation()
         self._locate_workstream_postings(POSTING_API, TEST_NAME)
 
     def _locate_workstream_postings(self, posting_api, test_name):
