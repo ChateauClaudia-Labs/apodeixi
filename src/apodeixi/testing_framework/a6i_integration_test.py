@@ -205,7 +205,9 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
         self.input_data             = _os.path.join(_os.path.dirname(me__file__), 'input_data') # Works ! :-) Thanks inspect!
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
-        self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
+        
+        self.results_data           = None # Will be set later by method changeResultDataLocation
+        #_os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
         # Test canses can choose to have self.results_data modified, if they configure themselves in test_config.yam.
         # This is recommended for tests
