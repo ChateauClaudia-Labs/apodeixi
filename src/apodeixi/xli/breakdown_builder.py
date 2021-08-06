@@ -252,7 +252,10 @@ class BreakdownTree():
                     non_black_cols          = [col for col in interval.columns if not col in blank_cols]
                     raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
                                                     + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
-                                                    + "\nYou can't leave it blank unless you also clear data you wrote "
+                                                    + "\nIt is the entity for the interval "
+                                                    + str(interval.columns)
+                                                    +",\n so you can't leave it blank unless you also "
+                                                    + " clear data you wrote "
                                                     + " in row " + str(excel_row_nb) + " for these " 
                                                     + str(len(non_black_cols)) + " columns:\n['"
                                                     + "', '".join(non_black_cols) + "']"

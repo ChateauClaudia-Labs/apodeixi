@@ -30,6 +30,8 @@ class File_KBStore_Impl():
         if PathUtils().is_parent(           parent_trace                = parent_trace,
                                             parent_dir                  = kb_postings_url, 
                                             path                        = excel_posting_path):
+            # See Note below in the else clause. This case is rare, even if at first glance it would seem like the
+            # "normal" case.
 
             relative_path, filename         = PathUtils().relativize(   parent_trace    = parent_trace, 
                                                                         root_dir        = kb_postings_url,
@@ -42,7 +44,12 @@ class File_KBStore_Impl():
             filing_coords                   = self._buildFilingCoords(  parent_trace        = my_trace, 
                                                                         posting_api         = posting_api, 
                                                                         relative_path       = relative_path)
-        else: # Posting wasn't submitted from the "right" folder, so coordinates will have be inferred later when label is read
+        else: # Posting wasn't submitted from the "right" folder, so coordinates will have be inferred later when label 
+              # is read.
+              # INTERESTING NOTE: This happens rather often if we are
+              # in a transaction (normal case) because kb_postings_url is the current environment's URL, which
+              # almost certainly is not a parent of excel_posting_path (the kb_postings_url would have tokens like
+              # 'store-transation.4' that couldn't possibly be part of the excel_posting_path). 
             filename                        = PathUtils().tokenizePath(parent_trace, excel_posting_path)[-1]
             posting_api                     = self._filename_2_api(parent_trace, filename)
 

@@ -708,7 +708,6 @@ class SkeletonController(PostingController):
 
         return manifest_df
 
-
     def createTemplate(self, parent_trace, form_request, kind):
         '''
         Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up

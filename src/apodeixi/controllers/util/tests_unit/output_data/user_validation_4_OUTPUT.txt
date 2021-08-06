@@ -7,7 +7,8 @@ User let blank the entity name in a row with data for that entity, and the softw
 ******** Functional Trace ********
 
 Problem:	Did you forget to set 'Institution' in excel row 7 of worksheet 'Properties'?
-You can't leave it blank unless you also clear data you wrote  in row 7 for these 2 columns:
+It is the entity for the interval ['Institution', 'State', 'Zipcode'],
+ so you can't leave it blank unless you also  clear data you wrote  in row 7 for these 2 columns:
 ['State', 'Zipcode']
 
 => Alternatively, consider changing the range in the Posting Label to exclude such rows.

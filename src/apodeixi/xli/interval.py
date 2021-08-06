@@ -220,7 +220,9 @@ class ClosedOpenIntervalSpec(IntervalSpec):
         if True:
             missing                             = [col for col in self.splitting_columns if not col in linear_space]
             if len(missing) > 0:
-                raise ApodeixiError(my_trace, "Can't build intervals because some splitting columns are not in linear space",
+                raise ApodeixiError(my_trace, "Can't build intervals because some splitting columns are not in linear space. "
+                                               + "\n\t=> This sometimes happens if the ranges in the Posting Label don't cover all "
+                                               + "the data.",
                                                 data = {    'linear_space':             str(linear_space),
                                                             'splitting_columns':        str(self.splitting_columns),
                                                             'missing in linear space':  str(missing)    })
@@ -255,11 +257,24 @@ class ClosedOpenIntervalSpec(IntervalSpec):
                                                                     data    = {'col': str(col)})
 
                 if col != Interval.POINT_AT_INFINITY: # We split by 'col' if it is not the POINT_AT_INFINITY
+                    #
+                    # GOTCHA: if the submitted form has UIDs, then there probably is a UID column to the left
+                    # of `col`. If so, include such UID if it exists, else it will erroneously be considered part
+                    # of the entity to the left of `col`, which might then error out thinking it has two UID
+                    # columns, which is not legal.
+                    #
+                    col_idx                      = linear_space.index(col)
+                    if col_idx > 0 and IntervalUtils().is_a_UID_column(loop_trace, linear_space[col_idx - 1]):
+                        split_by                 = [linear_space[col_idx-1]]
+                    else:
+                        split_by                 = [col]
+
+                            
                     check, pre_cols, post_cols = ListUtils().is_sublist(    parent_trace        = loop_trace, 
                                                                             super_list          = remaining_cols, 
-                                                                            alleged_sub_list    = [col])
+                                                                            alleged_sub_list    = split_by)
                     if not check:
-                        raise ApodeixiError(my_trace, "Strange internal error: couldn't split columns by column",
+                        raise ApodeixiError(loop_trace, "Strange internal error: couldn't split columns by column",
                                                         data = {    'columns_to_split':     remaining_cols,
                                                                     'splitting_column':     col})
                 else: # This is the last interval, splitting by the POINT_AT_INFINITY 
@@ -272,7 +287,7 @@ class ClosedOpenIntervalSpec(IntervalSpec):
                                                 columns             = pre_cols, 
                                                 entity_name         = interval_entity))
                 # Initialize data for next cycle in loop
-                remaining_cols                  = [col]
+                remaining_cols                  = split_by
                 remaining_cols.extend(post_cols)
 
         return intervals_list

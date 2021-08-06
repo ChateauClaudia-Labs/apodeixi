@@ -1,0 +1,107 @@
+apiVersion: static-data.admin.a6i.io/v1a
+assertion:
+  entity_type: Journey
+  estimatedBy: accountableowner.lastname@your_company.com
+  estimatedOn: &id001 2021-08-04 00:00:00
+  journey:
+    J1:
+      Code in Strategy system: I-1
+      Scoring Cycle:
+        SC1:
+          Quarter created: ''
+          Scenario:
+            S1:
+              Description: Modified plan from August 20, 2019 after adding $3m investment
+                for Opus
+              UID: J1.SC1.S1
+              Update log: '8/19: $3m for Opus'
+              name: Updated official
+            S1-name: Updated official
+            S2:
+              Description: What-if scenario assuming $7m of new investment
+              UID: J1.SC1.S2
+              Update log: '8/19: Moved to backlog, reduced to $7m'
+              name: Backlog investment
+            S2-name: Backlog investment
+            S3:
+              Description: 'What-if scenario if all modernization headcount is moved
+                to retail from other BUs, whose modernization is stopped. Update on
+                Oct 12, 2020: this scenario was abandoned'
+              UID: J1.SC1.S3
+              Update log: '10/20: Abandoned'
+              name: Retail focus - abandoned
+            S3-name: Retail focus - abandoned
+          UID: J1.SC1
+          name: FY 20
+        SC1-name: FY 20
+        SC2:
+          Quarter created: ''
+          Scenario:
+            S1:
+              Description: Execution on plan approved by Transformation Office on
+                June 14, 2020
+              UID: J1.SC2.S1
+              Update log: ''
+              name: Official
+            S1-name: Official
+          UID: J1.SC2
+          name: FY 21
+        SC2-name: FY 21
+        SC3:
+          Quarter created: ''
+          Scenario:
+            S1:
+              Description: Plan approved by BoD on May 25, 2021
+              UID: J1.SC3.S1
+              Update log: ''
+              name: Official
+            S1-name: Official
+          UID: J1.SC3
+          name: FY 22
+        SC3-name: FY 22
+      UID: J1
+      name: Modernization
+    J1-name: Modernization
+    J2:
+      Code in Strategy system: I-2
+      Scoring Cycle:
+        SC1:
+          Quarter created: Q1
+          Scenario:
+            S1:
+              Description: Migration of 100 Infinity clients to FusionOpus
+              UID: J2.SC1.S1
+              Update log: ''
+              name: Official
+            S1-name: Official
+          UID: J2.SC1
+          name: FY 21
+        SC1-name: FY 21
+        SC2:
+          Quarter created: Q4
+          Scenario:
+            S1:
+              Description: Migrate 500 LedgerPro customer in next 6 months
+              UID: J2.SC2.S1
+              Update log: '5/21: new'
+              name: Retail acceleration
+            S1-name: Retail acceleration
+          UID: J2.SC2
+          name: FY 21 - 9+3
+        SC2-name: FY 21 - 9+3
+      UID: J2
+      name: Migration
+    J2-name: Migration
+  recordedBy: yourname.lastname@your_company.com
+kind: scoring-cycle
+metadata:
+  labels:
+    estimatedBy: accountableowner.lastname@your_company.com
+    estimatedOn: *id001
+    knowledgeBase: Testing Area
+    organization: My Corp
+    recordedBy: yourname.lastname@your_company.com
+    version: 2
+  name: static-data
+  namespace: my-corp.testing-area
+  version: 2

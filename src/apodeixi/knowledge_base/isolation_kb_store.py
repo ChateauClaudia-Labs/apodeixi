@@ -166,6 +166,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             'big-rocks.journeys.a6i':                               JourneysFilingCoordinates,
             'milestone.journeys.a6i':                               JourneysFilingCoordinates,
             'products.static-data.admin.a6i':                       StaticDataFilingCoordinates,
+            'scoring-cycles.static-data.admin.a6i':                 StaticDataFilingCoordinates,
             'capability-hierarchy.bdd.kernel.a6i':                  None, # TODO
             'workstream.initiatives.a6i':                           InitiativesFilingCoordinates,
             'charter.initiatives.a6i':                              InitiativesFilingCoordinates, 

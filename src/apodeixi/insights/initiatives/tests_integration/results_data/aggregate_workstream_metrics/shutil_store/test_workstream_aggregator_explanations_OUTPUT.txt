@@ -63,7 +63,8 @@ NoneType: None
 ******** Functional Trace ********
 
 Problem:	Did you forget to set 'Dependency' in excel row 5 of worksheet 'Milestones'?
-You can't leave it blank unless you also clear data you wrote  in row 5 for these 1 columns:
+It is the entity for the interval ['Dependency', 'Dependent on'],
+ so you can't leave it blank unless you also  clear data you wrote  in row 5 for these 1 columns:
 ['Dependent on']
 
 => Alternatively, consider changing the range in the Posting Label to exclude such rows.

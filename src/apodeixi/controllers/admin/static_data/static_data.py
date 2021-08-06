@@ -59,8 +59,6 @@ class StaticData_Controller(SkeletonController):
         ME                              = StaticData_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-
-
     def _buildAllManifests(self, parent_trace, posting_label_handle):
 
         all_manifests_dict, label              = super()._buildAllManifests(parent_trace, posting_label_handle)

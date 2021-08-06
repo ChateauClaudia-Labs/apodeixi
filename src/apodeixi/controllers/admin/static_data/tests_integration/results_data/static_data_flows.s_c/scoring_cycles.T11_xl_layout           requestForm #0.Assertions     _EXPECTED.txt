@@ -1,0 +1,13 @@
+************** Layout information for Manifest 'scoring-cycle.0' **********
+
+layout span		[[1, 1], [7, 13]]
+hidden columns		[]
+column widths		UID		{'width': 3.0, 'nb_lines': 1}
+journey		{'width': 13.0, 'nb_lines': 1}
+UID-1		{'width': 5.0, 'nb_lines': 1}
+Scoring Cycle		{'width': 13.0, 'nb_lines': 1}
+UID-2		{'width': 6.0, 'nb_lines': 1}
+Scenario		{'width': 14.0, 'nb_lines': 1}
+Description		{'width': 31.0, 'nb_lines': 4}
+
+total width		85.0

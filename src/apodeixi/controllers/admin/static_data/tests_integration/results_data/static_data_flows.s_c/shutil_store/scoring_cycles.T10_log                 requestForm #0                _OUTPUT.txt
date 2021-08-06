@@ -1,0 +1,8 @@
+
+CREATED FORM:        
+		 posting_api     = 'scoring-cycles.static-data.admin.a6i'
+		 filing_coords   = ''
+		 excel_filename  = 'scoring-cycles.static-data.admin.a6i.xlsx'
+		 excel_sheet     = 'Posting Label'
+		 excel_range     = 'B2:C100'
+clientURL =          <MASKED>/apodeixi/test_db/knowledge-base/envs/static_data_flows.s_c.scoring_cycles_ENV/external-collaboration

@@ -1,4 +1,4 @@
-static_data_flows.products.products_ENV:
+static_data_flows.s_c.scoring_cycles_ENV:
   external-collaboration:
     admin:
       static-data:
@@ -6,24 +6,19 @@ static_data_flows.products.products_ENV:
           (Timestamp omitted) Posting:
             FORM_REQUEST_EVENT_LOG.txt: '
 
-              Size (in bytes):  366
+              Size (in bytes):  379
 
               '
             POST_EVENT_LOG.txt: '
 
-              Size (in bytes):  1700
+              Size (in bytes):  1294
 
               '
-            products.static-data.admin.a6i.xlsx: '
+            scoring-cycles.static-data.admin.a6i.xlsx: '
 
-              Size (in bytes):  7127
+              Size (in bytes):  7141
 
               '
-        products.static-data.admin.a6i.xlsx: '
-
-          Size (in bytes):  7021
-
-          '
     journeys:
       Dec 2020:
         FusionOpus:
@@ -48,34 +43,29 @@ static_data_flows.products.products_ENV:
             (Timestamp omitted) Posting:
               FORM_REQUEST_EVENT_LOG.txt: '
 
-                Size (in bytes):  366
+                Size (in bytes):  379
 
                 '
               POST_EVENT_LOG.txt: '
 
-                Size (in bytes):  1700
+                Size (in bytes):  1294
 
                 '
-              products.static-data.admin.a6i.xlsx: '
+              scoring-cycles.static-data.admin.a6i.xlsx: '
 
-                Size (in bytes):  7127
+                Size (in bytes):  7141
 
                 '
-          products.static-data.admin.a6i.xlsx: '
+          scoring-cycles.static-data.admin.a6i.xlsx: '
 
-            Size (in bytes):  7127
+            Size (in bytes):  7141
 
             '
     manifests:
       my-corp.testing-area:
         static-data:
-          line-of-business.1.yaml: '
+          scoring-cycle.1.yaml: '
 
-            Size (in bytes):  786
-
-            '
-          product.1.yaml: '
-
-            Size (in bytes):  1025
+            Size (in bytes):  2426
 
             '

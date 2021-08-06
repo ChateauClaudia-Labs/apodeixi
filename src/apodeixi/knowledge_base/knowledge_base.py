@@ -1,6 +1,7 @@
 from apodeixi.util.a6i_error                                                import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.admin.static_data.products                        import ProductsController
+from apodeixi.controllers.admin.static_data.scoring_cycles                  import ScoringCyclesController
 from apodeixi.controllers.kernel.bdd.capability_hierarchy                   import CapabilityHierarchy_Controller
 from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
 from apodeixi.controllers.journeys.delivery_planning.milestones_controller  import MilestonesController
@@ -22,6 +23,7 @@ class KnowledgeBase():
             'milestone.journeys.a6i':                   MilestonesController,
 
             'products.static-data.admin.a6i':           ProductsController,
+            'scoring-cycles.static-data.admin.a6i':     ScoringCyclesController,
 
             'capability-hierarchy.bdd.kernel.a6i':      CapabilityHierarchy_Controller,
 

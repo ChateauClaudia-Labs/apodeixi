@@ -31,13 +31,38 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
         root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
         ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
         KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
-        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.production"
+        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.testing-area"
         SUBNAMESPACE                    = None
         
         self._run_basic_flow(   from_nothing                = True,
                                 namespace                   = NAMESPACE,
                                 subnamespace                = SUBNAMESPACE,
                                 posting_api                 = 'products.static-data.admin.a6i',
+                                excel_relative_path         = EXCEL_RELATIVE_PATH,
+                                excel_file                  = EXCEL_FILE,
+                                excel_sheet                 = "Posting Label",
+                                nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                setup_static_data           = False)
+
+    def test_scoring_cycles(self):
+
+        self.setScenario("static_data_flows.s_c")
+        self.setCurrentTestName('scoring_cycles') 
+
+        EXCEL_RELATIVE_PATH             = "admin/static-data"
+        EXCEL_FILE                      = "scoring-cycles.static-data.admin.a6i.xlsx"
+        NB_MANIFESTS_EXPECTED           = 1
+        root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
+        ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
+        KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
+        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.testing-area"
+        SUBNAMESPACE                    = None
+        
+        self._run_basic_flow(   from_nothing                = True,
+                                namespace                   = NAMESPACE,
+                                subnamespace                = SUBNAMESPACE,
+                                posting_api                 = 'scoring-cycles.static-data.admin.a6i',
                                 excel_relative_path         = EXCEL_RELATIVE_PATH,
                                 excel_file                  = EXCEL_FILE,
                                 excel_sheet                 = "Posting Label",
@@ -54,9 +79,7 @@ if __name__ == "__main__":
         what_to_do = args[1]
         if what_to_do=='products':
             T.test_products()
-        elif what_to_do=='scenarios':
-            T.test_scenarios()
-        elif what_to_do=='scoringCycles':
-            T.test_scoringCycles()
+        elif what_to_do=='scoring_cycles':
+            T.test_scoring_cycles()
 
     main(_sys.argv)

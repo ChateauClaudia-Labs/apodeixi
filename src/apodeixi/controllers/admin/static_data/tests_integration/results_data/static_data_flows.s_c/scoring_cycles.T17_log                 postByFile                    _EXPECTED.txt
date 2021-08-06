@@ -1,0 +1,30 @@
+
+CREATED MANIFEST:        
+		 apiVersion     = 'static-data.admin.a6i.io/v1a'
+		 namespace      = 'my-corp.testing-area'
+		 kind           = 'scoring-cycle'
+		 name           = 'static-data'
+		 version        = '2'
+
+ARCHIVED POSTING FROM:   
+		 posting_api     = 'scoring-cycles.static-data.admin.a6i'
+		 filing_coords   = 'TBD - Submitted from: <MASKED>/apodeixi/test_db/knowledge-base/envs/static_data_flows.s_c.scoring_cycles_ENV/external-collaboration/admin/static-data/scoring-cycles.static-data.admin.a6i.xlsx'
+		 excel_filename  = 'scoring-cycles.static-data.admin.a6i.xlsx'
+		 excel_sheet     = 'Posting Label'
+		 excel_range     = 'B2:C1000'
+             TO:         
+		 posting_api     = 'scoring-cycles.static-data.admin.a6i'
+		 filing_coords   = '._ARCHIVE.(Timestamp omitted) Posting'
+		 excel_filename  = 'scoring-cycles.static-data.admin.a6i.xlsx'
+		 excel_sheet     = 'Posting Label'
+		 excel_range     = 'B2:C1000'
+
+PUBLISHED OPTIONAL FORM: 
+		 posting_api     = 'scoring-cycles.static-data.admin.a6i'
+		 filing_coords   = ''
+		 *** A ManifestHandle ***
+			 apiVersion     = 'static-data.admin.a6i.io/v1a'
+			 namespace      = 'my-corp.testing-area'
+			 kind           = 'scoring-cycle'
+			 name           = 'static-data'
+			 version        = '2'
