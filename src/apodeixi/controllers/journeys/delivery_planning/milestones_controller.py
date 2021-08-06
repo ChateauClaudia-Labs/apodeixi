@@ -141,8 +141,8 @@ class MilestonesController(SkeletonController):
         scoring_cycle                   = label.scoring_cycle       (my_trace)
         scoring_maturity                = label.scoring_maturity    (my_trace)  
 
-        estimated_by                    = label.estimated_by        (my_trace)
-        estimated_on                    = label.estimated_on        (my_trace)    
+        estimated_by                    = label.estimatedBy        (my_trace)
+        estimated_on                    = label.estimatedOn        (my_trace)    
 
 
         my_trace                        = parent_trace.doing("Enriching generic manifest fields with additional fields "
@@ -233,9 +233,6 @@ class MilestonesController(SkeletonController):
         _SCORING_CYCLE              = "scoringCycle"
         _SCORING_MATURITY           = "scoringMaturity"
 
-        _ESTIMATED_BY               = "estimatedBy"
-        _ESTIMATED_ON               = "estimatedOn"
-
         def __init__(self, parent_trace, controller):
             # Shortcut to reference class static variables
             ME = MilestonesController._MyPostingLabel
@@ -247,6 +244,7 @@ class MilestonesController(SkeletonController):
                                                         ME._SCORING_CYCLE,  ME._SCORING_MATURITY,
                                                         ME._ESTIMATED_BY,   ME._ESTIMATED_ON],
                                 date_fields         = [ME._ESTIMATED_ON])
+
 
         def product(self, parent_trace):
             # Shortcut to reference class static variables
@@ -278,15 +276,4 @@ class MilestonesController(SkeletonController):
 
             return self._getField(parent_trace, ME._SCORING_MATURITY)
 
-        def estimated_by(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._ESTIMATED_BY)
-
-        def estimated_on(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = MilestonesController._MyPostingLabel
-
-            return self._getField(parent_trace, ME._ESTIMATED_ON)
 

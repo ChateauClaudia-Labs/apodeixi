@@ -5,14 +5,42 @@ from apodeixi.representers.as_dataframe                 import AsDataframe_Repre
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
+from apodeixi.util.formatting_utils                     import StringUtils
 
 class StaticDataValidator():
     '''
-    Utility class that provides services to validate static data. For example, by validating referential integrity.
+    Utility class that provides services to validate static data. 
+    A typical use case for leveraging these services is when validating referential integrity.
     '''
     def __init__(self, parent_trace, store, a6i_config):
         self.store              = store
         self.a6i_config         = a6i_config
+
+    def validateProduct(self, parent_trace, label, namespace):
+        '''
+        Validates the the product in the label is for a product static data that is known to exist in the 
+        KnowledgeBase store for the given namespace.
+
+        @param label    An object inheriting from PostingLabel with property called "product"
+
+        '''
+        try:
+            my_trace                = parent_trace.doing("Checking product referential integrity")
+            if True:
+                alleged_product     = label.product(my_trace)
+
+                prod_code           = self.getProductCode(my_trace, namespace, alleged_product)
+                if prod_code == None:
+                    all_product_codes   = self.allProductCodes(my_trace, namespace)
+                    raise ApodeixiError(my_trace, "Invalid product field in Posting Label",
+                                    data = {    "Expected one of":  str(all_product_codes),
+                                                "Submitted":        str(alleged_product)})
+        except ApodeixiError as ex:
+            raise ex
+        except Exception as ex:
+            raise ApodeixiError("Found a problem while validating referential integrity for product field",
+                                data = {    "alleged product":  alleged_product, 
+                                            "error":             str(ex)})
     
     def getProductCode(self, parent_trace, namespace, alleged_product):
         '''

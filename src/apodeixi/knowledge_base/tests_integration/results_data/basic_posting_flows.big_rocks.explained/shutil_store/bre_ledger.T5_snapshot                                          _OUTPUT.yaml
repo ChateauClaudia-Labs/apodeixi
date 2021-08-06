@@ -11,7 +11,7 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
               '
             products.static-data.admin.a6i.xlsx: '
 
-              Size (in bytes):  17413
+              Size (in bytes):  17415
 
               '
     journeys:
@@ -60,12 +60,12 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                 '
               products.static-data.admin.a6i.xlsx: '
 
-                Size (in bytes):  17413
+                Size (in bytes):  17415
 
                 '
           products.static-data.admin.a6i.xlsx: '
 
-            Size (in bytes):  17413
+            Size (in bytes):  17415
 
             '
       journeys:

@@ -1,18 +1,21 @@
-import pandas                                                       as _pd
+import pandas                                                               as _pd
 
-from apodeixi.controllers.util.manifest_api                         import ManifestAPI
-from apodeixi.util.a6i_error                                        import ApodeixiError
-from apodeixi.util.formatting_utils                                 import StringUtils
+from apodeixi.controllers.util.manifest_api                                 import ManifestAPI
+from apodeixi.util.a6i_error                                                import ApodeixiError
+from apodeixi.util.formatting_utils                                         import StringUtils
 
-from apodeixi.controllers.util.skeleton_controller                  import SkeletonController
-from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
-from apodeixi.knowledge_base.filing_coordinates                     import JourneysFilingCoordinates
-from apodeixi.text_layout.excel_layout                              import AsExcel_Config_Table, ManifestXLWriteConfig, \
-                                                                            NumFormats, ExcelFormulas
+from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
+from apodeixi.controllers.journeys.delivery_planning.journey_posting_label  import JourneyPostingLabel
 
-from apodeixi.xli.interval                                          import IntervalUtils, GreedyIntervalSpec, \
-                                                                            MinimalistIntervalSpec, Interval
-from apodeixi.xli.posting_controller_utils                          import PostingConfig, PostingController, UpdatePolicy
+from apodeixi.knowledge_base.filing_coordinates                             import JourneysFilingCoordinates
+from apodeixi.text_layout.excel_layout                                      import AsExcel_Config_Table, \
+                                                                                ManifestXLWriteConfig, \
+                                                                                NumFormats, ExcelFormulas
+
+from apodeixi.xli.interval                                                  import IntervalUtils, GreedyIntervalSpec, \
+                                                                                MinimalistIntervalSpec, Interval
+from apodeixi.xli.posting_controller_utils                                  import PostingConfig, PostingController, \
+                                                                                UpdatePolicy
 
 class BigRocksEstimate_Controller(SkeletonController):
     '''
@@ -596,17 +599,12 @@ class BigRocksEstimate_Controller(SkeletonController):
 
             return result_val
 
-    class _MyPostingLabel(SkeletonController._MyPostingLabel):
+    class _MyPostingLabel(JourneyPostingLabel):
         '''
         Codifies the schema expectations for the posting label when posting big rocks estimates. 
         '''
-        _PRODUCT                    = "product"
-        _JOURNEY                    = "journey"
         _PLAN_TYPE                  = "planType"
         _VARIANT                    = "variant"
-        _SCENARIO                   = "scenario"
-        _SCORING_CYCLE              = "scoringCycle"
-        _SCORING_MATURITY           = "scoringMaturity"
 
         def __init__(self, parent_trace, controller):
             # Shortcut to reference class static variables
@@ -615,9 +613,8 @@ class BigRocksEstimate_Controller(SkeletonController):
             super().__init__(   parent_trace        = parent_trace,
                                 controller          = controller,
 
-                                mandatory_fields    = [ ME._PRODUCT,        ME._JOURNEY,            ME._SCENARIO,    # Determine name
-                                                        ME._PLAN_TYPE,      ME._VARIANT,    
-                                                        ME._SCORING_CYCLE,  ME._SCORING_MATURITY],
+                                mandatory_fields    = [ ME._PLAN_TYPE,      ME._VARIANT],
+                                optional_fields     = [],
                                 date_fields         = [])
 
         def read(self, parent_trace, posting_label_handle):
@@ -650,23 +647,6 @@ class BigRocksEstimate_Controller(SkeletonController):
             '''
             super().checkReferentialIntegrity(parent_trace)
 
-            validator           = StaticDataValidator(parent_trace, self.controller.store, self.controller.a6i_config)
-            raw_namespace       = self.organization(parent_trace) + "." + self.knowledgeBaseArea(parent_trace)
-            namespace           = StringUtils().format_as_yaml_fieldname(raw_namespace)
-
-            my_trace                = parent_trace.doing("Checking product referential integrity")
-            if True:
-                alleged_product     = self.product(my_trace)
-
-                prod_code           = validator.getProductCode(my_trace, namespace, alleged_product)
-                if prod_code == None:
-                    all_product_codes   = validator.allProductCodes(my_trace, namespace)
-                    raise ApodeixiError(my_trace, "Invalid product field in Posting Label",
-                                    data = {    "Expected":     str(all_product_codes),
-                                                "Submitted":    str(alleged_product)})
-
-
-
         def infer(self, parent_trace, manifest_dict, manifest_key):
             '''
             Used in the context of generating a form to build the posting label information that should be
@@ -690,36 +670,11 @@ class BigRocksEstimate_Controller(SkeletonController):
                                     path_list               = path_list, 
                                     manifest_dict           = manifest_dict)
 
-            _infer(ME._PRODUCT,             ["metadata",    "labels",       ME._PRODUCT             ])
-            _infer(ME._JOURNEY,             ["metadata",    "labels",       ME._JOURNEY,            ])
             _infer(ME._PLAN_TYPE,           ["assertion",                   ME._PLAN_TYPE           ])
             _infer(ME._VARIANT,             ["assertion",                   ME._VARIANT             ])
-            _infer(ME._SCENARIO,            ["assertion",                   ME._SCENARIO            ])
-            _infer(ME._SCORING_CYCLE,       ["assertion",                   ME._SCORING_CYCLE       ])
-            _infer(ME._SCORING_MATURITY,    ["assertion",                   ME._SCORING_MATURITY    ])
-
-            editable_fields.extend([ME._SCORING_MATURITY])
 
             self.controller.variant     = self.variant(parent_trace)
             return editable_fields
-
-        def product(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = BigRocksEstimate_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._PRODUCT)
-
-        def journey(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = BigRocksEstimate_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._JOURNEY)
-
-        def scenario(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = BigRocksEstimate_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._SCENARIO)
 
         def plan_type(self, parent_trace):
             # Shortcut to reference class static variables
@@ -732,16 +687,4 @@ class BigRocksEstimate_Controller(SkeletonController):
             ME = BigRocksEstimate_Controller._MyPostingLabel
 
             return self._getField(parent_trace, ME._VARIANT)
-
-        def scoring_cycle(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = BigRocksEstimate_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._SCORING_CYCLE)
-
-        def scoring_maturity(self, parent_trace):
-            # Shortcut to reference class static variables
-            ME = BigRocksEstimate_Controller._MyPostingLabel
-
-            return self._getField(parent_trace, ME._SCORING_MATURITY)
 
