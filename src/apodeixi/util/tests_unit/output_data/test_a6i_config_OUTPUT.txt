@@ -2,7 +2,7 @@ secrets.folder		C:/Alex/Code/ea-journeys/secrets
 knowledge-base.knowledge-base-root-folder		C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/knowledge-base
 knowledge-base.external-collaboration-folder		C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/share-point
 organization-settings.month-fiscal-year-starts		6
-organization-settings.organization		My Corporation
+organization-settings.organization		My Corp
 organization-settings.knowledge-base-areas.0		Production
 organization-settings.knowledge-base-areas.1		Testing Area
 products.corporate.name		Corporate

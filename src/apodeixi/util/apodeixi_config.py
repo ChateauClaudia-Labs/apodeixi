@@ -48,6 +48,10 @@ class ApodeixiConfig():
 
             self.config_dict        = file_to_include_dict | self.config_dict
 
+        # Determines wheter referential integrity checks are enforced. Should be True in production but
+        # unit tests may choose to turn it off.
+        self.enforce_referential_integrity  = True
+
     def _get_config_folder(self, parent_trace):
         APODEIXI_CONFIG_DIRECTORY                           = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 

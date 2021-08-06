@@ -41,7 +41,7 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating BDD scaffolding") 
 
-            controller          = ctrl.CapabilityHierarchy_Controller(root_trace, STORE, a6i_config = self._config)
+            controller          = ctrl.CapabilityHierarchy_Controller(root_trace, STORE, a6i_config = self.a6i_config)
             all_manifests_dict, label,   = controller._buildAllManifests(   parent_trace            = root_trace, 
                                                                             posting_label_handle    = posting_handle)
 

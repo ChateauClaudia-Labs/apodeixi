@@ -18,7 +18,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
         be used by this test case.
         '''
-        self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
+        self._stack                 = ShutilStoreTestStack(parent_trace, self.a6i_config)
 
     def test_big_rocks_burnout(self):
 
@@ -38,7 +38,8 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 excel_file                  = EXCEL_FILE,
                                 excel_sheet                 = "Sheet1",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET)
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                setup_static_data           = True)
 
     def test_big_rocks_explained(self):
 
@@ -58,7 +59,8 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 excel_file                  = EXCEL_FILE,
                                 excel_sheet                 = "broken explained",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET)
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                setup_static_data           = True)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,19 @@
 basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
   external-collaboration:
+    admin:
+      static-data:
+        _ARCHIVE:
+          (Timestamp omitted) Posting:
+            POST_EVENT_LOG.txt: '
+
+              Size (in bytes):  1679
+
+              '
+            products.static-data.admin.a6i.xlsx: '
+
+              Size (in bytes):  16772
+
+              '
     journeys:
       Dec 2020:
         FusionOpus:
@@ -35,6 +49,25 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
               '
   kb:
     excel-postings:
+      admin:
+        static-data:
+          _ARCHIVE:
+            (Timestamp omitted) Posting:
+              POST_EVENT_LOG.txt: '
+
+                Size (in bytes):  1679
+
+                '
+              products.static-data.admin.a6i.xlsx: '
+
+                Size (in bytes):  16772
+
+                '
+          products.static-data.admin.a6i.xlsx: '
+
+            Size (in bytes):  16772
+
+            '
       journeys:
         Dec 2020:
           FusionOpus:
@@ -77,5 +110,16 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
           investment.1.yaml: '
 
             Size (in bytes):  1306
+
+            '
+        static-data:
+          line-of-business.1.yaml: '
+
+            Size (in bytes):  597
+
+            '
+          product.1.yaml: '
+
+            Size (in bytes):  627
 
             '

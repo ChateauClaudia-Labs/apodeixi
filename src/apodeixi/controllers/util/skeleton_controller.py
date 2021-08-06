@@ -114,7 +114,7 @@ class SkeletonController(PostingController):
         label, label_xlw_config = self._build_labelXLWriteconfig(my_trace, manifestInfo_dict)
 
         my_trace                = parent_trace.doing("Creating Excel layouts for manifests")
-        xlw_config_table       = self._build_manifestsXLconfig(    parent_trace        = parent_trace, 
+        xlw_config_table       = self._build_manifestsXLWriteconfig(    parent_trace        = parent_trace, 
                                                                     manifestInfo_dict   = manifestInfo_dict)
 
         xlw_config_table.setPostingLabelXLWriteConfig(my_trace, label_xlw_config)
@@ -152,7 +152,7 @@ class SkeletonController(PostingController):
 
             return response
 
-    def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):
+    def _build_manifestsXLWriteconfig(self, parent_trace, manifestInfo_dict):
         '''
         Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
         all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
@@ -321,7 +321,7 @@ class SkeletonController(PostingController):
                                                                 "name":         str(name)})
                 manifest_identifier             = kind + "." + str(manifest_nb)
                 manifest_api                    = self.getManifestAPI()
-                manifest_dict                   = self.store.findLatestVersionManifest( parent_trace    = loop_trace, 
+                manifest_dict, manifest_path    = self.store.findLatestVersionManifest( parent_trace    = loop_trace, 
                                                                                         manifest_api    = manifest_api,
                                                                                         namespace       = namespace, 
                                                                                         name            = name, 
@@ -382,12 +382,20 @@ class SkeletonController(PostingController):
                                                                 origination = {'signaled_from': __file__})
         if True:            
             label                           = self.getPostingLabel(my_trace)
-            label.read(my_trace, posting_label_handle)     
+            label.read(my_trace, posting_label_handle)
 
             # If we used a 'TBD' filing coordinates in the posting handle because the 'real' filing coordinates
             # were not known when the posting was submitted, this is the time to fill out that 'TBD' placeholder
             if type(posting_label_handle.filing_coords) == TBD_FilingCoordinates:
-                posting_label_handle.filing_coords.inferFilingCoords( my_trace, label)
+                tbd_coords                  = posting_label_handle.filing_coords
+                tbd_coords.inferFilingCoords( my_trace, label)
+                posted_coords               = tbd_coords.inferred_coords(my_trace)
+            else:
+                posted_coords               = posting_label_handle.filing_coords
+
+            if self.a6i_config.enforce_referential_integrity:
+                label.checkFilingCoordsConsistency(my_trace, posting_label_handle.posting_api, posted_coords)
+                label.checkReferentialIntegrity(my_trace)
 
         MY_PL                               = SkeletonController._MyPostingLabel
 
@@ -762,7 +770,6 @@ class SkeletonController(PostingController):
         '''
         return template_dict, template_df
 
-
     def initialize_UID_Store(self, parent_trace, posting_data_handle, xlr_config):
         '''
         Creates and returns a UID_Store object.
@@ -832,7 +839,7 @@ class SkeletonController(PostingController):
         
         
         _ORGANIZATION               = 'organization'
-        _KNOWLEDGE_BASE_AREA                = 'knowledgeBase' #'environment'
+        _KNOWLEDGE_BASE_AREA        = 'knowledgeBase'
         _RECORDED_BY                = 'recordedBy'
         _ESTIMATED_BY               = 'estimatedBy'
         _ESTIMATED_ON               = 'estimatedOn'
@@ -865,13 +872,12 @@ class SkeletonController(PostingController):
 
             super().read(parent_trace, posting_label_handle)
 
-            excel_range                 = posting_label_handle.excel_range
+            excel_range                     = posting_label_handle.excel_range
 
             # Validate that Manifest API in posting is one we know how to handle
-            posted_manifest_api         = self._getField(parent_trace, ME._MANIFEST_API)
-            #expected_manifest_api       = StringUtils().rreplace(self.controller.getManifestAPI().apiName(), "io", "xlsx")
-            expected_manifest_api               = self.controller.getManifestAPI().apiName()
-            manifest_api_supported_versions   = [expected_manifest_api + "/" + version for version in self.controller.getSupportedVersions()]
+            posted_manifest_api             = self._getField(parent_trace, ME._MANIFEST_API)
+            expected_manifest_api           = self.controller.getManifestAPI().apiName()
+            manifest_api_supported_versions = [expected_manifest_api + "/" + version for version in self.controller.getSupportedVersions()]
 
             if not posted_manifest_api in manifest_api_supported_versions:
                 raise ApodeixiError(parent_trace, "Non supported Manifest API '" + posted_manifest_api + "'"
@@ -883,10 +889,38 @@ class SkeletonController(PostingController):
 
             for manifest_nb, kind, excel_range, excel_sheet in self.controller.show_your_work.manifest_metas():
 
-                supported_data_kinds             = self.controller.getSupportedKinds()
+                supported_data_kinds        = self.controller.getSupportedKinds()
                 if not kind in supported_data_kinds:
                     raise ApodeixiError(parent_trace, "Non supported domain object kind '" + kind + "'"
                                                     + "\nShould be one of: " + str(supported_data_kinds))
+
+        def  checkReferentialIntegrity(self, parent_trace):
+            '''
+            Used to check that the values of Posting Label fields are valid. Does not return a value, but will
+            raise an exception if any field is "invalid".
+
+            Sometimes this validation might be against data configured in the ApodeixiConfig. Example: "organization"
+
+            In other situations the validation is against the existence of static data objects which the label
+            references. Example: "product" in the case of the Journeys domain.
+
+            NOTE: This method is intended to be called *after* label.read(-) has completed, including any label.read(-)
+            implemented by derived classes. 
+            That is why it can't be called within label.read(-) at the PostingLabel parent class level,
+            and why the design choice was made to have the calling code invoke this check right after calling label.read()
+            '''
+            expected_organization           = self.controller.a6i_config.getOrganization(parent_trace)
+            allowed_kb_areas                = self.controller.a6i_config.getKnowledgeBaseAreas(parent_trace)
+
+            if self.organization(parent_trace) != expected_organization:
+                raise ApodeixiError(parent_trace, "Invalid organization field in Posting Label",
+                                data = {    "Expected":     str(expected_organization),
+                                            "Submitted":    str(self.organization(parent_trace))})
+
+            if not self.knowledgeBaseArea(parent_trace) in allowed_kb_areas:
+                raise ApodeixiError(parent_trace, "Invalid knowledge base field in Posting Label",
+                                data = {    "Allowed any of":   str(allowed_kb_areas),
+                                            "Submitted":        str(self.knowledgeBaseArea(parent_trace))})
 
         def infer(self, parent_trace, manifest_dict, manifest_key):
             '''

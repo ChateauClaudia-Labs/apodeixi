@@ -23,9 +23,9 @@ metadata:
     estimatedBy: krater.ruptive@telrus.com
     estimatedOn: *id001
     knowledgeBase: Testing Area
-    organization: My Corporation
+    organization: My Corp
     recordedBy: fido.cat@telrus.com
     version: 2
   name: static-data
-  namespace: my-corporation.testing-area
+  namespace: my-corp.testing-area
   version: 2

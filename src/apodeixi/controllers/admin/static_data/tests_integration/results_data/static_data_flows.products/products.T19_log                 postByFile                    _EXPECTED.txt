@@ -1,14 +1,14 @@
 
 CREATED MANIFEST:        
 		 apiVersion     = 'static-data.admin.a6i.io/v1a'
-		 namespace      = 'my-corporation.testing-area'
+		 namespace      = 'my-corp.testing-area'
 		 kind           = 'product'
 		 name           = 'static-data'
 		 version        = '2'
 
 CREATED MANIFEST:        
 		 apiVersion     = 'static-data.admin.a6i.io/v1a'
-		 namespace      = 'my-corporation.testing-area'
+		 namespace      = 'my-corp.testing-area'
 		 kind           = 'line-of-business'
 		 name           = 'static-data'
 		 version        = '2'
@@ -31,13 +31,13 @@ PUBLISHED OPTIONAL FORM:
 		 filing_coords   = ''
 		 *** A ManifestHandle ***
 			 apiVersion     = 'static-data.admin.a6i.io/v1a'
-			 namespace      = 'my-corporation.testing-area'
+			 namespace      = 'my-corp.testing-area'
 			 kind           = 'product'
 			 name           = 'static-data'
 			 version        = '2'
 		 *** A ManifestHandle ***
 			 apiVersion     = 'static-data.admin.a6i.io/v1a'
-			 namespace      = 'my-corporation.testing-area'
+			 namespace      = 'my-corp.testing-area'
 			 kind           = 'line-of-business'
 			 name           = 'static-data'
 			 version        = '2'

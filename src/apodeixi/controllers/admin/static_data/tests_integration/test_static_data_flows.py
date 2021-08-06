@@ -18,7 +18,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
         be used by this test case.
         '''
-        self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
+        self._stack                 = ShutilStoreTestStack(parent_trace, self.a6i_config)
 
     def test_products(self):
 
@@ -29,11 +29,10 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
         EXCEL_FILE                      = "products.static-data.admin.a6i.xlsx"
         NB_MANIFESTS_EXPECTED           = 2
         root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
-        ORGANIZATION                    = self._config.getOrganization(root_trace)
-        KNOWLEDGE_BASE_AREAS            = self._config.getKnowledgeBaseAreas(root_trace)
+        ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
+        KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
         NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.production"
         SUBNAMESPACE                    = None
-
         
         self._run_basic_flow(   from_nothing                = True,
                                 namespace                   = NAMESPACE,
@@ -43,7 +42,8 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
                                 excel_file                  = EXCEL_FILE,
                                 excel_sheet                 = "Posting Label",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET)
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                setup_static_data           = False)
 
 
 if __name__ == "__main__":

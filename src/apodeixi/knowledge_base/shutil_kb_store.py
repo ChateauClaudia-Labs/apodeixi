@@ -337,6 +337,85 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         handle                          = super().persistManifest(parent_trace, manifest_dict)
         return handle
 
+    def findLatestVersionManifest(self, parent_trace, manifest_api, namespace, name, kind):
+        '''
+        For a given manifest API, a manifest is logically identified by its name and kind properties within 
+        a given namespace.
+        However, there might be multiple versions of a logical manifest (versions are integers starting
+        at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
+
+        This method returns a manifest and a string.
+        
+        The manifest is the most recent version of the manifest that is logically identified
+        by the parameters.
+        The 2nd returned value is the path to that manifest.
+
+        If no such manifest exists in the KnowledgeBase store then the first returned object is None.
+
+        Example: for file-based stores, a manifest may be stored in a filename like:
+
+            $KB_STORE/manifests/my-corp.production/modernization.default.dec-2020.fusionopus/big-rock.2.yaml
+
+            In this example, 
+                * the namespace is "my-corp.production"
+                * the name is "modernization.default.dec-2020.fusionopus"
+                * the kind is "big-rock"
+                * the version is 2 (an int)
+                * the manifest api is embedded within the YAML file. The YAML file has a field called
+                  "apiVersion" with a value like "delivery-planning.journeys.a6i.io/v1a", and the manifest api
+                  is the substring without the suffix: "delivery-planning.journeys.a6i.io"
+
+        @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
+                    manifest kinds subsumed under such API. The search for manifests is filtered to those
+                    whose YAML representation declares itself as falling under this API.
+        @param namespace A string. Represents the namespace in the KnowledgeBase store's manifests area 
+                        where to look for the manifest.
+        @param name A string representing the name of the manifest. Along with kind, this identifies a 
+                    unique logical manifest (other than version number)
+        @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
+                    logical manifest (other than version number)
+        '''
+        manifest, manifest_path         = super().findLatestVersionManifest(parent_trace, manifest_api, 
+                                                                                namespace, name, kind)
+
+        if manifest == None:
+            # Not found, so normally we should return None. But before giving up, look in parent environment
+            # if we have been configured to fail over the parent environment whenver we can't find something
+            if self._failover_manifest_reads_to_parent(parent_trace):
+                # Search in parent first, and copy anything found to the current environment
+
+                my_trace                = parent_trace.doing("Searching in parent environment")
+                # Temporarily switch to the parent environment, and try again
+                original_env            = self.current_environment(my_trace)
+                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
+
+                manifest, manifest_path = self.findLatestVersionManifest(my_trace, manifest_api, 
+                                                                                namespace, name, kind)
+                # Now that search in parent environment is done, reset back to original environment
+                self.activate(my_trace, original_env.name(my_trace))
+
+                # Populate current environment with anything found in the parent environment, but only if it is not
+                # already in current environment
+                if manifest != None:
+                    my_trace            = parent_trace.doing("Copying manifest from parent environment",
+                                                    data = {"parent environment name":  
+                                                                        self.parent_environment(my_trace).name(my_trace),
+                                                            "current environment name":     
+                                                                        self.current_environment(my_trace).name(my_trace)})
+                
+                
+                    from_path           = manifest_path
+                    to_dir              = self.current_environment(my_trace).postingsURL(parent_trace) 
+
+                    if not _os.path.exists(to_dir):
+                        my_trace                    = parent_trace.doing("Copying a manifest file",
+                                                        data = {"src_path":     from_path,
+                                                                "to_dir":       to_dir})
+                        PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
+                    _shutil.copy2(src = from_path, dst = to_dir)
+
+        return manifest, manifest_path
+
     def retrievePreviousManifest(self, parent_trace, manifest_dict):
         '''
         Given a manifest expressed as a dict with a certain version N, will retrieve the same manifest
@@ -380,7 +459,6 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                                             data = {"version given": str(new_version),
                                                     "manifest handle": new_handle.display(parent_trace)})
 
-
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
         Returns a dict and a string.
@@ -408,7 +486,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                 original_env            = self.current_environment(my_trace)
                 self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
 
-                manifest, manifest_path = self.retrieveManifest(parent_trace, manifest_handle)
+                manifest, manifest_path = self.retrieveManifest(my_trace, manifest_handle)
                 # Now that search in parent environment is done, reset back to original environment
                 self.activate(my_trace, original_env.name(my_trace))
 

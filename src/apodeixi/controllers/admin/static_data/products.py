@@ -96,7 +96,7 @@ class ProductsController(StaticData_Controller):
 
         return template_dict, template_df
 
-    def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):
+    def _build_manifestsXLWriteconfig(self, parent_trace, manifestInfo_dict):
         '''
         Overwrites parent's implementation
 

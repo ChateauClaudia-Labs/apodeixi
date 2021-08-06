@@ -6,7 +6,7 @@ User removed or renamed an entity column for a secondary entity.
 
 ******** Functional Trace ********
 
-Problem:	Posting lacks some mandatory columns
+Problem:	Posting lacks some mandatory columns. This often happens if ranges are wrong in Posting Label.
 
             Missing columns     : ['Institution']
             Posted columns      : ['Asset Class', 'FDIC Insurance', 'Taxable to non Residents', 'REMOVED ENTITY', 'State', 'Zipcode', 'Account', 'Currency']

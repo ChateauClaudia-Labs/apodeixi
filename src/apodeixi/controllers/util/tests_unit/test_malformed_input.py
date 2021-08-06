@@ -132,7 +132,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
         try:
             root_trace                  = FunctionalTrace(parent_trace=None).doing("Running Mock_Controller")
 
-            controller                  = Mock_Controller(root_trace, STORE, a6i_config = self._config)
+            controller                  = Mock_Controller(root_trace, STORE, a6i_config = self.a6i_config)
             all_manifests_dict, label   = controller._buildAllManifests(root_trace, posting_handle)
 
             NB_MANIFESTS_EXPECTED   = 3

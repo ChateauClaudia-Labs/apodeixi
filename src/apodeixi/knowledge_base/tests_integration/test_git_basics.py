@@ -20,7 +20,7 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
         be used by this test case.
         '''
-        self._stack                 = GITStoreTestStack(parent_trace, self._config)
+        self._stack                 = GITStoreTestStack(parent_trace, self.a6i_config)
 
     def test_persist_manifest(self):
 

@@ -7,6 +7,24 @@ from apodeixi.representers.as_excel                             import ManifestR
 
 
 class FlowScenarioSkeleton(ApodeixiIntegrationTest):
+
+    def setUp(self):
+        super().setUp()
+        # Flow scenario tests are "realistic", so for them we want to enforce referential integrity.
+        self.a6i_config.enforce_referential_integrity = True
+
+    def setup_static_data(self, parent_trace):
+        '''
+        Sets up the static data that is generally needed by flow tests
+        '''
+        EXCEL_FILE                  = "products.static-data.admin.a6i.xlsx"
+
+        my_trace                    = parent_trace.doing("Setting up product static data")
+
+        posting_path                = self.input_data  + "/" + self.scenario() + "/" + EXCEL_FILE
+        response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                    path_of_file_being_posted   = posting_path, 
+                                                                    excel_sheet                 = "Posting Label")
     '''
     Abstract class.
 
@@ -24,11 +42,11 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
                             token "modernization" is the subnamespace. The other tokens come from filing coordinates
                             for the posting from whence the manifest arose.
+    @param setup_static_data A boolean. If True, static data will be created before the test scenario's flows.
     '''
-
     def _run_basic_flow(self,   from_nothing,           namespace,                  subnamespace,       posting_api, 
                                 excel_relative_path,    excel_file,                 excel_sheet, 
-                                nb_manifests_expected,  generated_form_worksheet):
+                                nb_manifests_expected,  generated_form_worksheet,   setup_static_data):
         '''
         Tests a basic flow for a single posting API consisting of:
 
@@ -50,6 +68,10 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
             if True:
                 self.provisionIsolatedEnvironment(my_trace)
                 self.check_environment_contents(my_trace)
+
+            if setup_static_data:
+                my_trace                        = self.trace_environment(root_trace, "Setting up static data")
+                self.setup_static_data(my_trace)
 
             if from_nothing: # Make a blind call get `requestForm`, without knowing a priori the manifest handles
                 my_trace                    = self.trace_environment(root_trace, "Blind call to 'requestForm' API")

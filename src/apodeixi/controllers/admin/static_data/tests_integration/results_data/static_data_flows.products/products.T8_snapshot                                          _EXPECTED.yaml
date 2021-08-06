@@ -11,12 +11,12 @@ static_data_flows.products.products_ENV:
               '
             POST_EVENT_LOG.txt: '
 
-              Size (in bytes):  1728
+              Size (in bytes):  1700
 
               '
             products.static-data.admin.a6i.xlsx: '
 
-              Size (in bytes):  7130
+              Size (in bytes):  7128
 
               '
     journeys:
@@ -48,29 +48,29 @@ static_data_flows.products.products_ENV:
                 '
               POST_EVENT_LOG.txt: '
 
-                Size (in bytes):  1728
+                Size (in bytes):  1700
 
                 '
               products.static-data.admin.a6i.xlsx: '
 
-                Size (in bytes):  7130
+                Size (in bytes):  7128
 
                 '
           products.static-data.admin.a6i.xlsx: '
 
-            Size (in bytes):  7130
+            Size (in bytes):  7128
 
             '
     manifests:
-      my-corporation.testing-area:
+      my-corp.testing-area:
         static-data:
           line-of-business.1.yaml: '
 
-            Size (in bytes):  800
+            Size (in bytes):  786
 
             '
           product.1.yaml: '
 
-            Size (in bytes):  1039
+            Size (in bytes):  1025
 
             '

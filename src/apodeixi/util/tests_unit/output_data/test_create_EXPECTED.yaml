@@ -11,7 +11,7 @@ util:
     '
   apodeixi_config.py: '
 
-    Size (in bytes):  14884
+    Size (in bytes):  15092
 
     '
   dataframe_utils.py: '
@@ -106,12 +106,12 @@ util:
           '
       test_a6i_config_EXPECTED.txt: '
 
-        Size (in bytes):  2229
+        Size (in bytes):  2222
 
         '
       test_a6i_config_OUTPUT.txt: '
 
-        Size (in bytes):  2229
+        Size (in bytes):  2222
 
         '
       test_compare_dataframes_comparison_EXPECTED.txt: '

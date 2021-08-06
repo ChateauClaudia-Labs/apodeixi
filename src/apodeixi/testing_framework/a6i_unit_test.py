@@ -22,6 +22,9 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
         # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
         self.output_data            = _os.path.join(_os.path.dirname(me__file__), 'output_data') # Works ! :-) Thanks inspect!
 
+        # For unit tests, don't enforce referential integrity since we will test data in mock stores that may
+        # reference things that don't really exist
+        self.a6i_config.enforce_referential_integrity = False
 
     def tearDown(self):
         super().tearDown()

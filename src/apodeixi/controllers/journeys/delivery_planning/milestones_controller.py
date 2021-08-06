@@ -214,7 +214,8 @@ class MilestonesController(SkeletonController):
             #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
-                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. This often happens if "
+                                                    + "ranges are wrong in Posting Label.",
                                                     data = {    'Missing columns':    missing_cols,
                                                                 'Posted columns':     posted_cols})
 

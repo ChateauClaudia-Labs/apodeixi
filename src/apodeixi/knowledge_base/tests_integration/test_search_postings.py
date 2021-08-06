@@ -22,7 +22,7 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
         be used by this test case.
         '''
-        self._stack                 = ShutilStoreTestStack(parent_trace, self._config)
+        self._stack                 = ShutilStoreTestStack(parent_trace, self.a6i_config)
 
     def test_locate_milestone_postings(self):
         POSTING_API                     = 'milestone.journeys.a6i'

@@ -33,6 +33,7 @@ class FilingCoordinates():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'infer_from_label' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__}) 
+    
     def path_tokens(self, parent_trace):
         '''
         Abstract method. Returns a list of strings, corresponding to the path tokens implicit by this FilingCoordinates instance.
@@ -40,6 +41,7 @@ class FilingCoordinates():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'path_tokens' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__}) 
+    
     def to_dict(self, parent_trace):
         '''
         Abstract method. Returns a dictionary representation of self built only from scalars. Useful to display in test output files.
@@ -57,6 +59,7 @@ class FilingCoordinates():
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'expected_tokens' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__}) 
+    
     def getTag(self, parent_trace):
         '''
         Abstract method.
@@ -81,6 +84,12 @@ class FilingCoordinates():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+            
 class JourneysFilingCoordinates(FilingCoordinates):
     '''
     Helper class to hold the properties that are used to organize Excel postings for Journeys domain in a KnowledgeBaseStore. 

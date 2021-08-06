@@ -67,21 +67,21 @@ class ShutilStoreTestStack(IntegrationTestStack):
     Helper class to represent the stack used by an ApodeixiIntegrationTest, when the stack choice made is
     for a Shutil_KBStore_Impl
     '''
-    def __init__(self, parent_trace, config):
+    def __init__(self, parent_trace, a6i_config):
         super().__init__(parent_trace)
-        self._config                    = config
+        self.a6i_config                = a6i_config
 
         my_trace                        = parent_trace.doing("Initializing file-based stack",
                                                                         origination = {'signaled_from': __file__})
-        self._kb_rootdir                = self._config.get_KB_RootFolder(my_trace)
-        self._clientURL                 = self._config.get_ExternalCollaborationFolder(my_trace) 
+        self._kb_rootdir                = self.a6i_config.get_KB_RootFolder(my_trace)
+        self._clientURL                 = self.a6i_config.get_ExternalCollaborationFolder(my_trace) 
 
         store_impl                      = Shutil_KBStore_Impl( parent_trace         = my_trace,
                                                                         kb_rootdir      = self._kb_rootdir, 
                                                                         clientURL       = self._clientURL)
         self._store                     = KnowledgeBaseStore(my_trace, store_impl)
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
-        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self._config)
+        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self.a6i_config)
 
     MY_NAME                             = "shutil_store"
     def name(self, parent_trace):
@@ -109,14 +109,14 @@ class GITStoreTestStack(IntegrationTestStack):
     Helper class to represent the stack used by an ApodeixiIntegrationTest, when the stack choice made is
     for a GIT_KBStore_Impl
     '''
-    def __init__(self, parent_trace, config):
+    def __init__(self, parent_trace, a6i_config):
         super().__init__(parent_trace)
-        self._config                    = config
+        self.a6i_config              = a6i_config
 
         my_trace                      = parent_trace.doing("Initializing GIT-based stack",
                                                             origination = {'signaled_from': __file__})
-        self._kb_rootdir                = self._config.get_KB_RootFolder(my_trace)
-        self._clientURL                 = self._config.get_ExternalCollaborationFolder(my_trace) 
+        self._kb_rootdir                = self.a6i_config.get_KB_RootFolder(my_trace)
+        self._clientURL                 = self.a6i_config.get_ExternalCollaborationFolder(my_trace) 
 
         store_impl                      = GIT_KBStore_Impl(   parent_trace        = my_trace,
                                                                     kb_rootdir          = self._kb_rootdir,
@@ -125,7 +125,7 @@ class GITStoreTestStack(IntegrationTestStack):
 
         self._store                     = KnowledgeBaseStore(my_trace, store_impl)
         my_trace                        = parent_trace.doing("Starting KnowledgeBase")
-        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self._config)
+        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self.a6i_config)
 
     MY_NAME                             = "git_store"
     def name(self, parent_trace):
@@ -217,6 +217,10 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # enforced by the "next_*" functions
         self._output_nb             = 0
 
+        # As a general pattern, we only enforce referential integrity tests in "flow" tests, which is the
+        # more "realistic" flavor of integration tests
+        self.a6i_config.enforce_referential_integrity = False
+
     def tearDown(self):
         super().tearDown()
 
@@ -256,7 +260,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         self._scenario          = scenario
 
     def config(self):
-        return self._config
+        return self.a6i_config
 
     def current_environment_name(self, parent_trace):
         '''

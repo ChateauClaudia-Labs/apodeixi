@@ -1,5 +1,19 @@
 basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
   external-collaboration:
+    admin:
+      static-data:
+        _ARCHIVE:
+          (Timestamp omitted) Posting:
+            POST_EVENT_LOG.txt: '
+
+              Size (in bytes):  1681
+
+              '
+            products.static-data.admin.a6i.xlsx: '
+
+              Size (in bytes):  17413
+
+              '
     journeys:
       Dec 2020:
         FusionOpus:
@@ -13,7 +27,7 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
           OfficialPlan:
             LedgerPro.big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  9624
+              Size (in bytes):  9623
 
               '
             _ARCHIVE:
@@ -35,6 +49,25 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
                   '
   kb:
     excel-postings:
+      admin:
+        static-data:
+          _ARCHIVE:
+            (Timestamp omitted) Posting:
+              POST_EVENT_LOG.txt: '
+
+                Size (in bytes):  1681
+
+                '
+              products.static-data.admin.a6i.xlsx: '
+
+                Size (in bytes):  17413
+
+                '
+          products.static-data.admin.a6i.xlsx: '
+
+            Size (in bytes):  17413
+
+            '
       journeys:
         Dec 2020:
           LedgerPro:
@@ -72,5 +105,16 @@ basic_posting_flows.big_rocks.explained.bre_ledger_ENV:
           big-rock.1.yaml: '
 
             Size (in bytes):  5581
+
+            '
+        static-data:
+          line-of-business.1.yaml: '
+
+            Size (in bytes):  597
+
+            '
+          product.1.yaml: '
+
+            Size (in bytes):  641
 
             '

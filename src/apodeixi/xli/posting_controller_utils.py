@@ -483,6 +483,43 @@ class PostingLabel():
         self.ctx                = ctx 
         self.sightings  = sightings
 
+    def checkFilingCoordsConsistency(self, parent_trace, posting_api, posted_coords):
+        '''
+        '''
+        my_trace                        = parent_trace.doing("Validating filing coordinates align with Posting Label")               
+        filing_class                    = self.controller.store.getFilingClass( my_trace, posting_api)
+        if filing_class == None:
+            raise ApodeixiError(my_trace, "Can't build filing coordinates from a null filing class")
+        my_trace                        = my_trace.doing("Validating that posting is in the right folder structure "
+                                                                + "within the Knowledge Base")
+        expected_coords                 = filing_class().infer_from_label(  parent_trace    = my_trace, 
+                                                                            posting_label   = self)
+        if posted_coords != expected_coords:
+            raise ApodeixiError(my_trace, "Inconsistency in posting: filing coordinates don't match Posting Label",
+                                            data = {    "Expected": str(expected_coords),
+                                                        "Posted": str(posted_coords)})
+
+    def  checkReferentialIntegrity(self, parent_trace):
+        '''
+        Abstract method.
+
+        Used to check that the values of Posting Label fields are valid. Does not return a value, but will
+        raise an exception if any field is "invalid".
+
+        Sometimes this validation might be against data configured in the ApodeixiConfig. Example: "organization"
+
+        In other situations the validation is against the existence of static data objects which the label
+        references. Example: "product" in the case of the Journeys domain.
+
+        NOTE: This method is intended to be called *after* label.read(-) has completed, including any label.read(-)
+        implemented by derived classes. 
+        That is why it can't be called within label.read(-) at the PostingLabel parent class level,
+        and why the design choice was made to have the calling code invoke this check right after calling label.read()
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'checkReferentialIntegrity' in concrete class",
+                                            origination = {'concrete class': str(self.__class__.__name__), 
+                                                            'signaled_from': __file__})
+
     def infer(self, parent_trace, manifest_dict, manifest_key):
         '''
         Abstract method

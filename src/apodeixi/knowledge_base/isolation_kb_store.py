@@ -579,9 +579,13 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         However, there might be multiple versions of a logical manifest (versions are integers starting
         at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
 
-        This method returns the most recent version of the manifest that is logically identified
+        This method returns a manifest and a string.
+        
+        The manifest is the most recent version of the manifest that is logically identified
         by the parameters.
-        Returns None if no such manifest exists in the KnowledgeBase store.
+        The 2nd returned value is the path to that manifest.
+
+        If no such manifest exists in the KnowledgeBase store then the first returned object is None.
 
         Example: for file-based stores, a manifest may be stored in a filename like:
 
@@ -612,6 +616,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                                                     'kind':             kind})
         folder                                      = self._current_env.manifestsURL(parent_trace) + '/' + namespace + '/' + name
         result_dict                                 = None
+        result_path                                 = None
         result_api_version_suffix                   = None
         latest_version                              = -1 # Will overwrite as we find higher versions in the loop
         for filename in self._getFilenames(parent_trace, folder):
@@ -651,9 +656,10 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 # If we get this far then this is a bona fide manifest matching our search criteria and also
                 # of a more recent version than anything we found previously
                 result_dict                         = manifest_dict
+                result_path                         = folder + '/' + filename
                 latest_version                      = version_found # increase latest_version for next cycle of loop
-
-        return result_dict
+                
+        return result_dict, result_path
     
     def _check_manifest_matches(self, parent_trace, manifest_filename, manifest_dict, 
                                         manifest_api, namespace, name, kind, minimal_version):

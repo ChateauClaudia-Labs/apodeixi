@@ -1,16 +1,18 @@
-import pandas                                       as _pd
+import pandas                                                       as _pd
 
-from apodeixi.controllers.util.manifest_api         import ManifestAPI
-from apodeixi.util.a6i_error                        import ApodeixiError
-from apodeixi.util.formatting_utils                 import StringUtils
+from apodeixi.controllers.util.manifest_api                         import ManifestAPI
+from apodeixi.util.a6i_error                                        import ApodeixiError
+from apodeixi.util.formatting_utils                                 import StringUtils
 
-from apodeixi.controllers.util.skeleton_controller  import SkeletonController
-from apodeixi.knowledge_base.filing_coordinates     import JourneysFilingCoordinates
-from apodeixi.text_layout.excel_layout              import AsExcel_Config_Table, ManifestXLWriteConfig, NumFormats, ExcelFormulas
+from apodeixi.controllers.util.skeleton_controller                  import SkeletonController
+from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
+from apodeixi.knowledge_base.filing_coordinates                     import JourneysFilingCoordinates
+from apodeixi.text_layout.excel_layout                              import AsExcel_Config_Table, ManifestXLWriteConfig, \
+                                                                            NumFormats, ExcelFormulas
 
-from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, MinimalistIntervalSpec, \
-                                                            Interval
-from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
+from apodeixi.xli.interval                                          import IntervalUtils, GreedyIntervalSpec, \
+                                                                            MinimalistIntervalSpec, Interval
+from apodeixi.xli.posting_controller_utils                          import PostingConfig, PostingController, UpdatePolicy
 
 class BigRocksEstimate_Controller(SkeletonController):
     '''
@@ -85,7 +87,7 @@ class BigRocksEstimate_Controller(SkeletonController):
         ME                              = BigRocksEstimate_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def _build_manifestsXLconfig(self, parent_trace, manifestInfo_dict):
+    def _build_manifestsXLWriteconfig(self, parent_trace, manifestInfo_dict):
         '''
         Overwrites parent's implementation
 
@@ -330,7 +332,8 @@ class BigRocksEstimate_Controller(SkeletonController):
             mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
-                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. This often happens if "
+                                                    + "ranges are wrong in Posting Label.",
                                                     data = {    'Missing columns':    missing_cols,
                                                                 'Posted columns':     posted_cols})
         def entity_name(self):
@@ -545,7 +548,8 @@ class BigRocksEstimate_Controller(SkeletonController):
             mandatory_cols                  = [FMT(ME._ENTITY_NAME)]
             missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
             if len(missing_cols) > 0:
-                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns",
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. This often happens if "
+                                                    + "ranges are wrong in Posting Label.",
                                                     data = {    'Missing columns':    missing_cols,
                                                                 'Posted columns':     posted_cols})
 
@@ -628,6 +632,40 @@ class BigRocksEstimate_Controller(SkeletonController):
                 raise ApodeixiError(parent_trace, "Variant in Posting Label has an unsupported value: '" + str(variant) + "'",
                                     data = {"supported variants": str([CTRL.VARIANT_BURNOUT, CTRL.VARIANT_EXPLAINED])})
             self.controller.variant     = variant
+
+        def  checkReferentialIntegrity(self, parent_trace):
+            '''
+            Used to check that the values of Posting Label fields are valid. Does not return a value, but will
+            raise an exception if any field is "invalid".
+
+            Sometimes this validation might be against data configured in the ApodeixiConfig. Example: "organization"
+
+            In other situations the validation is against the existence of static data objects which the label
+            references. Example: "product" in the case of the Journeys domain.
+
+            NOTE: This method is intended to be called *after* label.read(-) has completed, including any label.read(-)
+            implemented by derived classes. 
+            That is why it can't be called within label.read(-) at the PostingLabel parent class level,
+            and why the design choice was made to have the calling code invoke this check right after calling label.read()
+            '''
+            super().checkReferentialIntegrity(parent_trace)
+
+            validator           = StaticDataValidator(parent_trace, self.controller.store, self.controller.a6i_config)
+            raw_namespace       = self.organization(parent_trace) + "." + self.knowledgeBaseArea(parent_trace)
+            namespace           = StringUtils().format_as_yaml_fieldname(raw_namespace)
+
+            my_trace                = parent_trace.doing("Checking product referential integrity")
+            if True:
+                alleged_product     = self.product(my_trace)
+
+                prod_code           = validator.getProductCode(my_trace, namespace, alleged_product)
+                if prod_code == None:
+                    all_product_codes   = validator.allProductCodes(my_trace, namespace)
+                    raise ApodeixiError(my_trace, "Invalid product field in Posting Label",
+                                    data = {    "Expected":     str(all_product_codes),
+                                                "Submitted":    str(alleged_product)})
+
+
 
         def infer(self, parent_trace, manifest_dict, manifest_key):
             '''

@@ -49,7 +49,7 @@ class Test_Workstream(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Generating workstream")
 
-            controller          = Workstream_Controller(root_trace, STORE, a6i_config = self._config)
+            controller          = Workstream_Controller(root_trace, STORE, a6i_config = self.a6i_config)
             all_manifests_dict, label,   = controller._buildAllManifests(root_trace, posting_handle)
 
             NB_MANIFESTS_EXPECTED   = 2

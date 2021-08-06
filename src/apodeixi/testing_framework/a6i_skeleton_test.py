@@ -41,7 +41,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
 
         root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
                                                                         origination = {'signaled_from': __file__})
-        self._config                = ApodeixiConfig(root_trace)
+        self.a6i_config                = ApodeixiConfig(root_trace)
 
     def tearDown(self):
         super().tearDown()

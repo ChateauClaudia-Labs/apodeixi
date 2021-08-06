@@ -71,7 +71,10 @@ class AsDataframe_Representer:
 
 
     def dict_2_df(self, parent_trace, content_dict, contents_path):
-
+        '''
+        @param contents_path A string using 'dot notation' for the path in the original YAML file that led
+                          to the `content_dict`. For example, "W2.workstream"
+        '''
         my_trace            = parent_trace.doing('Converting content to DataFrame')
         intervals, rows     = self._build_df_rows(  parent_trace    = my_trace,
                                                     content_dict    = content_dict,
