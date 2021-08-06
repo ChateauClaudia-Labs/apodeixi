@@ -1,7 +1,7 @@
 import sys                                              as _sys
 import os                                               as _os
 import shutil                                           as _shutil
-import inspect
+
 import re                                               as _re
 import yaml                                             as _yaml
 
@@ -198,31 +198,28 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
     def setUp(self):
         super().setUp()
 
-        # We can't rely on Python's built-in '__file__' property to find the location of the concrete class
-        # that is running, since we are in the parent class and we will get the parent class's filename, not the concrete class's.
-        # So instead we rely on the inspect package
-        me__file__                  = inspect.getfile(self.__class__)
-        # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
-        self.input_data             = _os.path.join(_os.path.dirname(me__file__), 'input_data') # Works ! :-) Thanks inspect!
-        # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
-        
+        self.input_data             = None # Will be set later by method changeResultDataLocation        
         self.results_data           = None # Will be set later by method changeResultDataLocation
-        #_os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
-        # Test canses can choose to have self.results_data modified, if they configure themselves in test_config.yam.
-        # This is recommended for tests
-        # with very long folder structures, since Windows and GIT on Windows impose limits and may cause problems
-        # saving files or doing GIT commits unless results are put in a "high up" folder
+        # Integration test cases must call self.changeResultDataLocation(-) to set self.results_data
+        # and self.input_data. 
+        # This is required for 2 reasons:
+        #   1. Ease of management - all integration tests are registered in test_config.yaml and
+        #       their output is externalized from the Apodeixi code base
+        #   2. Reduce the size of folder structure by placing output in a less nested directory structure
+        #       (i.e., not under the code of the tests themselves). This is needed in Windows to avoid
+        #       issues with long paths that impede file persistence and/or impede committing to GIT.
+        #       As an added benefit, I noticed it improves test performance by 50% to use shorter paths.
         #
-        # So here we remember the test config as a dict attribute of self, so that it is available later for
-        # integration tests that chose to take advantage of it to save results to a shorter folder structure.
+        # To support all this we have these two attributes that get used later in self.changeResultDataLocation(-):
+        #   - self.test_db_dir
+        #   - self.test_config_dict
+        #.
         root_trace                  = FunctionalTrace(None).doing("Checking where results should be saved to",
                                                                     origination = {'signaled_from': __file__})
         self.test_db_dir            = _os.path.dirname(self.a6i_config.get_KB_RootFolder(root_trace))           
         with open(self.test_db_dir + '/test_config.yaml', 'r', encoding="utf8") as file:
             self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
-    
-
 
         root_trace                  = FunctionalTrace(None).doing("Provisioning stack for integration test",
                                                                     origination = {'signaled_from': __file__})
