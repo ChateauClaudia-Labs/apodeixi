@@ -2,7 +2,7 @@ from apodeixi.controllers.admin.static_data.static_data_validator   import Stati
 from apodeixi.controllers.util.skeleton_controller                  import SkeletonController
 from apodeixi.util.formatting_utils                                 import StringUtils
 
-class JourneyPostingLabel(SkeletonController._MyPostingLabel):
+class JourneysPostingLabel(SkeletonController._MyPostingLabel):
     '''
     Parent class for the concrete Posting Label class used by controllers in the Journeys domain
     Codifies the schema expectations for the posting label when posting big rocks estimates. 
@@ -15,7 +15,7 @@ class JourneyPostingLabel(SkeletonController._MyPostingLabel):
 
     def __init__(self, parent_trace, controller, mandatory_fields, optional_fields = [], date_fields = []):
         # Shortcut to reference class static variables
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
 
         combined_mandatory_fields               = [ ME._PRODUCT,        ME._JOURNEY,            ME._SCENARIO,    # Determine name  
                                                     ME._SCORING_CYCLE,  ME._SCORING_MATURITY]
@@ -77,7 +77,7 @@ class JourneyPostingLabel(SkeletonController._MyPostingLabel):
         '''
         editable_fields     = super().infer(parent_trace, manifest_dict, manifest_key)
 
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
         def _infer(fieldname, path_list):
             self._inferField(   parent_trace            = parent_trace, 
                                 fieldname               = fieldname, 
@@ -96,30 +96,30 @@ class JourneyPostingLabel(SkeletonController._MyPostingLabel):
 
     def product(self, parent_trace):
         # Shortcut to reference class static variables
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
 
         return self._getField(parent_trace, ME._PRODUCT)
 
     def journey(self, parent_trace):
         # Shortcut to reference class static variables
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
 
         return self._getField(parent_trace, ME._JOURNEY)
 
     def scenario(self, parent_trace):
         # Shortcut to reference class static variables
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
 
         return self._getField(parent_trace, ME._SCENARIO)
 
     def scoring_cycle(self, parent_trace):
         # Shortcut to reference class static variables
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
 
         return self._getField(parent_trace, ME._SCORING_CYCLE)
 
     def scoring_maturity(self, parent_trace):
         # Shortcut to reference class static variables
-        ME = JourneyPostingLabel
+        ME = JourneysPostingLabel
 
         return self._getField(parent_trace, ME._SCORING_MATURITY)

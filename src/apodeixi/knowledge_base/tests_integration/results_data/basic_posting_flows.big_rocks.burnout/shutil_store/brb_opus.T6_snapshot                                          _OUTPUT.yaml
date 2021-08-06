@@ -20,7 +20,7 @@ basic_posting_flows.big_rocks.burnout.brb_opus_ENV:
           Default:
             FusionOpus.big-rocks.journeys.a6i.xlsx: '
 
-              Size (in bytes):  7681
+              Size (in bytes):  7680
 
               '
             _ARCHIVE:

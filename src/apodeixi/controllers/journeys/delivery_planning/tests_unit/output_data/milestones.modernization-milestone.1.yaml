@@ -1,4 +1,4 @@
-apiVersion: milestone.journeys.a6i.io/v1
+apiVersion: delivery-planning.journeys.a6i.io/v1
 assertion:
   entity_type: Milestone
   estimatedBy: joe@my-org.com
