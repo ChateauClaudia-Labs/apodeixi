@@ -24,6 +24,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
 
         self.setScenario("static_data_flows.products")
         self.setCurrentTestName('products') 
+        self.changeResultDataLocation()
 
         EXCEL_RELATIVE_PATH             = "admin/static-data"
         EXCEL_FILE                      = "products.static-data.admin.a6i.xlsx"
@@ -49,6 +50,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
 
         self.setScenario("static_data_flows.s_c")
         self.setCurrentTestName('scoring_cycles') 
+        self.changeResultDataLocation()
 
         EXCEL_RELATIVE_PATH             = "admin/static-data"
         EXCEL_FILE                      = "scoring-cycles.static-data.admin.a6i.xlsx"

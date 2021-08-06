@@ -3,6 +3,7 @@ import os                                               as _os
 import shutil                                           as _shutil
 import inspect
 import re                                               as _re
+import yaml                                             as _yaml
 
 from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
 
@@ -206,6 +207,20 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # self.input_data             = _os.path.join(_os.path.dirname(__file__), 'input_data') # Doesn't work - use inpectt instead
         self.results_data           = _os.path.join(_os.path.dirname(me__file__), 'results_data') # Works ! :-) Thanks inspect!
 
+        # Test canses can choose to have self.results_data modified, if they configure themselves in test_config.yam.
+        # This is recommended for tests
+        # with very long folder structures, since Windows and GIT on Windows impose limits and may cause problems
+        # saving files or doing GIT commits unless results are put in a "high up" folder
+        #
+        # So here we remember the test config as a dict attribute of self, so that it is available later for
+        # integration tests that chose to take advantage of it to save results to a shorter folder structure.
+        root_trace                  = FunctionalTrace(None).doing("Checking where results should be saved to",
+                                                                    origination = {'signaled_from': __file__})
+        self.test_db_dir            = _os.path.dirname(self.a6i_config.get_KB_RootFolder(root_trace))           
+        with open(self.test_db_dir + '/test_config.yaml', 'r', encoding="utf8") as file:
+            self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+    
+
 
         root_trace                  = FunctionalTrace(None).doing("Provisioning stack for integration test",
                                                                     origination = {'signaled_from': __file__})
@@ -268,7 +283,18 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         self.stack().store().current_environment(parent_trace).name(parent_trace)
 
- 
+    def changeResultDataLocation(self):
+        '''
+        Changes self.result_data if that was configured in self.test_config_dict.
+        This should only be called after self.setScenario(-) has been set, since the look up in the configuration
+        is based on scenario.
+        '''
+        result_directories          = self.test_config_dict['integration-tests-results']
+        if self.scenario() in result_directories.keys():
+            test_id                 = result_directories[self.scenario()]
+            new_location            = self.test_db_dir + "/results_data/" + str(test_id)
+            self.results_data       = new_location
+
     def provisionIsolatedEnvironment(self, parent_trace, environment_name = None, 
                                             read_misses_policy  = KB_Environment_Config.FAIL_ON_READ_MISSES,):
         '''
