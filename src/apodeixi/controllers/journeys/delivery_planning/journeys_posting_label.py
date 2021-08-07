@@ -59,7 +59,8 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
         raw_namespace       = self.organization(parent_trace) + "." + self.knowledgeBaseArea(parent_trace)
         namespace           = StringUtils().format_as_yaml_fieldname(raw_namespace)
 
-        validator.validateProduct(parent_trace, self, namespace)
+        validator.validateProduct(          parent_trace, self, namespace)
+        validator.validateScoringCycle(     parent_trace, self, namespace)
 
     def infer(self, parent_trace, manifest_dict, manifest_key):
         '''

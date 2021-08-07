@@ -17,14 +17,16 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         '''
         Sets up the static data that is generally needed by flow tests
         '''
-        EXCEL_FILE                  = "products.static-data.admin.a6i.xlsx"
+        EXCEL_FILES                 = [ "products.static-data.admin.a6i.xlsx",
+                                        "scoring-cycles.static-data.admin.a6i.xlsx"]
 
         my_trace                    = parent_trace.doing("Setting up product static data")
 
-        posting_path                = self.input_data  + "/" + self.scenario() + "/" + EXCEL_FILE
-        response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
-                                                                    path_of_file_being_posted   = posting_path, 
-                                                                    excel_sheet                 = "Posting Label")
+        for file in EXCEL_FILES:
+            posting_path                = self.input_data  + "/" + self.scenario() + "/" + file
+            response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                        path_of_file_being_posted   = posting_path, 
+                                                                        excel_sheet                 = "Posting Label")
     '''
     Abstract class.
 

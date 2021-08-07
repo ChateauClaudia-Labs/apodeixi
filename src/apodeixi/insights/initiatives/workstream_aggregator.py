@@ -55,7 +55,7 @@ class WorkstreamAggregator():
 
                 rep                             = AsDataframe_Representer()
                 contents_path                   = 'assertion.metric'
-                df                              = rep.dict_2_df(parent_trace, content_dict, contents_path)
+                df                              = rep.dict_2_df(parent_trace, content_dict, contents_path, sparse=False)
                 df['WUID']                      = manifest_dict['metadata']['labels']['workstreamUID']
                 df_list.append(df)
         

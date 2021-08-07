@@ -11,11 +11,19 @@ class AsDataframe_Representer:
     def __init__(self):
         return
 
-    def yaml_2_df(self, parent_trace, manifests_folder, manifests_file, contents_path):
+    def yaml_2_df(self, parent_trace, manifests_folder, manifests_file, contents_path, sparse):
         '''
         Loads a YAML file for an Apodeixi manifest, and returns a Pandas Dataframe for the data contents
         and a dictionary for all other fields
         
+        @param sparse A boolean. If True, it returns a "sparse" representation suitable for Excel rendering,
+                    with exactly 1 UID per row (helpful when making joins). 
+
+                    If on the other hand sparse=False then a "full" representation is returned, more suitable
+                    for data analysis in Pandas. 
+
+                    For examples and details, refer to the documentation for`self.dict_2_df`
+
         @param contents_path A string using 'dot notation' to convey a path in a dictionary. For example,
                              for a dictionary  like this:
         .. code::
@@ -66,20 +74,53 @@ class AsDataframe_Representer:
         my_trace             = parent_trace.doing('Splitting manifest', data = {'path_tokens': path_tokens})
         content_dict, non_content_dict = self._split_out(my_trace, manifest_dict, path_tokens)
 
-        df                  = self.dict_2_df(parent_trace, content_dict, contents_path)
+        df                  = self.dict_2_df(parent_trace, content_dict, contents_path, sparse)
         return df, non_content_dict
 
-
-    def dict_2_df(self, parent_trace, content_dict, contents_path):
+    def dict_2_df(self, parent_trace, content_dict, contents_path, sparse):
         '''
+        Used to represent the contents of a manifest as a Pandas DataFrame. There are two main
+        use cases for what such DataFrame would be used for, and the needs of each of them
+        are catered to depending onhow the `sparse` parameter is set:
+
+        * As input to subsequent processing to render an Excel visualization (using sparse=True)
+        * As input to data analysis in Pandas (using sparse=False). 
+        
+        Refer to detailed documentation for method `self._build_df_rows`, that does the heavy lifting.
+
+        @param contents_dict A dict object representing the contents of a manifest, as opposed to the
+                            entire manifest. For example, if manifest_dict represents a full manifest in 
+                            the Journeys domain, the content_df = manifest_dict['assertion']['journey']
         @param contents_path A string using 'dot notation' for the path in the original YAML file that led
-                          to the `content_dict`. For example, "W2.workstream"
+                          to the `content_dict`. For example, "assertion.journey"
+        @param sparse A boolean. If True, it returns a "sparse" representation suitable for Excel rendering,
+                    with exactly 1 UID per row (helpful when making joins), such as this:
+
+                UID |      Big Rock         | UID-1 |     Sub rock
+            =============================================================
+                BR1 |   New UX              |       |   
+                    |                       | BR1.1 |   FX UI
+                    |                       | BR1.2 |   Lending UI
+                BR2 |   Containerization    |       |   
+                    |                       | BR2.1 |   Pricing service
+                    |                       | BR2.2 |   Market data svc
+
+                If on the other hand sparse=False then a "full" representation is returned, more suitable
+                for data analysis in Pandas:
+
+                UID |      Big Rock         | UID-1 |     Sub rock
+            ==============================================================
+                BR1 |   New UX              | BR1.1 |   FX UI
+                BR1 |   New UX              | BR1.2 |   Lending UI
+                BR2 |   Containerization    | BR2.1 |   Pricing service
+                BR2 |   Containerization    | BR2.2 |   Market data svc
         '''
         my_trace            = parent_trace.doing('Converting content to DataFrame')
         intervals, rows     = self._build_df_rows(  parent_trace    = my_trace,
                                                     content_dict    = content_dict,
                                                     parent_path     = contents_path,
-                                                    parent_uid      = None)
+                                                    parent_uid      = None,
+                                                    sparse          = sparse)
         
         all_columns         = []
         for interval in intervals:
@@ -146,38 +187,153 @@ class AsDataframe_Representer:
                 
         return on_path_dict, off_path_dict
     
-    def _build_df_rows(self, parent_trace, content_dict, parent_path, parent_uid):
+    def _build_df_rows(self, parent_trace, content_dict, parent_path, parent_uid, sparse):
         '''
-        Creates the data from which a Pandas DataFrame can be easily created by the caller,
+        Recursive method that creates the data from which a Pandas DataFrame can be easily created by the caller,
         based on the dictionary `content_dict`: it returns:
         
-        * The list of intervals whose concatenation would yield the columns for such a DataFrame-to-be
-        * The list of rows (as dictionaries)
+        * The list of intervals whose concatenation would yield the columns for such a DataFrame-to-be (see 
+            example below for an explanation)
+        * The list of rows (each row represented as a dict, whose keys are DataFrame columns, at least those
+            columns for which the row has a non-NaN value)
+
+        The rows might be populated to be "sparse" or not, depending on the `sparse` paremeter (a boolean).
+        This is best explained in an example. The following is a non-sparse DataFrame:
+
+                UID |      Big Rock         | UID-1 |     Sub rock
+            ==============================================================
+                BR1 |   New UX              | BR1.1 |   FX UI
+                BR1 |   New UX              | BR1.2 |   Lending UI
+                BR2 |   Containerization    | BR2.1 |   Pricing service
+                BR2 |   Containerization    | BR2.2 |   Market data svc
+
+        This "non sparse" representation is well suited for making data analysis.
+
+        In contrast, the "sparse" representation is geared towards visualization in Excel, where usability
+        calls for leaving out repetitive text, replacing it by blanks since humans can easily infer
+        what the values should be by glancing at preceding rows:
+
+                UID |      Big Rock         | UID-1 |     Sub rock
+            =============================================================
+                BR1 |   New UX              |       |   
+                    |                       | BR1.1 |   FX UI
+                    |                       | BR1.2 |   Lending UI
+                BR2 |   Containerization    |       |   
+                    |                       | BR2.1 |   Pricing service
+                    |                       | BR2.2 |   Market data svc
+
+        In particular, the sparse representation has exactly 1 UID per row, using more rows if needed
+        (in the example, the non-sparse representation has 4 rows but the sparse representation has 6 rows)
+
+        This example also helps us comment some other nuances of the algorithm:
+
+        1. The first object returned by this method is a "list of intervals", which in the example would be
+
+                [["UID", "Big Rock"], ["UID-1", "Sub rock"]]
+
+        2. The second object returned by this method is "all the rows as dictionaries", which for a sparse
+            situation would be:
+
+                [{  "UID": "BR1",   "Big Rock": "New UX"                                                                },          
+                                                                  { "UID-1", "BR1.1",   "Sub rock": "FX UI"             },
+                                                                  { "UID-1", "BR1.2",   "Sub rock": "Lending UI"        },
+                 {  "UID": "BR2",   "Big Rock": "Contanerization"                                                       },  
+                                                                  { "UID-1", "BR2.1",   "Sub rock": "Pricing service"   },
+                                                                  { "UID-1", "BR2.2",   "Sub rock": "Market data svc"   },
+                ]
+
+        3. The dictionaries representing rows don't need to have all columns present as keys. Pandas can still
+            create a DataFrame from that, and will just put a null (nan or such) as the value of that column for
+            the row in question. The algorithm makes use of this.
         
-        The keys of `content_dict` are expected to be "incremental UID pairs" for the entity type given by the
-        last token in `parent_path`. 
-        
-        For example, if `parent_path` is "S1.Workstream", then the entity type is "Workstream".
-        
-        As for the "incremental UID pairs" in `contect_dict`, that is best understood with an example:
-        
-        Consider again the entity called 'Workstream' with a parent path of "S1.Workstream". The UIDs
-        of its children might be something like `S1.W0, S1.W1, S1.W2`.
-        
-        However, in `content_dict` only the incremental UIDs would appear as keys: `W0, W1, W2`, each as
-        root to a dictionary.
-        
-        Because of the conventions in apodeixi.xli.breakdown_builder that were
-        used to build such `content-dict`, there will also be keys in `content-dict` called
-        `W0-name, W1-name, W2-name` for YAML readability reasons. Yet these are not UIDs, but we call
-        the pair `(Wi, Wi-name)` a "(incremental) UID pair" in this context.
-        
-        For purposes of building the DataFrame, we are only interested in "real content", i.e., the
-        sub-dictionaries under each (incremental) UID keys `W-, W1, W2` in `content-dict`, 
-        not under the `UID-name` keys.
-        
+        4. The UIDs are "abbreviated". For example, UID-1 has a value like "BR1.1" instead of "BR1.SR1". So only
+            the first acronym "BR" (for "Big Rock") is displayed, not the second acronym "SR" (for Sub rock).
+            This is for usability. The `contenct_dict` parameter is expected to contain non-abbreviated UIDs.
+
+        5. The `content_dict` representing the manifest's content uses "incremental" non-abbreviated UIDs
+            for its recursive structure ("recursive" as in: a dict that contains some children that are sub
+            dictionaries, not just scalars). By "incremental" we mean that content_dict["BR1"] would be
+            a dict and the children are accessed by keys like "SR1" and "SR2", not "BR1.SR1" and "BR1.SR2".
+            Thus, in our example content_dict["BR1"]["SR1"] and content_dict["BR1"]["SR2"] are the
+            expected way to naviate the "recursive" nature of the contect_dict.
+
+        6. Because of the conventions in apodeixi.xli.breakdown_builder that were used to build 
+            such `content_dict`, there are columns like "BR1-name" and "SR1-name". These are ignored by this
+            method.
+
+        7. This algorithm operates recursively, one interval at a time. In the example, we first process
+            interval ["UID", "Big Rock"], first identify this row fragment:
+
+             {  "UID": "BR1",   "Big Rock": "New UX"}
+
+            The algorithm then makes a recursive call on `content_df["BR1"], which returns two objects:
+
+                * A list of intervals: [["UID-1", "Sub rock"]], which is then merged with the caller's interval
+                    list to date and results in [["UID", "Big Rock"], ["UID-1", "Sub rock"]]
+
+                * A list of rows:
+                                                                [ { "UID-1", "BR1.1",   "Sub rock": "FX UI"             },
+                                                                  { "UID-1", "BR1.2",   "Sub rock": "Lending UI"        }
+                                                                ]
+                    These then need to be "merged" with the caller, and the merging varies depending on whether
+                    sparse=True or not. In the sparse case, the merging would look like 3 rows:
+
+                [{  "UID": "BR1",   "Big Rock": "New UX"                                                                },          
+                                                                  { "UID-1", "BR1.1",   "Sub rock": "FX UI"             },
+                                                                  { "UID-1", "BR1.2",   "Sub rock": "Lending UI"        }
+                ]
+
+                    In the case sparse=False, the merging would look like 2 rows:
+
+                [{  "UID": "BR1",   "Big Rock": "New UX",           "UID-1", "BR1.1",   "Sub rock": "FX UI"             },
+                 {  "UID": "BR1",   "Big Rock": "New UX",           "UID-1", "BR1.2",   "Sub rock": "Lending UI"        }
+                ]
+
+        8. Apart from sub-dictionaries, `content_dict` usually has scalar attributes. These need to be included
+            in the rows when they have a value. 
+
+        9. Scalar attributes introduce a nuance with the merging of intervals: as subsequent rows of the result
+            are gradually created, the algorithm only has a partial view of what the intervals are, since it infers
+            intervals' columns based on what it has seen so far. It thus may happen that when dealing with 
+            a later row it will encounter additional columns for an entity's interval that had been previously
+            seen. This must be taken into consideration in the merging of intervals.
+
+            For example, perhaps we are processing a manifest dict arose from parsing a posting like this:
+
+                    UID         |   Big rock        |   Asset classes           | Intended user
+                    ===========================================================================
+                    BR1         | Lending UI        |  Mortgages, commercial    |
+                    BR2         | Treasury UI       |                           | FX traders
+
+            Then the manifest will have a branch for the first row that will make us infer an
+            interval like 
+            
+                    [UID, Big rock, Asset classes]
+                    
+            Later when we process the manifest's branch that arose from the second row we will instead get 
+            an interval like 
+            
+                    [UID, Big rock, Intended user]
+            
+            The correct "merge" behavior in such case is not to treat these as separate intervals, but to merge them 
+            as 
+                    [UID, Big rock, Asset classes, Intended user]
+
+
+        @param contents_dict A dict object representing the contents of a manifest, as opposed to the
+                            entire manifest. 
+                            In the first example above, if manifest_dict represents a full manifest, 
+                            then content_df = manifest_dict['assertion']['big-rock']
         @param parent_path A string using 'dot notation' for the path in the original YAML file that led
-                          to the `content_dict`. For example, "W2.workstream"
+                          to the `content_dict`. 
+                          In the first example above, that would be "assertion.big-rock" when this method is
+                          first called, and "assertion.big-rock.BR1.Sub rock" when it recursively
+                          calls itself.
+        @param parent_uid   A string used to assist in recursive calls.
+                            In the first example above, that would be None when this method is first called,
+                            and "BR1" on a 1st recursion, or "BR1.SR1" on a 2nd nested recursion.
+        @param sparse A boolean. If True, it returns a "sparse" representation suitable for Excel rendering,
+                    with exactly 1 UID per row (helpful when making joins)
         '''
         my_trace                = parent_trace.doing("Validating parent_path '" + parent_path + "''",
                                                         data = {'signaledFrom': __file__})
@@ -185,11 +341,18 @@ class AsDataframe_Representer:
             if parent_path == None or len(parent_path.strip()) == 0:
                 raise ApodeixiError(my_trace, "Can't process a parent_path that is null or blank")
         
-        path_tokens             = parent_path.split('.')
-        entity_name             = path_tokens[-1]
+        # parent_path is something like "assertion.big-rock" when this method is first called, and 
+        # like  "assertion.big-rock.BR1.Sub rock" when this method is calls recursively on itself
+        path_tokens             = parent_path.split('.') 
+
+        entity_name             = path_tokens[-1] # like "big-rock" on 1st call, and "Sub rock" on recursive call
         
         entity_uids             = [key for key in content_dict.keys() if not key.endswith('-name')]
-        all_rows                = [] # Will be one per entity_value, a dictionary of level_1_columns -> scalar value
+
+        # Will be one per entity_value, a dictionary of level_1_columns -> scalar value. By "level 1 columns"
+        # we mean columns for the interval being processed here (subsequent intervals would be processed
+        # in recursive invocations of this method). See method documentation for explanation of algorithm.
+        all_rows                = [] 
         
         # Some manifest field names that have fixed, hard-coded values in Apodeixi
         UID                     = Interval.UID
@@ -199,17 +362,26 @@ class AsDataframe_Representer:
         if parent_uid == None:
             UID_COL             = UID
         else:
-            UID_COL             = UID + '-' + str(len(parent_uid.split('.')))
+            # Like "UID" on 1st call, and "UID-1" on recursive call when parent_uid is now "BR1"
+            UID_COL             = UID + '-' + str(len(parent_uid.split('.'))) 
         
         my_trace                = parent_trace.doing("Processing interval for '" + entity_name + "'",
                                                         data = {'signaledFrom': __file__})
         all_intervals           = []
+
+        # my_interval will grow in the loop below. On a first call we initialize it to something like
+        #       ["UID", "big-rock"] and later grow it with scalar properties from content_df["BRx"] for x=1,2,..
+        # On a recusive call we initalize it to something like 
+        #       ["UID-1", "Sub rock"] and later grow it with scalare properties from content_df["BRx"] for x=1,2,..
         my_interval             = Interval(parent_trace = my_trace, columns = [UID_COL, entity_name], entity_name = entity_name)
         
         all_intervals.append(my_interval)
         
+        # On a first call we loop through something like e_uid = "BR1", "BR2", "BR3", .... For that call
+        #       parent_uid = None and parent_path = "assertion.big-rock"
+        # On a recursive call with parent_uid = "BR1" we loop through e_uid = "SR1", "SR2", "SR3", .... In this case
+        #       parent_path = "assertion.big-rock.BR1.Sub rock"
         for e_uid in entity_uids:
-            # Example: e_uid might be 'W2' and full_e_uid might be 'S1.W2'
             if parent_uid == None:
                 full_e_uid      = e_uid
             else:
@@ -223,86 +395,110 @@ class AsDataframe_Representer:
             inner_trace         = loop_trace.doing("Checking tree under '" + e_path + "' is well formed",
                                             data = {'signaledFrom': __file__})
             if True:
-                # Check e.g. parent.workstreams[W2] exists
+                # Check e.g. if content_dict = manifest_dict["assertion"]["big-rock"]["BR1"]["SubRock"]
+                # that content_dict["SR2"] exists
                 if e_dict == None:
                     raise ApodeixiError(inner_trace, "Badly formatted tree: found nothing under '" + e_path + "'")
-                # Check e.g. parent.workstreams[W2] is a dictionary
+                # Check e.g. content_dict["SR2"] is a dictionary
                 if type(e_dict) != dict:
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected dictionary at '" + e_path
                                                        + "' but instead found a " + str(type(e_dict)))
-                # Check e.g. parent.workstreams[W2][UID] exists
+                # Check e.g. content_dict["SR2"]["UID"] exists
                 if not UID in e_dict.keys():
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected a child called '" + UID
                                                     + "' under '" + e_path + "'") 
-                # Check e.g. parent.workstreams[W2][UID] == W2
+                # Check e.g. content_dict["SR2"]["UID"] == "SR2"
                 if e_dict[UID] != full_e_uid:
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected '" + e_path
                                                    + "[" + UID + "] = " + full_e_uid + "'", 
                                                    data = {"expected": full_e_uid, "actual": str(e_dict[UID])})
-                # Check e.g. parent.workstreams[W2]['name'] exists
+                # Check e.g. content_dict["SR2"]["UID"]['name'] exists
                 if not NAME in e_dict.keys():
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected a child called '" + NAME
                                                     + "' under '" + e_path + "'") 
                     
-            new_level_1_row                 = {}
+            # We call it "level 1" because it is for my_interval. Recursive calls would be the subsequent
+            # intervals, which are "level 2, 3, ..." in the content_df "tree"
+            new_level_1_row                 = {} 
             # Add the entity column to the level_1 row
-            # But first replace by "friendly" UID like 1.2 instead of BR1.B2
+            # But first replace by "friendly" UID like 'BR1.2' instead of "BR1.SR2"
             abbreviated_full_e_uid          = UID_Store(parent_trace).abbreviate_uid(parent_trace, uid=full_e_uid)
-            new_level_1_row[UID_COL]        = abbreviated_full_e_uid #full_e_uid
+            new_level_1_row[UID_COL]        = abbreviated_full_e_uid 
             new_level_1_row[entity_name]    = e_dict[NAME]
             
-            # While Apodeixi's data model allows more manifests where an entity can branch out in more than one way
-            # for purposes of representing a manifest tree as a DataFrame we can only allow at most one branching out
-            # below any one entity. So check that
+            # Apodeixi's data model allows "multiple dimensional" branching. An example of branching is having
+            # a "big-rock" entity "BR1" branch into multiple "Sub rock" entities "BR1.SR1", "BR1.SR2", "BR1.SR3", ...
+            # "Multi-dimensional" branching happens if the "big-rock" entity can also branch into another
+            # entity like "Epic", leading to children like "BR1.E1", "BR1.E2", "BR1.E3", ...
+            # While that is allowed in the data model, it is not possible to represent such multi-dimensional
+            # branching neatly in a tabular representation like a DataFrame.
+            # So since this method is about creating such tabular representation, we will error out if we find that
+            # "multi-dimensional" branching occurs in the manifest.
             sub_entities                    = self._find_sub_entities(e_dict) # should find at most 1
             if len(sub_entities) > 1:
-                raise ApodeixiError(loop_trace, "At most one sub entity is allowed, but found several: " 
+                raise ApodeixiError(loop_trace, "At most one sub entity is allowed when representing a manifest as as "
+                                                + " DataFrame, but found several: " 
                                     + sub_entities)
+
+            # Now add the "scalar" attributes to the row and if needed also to the interval. A reason they may
+            # not be in the interval already arises if we are creating the "first row" (i.e., entity e_uid) 
+            # or if that attribute was not present in "previous rows"
             for attrib in [a for a in e_dict.keys() if not a in sub_entities and a not in SYNTHETIC_COLUMNS]:
                 if not attrib in my_interval.columns:
                     my_interval.columns.append(attrib)
                 new_level_1_row[attrib]     = e_dict[attrib]
+
+            # Now we gear up to make a recursive call. For example, if we have been processing the interval
+            # ["UID", "big-rock"] and e_dict = content_df["BR1"], we are now going to take the plunge into
+            # the unique sub-entity "Sub rock" and make a recursive call to process interval
+            # ["UID-1", "Sub rock"] passing content_df["BR1"]["Sub rock"] as the content to process.
+            #
+            # For our e_path = "assertion"."big-rock"."BR1" we pass a path of "assertion"."big-rock"."BR1"."Sub rock"
+            # we set "ourselves" ("BR1") as the parent_uid in the recursive call
             sub_rows                        = []
             sub_intervals                   = []
             if len(sub_entities) > 0: # By now we know this is at most 1
-                sub_entity                  = sub_entities[0]
+                sub_entity                  = sub_entities[0] # Something like "Sub rock"
                 inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
                                                                 data = {'signaledFrom': __file__})
                 
                 sub_intervals, sub_rows     = self._build_df_rows(  parent_trace    = inner_trace, 
                                                                     content_dict    = e_dict[sub_entity], 
                                                                     parent_path     = e_path + '.' + sub_entity,
-                                                                    parent_uid      = full_e_uid)
+                                                                    parent_uid      = full_e_uid,
+                                                                    sparse          = sparse)
 
+            # Post-processing recursive call: handle the columns
+            # 
+            # The recursive call discovered what other columns pertain to the sub-entity. We need to merge this
+            # from two perspectives:
+            # -If this was the first time we created an interval for the sub-entity (e.g., for "Sub rock"),
+            #  then add it to the list of intervals.
+            # -However, if we already had an interval for "Sub rock" from having processed "previous rows",
+            #  then it may be that the recursive call we just made uncovered additional columns to be added to
+            #  that pre-existing row. See documentation for self._merge_interval
             self._merge_interval_lists(loop_trace, all_intervals, sub_intervals)
-            
-            # Change of algorithm made on July 29, 2021: 
+
+            # Post-processing recursive call: handle the rows
             #
-            # it used to be that we would display the
-            # first sub-entity in the same row as its parent entity. That was modified to have it displayed
-            # in the *next* row instead, to force that each UID is in a different row and make it easier
-            # to make "joins". 
-            # For example, UIDs "BR1" and "BR1.B1" used to be in the same row, with "BRI1.B2" in a row below.
-            # So these 3 UIDs would appear in 2 rows in the DataFrame.
-            # This caused ambiguity for joins: if the end-user expresses a join in Excel against the row that contains
-            # both "BR1" and "BR1.B1", how can one tell which of these two UIDs is the join with?
-            # To remedy this, after July 29, 2021 we changed that so that each UID would be in its own row.
-            # In our example, that means 3 rows:  one for "BR1", follwed by one for "BR1.B1"
-            # below it, and below that a 3rd row for "BR1.B2".
-            # As a result, the code below was changed to input empty strings into anything that used to be
-            # contributed to the "BR1" row by "BR1.B1" data.
-            if len(sub_rows) > 0:
-                # Merge 1st sub_row into the new_level_1_row
-                first_sub_row               = sub_rows[0]
-                for k in first_sub_row.keys():
-                    new_level_1_row[k]      = '' # Changed to empty string on 7/29/21. Used to be: first_sub_row[k]
-                     
-            all_rows.append(new_level_1_row)
-            # Now add the other sub_rows, the ones after the first one that go after new_level_1_row
-            for idx in range(0, len(sub_rows)): # Changed to start from 0 on 7/29/21. Used to start at 1
-                all_rows.append(sub_rows[idx])
+            # This is where the logic of sparse or non-sparse applies. See documentation to this method to explain
+            # that algorithm
+            if sparse == True:                              # Add (1 + N) rows, here N = len(sub_rows)
+                all_rows.append(new_level_1_row)
+                for idx in range(len(sub_rows)):
+                    all_rows.append(sub_rows[idx])
+
+            else:                                           # Add N rows, where N = max(len(sub_rows), 1)
+                if len(sub_rows) > 0:
+                    for r in sub_rows: # Copy the "level 1" data to all sub-rows and add them
+                        for k in new_level_1_row.keys():
+                            r[k]                    = new_level_1_row[k]
+                        all_rows.append(r)
+                else:
+                    all_rows.append(new_level_1_row)
+
         
-        # Temporary return value, for testing
+        # Return value to caller (which for recursive call was this method itself, processing left interval to ours)
         return all_intervals, all_rows
         
     def _find_sub_entities(self, content_dict):

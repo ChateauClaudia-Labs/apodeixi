@@ -18,7 +18,7 @@ class StaticDataValidator():
 
     def validateProduct(self, parent_trace, label, namespace):
         '''
-        Validates the the product in the label is for a product static data that is known to exist in the 
+        Validates that the product in the label is for a product static data that is known to exist in the 
         KnowledgeBase store for the given namespace.
 
         @param label    An object inheriting from PostingLabel with property called "product"
@@ -38,9 +38,63 @@ class StaticDataValidator():
         except ApodeixiError as ex:
             raise ex
         except Exception as ex:
-            raise ApodeixiError("Found a problem while validating referential integrity for product field",
+            raise ApodeixiError(parent_trace, "Found a problem while validating referential integrity for product field",
                                 data = {    "alleged product":  alleged_product, 
                                             "error":             str(ex)})
+
+    def validateScoringCycle(self, parent_trace, label, namespace):
+        '''
+        Validates that the scoringCycle and related data (the journey and the scenario)
+        in the label are for static data that is known to exist in the 
+        KnowledgeBase store for the given namespace.
+
+        @param label    An object inheriting from PostingLabel with property called "product"
+
+        '''
+        JOURNEY_COL                     = 'journey'
+        SCORING_CYCLE_COL               = 'Scoring Cycle'
+        SCENARIO_COL                    = 'Scenario'
+        submitted                       = None
+        try:
+            my_trace                    = parent_trace.doing("Checking scoring cycle referential integrity")
+            if True:
+                alleged_journey         = label.journey(my_trace)
+                alleged_scoring_cycle   = label.scoring_cycle(my_trace)
+                alleged_scenario        = label.scenario(my_trace)
+
+                submitted               = [alleged_journey, alleged_scoring_cycle, alleged_scenario]
+
+                contents_df             = self._loadStaticData( my_trace, 
+                                                                namespace, 
+                                                                kind            = 'scoring-cycle', 
+                                                                entity          = 'journey')
+
+                valid_options           = []
+                for row in contents_df.iterrows():
+                    journey             = row[1][JOURNEY_COL]
+                    scoring_cycle       = row[1][SCORING_CYCLE_COL]
+                    scenario            = row[1][SCENARIO_COL]
+
+                    if alleged_journey == journey and alleged_scoring_cycle == scoring_cycle and alleged_scenario == scenario:
+                        # Good, we have a match so that Posting Label is referencing things that exist.
+                        # So just return, validation is a success
+                        return
+                    # Remember this in case we need to error out and provide this feedback to the user
+                    valid_options.append([journey, scoring_cycle, scenario])
+
+                # If we get this far then there has been no match. 
+                raise ApodeixiError(my_trace, "Invalid combination of [journey, scoring cycle, scenario] in Posting Label",
+                                    data = {    "Expected one of":  str(valid_options),
+                                                "Submitted":        str(submitted)})
+        except ApodeixiError as ex:
+            raise ex
+        except Exception as ex:
+            if submitted == None:
+                submitted = "<Couldn't figure this out>"
+            raise ApodeixiError(parent_trace, "Found a problem while validating referential integrity for "
+                                + " [journey, scoring cycle, scenario] in Posting Label",
+                                data = {    "in posting label": submitted, 
+                                            "error":            str(ex)})
     
     def getProductCode(self, parent_trace, namespace, alleged_product):
         '''
@@ -61,7 +115,7 @@ class StaticDataValidator():
         ALIAS_COL                   = 'Alias names'
 
         my_trace                    = parent_trace.doing("Retrieving product static data")
-        contents_df                 = self._loadProducts(my_trace, namespace)
+        contents_df                 = self._loadStaticData(my_trace, namespace, kind='product', entity='product') 
 
         my_trace                    = parent_trace.doing("Checking if '" + str(alleged_product) 
                                                             + "' appears in product static data")
@@ -84,45 +138,51 @@ class StaticDataValidator():
         PRODUCT_COL                 = 'product'
 
         my_trace                    = parent_trace.doing("Retrieving product static data")
-        contents_df                 = self._loadProducts(my_trace, namespace)
+        contents_df                 = self._loadStaticData(my_trace, namespace, kind='product', entity='product')
+        
         all_product_codes           = list(contents_df[PRODUCT_COL])
         return all_product_codes
 
-    def _loadProducts(self, parent_trace, namespace):
+    def _loadStaticData(self, parent_trace, namespace, kind, entity):
         '''
-        Helper method. Returns a DataFrame of the latest version of the products static data manifest.
+        Helper method. Returns a DataFrame of the latest version of the static data manifest for the `kind`
+
+        @param kind A string, representing the `kind` of static data to load
+        @param entity A string, representing the field in the manifest under 'assertions' that is the root
+                        of the content for the manifest.
         '''
         prod_ctrl           = ProductsController(parent_trace, self.store, self.a6i_config)
-        PROD_API            = 'static-data.admin.a6i.io' 
+        STATIC_DATA_API     = 'static-data.admin.a6i.io' 
 
-        PRODUCT_COL         = 'product'
-        ALIAS_COL           = 'Alias names'
+        SCORING_CYCLE_COL   = 'scoring-cycles'
+        #ALIAS_COL           = 'Alias names'
 
-        prod_manifest_dict, prod_manifest_path  = self.store.findLatestVersionManifest(
+        manifest_dict, manifest_path  = self.store.findLatestVersionManifest(
                                                                         parent_trace    = parent_trace, 
-                                                                        manifest_api    = PROD_API, 
+                                                                        manifest_api    = STATIC_DATA_API, 
                                                                         namespace       = namespace, 
                                                                         name            = 'static-data', 
-                                                                        kind            = 'product')
+                                                                        kind            = kind)
 
-        if prod_manifest_dict == None:
-            raise ApodeixiError(parent_trace, "Product static data is not configured for namespace '" + str(namespace) + "'")
+        if manifest_dict == None:
+            raise ApodeixiError(parent_trace, "Static data of type '" + str(kind) 
+                                                + "' is not configured for namespace '" + str(namespace) + "'")
         rep                             = AsDataframe_Representer()
-        contents_path                   = 'assertion.' + 'product'
-        filename                        = _os.path.split(prod_manifest_path)[1]
+        contents_path                   = 'assertion.' + str(entity)
+        filename                        = _os.path.split(manifest_path)[1]
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = parent_trace, 
-                                                                root_dict       = prod_manifest_dict, 
+                                                                root_dict       = manifest_dict, 
                                                                 root_dict_name  = filename,
-                                                                path_list       = ['assertion', 'product'],
+                                                                path_list       = ['assertion', entity],
                                                                 valid_types     = [dict])
 
         if check == False:
-            raise ApodeixiError(parent_trace, "Manifest is corrupted: ['assertion']['product'] is not a dict",
-                                                data        = { "manifest path":    prod_manifest_path},
+            raise ApodeixiError(parent_trace, "Manifest is corrupted: ['assertion']['" + str(entity) + "'] is not a dict",
+                                                data        = { "manifest path":    manifest_path},
                                                 origination = { 'concrete class':   str(self.__class__.__name__), 
                                                                 'signaled_from':    __file__})
 
-        content_dict                    = prod_manifest_dict['assertion']['product']
-        contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path)
+        content_dict                    = manifest_dict['assertion'][str(entity)]
+        contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path, sparse=False)
 
         return contents_df
