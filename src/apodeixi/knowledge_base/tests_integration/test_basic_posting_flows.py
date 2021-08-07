@@ -64,6 +64,29 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
                                 setup_static_data           = True)
 
+    def test_milestones(self):
+
+        self.setScenario("basic_posting_flows.milestones")
+        self.setCurrentTestName('bre_ledger') # milestones for product LedgerPro
+        self.changeResultDataLocation()
+
+        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OfficialPlan"
+        EXCEL_FILE                      = "LedgerPro.milestone.journeys.a6i.xlsx"
+        NB_MANIFESTS_EXPECTED           = 2
+
+        
+        self._run_basic_flow(   from_nothing                = True,
+                                namespace                   = 'my-corp.production',
+                                subnamespace                = 'modernization',
+                                posting_api                 = 'milestone.journeys.a6i',
+                                excel_relative_path         = EXCEL_RELATIVE_PATH,
+                                excel_file                  = EXCEL_FILE,
+                                excel_sheet                 = "Posting Label",
+                                nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
+                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                setup_static_data           = True)
+
+
 
 if __name__ == "__main__":
     # execute only if run as a script
