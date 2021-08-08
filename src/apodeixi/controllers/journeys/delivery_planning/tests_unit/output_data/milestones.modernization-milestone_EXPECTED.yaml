@@ -71,6 +71,6 @@ metadata:
     scoringCycle: FY 22
     scoringMaturity: Draft
     version: 1
-  name: modernization.annual-plan.fy-22.opus-health-pro
+  name: modernization.fy-22.opus-health-pro.annual-plan
   namespace: ccl.production
   version: 1

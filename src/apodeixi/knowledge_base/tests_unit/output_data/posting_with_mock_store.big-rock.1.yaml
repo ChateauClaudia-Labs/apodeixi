@@ -46,6 +46,6 @@ metadata:
     scoringMaturity: Draft
     variant: burnout
     version: 1
-  name: modernization.default.dec-2020.fusionopus
+  name: modernization.dec-2020.fusionopus.default
   namespace: my-corp.production
   version: 1

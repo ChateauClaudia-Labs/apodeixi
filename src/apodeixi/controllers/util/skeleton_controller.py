@@ -459,11 +459,13 @@ class SkeletonController(PostingController):
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         filing coords, possibly complemented by the subnamespace.
 
-        Example: consider a manifest name like "modernization.default.dec-2020.fusionopus"
+        Usually used in the context of generating forms.
+
+        Example: consider a manifest name like "modernization.dec-2020.fusionopus.default"
                 in namespace "my-corp.production". 
 
                 To build such a name, this method must receive "modernization" as the subnamespace, and
-                filing coords from which to infer "default", "dec-20220", and "fusionopus".
+                filing coords from which to infer "dec-20220", "fusionopus", and "default".
 
         @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
                         the namespace into finer slices, and a manifest's name is supposed to identify the slice
@@ -800,11 +802,6 @@ class SkeletonController(PostingController):
             namespace               = FMT(organization + '.' + kb_area)
             manifest_name           = self.manifestNameFromLabel(parent_trace, label)
             
-            '''
-            config                  = self.getPostingConfig(    parent_trace        = my_trace, 
-                                                                kind                = kind,
-                                                                manifest_nb         = manifest_nb)
-            '''
             # Load the prior manifest, to determine which UIDs are already in use so that we don't
             # re-generate them for different data items
             prior_handle    = ManifestHandle(   apiVersion  = self.api_version(my_trace),

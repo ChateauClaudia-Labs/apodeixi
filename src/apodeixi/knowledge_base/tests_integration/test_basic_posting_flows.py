@@ -67,7 +67,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
     def test_milestones_flows(self):
 
         self.setScenario("basic_posting_flows.milestones")
-        self.setCurrentTestName('ml_ledger') # milestones for product LedgerPro
+        self.setCurrentTestName('ml_jackh') # milestones for product LedgerPro
         self.selectTestDataLocation()
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/Jack Henry/OfficialPlan" # Match product code in static data
