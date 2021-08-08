@@ -339,7 +339,12 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         '''
         if environment_name == None:
-            environment_name        = self.scenario() + "." + self.currentTestName() + "_ENV"
+            result_directories          = self.test_config_dict['integration-tests-results']
+            if self.scenario() in result_directories.keys():
+                test_id                 = result_directories[self.scenario()]
+                environment_name        = str(test_id) + "_ENV"
+            else:
+                environment_name        = self.scenario() + "_ENV"
 
         my_trace                    = parent_trace.doing("Removing previously created environment, if any",
                                                     data = {'environment name': environment_name})
@@ -558,7 +563,6 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         self._output_nb         += 1
         return output_name
 
-        
 
     def _regression_output_dir(self, parent_trace):
         if self._scenario == None:
@@ -600,7 +604,6 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                             expected_data_dir   = self._regression_expected_dir(parent_trace), 
                                             save_output_dict    = save_output_dict,
                                             tolerance_lambda    = tolerance_lambda)
-
 
     def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, save_output_txt=False):
         '''
