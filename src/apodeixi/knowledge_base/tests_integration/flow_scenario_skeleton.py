@@ -23,10 +23,17 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         my_trace                    = parent_trace.doing("Setting up product static data")
 
         for file in EXCEL_FILES:
-            posting_path                = self.input_data  + "/" + self.scenario() + "/" + file
+            posting_path                = self.getInputDataFolder(parent_trace)  + "/" + self.scenario() + "/" + file
             response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                         path_of_file_being_posted   = posting_path, 
                                                                         excel_sheet                 = "Posting Label")
+
+    def setup_reference_data(self, parent_trace):
+        '''
+        Sets up any reference data (such as other manifests) that are assumed as pre-conditions by this test. 
+        '''
+        return # No-op: concrete classes are responsible for implementing this if they need it.
+
     '''
     Abstract class.
 
@@ -44,11 +51,12 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
                             token "modernization" is the subnamespace. The other tokens come from filing coordinates
                             for the posting from whence the manifest arose.
-    @param setup_static_data A boolean. If True, static data will be created before the test scenario's flows.
+    @param setup_dependencies A boolean. If True, dependencies like static data or referenced manifests will be created 
+                    before the test scenario's flows.
     '''
     def _run_basic_flow(self,   from_nothing,           namespace,                  subnamespace,       posting_api, 
                                 excel_relative_path,    excel_file,                 excel_sheet, 
-                                nb_manifests_expected,  generated_form_worksheet,   setup_static_data):
+                                nb_manifests_expected,  generated_form_worksheet,   setup_dependencies):
         '''
         Tests a basic flow for a single posting API consisting of:
 
@@ -71,9 +79,10 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                 self.provisionIsolatedEnvironment(my_trace)
                 self.check_environment_contents(my_trace)
 
-            if setup_static_data:
-                my_trace                        = self.trace_environment(root_trace, "Setting up static data")
+            if setup_dependencies:
+                my_trace                        = self.trace_environment(root_trace, "Setting up dependency data")
                 self.setup_static_data(my_trace)
+                self.setup_reference_data(my_trace)
 
             if from_nothing: # Make a blind call get `requestForm`, without knowing a priori the manifest handles
                 my_trace                    = self.trace_environment(root_trace, "Blind call to 'requestForm' API")

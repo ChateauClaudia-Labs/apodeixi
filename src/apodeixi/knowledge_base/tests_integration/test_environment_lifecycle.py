@@ -26,7 +26,7 @@ class Test_EnvironmentLIfecycle(ApodeixiIntegrationTest):
 
         self.setScenario("environment_lifecycle")
         self.setCurrentTestName('play_in_sandbox')
-        self.changeResultDataLocation()
+        self.selectTestDataLocation()
 
         POSTING_FULLPATH            = self.input_data + "/" + self.currentTestName() + ".big-rocks.journeys.a6i.xlsx" 
         POSTING_LABEL_SHEET         = "Sheet1"

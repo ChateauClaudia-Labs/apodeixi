@@ -155,14 +155,13 @@ class StaticDataValidator():
         STATIC_DATA_API     = 'static-data.admin.a6i.io' 
 
         SCORING_CYCLE_COL   = 'scoring-cycles'
-        #ALIAS_COL           = 'Alias names'
 
         manifest_dict, manifest_path  = self.store.findLatestVersionManifest(
-                                                                        parent_trace    = parent_trace, 
-                                                                        manifest_api    = STATIC_DATA_API, 
-                                                                        namespace       = namespace, 
-                                                                        name            = 'static-data', 
-                                                                        kind            = kind)
+                                                                        parent_trace        = parent_trace, 
+                                                                        manifest_api_name   = STATIC_DATA_API, 
+                                                                        namespace           = namespace, 
+                                                                        name                = 'static-data', 
+                                                                        kind                = kind)
 
         if manifest_dict == None:
             raise ApodeixiError(parent_trace, "Static data of type '" + str(kind) 

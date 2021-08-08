@@ -198,10 +198,10 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
     def setUp(self):
         super().setUp()
 
-        self.input_data             = None # Will be set later by method changeResultDataLocation        
-        self.results_data           = None # Will be set later by method changeResultDataLocation
+        self.input_data             = None # Will be set later by method selectTestDataLocation        
+        self.results_data           = None # Will be set later by method selectTestDataLocation
 
-        # Integration test cases must call self.changeResultDataLocation(-) to set self.results_data
+        # Integration test cases must call self.selectTestDataLocation(-) to set self.results_data
         # and self.input_data. 
         # This is required for 2 reasons:
         #   1. Ease of management - all integration tests are registered in test_config.yaml and
@@ -211,7 +211,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         #       issues with long paths that impede file persistence and/or impede committing to GIT.
         #       As an added benefit, I noticed it improves test performance by 50% to use shorter paths.
         #
-        # To support all this we have these two attributes that get used later in self.changeResultDataLocation(-):
+        # To support all this we have these two attributes that get used later in self.selectTestDataLocation(-):
         #   - self.test_db_dir
         #   - self.test_config_dict
         #.
@@ -282,7 +282,19 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         self.stack().store().current_environment(parent_trace).name(parent_trace)
 
-    def changeResultDataLocation(self):
+    def getResultsDataFolder(self, parent_trace):
+        if self.results_data == None:
+            raise ApodeixiError(parent_trace, "Test case not initialized properly - results data folder not set")
+        else:
+            return self.results_data
+
+    def getInputDataFolder(self, parent_trace):
+        if self.input_data == None:
+            raise ApodeixiError(parent_trace, "Test case not initialized properly - input data folder not set")
+        else:
+            return self.input_data
+
+    def selectTestDataLocation(self):
         '''
         Changes self.result_data and self.input_data if that was configured in self.test_config_dict.
         This should only be called after self.setScenario(-) has been set, since the look up in the configuration
@@ -466,7 +478,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         form_path   = form_request_response.clientURL(parent_trace) + "/" + form_request_response.getRelativePath(parent_trace)
         form_filename = _os.path.split(form_path)[1]
 
-        simulation_filename = self.input_data + "/" + self.scenario() + "/" + self.currentTestName() + "." + form_filename
+        simulation_filename = self.getInputDataFolder(parent_trace) + "/" + self.scenario() + "/" + self.currentTestName() + "." + form_filename
         _shutil.copy2(src = simulation_filename, dst = form_path)
 
     def next_form(self, description=None):
@@ -551,15 +563,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
     def _regression_output_dir(self, parent_trace):
         if self._scenario == None:
             raise ApodeixiError(None, "Test case not properly intialized - scenario is null. Must be set")
-        dir         = self.results_data + "/" + self._scenario + "/" + self.stack().name(parent_trace)
-        #dir         = self.results_data 
+        dir         = self.getResultsDataFolder(parent_trace) + "/" + self._scenario + "/" + self.stack().name(parent_trace)
         return dir
 
     def _regression_expected_dir(self, parent_trace):
         if self._scenario == None:
             raise ApodeixiError(None, "Test case not properly intialized - scenario is null. Must be set")
-        dir         = self.results_data + "/" + self._scenario
-        #dir         = self.results_data 
+        dir         = self.getResultsDataFolder(parent_trace) + "/" + self._scenario
         return dir
 
     def _compare_to_expected_yaml(self, parent_trace, output_dict, test_output_name, save_output_dict=False):

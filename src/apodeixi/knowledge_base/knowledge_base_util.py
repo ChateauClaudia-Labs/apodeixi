@@ -51,6 +51,30 @@ class PostingLabelHandle():
             excel_path                  = '/'.join(parsed_tokens)
             return excel_path + "/" + self.excel_filename
 
+    def createTaggedFilename(self, parent_trace):
+        '''
+        Returns a filename that should be used when creating "copies" of a posting Excel file as a result
+        of processing it with this PostingLabelHandle.
+        
+        Regardless of what the original filename was for the Excel posting, this returns a string
+        consiting of a "tag" prefix followed by the posting API.
+
+        The "tag" depends on the self.filing_coords, and is used to distinguish multiple Excel files
+        that would otherwise have the same name.
+        
+        Example: when JourneyFilingCoords are used, the tag is the product, creating filenames like
+
+                    LedgerPro.big-rocks.journeys.a6i
+
+        '''
+        tag                         = self.filing_coords.getTag(parent_trace)
+        if type(tag) == str and len(tag) > 0:
+            filename                = tag + "." + self.posting_api + ".xlsx"
+        else:
+            filename                = self.posting_api + ".xlsx"
+
+        return filename
+
     def buildDataHandle(self, parent_trace, manifest_nb, kind, excel_sheet, excel_range):
         '''
         Constructs a new PostingDataHandle and returns it. It shares with this PostingLabelHandle the information to
@@ -87,7 +111,6 @@ class PostingLabelHandle():
                                                 filing_coords           = coords,
                                                 scope                   = FormRequest.ExplicitScope(manifest_handles))
         return form_request
-
 
 class PostingDataHandle():
     '''
@@ -467,11 +490,7 @@ class FormRequest():
             + "\n\t\t filing_coords   = '" + str(self._filing_coords) + "'" 
 
         msg += self._scope.display(parent_trace)
-        '''
-        for handle in self._manifest_handle_list:
-            msg += "\n\t\t *** A ManifestHandle ***"
-            msg += handle.display(parent_trace, indentation="\t")
-        '''
+
         return msg
 
     def getPostingAPI(self, parent_trace):

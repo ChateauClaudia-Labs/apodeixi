@@ -24,7 +24,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
 
         self.setScenario("static_data_flows.products")
         self.setCurrentTestName('products') 
-        self.changeResultDataLocation()
+        self.selectTestDataLocation()
 
         EXCEL_RELATIVE_PATH             = "admin/static-data"
         EXCEL_FILE                      = "products.static-data.admin.a6i.xlsx"
@@ -32,7 +32,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
         root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
         ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
         KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
-        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.testing-area"
+        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  
         SUBNAMESPACE                    = None
         
         self._run_basic_flow(   from_nothing                = True,
@@ -44,13 +44,13 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
                                 excel_sheet                 = "Posting Label",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_static_data           = False)
+                                setup_dependencies           = False)
 
     def test_scoring_cycles(self):
 
         self.setScenario("static_data_flows.s_c")
         self.setCurrentTestName('scoring_cycles')
-        self.changeResultDataLocation() 
+        self.selectTestDataLocation() 
 
         EXCEL_RELATIVE_PATH             = "admin/static-data"
         EXCEL_FILE                      = "scoring-cycles.static-data.admin.a6i.xlsx"
@@ -70,7 +70,7 @@ class Test_StaticDataFlows(FlowScenarioSkeleton):
                                 excel_sheet                 = "Posting Label",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_static_data           = False)
+                                setup_dependencies           = False)
 
 
 if __name__ == "__main__":

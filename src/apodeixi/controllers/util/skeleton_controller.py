@@ -320,12 +320,13 @@ class SkeletonController(PostingController):
                                                                 "namespace":    str(namespace),
                                                                 "name":         str(name)})
                 manifest_identifier             = kind + "." + str(manifest_nb)
-                manifest_api                    = self.getManifestAPI()
-                manifest_dict, manifest_path    = self.store.findLatestVersionManifest( parent_trace    = loop_trace, 
-                                                                                        manifest_api    = manifest_api,
-                                                                                        namespace       = namespace, 
-                                                                                        name            = name, 
-                                                                                        kind            = kind)
+                manifest_api_name                = self.getManifestAPI().apiName()
+                manifest_dict, manifest_path    = self.store.findLatestVersionManifest( 
+                                                                            parent_trace        = loop_trace, 
+                                                                            manifest_api_name   = manifest_api_name,
+                                                                            namespace           = namespace, 
+                                                                            name                = name, 
+                                                                            kind                = kind)
 
                 # If we did find something (i.e., manifest-dict isn't null), check this manifest is for an API version we support.
                 # This call returns something like ("delivery-planning.journeys.a6i.io", "v1a")
@@ -337,7 +338,11 @@ class SkeletonController(PostingController):
                                                         "api version in manifest":  str(api_suffix_found),
                                                         "supperted api versions":   str(self.getSupportedVersions())})
                 else: # There is no manifest with these constraints, so create a template
-                    template_dict, template_df  = self.createTemplate(  parent_trace        = loop_trace,
+                    my_trace                    = loop_trace.doing("Creating template for manifest",
+                                                        data = {"kind":         str(kind),
+                                                                "namespace":    str(namespace),
+                                                                "name":         str(name)})
+                    template_dict, template_df  = self.createTemplate(  parent_trace        = my_trace,
                                                                         form_request        = form_request,
                                                                         kind                = kind)
                     manifest_dict               = template_dict

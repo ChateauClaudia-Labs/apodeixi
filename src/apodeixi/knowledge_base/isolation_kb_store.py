@@ -573,7 +573,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
-    def findLatestVersionManifest(self, parent_trace, manifest_api, namespace, name, kind):
+    def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''
         For a given manifest API, a manifest is logically identified by its name and kind properties within 
         a given namespace.
@@ -597,13 +597,14 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 * the name is "modernization.default.dec-2020.fusionopus"
                 * the kind is "big-rock"
                 * the version is 2 (an int)
-                * the manifest api is embedded within the YAML file. The YAML file has a field called
+                * the manifest api name is embedded within the YAML file. The YAML file has a field called
                   "apiVersion" with a value like "delivery-planning.journeys.a6i.io/v1a", and the manifest api
                   is the substring without the suffix: "delivery-planning.journeys.a6i.io"
 
-        @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
+        @param manifest_api_name A string representing the Apodeixi API defining the YAML schemas for the
                     manifest kinds subsumed under such API. The search for manifests is filtered to those
                     whose YAML representation declares itself as falling under this API.
+                    Example: 'delivery-planning.journeys.a6i.io'
         @param namespace A string. Represents the namespace in the KnowledgeBase store's manifests area 
                         where to look for the manifest.
         @param name A string representing the name of the manifest. Along with kind, this identifies a 
@@ -648,7 +649,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 if not self._check_manifest_matches(parent_trace, 
                                                     manifest_filename       = filename,
                                                     manifest_dict           = manifest_dict, 
-                                                    manifest_api            = manifest_api, 
+                                                    manifest_api_name       = manifest_api_name, 
                                                     namespace               = namespace, 
                                                     name                    = name, 
                                                     kind                    = kind,
@@ -663,7 +664,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         return result_dict, result_path
     
     def _check_manifest_matches(self, parent_trace, manifest_filename, manifest_dict, 
-                                        manifest_api, namespace, name, kind, minimal_version):
+                                        manifest_api_name, namespace, name, kind, minimal_version):
         '''
         Helper method for self.findLatestVersionManifest. It verifies that the manifest_dict has
         all the fields as stated in the parameters.
@@ -672,6 +673,10 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         any corruption (e.g., fields inside the manifest_dict not matching the expectations
         of the parameters)
 
+        @param manifest_api_name A string representing the Apodeixi API defining the YAML schemas for the
+                    manifest kinds subsumed under such API. The search for manifests is filtered to those
+                    whose YAML representation declares itself as falling under this API.
+                    Example: 'delivery-planning.journeys.a6i.io'
         @param manifest_dict A dict object representing the YAML content of a manifest
         @minimal_version An int, stating the minimal value that the version field must have for this
                             manifest to be considered a match
@@ -681,7 +686,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         my_trace                            = parent_trace.doing("Checking apiVersion matches")
         if True:
             api_found, api_suffix_found     = ManifestUtils().get_manifest_apiversion(my_trace, manifest_dict)
-            if api_found != manifest_api: 
+            if api_found != manifest_api_name: 
                 # This is a manifest for a different API, just happens to have one schema named the same kind as ours
                 return False 
 
@@ -973,12 +978,13 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 dst_filename                = filename)
 
         # Save posting in official area with official name, possibly removing it from the source
+        dst_filename                        = posting_label_handle.createTaggedFilename(parent_trace)
         _conditional_move(  src_root                    = submitted_root_path,
                             src_relative_path           = submitted_relative_path,
                             remove_src                  = check,
                             dst_root                    = self.getPostingsURL(parent_trace), 
                             dst_coords                  = submitted_posting_coords, 
-                            dst_filename                = posting_label_handle.getPostingAPI(parent_trace) + ".xlsx")        
+                            dst_filename                = dst_filename)        
 
         archival_handle     = PostingLabelHandle(       parent_trace        = parent_trace,
                                                         posting_api         = posting_label_handle.posting_api,

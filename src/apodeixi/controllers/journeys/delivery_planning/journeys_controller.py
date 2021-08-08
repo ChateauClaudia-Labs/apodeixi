@@ -5,6 +5,7 @@ from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label  imp
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
 
 from apodeixi.knowledge_base.filing_coordinates                             import JourneysFilingCoordinates
+from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
 
 from apodeixi.util.a6i_error                                                import ApodeixiError
 from apodeixi.util.formatting_utils                                         import StringUtils
@@ -75,7 +76,7 @@ class JourneysController(SkeletonController):
         product                         = coords.product
         journey                         = subnamespace
         scenario                        = coords.scenario
-        scoring_cycle                   = coords.scoring_cycle
+        scoring_cycle                   = coords.scoringCycle
 
         FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         name                            = FMT(journey + '.' + scenario + '.' + scoring_cycle + '.' + product)
@@ -119,6 +120,43 @@ class JourneysController(SkeletonController):
         
         return manifest_dict
 
+    def createTemplate(self, parent_trace, form_request, kind):
+        '''
+        Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
+        content) to support a ManifestRepresenter to create an Excel spreadsheet with that information.
 
+        It is intended to support the processing of blind form requests.
 
+        For reasons of convenience (to avoid going back and forth between DataFrames and YAML), it returns
+        the template as a tuple of two data structures:
+
+        * template_dict This is a dictionary of the non-assertion part of the "fake" manifest
+        * template_df   This is a DataFrame for the assertion part of the "fake" manifest
+        '''
+        template_dict, template_df              = super().createTemplate(parent_trace, form_request, kind)
+
+        MY_PL                                   = JourneysPostingLabel # Abbreviation for readability
+
+        scope                                   = form_request.getScope(parent_trace)
+        if type(scope) != FormRequest.SearchScope:
+            raise ApodeixiError(parent_trace, "Can't create template for because request form is invalid: it should "
+                                    + "have a scope of type FormRequest.SearchScope",
+                                    data = {"form_request": form_request.display(parent_trace)})
+        
+        coords                                  = form_request.getFilingCoords(parent_trace)
+        namespace                               = scope.namespace
+        subnamespace                            = scope.subnamespace
+        name                                    = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+
+        journey, scoring_cycle, product, scenario = name.split(".")
+
+        labels_dict                             = template_dict['metadata']['labels']
+
+        labels_dict[MY_PL._JOURNEY]             = journey
+        labels_dict[MY_PL._SCORING_CYCLE]       = scoring_cycle
+        labels_dict[MY_PL._PRODUCT]             = product
+        labels_dict[MY_PL._SCENARIO]            = scenario
+        labels_dict[MY_PL._SCORING_MATURITY]    = ""
+
+        return template_dict, template_df
 

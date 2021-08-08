@@ -232,7 +232,7 @@ class KnowledgeBaseStore():
         '''
         return self._impl.retrieveManifest(parent_trace, manifest_handle)
 
-    def findLatestVersionManifest(self, parent_trace, manifest_api, namespace, name, kind):
+    def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''
         For a given manifest API, a manifest is logically identified by its name and kind properties within 
         a given namespace.
@@ -255,9 +255,10 @@ class KnowledgeBaseStore():
                 * the manifest api is embedded within the YAML file, and is something like 
                   "delivery-planning.journeys.a6i.io/v1a"
 
-        @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
+        @param manifest_api_name A string representing the Apodeixi API defining the YAML schemas for the
                     manifest kinds subsumed under such API. The search for manifests is filtered to those
                     whose YAML representation declares itself as falling under this API.
+                    Example: 'delivery-planning.journeys.a6i.io'
         @param namespace A string. Represents the namespace in the KnowledgeBase store's manifests area 
                         where to look for the manifest.
         @param name A string representing the name of the manifest. Along with kind, this identifies a 
@@ -265,7 +266,7 @@ class KnowledgeBaseStore():
         @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
                     logical manifest (other than version number)
         '''
-        return self._impl.findLatestVersionManifest(parent_trace, manifest_api, namespace, name, kind)
+        return self._impl.findLatestVersionManifest(parent_trace, manifest_api_name, namespace, name, kind)
 
     def searchManifests(self, parent_trace, manifest_api, labels_filter=None, manifest_version_filter=None):
         '''

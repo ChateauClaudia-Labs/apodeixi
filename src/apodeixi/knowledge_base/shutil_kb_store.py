@@ -337,7 +337,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         handle                          = super().persistManifest(parent_trace, manifest_dict)
         return handle
 
-    def findLatestVersionManifest(self, parent_trace, manifest_api, namespace, name, kind):
+    def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''
         For a given manifest API, a manifest is logically identified by its name and kind properties within 
         a given namespace.
@@ -365,9 +365,10 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                   "apiVersion" with a value like "delivery-planning.journeys.a6i.io/v1a", and the manifest api
                   is the substring without the suffix: "delivery-planning.journeys.a6i.io"
 
-        @param manifest_api A string representing the Apodeixi API defining the YAML schemas for the
+        @param manifest_api_name A string representing the Apodeixi API defining the YAML schemas for the
                     manifest kinds subsumed under such API. The search for manifests is filtered to those
                     whose YAML representation declares itself as falling under this API.
+                    Example: 'delivery-planning.journeys.a6i.io'
         @param namespace A string. Represents the namespace in the KnowledgeBase store's manifests area 
                         where to look for the manifest.
         @param name A string representing the name of the manifest. Along with kind, this identifies a 
@@ -375,7 +376,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
                     logical manifest (other than version number)
         '''
-        manifest, manifest_path         = super().findLatestVersionManifest(parent_trace, manifest_api, 
+        manifest, manifest_path         = super().findLatestVersionManifest(parent_trace, manifest_api_name, 
                                                                                 namespace, name, kind)
 
         if manifest == None:
@@ -389,7 +390,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                 original_env            = self.current_environment(my_trace)
                 self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
 
-                manifest, manifest_path = self.findLatestVersionManifest(my_trace, manifest_api, 
+                manifest, manifest_path = self.findLatestVersionManifest(my_trace, manifest_api_name, 
                                                                                 namespace, name, kind)
                 # Now that search in parent environment is done, reset back to original environment
                 self.activate(my_trace, original_env.name(my_trace))

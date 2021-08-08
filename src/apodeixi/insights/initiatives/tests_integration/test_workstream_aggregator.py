@@ -28,7 +28,7 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
         #ENVIRONMENT_NAME                = TEST_NAME + "_ENV"
         self.setScenario("aggregate_workstream_metrics")
         self.setCurrentTestName(TEST_NAME)
-        self.changeResultDataLocation()
+        self.selectTestDataLocation()
 
         try:
             root_trace                  = FunctionalTrace(None).doing("Testing Workstream Aggregators")

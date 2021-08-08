@@ -38,6 +38,23 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
         '''
         super().read(parent_trace, posting_label_handle)
 
+        # The product field is allowed to be submitted with aliases. Therefore, replace its value if the user
+        # submitted an alias. Only applies when we enforce referential integrity, since otherwise we allow the
+        # product field to be "anything". 
+        # Example: avoid an attempt to replace alias for unit tests, since they use a mock-up store that lacks
+        # reference data, so they'll fail if we attempted to determine if a product has alias. That's why
+        # referential integrity checks are turned off for unit tests.
+        ME = JourneysPostingLabel
+        if self.controller.a6i_config.enforce_referential_integrity:
+            submitted_product                   = self.product(parent_trace)
+            validator                           = StaticDataValidator(  parent_trace    = parent_trace, 
+                                                                        store           = self.controller.store, 
+                                                                        a6i_config      = self.controller.a6i_config)
+            namespace                           = self.determineNamespace(parent_trace)
+            product_code                        = validator.getProductCode(parent_trace, namespace, submitted_product)
+            if submitted_product != product_code:
+                self.ctx[ME._PRODUCT] = product_code
+
     def  checkReferentialIntegrity(self, parent_trace):
         '''
         Used to check that the values of Posting Label fields are valid. Does not return a value, but will
@@ -56,11 +73,20 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
         super().checkReferentialIntegrity(parent_trace)
 
         validator           = StaticDataValidator(parent_trace, self.controller.store, self.controller.a6i_config)
-        raw_namespace       = self.organization(parent_trace) + "." + self.knowledgeBaseArea(parent_trace)
-        namespace           = StringUtils().format_as_yaml_fieldname(raw_namespace)
+
+        namespace           = self.determineNamespace(parent_trace)
 
         validator.validateProduct(          parent_trace, self, namespace)
         validator.validateScoringCycle(     parent_trace, self, namespace)
+
+    def determineNamespace(self, parent_trace):
+        '''
+        Returns the namespace implied by the fields of this posting label
+        '''
+        raw_namespace       = self.organization(parent_trace) + "." + self.knowledgeBaseArea(parent_trace)
+        namespace           = StringUtils().format_as_yaml_fieldname(raw_namespace)
+        return namespace
+
 
     def infer(self, parent_trace, manifest_dict, manifest_key):
         '''
@@ -87,9 +113,9 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
 
         _infer(ME._PRODUCT,             ["metadata",    "labels",       ME._PRODUCT             ])
         _infer(ME._JOURNEY,             ["metadata",    "labels",       ME._JOURNEY,            ])
-        _infer(ME._SCENARIO,            ["assertion",                   ME._SCENARIO            ])
-        _infer(ME._SCORING_CYCLE,       ["assertion",                   ME._SCORING_CYCLE       ])
-        _infer(ME._SCORING_MATURITY,    ["assertion",                   ME._SCORING_MATURITY    ])
+        _infer(ME._SCENARIO,            ["metadata",    "labels",       ME._SCENARIO,           ])
+        _infer(ME._SCORING_CYCLE,       ["metadata",    "labels",       ME._SCORING_CYCLE,      ])
+        _infer(ME._SCORING_MATURITY,    ["metadata",    "labels",       ME._SCORING_MATURITY,   ])
 
         editable_fields.extend([ME._SCORING_MATURITY])
 

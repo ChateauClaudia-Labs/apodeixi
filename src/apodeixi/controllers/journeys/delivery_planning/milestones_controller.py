@@ -1,8 +1,10 @@
-
+import pandas as                                                            _pd
 from apodeixi.util.a6i_error                                                import ApodeixiError
 
-from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label  import JourneysPostingLabel
-from apodeixi.controllers.journeys.delivery_planning.journeys_controller     import JourneysController
+from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label import JourneysPostingLabel
+from apodeixi.controllers.journeys.delivery_planning.journeys_controller    import JourneysController
+
+from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
 
 from apodeixi.xli.interval                                                  import GreedyIntervalSpec
 
@@ -21,8 +23,8 @@ class MilestonesController(JourneysController):
         super().__init__(parent_trace, store, a6i_config)
         ME                              = MilestonesController
 
-        self.SUPPORTED_VERSIONS         = ['v1']
-        self.SUPPORTED_KINDS            = [ME.MY_KIND, ME.REFERENCED_KIND]
+        self.SUPPORTED_VERSIONS         = ['v1a']
+        self.SUPPORTED_KINDS            = [ME.REFERENCED_KIND, ME.MY_KIND] # Process referenced dependency first
 
     MY_KIND                             = 'modernization-milestone'
     REFERENCED_KIND                     = 'big-rock'
@@ -81,6 +83,60 @@ class MilestonesController(JourneysController):
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to MilestonesController") 
 
         return manifest_dict
+
+    def createTemplate(self, parent_trace, form_request, kind):
+        '''
+        Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
+        content) to support a ManifestRepresenter to create an Excel spreadsheet with that information.
+
+        It is intended to support the processing of blind form requests.
+
+        For reasons of convenience (to avoid going back and forth between DataFrames and YAML), it returns
+        the template as a tuple of two data structures:
+
+        * template_dict This is a dictionary of the non-assertion part of the "fake" manifest
+        * template_df   This is a DataFrame for the assertion part of the "fake" manifest
+        '''
+        template_dict, template_df      = super().createTemplate(parent_trace, form_request, kind)
+
+        ME                              = MilestonesController
+        
+        scope                                   = form_request.getScope(parent_trace)
+        if type(scope) != FormRequest.SearchScope:
+            raise ApodeixiError(parent_trace, "Can't create template for because request form is invalid: it should "
+                                    + "have a scope of type FormRequest.SearchScope",
+                                    data = {"form_request": form_request.display(parent_trace)})
+        
+        coords                          = form_request.getFilingCoords(parent_trace)
+        namespace                       = scope.namespace
+        subnamespace                    = scope.subnamespace
+        name                            = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+
+        journey, scoring_cycle, product, scenario = name.split(".")
+
+        manifest_api                    = self.getManifestAPI()
+
+        if kind == ME.REFERENCED_KIND:
+            posting_api                 = form_request.getPostingAPI(parent_trace)
+            raise ApodeixiError(parent_trace, "Can't create template for posting API '" + str(posting_api) + "' "
+                                        + "because this API requires pre-existence of a '" + str(kind) + "' manifest, and "
+                                        + "no '" + str(kind) + "' manifest was not found at the expected location:"
+                                        + "\n\tmanifest_api         = " + str(manifest_api.apiName())
+                                        + "\n\tnamespace            = " + str(namespace)
+                                        + "\n\tname                 = " + str(name)
+                                        + "\n\tkind                 = " + str(kind))
+        elif kind == ME.MY_KIND:
+            m_list                      = ["M1", "M2", "M3", "M4"]
+            t_list                      = ["CAM expansion", "Margin improvement", "New UX", "Cloud Native"]
+            d_list                      = ["Q3 FY20", "Q1 FY21", "Q4 FY21", "Q4 FY22"]
+
+            template_df                 = _pd.DataFrame({"Milestone": m_list, "Theme": t_list, 'Date': d_list})
+        else:
+            raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
+                                                + ", ".join(self.SUPPORTED_KINDS),
+                                                origination = {'signaled_from': __file__})
+
+        return template_dict, template_df
 
     class _MilestonesConfig(PostingConfig):
         '''

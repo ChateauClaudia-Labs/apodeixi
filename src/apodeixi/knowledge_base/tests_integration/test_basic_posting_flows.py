@@ -24,7 +24,7 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
 
         self.setScenario("basic_posting_flows.big_rocks.burnout")
         self.setCurrentTestName('brb_opus') # big rock burnout for product Opus
-        self.changeResultDataLocation()
+        self.selectTestDataLocation()
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/FusionOpus/Default"
         EXCEL_FILE                      = "OPUS_big-rocks.journeys.a6i.xlsx"
@@ -40,13 +40,13 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 excel_sheet                 = "Sheet1",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_static_data           = True)
+                                setup_dependencies           = True)
 
     def test_big_rocks_explained(self):
 
         self.setScenario("basic_posting_flows.big_rocks.explained")
         self.setCurrentTestName('bre_ledger') # big rock explained for product LedgerPro
-        self.changeResultDataLocation()
+        self.selectTestDataLocation()
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OfficialPlan"
         EXCEL_FILE                      = "LedgerPro.big-rocks.journeys.a6i.xlsx"
@@ -62,16 +62,16 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 excel_sheet                 = "broken explained",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_static_data           = True)
+                                setup_dependencies           = True)
 
-    def test_milestones(self):
+    def test_milestones_flows(self):
 
         self.setScenario("basic_posting_flows.milestones")
-        self.setCurrentTestName('bre_ledger') # milestones for product LedgerPro
-        self.changeResultDataLocation()
+        self.setCurrentTestName('ml_ledger') # milestones for product LedgerPro
+        self.selectTestDataLocation()
 
-        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/LedgerPro/OfficialPlan"
-        EXCEL_FILE                      = "LedgerPro.milestone.journeys.a6i.xlsx"
+        EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/Jack Henry/OfficialPlan" # Match product code in static data
+        EXCEL_FILE                      = "jackhenry.milestone.journeys.a6i.xlsx"
         NB_MANIFESTS_EXPECTED           = 2
 
         
@@ -84,8 +84,26 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
                                 excel_sheet                 = "Posting Label",
                                 nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
                                 generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_static_data           = True)
+                                setup_dependencies          = True)
 
+    def setup_reference_data(self, parent_trace):
+        '''
+        Sets up any reference data (such as other manifests) that are assumed as pre-conditions by this test. 
+        '''
+        super().setup_reference_data(parent_trace)
+        if self.scenario() == "basic_posting_flows.milestones":
+            EXCEL_FILE                      = "for_mls.big-rocks.journeys.a6i.xlsx"
+            EXCEL_FOLDER                    = self.getInputDataFolder(parent_trace) + "/" + self.scenario()
+            my_trace                        = self.trace_environment(parent_trace, "Creating big-rocks dependency")
+            if True:
+                clientURL                   = self.stack().store().current_environment(my_trace).clientURL(my_trace)
+                posting_path                = EXCEL_FOLDER + "/" + EXCEL_FILE
+                response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                                                                            path_of_file_being_posted   = posting_path, 
+                                                                            excel_sheet                 = "Posting Label")
+                self.check_environment_contents(parent_trace = my_trace )           
+        else:
+            return # No other scenarios have dependencies to pre-populate
 
 
 if __name__ == "__main__":
@@ -98,5 +116,7 @@ if __name__ == "__main__":
             T.test_big_rocks_burnout()
         elif what_to_do=='big_rocks_explained':
             T.test_big_rocks_explained()
+        elif what_to_do=='milestones_flows':
+            T.test_milestones_flows()
 
     main(_sys.argv)
