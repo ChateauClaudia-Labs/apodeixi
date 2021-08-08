@@ -207,5 +207,5 @@ class File_KBStore_Impl():
             raise ApodeixiError(my_trace, "Posting is not in the right folder within the Knowledge Base for this kind of API",
                                             data = {'posting relative path tokens':         path_tokens,
                                                     'posting api':                          posting_api,
-                                                    'relative path expected by api':        filing_coords.expected_tokens(my_trace)})
+                                                    'relative path expected by api':        relative_path})
         return filing_coords

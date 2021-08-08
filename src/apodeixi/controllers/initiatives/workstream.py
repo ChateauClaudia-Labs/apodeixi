@@ -80,13 +80,15 @@ class Workstream_Controller(SkeletonController):
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         label
         '''
+        program                         = label.program             (parent_trace)
         workstream_UID                  = label.workstream_UID      (parent_trace)
         initiative                      = label.initiative          (parent_trace)
         scenario                        = label.scenario            (parent_trace)
         scoring_cycle                   = label.scoring_cycle       (parent_trace)
 
         FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
-        name                            = FMT(scenario + '.' + scoring_cycle + '.' + workstream_UID + '.' + initiative)
+        name                            = FMT(program + '.' + scoring_cycle + '.' + initiative + '.' 
+                                                + workstream_UID + '.' + scenario)
 
         return name
 
@@ -115,15 +117,57 @@ class Workstream_Controller(SkeletonController):
                                                 data = {"Type of coords received": str(type(coords)),
                                                         "Expected type of coords": "InitiativesFilingCoordinates"})
 
+
         workstream_UID                  = coords.workstream_UID
         initiative                      = subnamespace
         scenario                        = coords.scenario
         scoring_cycle                   = coords.scoring_cycle
 
         FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
-        name                            = FMT(scenario + '.' + scoring_cycle + '.' + workstream_UID + '.' + initiative)
+        name                            = FMT(program + '.' + scoring_cycle + '.' + initiative + '.' 
+                                                + workstream_UID + '.' + scenario)
 
         return name
+
+    def manifestLabelsFromCoords(self, parent_trace, subnamespace, coords):
+        '''
+        Helper method that returns what the a dict whose keys are label field names that should be populated
+        inside a manifest based on the parameters, and the values are what the value should be for each label.
+
+        Usually used in the context of generating forms.
+
+        Example: consider a manifest name like "modernization.dec-2020.fusionopus.default"
+                in namespace "my-corp.production", that arose from a posting for product "Fusion Opus",
+                scoring cycle "Dec 2020" and scenario "Default".
+
+                Then this method returns ["modernization", "Dec 2020", "Fusion Opus", and "Default"].
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        '''
+        if not type(coords) == InitiativesFilingCoordinates:
+            raise ApodeixiError(parent_trace, "Can't build manifest name because received wrong type of filing coordinates",
+                                                data = {"Type of coords received": str(type(coords)),
+                                                        "Expected type of coords": "InitiativesFilingCoordinates"})
+
+        workstream_UID                      = coords.workstream_UID
+        initiative                          = subnamespace
+        scenario                            = coords.scenario
+        scoring_cycle                       = coords.scoring_cycle
+
+        MY_PL                               = Workstream_Controller._MyPostingLabel # Abbreviation for readability
+        result_dict                         = {}
+        result_dict[MY_PL._WORKSTREAM_UID]  = workstream_UID
+        result_dict[MY_PL._INITIATIVE]      = initiative
+        result_dict[MY_PL._SCENARIO]        = scenario
+        result_dict[MY_PL._SCORING_CYCLE]   = scoring_cycle
+
+        return result_dict
+
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''

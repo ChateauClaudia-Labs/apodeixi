@@ -216,6 +216,8 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         super().__init__()
 
         # These will be set later, by the build(-) method
+        
+        self.initiative             = None
         self.scoringCycle           = None
         self.workstream_UID         = None
         self.scenario               = None
@@ -224,21 +226,26 @@ class InitiativesFilingCoordinates(FilingCoordinates):
     INITIATIVES                     = "initiatives"
 
     '''
-    This method "finishes up" the construction of a InitiativesFilingCoordinates object. If successful, it returns 'self' fully built,
-    and else it returns None.
+    This method "finishes up" the construction of a InitiativesFilingCoordinates object. If successful, 
+    it returns 'self' fully built, and else it returns None.
 
     For construction to succeed, the InitiativesFilingCoordinates expects the path to include exactly 3 or 4 tokens.
-    The first 3 tokens must correspond to
-    the domain, the scoringCycle, the workstream_UID, in that order. The optional 3rd token is for the scenario, if any.
+    The first 3 tokens must correspond (in order) to
+    the domain, the scoringCycle, and a concatenation of the initiative and workstreamUID, of the form
+    <initiative>.<workstreamUID>
+    
+    The optional 4th token is for the scenario, if any.
 
     The domain is required to be identical to "initiatives"
 
     @path_tokens: List of strings in a path from the root for a KnowledgeBase. Expected to be a list of string tokens 
-    ["initiatives", scoringCycle, workstream_UID] or ["initiatives", scoringCycle, workstream_UID, scenario]. 
+                        ["initiatives", scoringCycle, <initiative>.<workstream_UID>] 
+                or ["initiatives", scoringCycle, <initiative>.<workstream_UID>, scenario]. 
     '''
     def build(self, parent_trace, path_tokens):
         if type(path_tokens)        != list:
-            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list, instead received a " + str(type(path_tokens)))
+            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list, instead received a " 
+                                                + str(type(path_tokens)))
         if len(path_tokens)         != 3 and len(path_tokens)         != 4:
             return None
         if path_tokens[0]           != InitiativesFilingCoordinates.INITIATIVES:
@@ -249,7 +256,19 @@ class InitiativesFilingCoordinates(FilingCoordinates):
             return None
 
         self.scoringCycle           = path_tokens[1]
-        self.workstream_UID         = path_tokens[2]
+
+        mixed_fields                = path_tokens[2].split(".")
+        if len(mixed_fields) == 1:
+            self.initiative         = mixed_fields[0]
+            self.workstream_UID     = None
+        elif len(mixed_fields) == 2:
+            self.initiative         = mixed_fields[0]
+            self.workstream_UID     = mixed_fields[1]
+        else:
+            raise ApodeixiError(parent_trace, "Invalid token '" + str(path_tokens[2]) + "': should be of format "
+                                                + " <initative>.<workstream_UID>",
+                                            data = { "path_tokens": str(path_tokens)})
+        
         if len(path_tokens) == 4:
             self.scenario           = path_tokens[3]
         else:
@@ -262,13 +281,15 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         In situations where the FilingCoordinates are not known until after the PostingLabel is constructed,
         this is used to infer the properties of the FilingCoords from the PostingLabel
         '''
+        _INITIATIVE                 = "initiative"
         _WORKSTREAM_UID             = "workstreamUID"
         _SCENARIO                   = "scenario"
         _SCORING_CYCLE              = "scoringCycle"
 
         self.scoringCycle           = posting_label._getField(parent_trace, _SCORING_CYCLE)
         self.workstream_UID         = posting_label._getField(parent_trace, _WORKSTREAM_UID)
-        scenario               = posting_label._getField(parent_trace, _SCENARIO)
+        self.initiative             = posting_label._getField(parent_trace, _INITIATIVE) 
+        scenario                    = posting_label._getField(parent_trace, _SCENARIO)
 
         if len(scenario.strip(' ')) == 0:
             self.scenario           = None
@@ -281,16 +302,30 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         '''
         Returns a list of strings, corresponding to the path tokens implicit by this FilingCoordinates instance.
         '''
-        if self.scoringCycle==None or self.workstream_UID==None:
-            raise ApodeixiError(parent_trace, "Can't provide path_tokens because InitiativesFilingCoordinates is not fully built",
+        if self.scoringCycle==None or self.initiative==None or self.workstream_UID==None:
+            raise ApodeixiError(parent_trace, "Can't provide path_tokens because InitiativesFilingCoordinates is not "
+                                                + "fully built",
                                     data = {    "scoringCycle":     self.scoringCycle, 
+                                                "initiative" :      self.initiative,
                                                 "workstream_UID" :  self.workstream_UID, 
                                                 "scenario" :        self.scenario})
 
+        # Note: we save to a path like 
+        # 
+        #               .../excel-postings/initiatives/FY 22/s1.w0/w0-workstream.initiatives.a6i.xlsx
+        #
+        # as opposed to one like 
+        #
+        #               .../excel-postings/initiatives/FY 22/s1/w0/w0-workstream.initiatives.a6i.xlsx
+        #
+        # hence the need to assemble the "mixed field" that in the example would be "s1.w0"
+        mixed_field         = self.initiative + "." + self.workstream_UID
         if self.scenario != None:
-            result          = [InitiativesFilingCoordinates.INITIATIVES, self.scoringCycle, self.workstream_UID, self.scenario]
+            result          = [InitiativesFilingCoordinates.INITIATIVES, self.scoringCycle, 
+                                mixed_field, self.scenario]
         else:
-            result          = [InitiativesFilingCoordinates.INITIATIVES, self.scoringCycle, self.workstream_UID]
+            result          = [InitiativesFilingCoordinates.INITIATIVES, self.scoringCycle, 
+                                mixed_field]
 
         return result
 
@@ -298,17 +333,20 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         '''
         Returns a dictionary representation of self built only from scalars. Useful to display in test output files.
         '''
-        return {'scoringCycle': self.scoringCycle, 'workstream_UID': self.workstream_UID, 'scenario': self.scenario}
+        return {'scoringCycle': self.scoringCycle, 'initiative': self.initiative, 
+                        'workstream_UID': self.workstream_UID, 'scenario': self.scenario}
 
     def __format__(self, format_spec):
         msg     = "scoringCycle: "          + str(self.scoringCycle) \
+                    + "; initiative: "      + str(self.initiative) \
                     + "; workstream_UID: "  + str(self.workstream_UID) \
                     + "; scenario: "        + str(self.scenario)
 
         return msg
 
     def __str__(self):
-        msg     = str(self.scoringCycle) + "." + str(self.workstream_UID) + "." + str(self.scenario)
+        msg     = str(self.scoringCycle) + "." + str(self.initiative) + "." \
+                    + str(self.workstream_UID) + "." + str(self.scenario)
         return msg
 
     def expected_tokens(self, parent_trace):
@@ -317,9 +355,11 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         for this FilingCoordinates concrete class. Used in error messages to educate the caller on what should have been
         the right input to provide.
         '''
-        output_txt = "Either \n\t['"+ InitiativesFilingCoordinates.INITIATIVES + "', <scoringCycle>, <workstream_UID>]"
+        output_txt = "Either \n\t['"+ InitiativesFilingCoordinates.INITIATIVES + "', <initiative>, \
+                            <scoringCycle>.<workstream_UID>]"
 
-        output_txt += "\nor \n\t['"+ InitiativesFilingCoordinates.INITIATIVES + "', <scoringCycle>, <workstream_UID>, <scenario>]"
+        output_txt += "\nor \n\t['"+ InitiativesFilingCoordinates.INITIATIVES + "', <initiative>, \
+                            <scoringCycle>.<workstream_UID>, <scenario>]"
 
         return output_txt
 
@@ -341,7 +381,7 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         in Excel since they have different filenames (Excel won't allow opening two files with the same
         filename, even if they are in different folders)
         '''
-        return self.workstream_UID
+        return self.initiative + "." + self.workstream_UID
 
 class TBD_FilingCoordinates(FilingCoordinates):
     '''

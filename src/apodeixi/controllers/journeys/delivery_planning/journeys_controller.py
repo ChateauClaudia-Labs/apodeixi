@@ -82,7 +82,52 @@ class JourneysController(SkeletonController):
 
         FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         name                            = FMT(journey + '.' + scoring_cycle + '.' + product + '.' + scenario)
+
         return name
+
+    def manifestLabelsFromCoords(self, parent_trace, subnamespace, coords):
+        '''
+        Helper method that returns what the a dict whose keys are label field names that should be populated
+        inside a manifest based on the parameters, and the values are what the value should be for each label.
+
+        Usually used in the context of generating forms.
+
+        Example: consider a manifest name like "modernization.dec-2020.fusionopus.default"
+                in namespace "my-corp.production", that arose from a posting for product "Fusion Opus",
+                scoring cycle "Dec 2020" and scenario "Default".
+
+                Then this method returns ["modernization", "Dec 2020", "Fusion Opus", and "Default"].
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        '''
+        if not type(coords) == JourneysFilingCoordinates:
+            raise ApodeixiError(parent_trace, "Can't build manifest name because received wrong type of filing coordinates",
+                                                data = {"Type of coords received": str(type(coords)),
+                                                        "Expected type of coords": "JourneysFilingCoordinates"})
+
+        if subnamespace == None:
+            raise ApodeixiError(parent_trace, "Can't build manifest name becase subnamespace is null. Should be "
+                                                + "set to a kind of journey. Example: 'modernization'")
+
+        product                                 = coords.product
+        journey                                 = subnamespace
+        scenario                                = coords.scenario
+        scoring_cycle                           = coords.scoringCycle 
+
+        MY_PL                                   = JourneysPostingLabel # Abbreviation for readability
+        result_dict                             = {}
+        result_dict[MY_PL._PRODUCT]             = product
+        result_dict[MY_PL._JOURNEY]             = journey
+        result_dict[MY_PL._SCENARIO]            = scenario
+        result_dict[MY_PL._SCORING_CYCLE]       = scoring_cycle
+        result_dict[MY_PL._SCORING_MATURITY]    = ""
+
+        return result_dict
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
@@ -148,16 +193,18 @@ class JourneysController(SkeletonController):
         coords                                  = form_request.getFilingCoords(parent_trace)
         namespace                               = scope.namespace
         subnamespace                            = scope.subnamespace
-        name                                    = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
-
-        journey, scoring_cycle, product, scenario = name.split(".")
+        mlfc_dict                               = self.manifestLabelsFromCoords(parent_trace, subnamespace, coords)
 
         labels_dict                             = template_dict['metadata']['labels']
 
-        labels_dict[MY_PL._JOURNEY]             = journey
+        labels_dict                             = labels_dict | mlfc_dict
+        template_dict['metadata']['labels']     = labels_dict
+        '''
+        labels_dict[MY_PL._JOURNEY]             = mlfc_dict[]
         labels_dict[MY_PL._SCORING_CYCLE]       = scoring_cycle
         labels_dict[MY_PL._PRODUCT]             = product
         labels_dict[MY_PL._SCENARIO]            = scenario
+        '''
         labels_dict[MY_PL._SCORING_MATURITY]    = ""
 
         return template_dict, template_df

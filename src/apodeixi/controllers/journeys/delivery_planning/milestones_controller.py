@@ -112,8 +112,6 @@ class MilestonesController(JourneysController):
         subnamespace                    = scope.subnamespace
         name                            = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
 
-        journey, scoring_cycle, product, scenario = name.split(".")
-
         manifest_api                    = self.getManifestAPI()
 
         if kind == ME.REFERENCED_KIND:

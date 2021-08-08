@@ -193,6 +193,6 @@ metadata:
     version: 1
     workstreamTitle: Modernization
     workstreamUID: W1
-  name: default.dec-2020.w1.s1
+  name: amplify.dec-2020.s1.w1.default
   namespace: my-corp.production
   version: 1

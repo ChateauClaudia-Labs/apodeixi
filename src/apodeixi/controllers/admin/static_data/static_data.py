@@ -97,6 +97,28 @@ class StaticData_Controller(SkeletonController):
         FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         name                            = FMT(StaticData_Controller._STATIC_DATA)
         return name
+
+    def manifestLabelsFromCoords(self, parent_trace, subnamespace, coords):
+        '''
+        Helper method that returns what the a dict whose keys are label field names that should be populated
+        inside a manifest based on the parameters, and the values are what the value should be for each label.
+
+        Usually used in the context of generating forms.
+
+        Example: consider a manifest name like "modernization.dec-2020.fusionopus.default"
+                in namespace "my-corp.production", that arose from a posting for product "Fusion Opus",
+                scoring cycle "Dec 2020" and scenario "Default".
+
+                Then this method returns ["modernization", "Dec 2020", "Fusion Opus", and "Default"].
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        '''
+        return []
         
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
