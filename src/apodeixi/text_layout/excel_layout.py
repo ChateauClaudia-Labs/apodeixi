@@ -430,7 +430,7 @@ class AsExcel_Config():
         self.num_formats            = num_formats
         self.excel_formulas         = excel_formulas
                
-    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+    def df_xy_2_excel_xy(self, parent_trace, displayable_df, df_row_number, df_col_number, representer):
         '''
         Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
         and (if appropriate) any transpose.
@@ -449,11 +449,17 @@ class AsExcel_Config():
                 It also computes the last row and column in Excel that this manifest would be populating, to demarcate
                 the end of a region.
     
-        @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears. If it is -1, then it is assumed to correspond
+        @param displayable_df A DataFrame, that corresponds exactly to what must be displayed, expressed in layout
+                                space. Thus, the other parameters (df_row_number and df_column_number) are
+                                with respect to this DataFrame.
+                                **NOTE** displayable_df differs from self.data_df because self.data_df may include
+                                "hidden columns" that have been dropped in displayable_df because they are not
+                                supposed to be displayed. Depending on the situation, one or the other may be needed.
+        @param df_row_number An int, representing the row number in `displayable_df` for the datum
+                                    to be displayed. If it is -1, then it is assumed to correspond
                                     to the headers
-        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
-                                    displayed appears.
+        @param df_col_number An int, representing the column number in `displayable_df` for the datum to be
+                                    displayed.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
@@ -553,6 +559,7 @@ class ManifestXLWriteConfig(AsExcel_Config):
         # Set during a call to _buildLayout
         self.data_df             = None
 
+
     def getName(self, parent_trace):
         return self.layout.name
 
@@ -596,7 +603,7 @@ class ManifestXLWriteConfig(AsExcel_Config):
         return displayable_df
 
 
-    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+    def df_xy_2_excel_xy(self, parent_trace, displayable_df, df_row_number, df_col_number, representer):
         '''
         Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
         and (if appropriate) any transpose.
@@ -615,11 +622,17 @@ class ManifestXLWriteConfig(AsExcel_Config):
                 It also computes the last row and column in Excel that this manifest would be populating, to demarcate
                 the end of a region.
     
-        @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears. If it is -1, then it is assumed to correspond
+        @param displayable_df A DataFrame, that corresponds exactly to what must be displayed, expressed in layout
+                                space. Thus, the other parameters (df_row_number and df_column_number) are
+                                with respect to this DataFrame.
+                                **NOTE** displayable_df differs from self.data_df because self.data_df may include
+                                "hidden columns" that have been dropped in displayable_df because they are not
+                                supposed to be displayed. Depending on the situation, one or the other may be needed.
+        @param df_row_number An int, representing the row number in `displayable_df` for the datum
+                                    to be displayed. If it is -1, then it is assumed to correspond
                                     to the headers
-        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
-                                    displayed appears.
+        @param df_col_number An int, representing the column number in `displayable_df` for the datum to be
+                                    displayed.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
@@ -633,25 +646,32 @@ class ManifestXLWriteConfig(AsExcel_Config):
                 excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
                 final_excel_row             = None # Doesn't matter what this is if we are doing headers
             else:
+                # GOTCHA The parameter `displayable_df` may have fewer columns than self.data_df, though they have
+                #           the same row numbers. Wnen we call the mapper we should pass self.data_df because
+                #           that has the full manifest's data, and possibly the mapper needs to access some hidden
+                #           columns that are in self.data_df but not in `displayable_df`
+                #           EXAMPLE: column 'big-rock' is hidden for big-rock-estimate manifests, but is needed
+                #                   by the mapper to aligh the estimate numbers on the same row as the big rock
+                #                   that they are for.
                 excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper( manifest_df             = self.data_df, 
                                                                             manifest_df_row_number  = df_row_number, 
                                                                             representer             = representer)
             excel_col                   = self.x_offset + df_col_number
-            final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
+            final_excel_col             = self.x_offset + len(displayable_df.columns) - 1
             return excel_row, excel_col, final_excel_row, final_excel_col
         else:
             if self.layout.is_transposed:
                 excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
-                final_excel_col             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+                final_excel_col             = self.y_offset + len(displayable_df.index) # Don't do len(index)-1 since headers add a row
     
                 excel_row                   = self.x_offset + df_col_number
-                final_excel_row             = self.x_offset + len(self.data_df.columns) - 1
+                final_excel_row             = self.x_offset + len(displayable_df.columns) - 1
             else:
                 excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
-                final_excel_row             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+                final_excel_row             = self.y_offset + len(displayable_df.index) # Don't do len(index)-1 since headers add a row
     
                 excel_col                   = self.x_offset + df_col_number
-                final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
+                final_excel_col             = self.x_offset + len(displayable_df.columns) - 1
         return excel_row, excel_col, final_excel_row, final_excel_col
 
 class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
@@ -785,13 +805,13 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         displayable_cols                = [col for col in enriched_df.columns if not col in self.hidden_cols]
 
         displayable_df                  = enriched_df[displayable_cols]
-        if col_to_use != None:
-            displayable_df.drop(col_to_use, axis =1)
+        if col_to_use != None and col_to_use in displayable_df.columns:
+            displayable_df = displayable_df.drop(col_to_use, axis =1)
 
         return displayable_df
 
 
-    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+    def df_xy_2_excel_xy(self, parent_trace, displayable_df, df_row_number, df_col_number, representer):
         '''
         Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
         and (if appropriate) any transpose.
@@ -810,11 +830,17 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                 It also computes the last row and column in Excel that this manifest would be populating, to demarcate
                 the end of a region.
     
-        @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears. If it is -1, then it is assumed to correspond
+        @param displayable_df A DataFrame, that corresponds exactly to what must be displayed, expressed in layout
+                                space. Thus, the other parameters (df_row_number and df_column_number) are
+                                with respect to this DataFrame.
+                                **NOTE** displayable_df differs from self.data_df because self.data_df may include
+                                "hidden columns" that have been dropped in displayable_df because they are not
+                                supposed to be displayed. Depending on the situation, one or the other may be needed.
+        @param df_row_number An int, representing the row number in `displayable_df` for the datum
+                                    to be displayed. If it is -1, then it is assumed to correspond
                                     to the headers
-        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
-                                    displayed appears.
+        @param df_col_number An int, representing the column number in `displayable_df` for the datum to be
+                                    displayed.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
@@ -822,11 +848,19 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         '''
         if self.df_xy_2_excel_xy_mapper != None: 
             #TODO - ADD SUPPORT FOR TRANSPOSES & REMOVE THIS METHOD IS SAME AS PARENT
-            excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper(   manifest_df             = self.data_df, 
+
+            # GOTCHA The parameter `displayable_df` may have fewer columns than self.data_df, though they have
+            #           the same row numbers. Wnen we call the mapper we should pass self.data_df because
+            #           that has the full manifest's data, and possibly the mapper needs to access some hidden
+            #           columns that are in self.data_df but not in `displayable_df`
+            #           EXAMPLE: column 'big-rock' is hidden for big-rock-estimate manifests, but is needed
+            #                   by the mapper to aligh the estimate numbers on the same row as the big rock
+            #                   that they are for.
+            excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper(     manifest_df             = self.data_df, 
                                                                             manifest_df_row_number  = df_row_number, 
                                                                             representer             = representer)
             excel_col                   = self.x_offset + df_col_number
-            final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
+            final_excel_col             = self.x_offset + len(displayable_df.columns) - 1
             return excel_row, excel_col, final_excel_row, final_excel_col
         else:
             if not self.layout.is_transposed:
@@ -834,7 +868,7 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                                                     + "manifest is transposed")
 
             link_table                  = representer.link_table
-            column                      = self.data_df.columns[df_col_number]
+            column                      = displayable_df.columns[df_col_number]
 
             if column in self.original_content_df.columns: # This was not an enriched column
                 excel_row               = self.x_offset + df_col_number
@@ -853,7 +887,7 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                                                                     manifest_identifier = self.referenced_manifest_name)
 
             excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
-            final_excel_col             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+            final_excel_col             = self.y_offset + len(displayable_df.index) # Don't do len(index)-1 since headers add a row
 
         return excel_row, excel_col, final_excel_row, final_excel_col
 
@@ -926,7 +960,7 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
 
         return displayable_df
 
-    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+    def df_xy_2_excel_xy(self, parent_trace, displayable_df, df_row_number, df_col_number, representer):
         '''
         Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
         and (if appropriate) any transpose.
@@ -945,11 +979,17 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
                 It also computes the last row and column in Excel that this manifest would be populating, to demarcate
                 the end of a region.
     
-        @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears. If it is -1, then it is assumed to correspond
+        @param displayable_df A DataFrame, that corresponds exactly to what must be displayed, expressed in layout
+                                space. Thus, the other parameters (df_row_number and df_column_number) are
+                                with respect to this DataFrame.
+                                **NOTE** displayable_df differs from self.data_df because self.data_df may include
+                                "hidden columns" that have been dropped in displayable_df because they are not
+                                supposed to be displayed. Depending on the situation, one or the other may be needed.
+        @param df_row_number An int, representing the row number in `displayable_df` for the datum
+                                    to be displayed. If it is -1, then it is assumed to correspond
                                     to the headers
-        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
-                                    displayed appears. 
+        @param df_col_number An int, representing the column number in `displayable_df` for the datum to be
+                                    displayed.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
@@ -958,10 +998,10 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
         # Posting labels are transposed
         excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the 
         
-        final_excel_col             = None #self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+        final_excel_col             = None #self.y_offset + len(df.index) # Don't do len(index)-1 since headers add a row
  
         excel_row                   = self.x_offset + df_col_number
-        final_excel_row             = None #self.x_offset + len(self.data_df.columns) - 1
+        final_excel_row             = None #self.x_offset + len(df.columns) - 1
 
         return excel_row, excel_col, final_excel_row, final_excel_col
 

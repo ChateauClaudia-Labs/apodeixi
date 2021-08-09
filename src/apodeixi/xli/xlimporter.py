@@ -292,6 +292,7 @@ class ManifestXLReadConfig(XLReadConfig):
                                                     + "ahead of time")
             manifest_df     = self.controller.linkMappedManifest(   parent_trace, 
                                                                     refKind         = self.kind_mapped_from, 
+                                                                    my_entity       = self.entity_name(),
                                                                     raw_df          = raw_df, 
                                                                     first_row       = first_row, 
                                                                     last_row        = last_row)

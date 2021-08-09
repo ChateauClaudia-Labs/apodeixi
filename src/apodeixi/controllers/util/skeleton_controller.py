@@ -653,7 +653,7 @@ class SkeletonController(PostingController):
             
             entity_dict[e_uid][linkField]   = ref_uid
 
-    def linkMappedManifest(self, parent_trace, refKind, raw_df, first_row, last_row):
+    def linkMappedManifest(self, parent_trace, refKind, my_entity, raw_df, first_row, last_row):
         '''
         '''
         if refKind == None:
@@ -710,22 +710,43 @@ class SkeletonController(PostingController):
             df2.index.name              = None
             df2                         = df2.transpose()
             df2                         = df2.reset_index() # Ensures columns of dataset_df become the first column of df2
-            renamed_columns             = ["Milestone"]
-            renamed_columns.extend(df2.columns[1:])
-            df2.columns                 = renamed_columns
+
+            # GOTCHA This is some tricky code. Various situations can happen, when one does an initial create
+            #           and later does updates. Consider an entity called "Milestone"
+            #   * In the manifest, that may be converted to lowercase: milestone. So we can't compare my_entity 
+            #       ("Milestone") to the columns as-is, since "milestone != "Milestone"
+            #   * On a create, there is no UID column (displayed as a row in Excel since we are at 90 degrees)
+            #     In that case,the first column might be called "Milestone", but upon a rotation that label may go away
+            #     So that makes it sound like we should forcefull force the first column after rotation to be 
+            #     "Milestone"
+            #   * However, that would be a mistake during an update, since the UID column protects the "Milestone"
+            #     column during the rotation, so it is not lost. That means that the re-naming we should do on a create
+            #     should not be done on an update
+            #    * And in all this logic, comparisons must be done up to YAML equivalence.
+            if not StringUtils().is_in_as_yaml(my_entity, list(df2.columns)):
+                # In this case we need to rename the first column to be as the entity. Can happen
+                # when doing an update, since the first column is now UID instead of entity, which makes it likely
+                # we didn't lose the name of the entity column during the transpose operation above.
+                renamed_columns             = [my_entity]
+                renamed_columns.extend(df2.columns[1:])
+                df2.columns                 = renamed_columns
+                entity_column               = my_entity
+            else:
+                entity_column           = [col for col in df2.columns if StringUtils().equal_as_yaml(my_entity, col)][0]
+
 
             manifest_df                 = df2
             
-        my_trace                        = parent_trace.doing("Create mapped vectors per milestone")
+        my_trace                        = parent_trace.doing("Create mapped vectors per referencing entity")
         if True:
-            # The first column of mapping_df are the columns of manifest_df. But the rest correspond to milestones,
-            # which are rows in manifest_df
-            milestone_mappings          = {}
-            for milestone in list(mapping_df.columns)[1:]:
+            # The first column of mapping_df are the columns of manifest_df. But the rest correspond to 
+            # referencing entities, which are rows in manifest_df
+            referencing_mappings          = {}
+            for referencing_entity in list(mapping_df.columns)[1:]:
                 uid_list                = []
                 
                 for row_nb in mapping_df.index:
-                    val                 = mapping_df[milestone].loc[row_nb]
+                    val                 = mapping_df[referencing_entity].loc[row_nb]
                     # The link_table has *dataframe* row numbers for the reference manifest, so convert
                     # from the Excel row_nb to the dataframe row number ref_df_row_nb before the lookup
                     ref_df_row_nb       = row_nb - (first_refRow + 1)
@@ -736,13 +757,13 @@ class SkeletonController(PostingController):
                                                                         row_number              = ref_df_row_nb)
                         if refUID != None:
                             uid_list.append(refUID)
-                milestone_mappings[milestone] = uid_list
+                referencing_mappings[referencing_entity] = uid_list
 
         my_trace                        = parent_trace.doing("Adding a column of mappings to manifest_df")
         if True:
             def assign_ref_uids(row):
-                milestone               = row['Milestone']
-                uid_list                = milestone_mappings[milestone]
+                referencing_entity      = row[entity_column]
+                uid_list                = referencing_mappings[referencing_entity]
                 return uid_list
 
             manifest_df[refKind]        = manifest_df.apply(lambda row: assign_ref_uids(row), axis=1)

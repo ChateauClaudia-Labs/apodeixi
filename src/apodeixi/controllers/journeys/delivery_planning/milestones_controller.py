@@ -124,7 +124,7 @@ class MilestonesController(JourneysController):
                                             y_offset                    = y_offset)
             elif key == 'modernization-milestone.1':
                 editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
-                hidden_cols                 = []
+                hidden_cols                 = ['big-rock'] # These are list values, so can't be displayed in a cell. Will instead display in enriched mapping rows.
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
@@ -252,7 +252,7 @@ class MilestonesController(JourneysController):
                                 manifest_nb     = manifest_nb,
                                 controller      = controller)
 
-            # These three settings replace the parent class's defaults. That ensures wwe read Excel by columns, 
+            # These three settings replace the parent class's defaults. That ensures we read Excel by columns, 
             # not by rows, and that we realize a fair amount of rows in Excel are really a mapping to big rock, not
             # manifest entities' properties.
             self.horizontally                   = False 
@@ -280,7 +280,11 @@ class MilestonesController(JourneysController):
             posted_cols                     = list(posted_content_df.columns)
             mandatory_cols                  = [ME._ENTITY_NAME]
             #mandatory_cols.extend(ME._SPLITTING_COLUMNS)
-            missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+            #missing_cols                    = [col for col in mandatory_cols if not col in posted_cols]
+
+            missing_cols                    = [col for col in mandatory_cols 
+                                                if not StringUtils().is_in_as_yaml(col, posted_cols)]
+        
             if len(missing_cols) > 0:
                 raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. This often happens if "
                                                     + "ranges are wrong in Posting Label.",

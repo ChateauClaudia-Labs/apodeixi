@@ -7,7 +7,7 @@ from apodeixi.util.path_utils               import PathUtils
 from apodeixi.util.formatting_utils         import StringUtils
 from apodeixi.util.dataframe_utils          import DataFrameUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
-from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas
+from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas, MappedManifestXLWriteConfig
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 from apodeixi.xli.interval                  import IntervalUtils
 
@@ -115,6 +115,33 @@ class ManifestRepresenter:
             # The "- 1" is because y_0 was one of the rows, so count one less row. 
             y_1                 = y_0 + len(df.index) -1 
 
+            # If we are a mapping, we are at 90 degrees relative to the referenced manifest,
+            # so need to add more *columns* by an amount equal to the referenced manifest's rows.
+            if issubclass(type(xlw_config), MappedManifestXLWriteConfig):
+                referenced_df   = self.content_df_dict[xlw_config.referenced_manifest_name]
+                # TODO The arithmetic here only works if the referenced manifest is not displayed with
+                # extra padding, i.e., it is displayed "on the first row it can be displayed",
+                # meaning its headers are displayed in the first Excel row after the content of
+                # our manifest. Otherwise the arithmetic below will "fall short" and we will miss out
+                # some mapping rows from the range, and unless the user manually corrects the range in the
+                # Excel spreadsheet before submitting a posting, the mapping of those rows will not be
+                # captured.
+                #   That would be not exactly a bug (since the user "certified" the incorrect range
+                # by submitting the posting), but is certainly a usability problem; something easy for users
+                # to get wrong and not even know about it.
+                # To minimize this bug from happening, we add a buffer
+                #
+                BUG_WORKAROUND_BUFFER   = 10
+
+                # 1) extra +1 because of the headers of the referenced manifest, 
+                # 2) another +1 because when doing an update, there will be a "hidden row" for the column
+                #   in our manifest that references the other one. For example, in the Journey domain the
+                #   milestones manifest will have a "big-rock" column. It is not displayed but it will 
+                #   cause the referenced manifest to appear one row further down.
+                # 3) An additional + BUG_WORKAROUND_BUFFER for the reasons in the comment above.
+                #
+                x_1             += len(referenced_df.index) + 1 + 1 + BUG_WORKAROUND_BUFFER
+                
             if xlw_config.layout.is_transposed:
                 # Add an extra columns, for the headers
                 y_1             += 1
@@ -382,17 +409,11 @@ class ManifestRepresenter:
 
                 excel_row, excel_col, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
                                                                             parent_trace            = parent_trace, 
+                                                                            displayable_df          = displayable_df,
                                                                             df_row_number           = -1, # -1 for headers
                                                                             df_col_number           = layout_idx,
                                                                             representer             = self)
-                '''
-                if layout.is_transposed:
-                    excel_row           = layout_x
-                    excel_col           = layout_y
-                else:
-                    excel_row           = layout_y
-                    excel_col           = layout_x
-                '''
+
                 self._write_val(        parent_trace        = loop_trace, 
                                         workbook            = workbook, 
                                         worksheet           = worksheet, 
@@ -429,7 +450,8 @@ class ManifestRepresenter:
                     layout_x            = xlw_config.x_offset + layout_idx 
                     layout_y            = xlw_config.y_offset + 1 + row_nb # An extra '1' because of the headers
                     excel_row, excel_col, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
-                                                                                parent_trace            = parent_trace, 
+                                                                                parent_trace            = parent_trace,
+                                                                                displayable_df          = displayable_df, 
                                                                                 df_row_number           = row_nb,
                                                                                 df_col_number           = layout_idx,
                                                                                 representer             = self)
