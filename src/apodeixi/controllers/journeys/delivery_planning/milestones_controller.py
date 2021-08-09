@@ -1,10 +1,16 @@
 import pandas as                                                            _pd
 from apodeixi.util.a6i_error                                                import ApodeixiError
 
+from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label import JourneysPostingLabel
 from apodeixi.controllers.journeys.delivery_planning.journeys_controller    import JourneysController
 
 from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
+
+from apodeixi.text_layout.excel_layout                                      import AsExcel_Config_Table, \
+                                                                                ManifestXLWriteConfig, \
+                                                                                MappedManifestXLWriteConfig, \
+                                                                                NumFormats
 
 from apodeixi.xli.interval                                                  import GreedyIntervalSpec
 
@@ -66,6 +72,97 @@ class MilestonesController(JourneysController):
         '''
         ME                              = MilestonesController
         return ME._MyPostingLabel(parent_trace, controller = self)
+
+    def _build_manifestsXLWriteconfig(self, parent_trace, manifestInfo_dict):
+        '''
+        Overwrites parent's implementation
+
+        Creates and returns an AsExcel_Config_Table containing the configuration data for how to lay out and format
+        all the manifests of `manifestInfo_dict` onto an Excel spreadsheet
+        '''
+        ME                                  = BigRocksEstimate_Controller
+        xlw_config_table                    = AsExcel_Config_Table()
+        x_offset                            = 1
+        #y_offset                            = 1
+        for key in manifestInfo_dict:
+            loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
+                                                                + str(key) + "'")
+            manifest_info                   = manifestInfo_dict[key]
+            data_df                         = manifest_info.getManifestContents(parent_trace)
+            
+            if key == 'big-rock.0':
+                editable_cols               = [] # Nothing is editable for big-rocks, since it is reference data
+                hidden_cols                 = []
+                right_margin                = 0
+                num_formats                 = {}
+                excel_formulas              = None
+                df_xy_2_excel_xy_mapper   = None
+                is_transposed               = False
+
+                # We must leave some rows above empty for the other manifest (the modernization-milestone.1) that will
+                # appear transposed. So we shift y_offset by the number of columns in the other manifest
+                other_manifest_df           = manifestInfo_dict['modernization-milestone.1']._contents_df
+                y_offset                    = 1 + len(other_manifest_df.columns)
+
+                xlw_config  = ManifestXLWriteConfig( 
+                                            sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                            manifest_name               = key, 
+                                            is_transposed               = is_transposed,    
+                                            viewport_width              = 100,  
+                                            viewport_height             = 40,   
+                                            max_word_length             = 20, 
+                                            editable_cols               = editable_cols,
+                                            hidden_cols                 = hidden_cols,  
+                                            num_formats                 = num_formats, 
+                                            excel_formulas              = excel_formulas,
+                                            df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
+                                            editable_headers            = [],   
+                                            x_offset                    = x_offset,    
+                                            y_offset                    = y_offset)
+            elif key == 'modernization-milestone.1':
+                editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
+                hidden_cols                 = []
+                right_margin                = 0
+                num_formats                 = {}
+                excel_formulas              = None
+                df_xy_2_excel_xy_mapper   = None
+
+                # We display milestones rotated 90 degrees, so we set the transposed flag and also exchange
+                # the x and y offsets (so here the value of x is vertical and y is horizontal, and right
+                # values have x being horizontal and y being vertical)
+                is_transposed               = True
+                original_x_offset           = x_offset
+                original_y_offset           = y_offset
+                x_offset                    = 1
+                y_offset                    = original_x_offset
+
+                # We use a specialized XL Write Config class, one that understands mappings
+                xlw_config  = MappedManifestXLWriteConfig( 
+                                            sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                            manifest_name               = key, 
+                                            referenced_manifest_name    = 'big-rock.0',
+                                            my_entity                   = "milestone", 
+                                            mapped_entity               = "big-rock",
+                                            is_transposed               = is_transposed,    
+                                            viewport_width              = 100,  
+                                            viewport_height             = 40,   
+                                            max_word_length             = 20, 
+                                            editable_cols               = editable_cols,
+                                            hidden_cols                 = hidden_cols,  
+                                            num_formats                 = num_formats, 
+                                            excel_formulas              = excel_formulas,
+                                            df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
+                                            editable_headers            = [],   
+                                            x_offset                    = x_offset,    
+                                            y_offset                    = y_offset)
+
+            else:
+                raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
+
+            # Put next manifest to the right of this one, separated by an empty column
+            x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
+            xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)
+        return xlw_config_table
 
     def _buildAllManifests(self, parent_trace, posting_label_handle):
         ME                              = MilestonesController

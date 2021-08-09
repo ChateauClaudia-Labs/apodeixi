@@ -199,12 +199,7 @@ class JourneysController(SkeletonController):
 
         labels_dict                             = labels_dict | mlfc_dict
         template_dict['metadata']['labels']     = labels_dict
-        '''
-        labels_dict[MY_PL._JOURNEY]             = mlfc_dict[]
-        labels_dict[MY_PL._SCORING_CYCLE]       = scoring_cycle
-        labels_dict[MY_PL._PRODUCT]             = product
-        labels_dict[MY_PL._SCENARIO]            = scenario
-        '''
+
         labels_dict[MY_PL._SCORING_MATURITY]    = ""
 
         return template_dict, template_df

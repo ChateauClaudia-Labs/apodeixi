@@ -42,7 +42,8 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             
             xlw_config          = ManifestXLWriteConfig(sheet               = SHEET,
-                                                        manifest_name       = MANIFEST_NAME,    
+                                                        manifest_name       = MANIFEST_NAME,
+                                                        is_transposed       = False,     
                                                         viewport_width      = 100,  
                                                         viewport_height     = 40,   
                                                         max_word_length     = 20, 

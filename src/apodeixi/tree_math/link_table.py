@@ -109,7 +109,7 @@ class LinkTable():
         are no rows returns None
         '''
         if not manifest_identifier in self.links_dict.keys():
-            raise ApodeixiError(parent_trace, "Can't retrieve larget row number because manifest has no links "
+            raise ApodeixiError(parent_trace, "Can't retrieve largest row number because manifest has no links "
                                                 + "associated with it",
                                                 data = {    "manifest_identifier":      str(manifest_identifier)})
         links                                       = self.links_dict[manifest_identifier]
@@ -147,6 +147,16 @@ class LinkTable():
 
         return foreign_uid
 
+    def all_uids(self, parent_trace, manifest_identifier):
+        '''
+        Returns a list consisting of all the UIDs known to this class for the given manifest_identifier.
+        '''
+        if not manifest_identifier in self.links_dict.keys():
+            raise ApodeixiError(parent_trace, "Can't retrieve all UIDs because manifest has no links "
+                                                + "associated with it",
+                                                data = {    "manifest_identifier":      str(manifest_identifier)})
+        links                                       = self.links_dict[manifest_identifier]
+        return list(links.uid_2_row.keys())
 
     class _Row_UID_Links():
         '''

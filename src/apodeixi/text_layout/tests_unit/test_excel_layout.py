@@ -18,7 +18,7 @@ class Test_PostingLayout(ApodeixiUnitTest):
         try:
             root_trace          = FunctionalTrace(parent_trace=None).doing("Testing layout validation")
             outputs             = []
-            layout              = PostingLayout("good-layout")
+            layout              = PostingLayout("good-layout", is_transposed=False)
 
             layout.addHeader(   root_trace, xInterval=[1,9], y=1,               mode='r')
             layout.addBody(     root_trace, xInterval=[1,1], yInterval=[2, 19], mode='r')
@@ -39,7 +39,7 @@ class Test_PostingLayout(ApodeixiUnitTest):
                 outputs.append(ex.trace_message())
             # Check an empty layout validates NOT OK
             try:
-                bad_layout = PostingLayout("empty blocks list")
+                bad_layout = PostingLayout("empty blocks list", is_transposed=False)
                 outputs.append("====================== Validating " + bad_layout.name)
                 bad_layout.validate(root_trace)
                 outputs.append("Test failure: should have thrown exception for '" + bad_layout.name + "', but didn't")
@@ -47,7 +47,7 @@ class Test_PostingLayout(ApodeixiUnitTest):
                 outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             # Check an incomplete layout validates NOT OK
             try:
-                bad_layout = PostingLayout("with gaps")
+                bad_layout = PostingLayout("with gaps", is_transposed=False)
                 outputs.append("====================== Validating " + bad_layout.name)
                 bad_layout.addHeader(   root_trace, xInterval=[1,3], y=1,               mode='r')
                 bad_layout.addBody(     root_trace, xInterval=[1,1], yInterval=[2, 3], mode='r')                
@@ -57,7 +57,7 @@ class Test_PostingLayout(ApodeixiUnitTest):
                 outputs.append(ex.trace_message(exclude_stack_trace = True)) # Don't print stack trace - code line numbers volatile
             # Check an layout with overlapping blocks validates NOT OK
             try:
-                bad_layout = PostingLayout("with overlaps")
+                bad_layout = PostingLayout("with overlaps", is_transposed=False)
                 outputs.append("====================== Validating " + bad_layout.name)
                 bad_layout.addHeader(   root_trace, xInterval=[1,4], y=1,               mode='r')
                 bad_layout.addHeader(   root_trace, xInterval=[3,5], y=1,               mode='r')

@@ -213,8 +213,13 @@ class ManifestRepresenter:
         @param xl_config An object derived from AsExcel_Config, defining where a piece of data (e.g., a manifest,
                             posting label, or other) is to be laid out in an Excel spreadsheet.
         '''
-        title_x             = xl_config.x_offset
-        title_y             = xl_config.y_offset - 1
+        if xl_config.layout.is_transposed == False:
+            title_x             = xl_config.x_offset
+            title_y             = xl_config.y_offset - 1
+        else:
+            title_x             = xl_config.y_offset 
+            title_y             = xl_config.x_offset - 1
+                      
         title               = text
         fmt_dict            ={'bold': True, 'font_color': Palette.DARK_BLUE}
         fmt                 = workbook.add_format(fmt_dict)
@@ -238,34 +243,48 @@ class ManifestRepresenter:
         scaled_width    = column_width * self._scale_to_font_size(parent_trace, font_size = 11)
         worksheet.set_column(xl_x,      xl_x,       scaled_width)
 
-    def _write_val(self, parent_trace, workbook, worksheet, layout_x, layout_y, excel_row, val, layout, num_format):
+    def _write_val(self,    parent_trace,   workbook,   worksheet,  layout_x,   layout_y, 
+                            excel_row,      excel_col,  val,        layout,     num_format):
         '''
+        Writes the value `val` to the given worksheet. The Excel location for writing the value is given 
+        by the `excel_row` and `excel_col` parameters, which are in the Excel coordinate space.
 
-        @param excel_row An int. Normally this should be the same as layout_y, except in cases where a mapper
-                        has been configured to display the data in a different excel row number than layout_y.
-                        This can happen when there are joins and the referencing manifest has fewer rows than the
-                        referenced manifest, which means that to align the two displays by row there might be
-                        "empty rows" throughout partso of the rferencing manifest's display. Example: a big-rocks-investment
-                        referencing a big-rocks manifest that has multiple breakdown levels, but where the investment
-                        is not at the level of the leaves of the big-rocks, but at a higher level of aggregation.
+        The `layout_x` and `layout_y` are in the layout space, which may be different than Excel's for
+        different reasons, including:
+
+        * For a join, there might be a mapper so the Excel rows are determined by a reference manifest's
+          locations, not by the layout coordinates. In these cases a mapper is often used by the caller
+          to determine what Excel row parameter to pass.
+        * In situations when the data must be transposed, such as for many-to-many mappings between 
+          manifests, Excel rows correspond to the layout x axis instead of the layout y axis. 
+          The dual is true for Excel columns.
+
+        @param layout_x An int. Represents the x-coordinate in layout space.
+        @param layout_y An int. Represents the y-coordinates in layout space.
+        @param excel_row An int. Normally this should be the same as layout_y, except in cases special
+                            cases as described above.
+        @param excel_col An int. Normally this should be the same as layout_x, except in cases special
+                            cases as described above.
         '''
-        
+        '''
         if layout.is_transposed:
             xl_x            = excel_row
             xl_y            = layout_x
         else:
             xl_x            = layout_x
             xl_y            = excel_row
-        
+        '''
         fmt_dict        = layout.getFormat(parent_trace, layout_x, layout_y)
         if num_format != None:
             fmt_dict    = fmt_dict.copy() # GOTCHA - copy or else subsequent use of xlsxwriter will use a polluted format
             fmt_dict['num_format'] = num_format
 
         fmt             = workbook.add_format(fmt_dict)
-        worksheet.write(xl_y, xl_x, val, fmt)
+        #worksheet.write(xl_y, xl_x, val, fmt)
+        worksheet.write(excel_row, excel_col, val, fmt)
 
-    def _populate_worksheet(self, parent_trace, content_df, config, workbook, worksheet):
+
+    def _populate_worksheet(self, parent_trace, content_df, xlw_config, workbook, worksheet):
         '''
         Helper method to write the block in Excel that comes from the manifest's content (as opposed to the Posting Label 
         data).
@@ -283,19 +302,17 @@ class ManifestRepresenter:
 
         Otherwise, xl_x = layout_x and xl_y = layout_y
 
-        @param config An AsExcel_Config object specifying how the data in `content_df` should be laid out on 
+        @param xlw_config An AsExcel_Config object specifying how the data in `content_df` should be laid out on 
                         the worksheet
         '''
-        layout                  = config.layout
+        layout                  = xlw_config.layout
         is_transposed           = layout.is_transposed
 
         my_trace                = parent_trace.doing("Building out the layout")
         if True:
-            displayable_cols    = [col for col in content_df.columns if not col in config.hidden_cols]
-            displayable_df      = content_df[displayable_cols]
-            config.buildLayout(parent_trace, content_df)
 
-            #layout              = config.layout
+            displayable_df      = xlw_config.build_displayable_df(parent_trace, content_df, representer=self)
+
             layout.validate(my_trace)
             span                = layout.getSpan(my_trace) # Useful to carry around for debugging
             inner_trace         = my_trace.doing("Computing optimal column widths", data = {'layout span': str(span)})
@@ -308,11 +325,11 @@ class ManifestRepresenter:
             else:
                 xl_df           = displayable_df
 
-            column_formatters   = NumFormats.xl_to_txt_formatters(config.num_formats)
+            column_formatters   = NumFormats.xl_to_txt_formatters(xlw_config.num_formats)
             calc                = ColumnWidthCalculator(    data_df             = xl_df, 
-                                                            viewport_width      = config.viewport_width, 
-                                                            viewport_height     = config.viewport_height, 
-                                                            max_word_length     = config.max_word_length,
+                                                            viewport_width      = xlw_config.viewport_width, 
+                                                            viewport_height     = xlw_config.viewport_height, 
+                                                            max_word_length     = xlw_config.max_word_length,
                                                             column_formatters   = column_formatters)
             
             # Dictionary - keys are columns of displayable_df, vals are sub-dicts {'width': <number>, 'nb_lines': <number>}
@@ -323,7 +340,7 @@ class ManifestRepresenter:
             name                            = layout.name 
             self.widths_dict_dict[name]     = widths_dict
             self.span_dict[name]            = span
-            self.hidden_cols_dict[name]     = config.hidden_cols
+            self.hidden_cols_dict[name]     = xlw_config.hidden_cols
 
         # Now we start laying out content on the worksheet. 
         # Start by re-sizing the columns.
@@ -335,9 +352,9 @@ class ManifestRepresenter:
                 loop_trace      = my_trace.doing("Processing XL column '" + col + "'")
                 width           = float(widths_dict[col]['width']) # Cast to float to do float arithmetic in scaling to font size
                 if is_transposed:
-                    xl_x        = config.y_offset + xl_idx
+                    xl_x        = xlw_config.y_offset + xl_idx
                 else:
-                    xl_x        = config.x_offset + xl_idx
+                    xl_x        = xlw_config.x_offset + xl_idx
                 self._set_column_width(loop_trace, worksheet, xl_x, width, layout)
    
         # Now populate headers
@@ -347,14 +364,26 @@ class ManifestRepresenter:
             for layout_idx in range(len(columns)): # GOTCHA: Loop is in "Layout space"
                 col                     = columns[layout_idx]
                 loop_trace              = my_trace.doing("Processing layout column '" + col + "'")
-                layout_x                = config.x_offset + layout_idx
-                layout_y                = config.y_offset
-                if is_transposed:
-                    xl_x                = layout_y
-                else:
-                    xl_x                = layout_x
-                self._write_val(loop_trace, workbook, worksheet, layout_x, layout_y, layout_y, col, layout, num_format = None)
+                layout_x                = xlw_config.x_offset + layout_idx
+                layout_y                = xlw_config.y_offset 
 
+                if layout.is_transposed:
+                    excel_row           = layout_x
+                    excel_col           = layout_y
+                else:
+                    excel_row           = layout_y
+                    excel_col           = layout_x
+
+                self._write_val(        parent_trace        = loop_trace, 
+                                        workbook            = workbook, 
+                                        worksheet           = worksheet, 
+                                        layout_x            = layout_x, 
+                                        layout_y            = layout_y, 
+                                        excel_row           = excel_row, 
+                                        excel_col           = excel_col,
+                                        val                 = col, 
+                                        layout              = layout, 
+                                        num_format          = None)
         # Now lay out the content
         my_trace                        = parent_trace.doing("Populating content", data = {'layout span': str(span)})
         if True:
@@ -378,15 +407,17 @@ class ManifestRepresenter:
                 
                     loop_trace          = outer_loop_trace.doing("Processing column = '" + col 
                                                                     + "' row = '" + str(row_nb) + "'")
-                    layout_x            = config.x_offset + layout_idx 
-                    layout_y            = config.y_offset + 1 + row_nb # An extra '1' because of the headers
-                    excel_row, last_excel_row   = config.df_row_2_excel_row(    parent_trace            = parent_trace, 
+                    layout_x            = xlw_config.x_offset + layout_idx 
+                    layout_y            = xlw_config.y_offset + 1 + row_nb # An extra '1' because of the headers
+                    excel_row, excel_col, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
+                                                                                parent_trace            = parent_trace, 
                                                                                 df_row_number           = row_nb,
+                                                                                df_col_number           = layout_idx,
                                                                                 representer             = self)
 
                     # If we have inserted formulas that took space, shift accordingly 
-                    if config.sheet in self.formula_shift_dict.keys():
-                        formula_shift   = self.formula_shift_dict[config.sheet]
+                    if xlw_config.sheet in self.formula_shift_dict.keys():
+                        formula_shift   = self.formula_shift_dict[xlw_config.sheet]
                         layout_x        += formula_shift.shift_x
                         layout_y        += formula_shift.shift_y  
 
@@ -395,13 +426,23 @@ class ManifestRepresenter:
                     if first_y == None:
                         first_y         = layout_y
                  
-                    num_format      = None
-                    if col in config.num_formats.keys():
-                        num_format  = config.num_formats[col]
+                    num_format          = None
+                    if col in xlw_config.num_formats.keys():
+                        num_format      = xlw_config.num_formats[col]
 
                     val             = row_content[col]
-                    self._write_val(parent_trace, workbook, worksheet, layout_x, layout_y, excel_row,
-                                    val, layout, num_format = num_format)
+
+
+                    self._write_val(    parent_trace        = loop_trace, 
+                                        workbook            = workbook, 
+                                        worksheet           = worksheet, 
+                                        layout_x            = layout_x, 
+                                        layout_y            = layout_y, 
+                                        excel_row           = excel_row, 
+                                        excel_col           = excel_col,
+                                        val                 = val, 
+                                        layout              = layout, 
+                                        num_format          = num_format)
 
                     # Remember UID -> row mapping, for aligninig other joined manifests later on. But only if there
                     # is a value in the UID column, since we allow the case that it be blank in some rows if
@@ -429,7 +470,7 @@ class ManifestRepresenter:
                                     last_x              = last_x,
                                     last_y              = last_y,
                                     data_df             = displayable_df,
-                                    config              = config,
+                                    config              = xlw_config,
                                     workbook            = workbook,
                                     worksheet           = worksheet)
 

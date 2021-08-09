@@ -102,7 +102,7 @@ class BigRocksEstimate_Controller(JourneysController):
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
-                df_row_2_excel_row_mapper   = None
+                df_xy_2_excel_xy_mapper   = None
             elif key == 'big-rock-estimate.1':
                 # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
                 # make a join, and pass the mapper that effects this associate
@@ -115,7 +115,7 @@ class BigRocksEstimate_Controller(JourneysController):
                     final_excel_row     = link_table.last_row_number(   parent_trace        = loop_trace,
                                                                         manifest_identifier = 'big-rock.0')
                     return excel_row_nb, final_excel_row
-                df_row_2_excel_row_mapper   = my_mapper  
+                df_xy_2_excel_xy_mapper   = my_mapper  
 
                 if self.variant ==  ME.VARIANT_BURNOUT:
                     hidden_cols             = ['UID', 'bigRock']
@@ -146,11 +146,12 @@ class BigRocksEstimate_Controller(JourneysController):
                 num_formats                 = {'Incremental': NumFormats.INT}
                 excel_formulas              = ExcelFormulas(key)
                 excel_formulas.addCumulativeSum(parent_trace, 'Incremental')
-                df_row_2_excel_row_mapper   = None
+                df_xy_2_excel_xy_mapper   = None
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                                manifest_name               = key,    
+                                                manifest_name               = key, 
+                                                is_transposed               = False,    
                                                 viewport_width              = 100,  
                                                 viewport_height             = 40,   
                                                 max_word_length             = 20, 
@@ -158,7 +159,7 @@ class BigRocksEstimate_Controller(JourneysController):
                                                 hidden_cols                 = hidden_cols,  
                                                 num_formats                 = num_formats, 
                                                 excel_formulas              = excel_formulas,
-                                                df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
+                                                df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)

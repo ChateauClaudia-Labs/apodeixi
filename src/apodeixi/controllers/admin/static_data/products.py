@@ -118,18 +118,19 @@ class ProductsController(StaticData_Controller):
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
-                df_row_2_excel_row_mapper   = None
+                df_xy_2_excel_xy_mapper   = None
             elif key == 'line-of-business.1':
                 x_offset                    = 1 # Lay LOB column to the left of product
                 hidden_cols                 = []
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
-                df_row_2_excel_row_mapper   = None
+                df_xy_2_excel_xy_mapper   = None
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                                manifest_name               = key,    
+                                                manifest_name               = key, 
+                                                is_transposed               = False,   
                                                 viewport_width              = 100,  
                                                 viewport_height             = 40,   
                                                 max_word_length             = 20, 
@@ -137,7 +138,7 @@ class ProductsController(StaticData_Controller):
                                                 hidden_cols                 = hidden_cols,  
                                                 num_formats                 = num_formats, 
                                                 excel_formulas              = excel_formulas,
-                                                df_row_2_excel_row_mapper   = df_row_2_excel_row_mapper,
+                                                df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)

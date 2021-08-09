@@ -1,6 +1,7 @@
 import datetime                         as _datetime
 
 from apodeixi.util.a6i_error            import ApodeixiError
+from apodeixi.util.formatting_utils     import StringUtils
 
 
 class Excel_Block():
@@ -31,15 +32,13 @@ class Excel_Layout():
                         is applied to Excel. I.e., a point (x, y) on this Excel_Layout object would be displayed
                         at cell (y, x) in Excel
     '''
-    def __init__(self, name, is_transposed = False):
+    def __init__(self, name, is_transposed):
         
         self.blocks             = []
         self.name               = name
         self.is_transposed      = is_transposed
         return
 
-
-    
     def validate(self, parent_trace):
         '''
         Validates that the blocks do partition the entire layout
@@ -87,7 +86,6 @@ class Excel_Layout():
         hits = self._locate_block(parent_trace, x, y)
         return len(hits) > 0
 
-
     def getFormat(self, parent_trace, x, y):
         '''
         Identifies the the unique Excel_Block that as been configured for cell [x, y], and then returns
@@ -107,7 +105,6 @@ class Excel_Layout():
 
         block   = hits[0] # The unique block containing [x,y]
         return block.fmt
-
 
     def getSpan(self, parent_trace):
         '''
@@ -303,8 +300,8 @@ class PostingLayout(Excel_Layout):
     and provides a simplifying API allowing only two types of Excel_Blocks: header rows and body column groups, each of them
     either read-only or writable
     '''
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, name, is_transposed):
+        super().__init__(name, is_transposed = is_transposed)
         self._init_formats()
 
     def _init_formats(self):
@@ -368,7 +365,7 @@ class PostingLayout(Excel_Layout):
         2. The first layout's row is the header for the columns (the "headers"), but only if `has_headers` is True
         3. The subsequent N-1 rows (or N rows, if `has_headers` is False) in the layout are for the "body", 
            where N is nb_rows
-        4. All body cells are by default read-only, unless they lie in a column in `editable_cols
+        4. All body cells are by default read-only, unless they lie in a column in `editable_cols`
         5. All column headers are by default read-only, unless the column appears in the `editable_headers` list
         6. The layout starts at cell [x_offset, y_offset] and extends to the right and below that cell.
 
@@ -433,30 +430,38 @@ class AsExcel_Config():
         self.num_formats            = num_formats
         self.excel_formulas         = excel_formulas
                
-    def df_row_2_excel_row(self, parent_trace, df_row_number, representer):
+    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
         '''
-        Returns two int: the excel_row from the mapper, and the final_excel_row this manifest might populate.
+        Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
+        and (if appropriate) any transpose.
 
-        1) excel row from mapper:
-                Determines the Excel row number in which to display a piece of datum that is originating on a 
-                DataFrame representation of a manifest, given the datum's row number in the dataframe.
+        Returns 4 integers:
+
+        1) and 2)  excel_row, excel_col
+                Determines the Excel row number and column number in which to display a piece of datum that 
+                is originating on a DataFrame representation of a manifest, given the datum's row number 
+                and column number in the dataframe.
 
                 Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
                 that has been configured in this config object in order to make that determination.
-        2) final excel row for manifest:
-                It also computes the last row in Excel that this manifest would be populating, to demarcate
+
+        2) last_excel_row, last_excel_col for manifest:
+                It also computes the last row and column in Excel that this manifest would be populating, to demarcate
                 the end of a region.
     
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
                                     to be displayed appears.
+        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
+                                    displayed appears.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
                             is at, which the ManifestRepresenter tracks.
         '''
-        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'df_row_2_excel_row' in concrete class",
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'df_xy_2_excel_xy' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
+
 
 class ManifestXLWriteConfig(AsExcel_Config):
     '''
@@ -504,7 +509,7 @@ class ManifestXLWriteConfig(AsExcel_Config):
     @param excel_formulas   An ExcelFormulas object that expresses which formulas (if any) should be written
                             to the excel spreadsheet in the vicinity of the area where the manifest was laid out.
 
-    @param df_row_2_excel_row_mapper A function that is needed to figure the Excel row number in which to display
+    @param df_xy_2_excel_xy_mapper A function that is needed to figure the Excel row number in which to display
                             a datum. It's signature as as in this example:
 
                                 def my_mapper(manifest_df, manifest_df_row_number, representer)
@@ -523,9 +528,9 @@ class ManifestXLWriteConfig(AsExcel_Config):
                                     its state needs to be interrogated.
 
     '''
-    def __init__(self, manifest_name,  sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+    def __init__(self, manifest_name,  is_transposed, sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  df_row_2_excel_row_mapper = None,
+                                excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
         super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats, excel_formulas = excel_formulas,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
@@ -535,17 +540,19 @@ class ManifestXLWriteConfig(AsExcel_Config):
         
         self.editable_headers       = editable_headers
 
-        self.layout                 =  PostingLayout(manifest_name)
+        self.manifest_name          = manifest_name
 
-        self.df_row_2_excel_row_mapper  = df_row_2_excel_row_mapper
+        self.layout                 =  PostingLayout(manifest_name, is_transposed)
 
-        # Set during a call to buildLayout
-        self.content_df             = None
+        self.df_xy_2_excel_xy_mapper  = df_xy_2_excel_xy_mapper
+
+        # Set during a call to _buildLayout
+        self.data_df             = None
 
     def getName(self, parent_trace):
         return self.layout.name
 
-    def buildLayout(self, parent_trace, content_df):
+    def _buildLayout(self, parent_trace, content_df):
         columns                         = list(content_df.columns)
         nb_rows                         = len(content_df.index)
         self.layout.build(parent_trace, columns             = columns,
@@ -557,43 +564,267 @@ class ManifestXLWriteConfig(AsExcel_Config):
                                         y_offset            = self.y_offset,
                                         has_headers         = True)
         # Remember content_df in case it must be interrogated later during processing
-        self.content_df                 = content_df
+        self.data_df                 = content_df
 
-    def df_row_2_excel_row(self, parent_trace, df_row_number, representer):
+    def build_displayable_df(self, parent_trace, content_df, representer):
         '''
-        Determines the Excel row number in which to display a piece of datum that is originating on a 
-        DataFrame representation of a manifest, given the datum's row number in the dataframe.
+        Helper method to take the content of a manifest (in `content_df`) and create an
+        new DataFrame whose columns and rows are suitable to be rendered on an Excel spreadsheet.
 
-        Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
-        that has been configured in this config object in order to make that determination.
+        The returned DataFrame (the "displayable_df") may differ from `content_df` in situations such as:
 
-        It supports a "hook" for external code to determine the Excel row number. 
-        An example of such a "hook" usage is for displaying joins: if the desired behavior
-        is for the referencing manifest's rows to align with those of the referenced manifest,
-        then the representer.link_table needs to be consulted to map the foreign key UID in the
-        referencing manifest to the row number in which the corresponding referenced manifest row was displayed.
+        * Perhaps some columns are hidden, so displayable_df would not include those columns of content_df
+        * Perhaps some posting controllers need a specialized type of display. If so, they can use a derived
+          class from this one (ManifestXLWriteConfig) to handle that. A common use case is for many-to-many
+          mappings between two manifests rendered in the same Excel posting. That is handled by derived
+          class MappedManifestXLWriteConfig
 
+        Additionally, it takes this opportunity to build the layout for self.
+
+        @param representer A ManifestRepresenter instance that has the context for the process that is
+                        displaying possibly multiple manifests onto the same Excel workbook.
+        '''
+        displayable_cols    = [col for col in content_df.columns if not col in self.hidden_cols]
+        displayable_df      = content_df[displayable_cols]
+
+        self._buildLayout(parent_trace, content_df)
+
+        return displayable_df
+
+
+    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+        '''
+        Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
+        and (if appropriate) any transpose.
+
+        Returns 4 integers:
+
+        1) and 2)  excel_row, excel_col
+                Determines the Excel row number and column number in which to display a piece of datum that 
+                is originating on a DataFrame representation of a manifest, given the datum's row number 
+                and column number in the dataframe.
+
+                Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
+                that has been configured in this config object in order to make that determination.
+
+        2) last_excel_row, last_excel_col for manifest:
+                It also computes the last row and column in Excel that this manifest would be populating, to demarcate
+                the end of a region.
+    
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
                                     to be displayed appears.
+        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
+                                    displayed appears.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
                             is at, which the ManifestRepresenter tracks.
         '''
-        if self.df_row_2_excel_row_mapper != None:
-            excel_row, final_excel_row  = self.df_row_2_excel_row_mapper(   manifest_df             = self.content_df, 
+        if self.df_xy_2_excel_xy_mapper != None:
+            # TODO - ADD SUPPORT FOR transposes
+            excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper(   manifest_df             = self.data_df, 
                                                                             manifest_df_row_number  = df_row_number, 
                                                                             representer             = representer)
+            excel_col                   = self.x_offset + df_col_number
+            final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
+            return excel_row, excel_col, final_excel_row, final_excel_col
         else:
-            excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+            if self.layout.is_transposed:
+                excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+                final_excel_col             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+    
+                excel_row                   = self.x_offset + df_col_number
+                final_excel_row             = self.x_offset + len(self.data_df.columns) - 1
+            else:
+                excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+                final_excel_row             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+    
+                excel_col                   = self.x_offset + df_col_number
+                final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
+        return excel_row, excel_col, final_excel_row, final_excel_col
 
-            manifest_identifer          = self.getName(parent_trace) # Something like "big-rock.0"
+class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
+    '''
+    Please refer to the documentation of the parent class for overall explanation on the  constructor parameters.
 
-            content_df                  = representer.content_df_dict[manifest_identifer]
+    This is a specialized class to configure how to display in Excel a manifest that has a many-to-many mapping
+    to another manifest.
 
-            final_excel_row             = self.y_offset + len(content_df.index) # Don't do len(index)-1 since headers add a row
- 
-        return excel_row, final_excel_row
+    It requires the referenced manifest to also appear in the same Excel worksheet, and for it to be displayed
+    at 90 degrees relative to this referencing manifest, so that the mapping can be expressed by a tabular map
+    where an "x" indicates a mapping between UIDs from the two manifests.
+    
+
+    '''
+    def __init__(self, manifest_name,  referenced_manifest_name, my_entity, mapped_entity, is_transposed, sheet,  
+                                viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+                                editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
+                                excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
+                                x_offset        = 0,    y_offset = 0):
+
+        super().__init__(manifest_name,  is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
+                                editable_cols,   hidden_cols, num_formats, editable_headers, 
+                                excel_formulas,  df_xy_2_excel_xy_mapper,
+                                x_offset,    y_offset)
+
+        self.my_entity                  = my_entity
+        self.referenced_manifest_name   = referenced_manifest_name
+        self.mapped_entities            = mapped_entity
+
+    def _buildLayout(self, parent_trace, content_df): # Not yet changed from parent
+        columns                         = list(content_df.columns)
+        nb_rows                         = len(content_df.index)
+        self.layout.build(parent_trace, columns             = columns,
+                                        nb_rows             = nb_rows,
+                                        editable_cols       = self.editable_cols, 
+                                        hidden_cols         = self.hidden_cols,
+                                        editable_headers    = self.editable_headers, 
+                                        x_offset            = self.x_offset, 
+                                        y_offset            = self.y_offset,
+                                        has_headers         = True)
+        # Remember content_df in case it must be interrogated later during processing
+        self.data_df                 = content_df
+
+    def build_displayable_df(self, parent_trace, content_df, representer):
+        '''
+        Overwrites parent class's implementation to support displaying of many-to-many mappings
+        between two manifests: the manifest being displayed in this call (the "referencing manifest"), 
+        and a `reference manifest` that is assumed to have been previously displayed onto the same Excel worksheet.
+
+        Like the parent, this is a helper method that takes the content of a manifest (in `content_df`) 
+        and creates and returns a new DataFrame (the "displayable_df") whose columns and rows are suitable to be 
+        rendered on an Excel spreadsheet.
+
+        For this concrete class, the way how "displayable_df" differs from `content_df` is this:
+
+        1. `displayable_df` will have the same number of rows as `content_df`
+        2. All non-hidden columns of `content_df` are included in `displayable_df`, except for the 
+           column self.mapped_entities
+        3. The column self.mapped_entities is assumed to have values that are lists of UIDs for the
+           referenced manifest. 
+        4. This method takes the union of all referenced manifest's UIDs appearing in any row of
+            `content_df[self.mapped_entities]`, and adds them as columns to `displayable_df`
+        5. The refencing manifest is assumed to have a column self.my_entity whose values
+           are unique and therefore identify a row in `displayable_df`
+        6. For a row index idx in `displayable_df`, and a mapped_entities' UID A, we set
+
+                displayable_df[A][idx] = "x"  if and only if 
+                                A is a member of content_df[self.my_entity][idx]
+
+                Otherwise, we set displayable_df[A][idx] = ""
+    
+
+        @param representer A ManifestRepresenter instance that has the context for the process that is
+                        displaying possibly multiple manifests onto the same Excel workbook.
+        '''
+        all_mapped_UIDs_s               = set()
+        # Check if content_df has any mappings before bothering to extract them, but columns in content_df
+        # may differ from self.mapped_entities up to a YAML field formatting, so before comparing figure out the
+        # column it maps to, if any
+        #   => We define "col_to_use" as a column in content_df that "is" self.mapped_entities, up to YAML equivalence
+        FMT                             = StringUtils().format_as_yaml_fieldname
+        nice_cols                       = [FMT(col) for col in content_df.columns]
+        mapping_col                     = FMT(self.mapped_entities)
+        if mapping_col in nice_cols:
+            col_to_use                  = [c for c in content_df.columns if FMT(c) == mapping_col][0]
+        else:
+            col_to_use                  = None 
+
+        if col_to_use != None:
+            for row in content_df.iterrows():
+                row_mapped_UIDs         = row[1][col_to_use]
+                if row_mapped_UIDs != None: 
+                    if type(row_mapped_UIDs) != list:
+                        raise ApodeixiError(parent_trace, "Expected a list for mapped UIDs, and instead found a'"
+                                                            + str(type(row_mapped_UIDs)) + "'")
+                    all_mapped_UIDs_s   = all_mapped_UIDs_s.union(row_mapped_UIDs)
+
+        link_table                      = representer.link_table
+        other_manifest_UIDs             = link_table.all_uids(  parent_trace        = parent_trace, 
+                                                                manifest_identifier = self.referenced_manifest_name)
+
+        all_mapped_UIDs                 = all_mapped_UIDs_s.union(other_manifest_UIDs) 
+
+        def put_an_x_on_mappings(uid):
+            def do_it(row):
+                uid_list                = None
+                if col_to_use != None:
+                    uid_list            = row[col_to_use]
+                if type(uid_list) == list and uid in uid_list:
+                    return "x"
+                else:
+                    return ""
+            return do_it
+
+        # Now add the new columns to an enriched df
+        enriched_df                     = content_df.copy()
+        for uid in all_mapped_UIDs:
+            enriched_df[uid]         = enriched_df.apply(lambda row: put_an_x_on_mappings(uid)(row), axis = 1) 
+            self.editable_cols.append(uid)  
+
+        self._buildLayout(parent_trace, content_df = enriched_df)
+
+        # Finally, drop the non-displayable columns. We didnt do it before because we needed to make the call
+        # to self._buildLayout with all the original columns, including the hidden ones
+        displayable_cols                = [col for col in enriched_df.columns if not col in self.hidden_cols]
+
+        displayable_df                  = enriched_df[displayable_cols]
+        if col_to_use != None:
+            displayable_df.drop(col_to_use, axis =1)
+
+        return displayable_df
+
+
+    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+        '''
+        Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
+        and (if appropriate) any transpose.
+
+        Returns 4 integers:
+
+        1) and 2)  excel_row, excel_col
+                Determines the Excel row number and column number in which to display a piece of datum that 
+                is originating on a DataFrame representation of a manifest, given the datum's row number 
+                and column number in the dataframe.
+
+                Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
+                that has been configured in this config object in order to make that determination.
+
+        2) last_excel_row, last_excel_col for manifest:
+                It also computes the last row and column in Excel that this manifest would be populating, to demarcate
+                the end of a region.
+    
+        @param df_row_number An int, representing the row number in a DataFrame in which the datum
+                                    to be displayed appears.
+        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
+                                    displayed appears.
+        @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
+                            in question, and which probably led to this method being called. Provided in case the
+                            logic to determine an Excel row needs to access some state of where the overall process
+                            is at, which the ManifestRepresenter tracks.
+        '''
+        if self.df_xy_2_excel_xy_mapper != None: 
+            #TODO - ADD SUPPORT FOR TRANSPOSES & REMOVE THIS METHOD IS SAME AS PARENT
+            excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper(   manifest_df             = self.data_df, 
+                                                                            manifest_df_row_number  = df_row_number, 
+                                                                            representer             = representer)
+            excel_col                   = self.x_offset + df_col_number
+            final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
+            return excel_row, excel_col, final_excel_row, final_excel_col
+        else:
+            if self.layout.is_transposed:
+                excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+                final_excel_col             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+    
+                excel_row                   = self.x_offset + df_col_number
+                final_excel_row             = self.x_offset + len(self.data_df.columns) - 1
+            else:
+                excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+                final_excel_row             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+    
+                excel_col                   = self.x_offset + df_col_number
+                final_excel_col             = self.x_offset + len(self.data_df.columns) - 1 
+        return excel_row, excel_col, final_excel_row, final_excel_col
 
 class PostingLabelXLWriteConfig(AsExcel_Config):
     '''
@@ -626,12 +857,11 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
         ME                          = PostingLabelXLWriteConfig
         self.editable_fields        = editable_fields
 
-        self.layout                 =  PostingLayout(ME._POSTING_LABEL)
-        self.layout.is_transposed   = True
+        self.layout                 =  PostingLayout(ME._POSTING_LABEL, is_transposed = True)
 
     _POSTING_LABEL              = "Posting Label"
 
-    def buildLayout(self, parent_trace, label_df):
+    def _buildLayout(self, parent_trace, label_df):
         ME                          = PostingLabelXLWriteConfig
         fields                      = label_df.columns
 
@@ -644,37 +874,64 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
                                         y_offset            = self.y_offset,
                                         has_headers         = True)
 
-
-    def df_row_2_excel_row(self, parent_trace, df_row_number, representer):
+    def build_displayable_df(self, parent_trace, content_df, representer):
         '''
-        Returns two int: the excel_row from the mapper, and the final_excel_row this posting label might populate.
+        Helper method to take the content of the posting label (in `content_df`) and create an
+        new DataFrame whose columns and rows are suitable to be rendered on an Excel spreadsheet.
 
-        1) excel row from mapper:
-                Determines the Excel row number in which to display a piece of datum that is originating on a 
-                DataFrame representation of a manifest, given the datum's row number in the dataframe.
+        The returned DataFrame (the "displayable_df") may differ from `content_df` in situations such as:
+
+        * Perhaps some columns are hidden, so displayable_df would not include those columns of content_df
+
+        Additionally, it takes this opportunity to build the layout for self.
+
+        @param representer A ManifestRepresenter instance that has the context for the process that is
+                        displaying possibly multiple manifests onto the same Excel workbook.
+        '''
+        displayable_cols    = [col for col in content_df.columns if not col in self.hidden_cols]
+        displayable_df      = content_df[displayable_cols]
+
+        self._buildLayout(parent_trace, content_df)
+
+        return displayable_df
+
+    def df_xy_2_excel_xy(self, parent_trace, df_row_number, df_col_number, representer):
+        '''
+        Maps layout x-y coordinates to excel row-column coordinates, taking into account offsets
+        and (if appropriate) any transpose.
+
+        Returns 4 integers:
+
+        1) and 2)  excel_row, excel_col
+                Determines the Excel row number and column number in which to display a piece of datum that 
+                is originating on a DataFrame representation of a manifest, given the datum's row number 
+                and column number in the dataframe.
 
                 Basically, it maps from DataFrame row numbers to Excel row numbers, leveraging the knowledge
                 that has been configured in this config object in order to make that determination.
-        2) final excel row for manifest:
-                It also computes the last row in Excel that this manifest would be populating, to demarcate
+
+        2) last_excel_row, last_excel_col for manifest:
+                It also computes the last row and column in Excel that this manifest would be populating, to demarcate
                 the end of a region.
     
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
                                     to be displayed appears.
+        @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
+                                    displayed appears.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process
                             is at, which the ManifestRepresenter tracks.
         '''
-        excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+        # Posting labels are transposed
+        excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the 
+        
+        final_excel_col             = None #self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+ 
+        excel_row                   = self.x_offset + df_col_number
+        final_excel_row             = None #self.x_offset + len(self.data_df.columns) - 1
 
-        #manifest_identifer          = self.getName(parent_trace) # Something like "big-rock.0"
-
-        #content_df                  = representer.content_df_dict[manifest_identifer]
-
-        #final_excel_row             = self.y_offset + len(content_df.index) # Don't do len(index)-1 since headers add a row
-
-        return excel_row, None #final_excel_row
+        return excel_row, excel_col, final_excel_row, final_excel_col
 
 
 class AsExcel_Config_Table():
@@ -690,8 +947,10 @@ class AsExcel_Config_Table():
         '''
         @param config A ManifestXLWriteConfig object for a manifest
         '''
-        if type(xlw_config) != ManifestXLWriteConfig:
-            raise ApodeixiError(parent_trace, "Expected a ManifestXLWriteConfig, but instead was given a " + str(type(config)))
+        if not issubclass(type(xlw_config), ManifestXLWriteConfig):
+            raise ApodeixiError(parent_trace, "Expected something derived from 'ManifestXLWriteConfig', "
+                                                + "but instead was given a '" 
+                                                + str(type(xlw_config).__name__) + "'")
     
         name                                = xlw_config.getName(parent_trace)
         self.manifest_xlw_config_dict[name] = xlw_config

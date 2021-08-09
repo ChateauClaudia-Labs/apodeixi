@@ -167,7 +167,8 @@ class SkeletonController(PostingController):
             data_df             = manifest_info.getManifestContents(parent_trace)
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             xlw_config          = ManifestXLWriteConfig(sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                                        manifest_name       = key,    
+                                                        manifest_name       = key,
+                                                        is_transposed       = False,     
                                                         viewport_width      = 100,  
                                                         viewport_height     = 40,   
                                                         max_word_length     = 20, 
