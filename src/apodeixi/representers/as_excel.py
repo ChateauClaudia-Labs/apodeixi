@@ -1,13 +1,11 @@
-
 import xlsxwriter
-
 import pandas                               as _pd
-
 from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
 
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.util.path_utils               import PathUtils
 from apodeixi.util.formatting_utils         import StringUtils
+from apodeixi.util.dataframe_utils          import DataFrameUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
 from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
@@ -286,8 +284,17 @@ class ManifestRepresenter:
             fmt_dict['num_format'] = num_format
 
         fmt             = workbook.add_format(fmt_dict)
-        #worksheet.write(xl_y, xl_x, val, fmt)
-        worksheet.write(excel_row, excel_col, val, fmt)
+        
+        try:
+            clean_val   = DataFrameUtils().clean(val)
+            worksheet.write(excel_row, excel_col, clean_val, fmt)
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Encountered a problem when writing a cell in Excel",
+                                            data = {"problematic val":  str(clean_val),
+                                                    "error":            str(ex),
+                                                    "layout.name":      str(layout.name),
+                                                    "excel row":        str(excel_row),
+                                                    "excel column":     str(excel_col)})
 
 
     def _populate_worksheet(self, parent_trace, content_df, xlw_config, workbook, worksheet):

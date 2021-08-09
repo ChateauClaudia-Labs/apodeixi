@@ -50,21 +50,27 @@ class SkeletonController(PostingController):
         '''
         excel_filename              = posting_label_handle.excel_filename
 
-        root_trace                  = parent_trace.doing("Applying Excel posting", 
+        my_trace                    = parent_trace.doing("Applying Excel posting", 
                                                             origination = {'signaled_from' : __file__})
         manifest_file               = StringUtils().rreplace(excel_filename, 'xlsx', 'yaml')
-        all_manifests_dicts, label  = self._buildAllManifests(root_trace, posting_label_handle)
+        all_manifests_dicts, label  = self._buildAllManifests(my_trace, posting_label_handle)
 
         response                    = PostResponse()
         for manifest_nb in all_manifests_dicts.keys():
-            loop_trace              = root_trace.doing("Persisting manifest in store",
+            loop_trace              = my_trace.doing("Persisting manifest in store",
                                                         data = {'manifest_nb': manifest_nb}, 
                                                         origination = {'signaled_from' : __file__})
             manifest_dict           = all_manifests_dicts[manifest_nb]
-            read_only               = label.readOnly            (parent_trace, manifest_nb)
-            if read_only == None or read_only == False:
-                self.store.persistManifest(root_trace, manifest_dict)
-                response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict)
+            read_only               = label.readOnly            (loop_trace, manifest_nb)
+            if read_only == True:
+                response.recordUnchanged(parent_trace=loop_trace, manifest_dict=manifest_dict, manifest_nb=manifest_nb)
+            else:
+                self.store.persistManifest(loop_trace, manifest_dict)
+                version             = ManifestUtils().get_manifest_version(loop_trace, manifest_dict)
+                if version == 1:
+                    response.recordCreation(parent_trace=loop_trace, manifest_dict=manifest_dict, manifest_nb=manifest_nb)
+                else:
+                    response.recordUpdate(parent_trace=loop_trace, manifest_dict=manifest_dict, manifest_nb=manifest_nb)
 
         my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
                                                             + "creating manifests",
@@ -72,7 +78,9 @@ class SkeletonController(PostingController):
         archival_handle             = self.store.archivePosting(my_trace, posting_label_handle)
         response.recordArchival(my_trace, posting_label_handle, archival_handle)
 
-        manifest_handles            = [h for h in response.createdManifests() + response.updatedManifests()]
+        manifest_handles            = response.allActiveManifests(my_trace)
+        #[h for h in response.createdManifests() + response.updatedManifests()
+        #                                    + response.unchangedManifests()]
         form_request                = posting_label_handle.createUpdateForm(my_trace, manifest_handles)
         response.recordOptionalForm(my_trace, form_request)
 

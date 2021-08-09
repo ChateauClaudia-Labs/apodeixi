@@ -42,7 +42,7 @@ class WorkstreamAggregator():
         for idx in successes.keys():
             loop_trace                          = my_trace.doing("Processing response to posting handle #" + str(idx))
             response                            = successes[idx]
-            for handle              in response.createdManifests():
+            for handle              in response.createdManifests() + response.updatedManifests():
                 if handle.kind != 'workstream-metric':
                     continue # We are only aggregating metrics here
                 inner_loop_trace                = loop_trace.doing("Retrieving manifest for manifest handle " + str(handle),

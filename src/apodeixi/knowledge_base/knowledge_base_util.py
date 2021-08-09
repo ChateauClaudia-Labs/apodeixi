@@ -282,9 +282,14 @@ class Response():
     @internal manifest_handles_dict A dictionary explaining what changed as a consequence of processing this request
                                     in the manifests section of the store.
                                     Keys are Response.CREATED, Response.UPDATED, and Response.DELETED. 
-                                    Values are lists
-                                    (possibly empty) with ManifestHandle objects, one for each manifest that was either
-                                    created, updated or deleted by the request in quesion.
+                                    Also supports key Response.UNCHANGED, for manifests (such as reference manifests
+                                    used in joins by other manifests being created or updated within a single posting)
+                                    that were involved in the processing by the controller, but were not saved.
+                                    Values are (possibly empty) dictionaries where keys are integers that uniquely
+                                    identify a manifest for the controller that generated the response, and the values
+                                    are ManifestHandle objects for such manifest.
+                                    There is one such entry in for each manifest that was processed by the controller and
+                                    either created, updated, deleted or unchanged by the request in quesion.
     @internal posting_handles_dict A dictionary explaining what changed as a consequence of processing this request
                                     in the postings section of the store. 
                                     Keys are: Response.ARCHIVED. 
@@ -309,7 +314,8 @@ class Response():
                                     Milestones manifests to indicate the milestone containing that new rock.
     '''
     def __init__(self):
-        self.manifest_handles_dict          = {Response.CREATED: [], Response.UPDATED: [], Response.DELETED: []}
+        self.manifest_handles_dict          = { Response.CREATED: {},   Response.UPDATED: {}, 
+                                                Response.DELETED: {},   Response.UNCHANGED: {}}
         self.posting_handles_dict           = {Response.ARCHIVED: []}
         self.clientURL_handles_dict         = {Response.CREATED: []}
         self.form_requests_dict             = {Response.OPTIONAL_FORMS: [], Response.MANDATORY_FORMS: []}
@@ -317,6 +323,7 @@ class Response():
     CREATED                                 = 'CREATED' 
     UPDATED                                 = 'UPDATED' 
     DELETED                                 = 'DELETED'  
+    UNCHANGED                               = 'UNCHANGED'
 
     ARCHIVED                                = 'ARCHIVED'   
 
@@ -324,13 +331,39 @@ class Response():
     MANDATORY_FORMS                         = 'MANDATORY_FORMS'  
 
     def createdManifests(self):
-        return self.manifest_handles_dict[Response.CREATED]
+        return list(self.manifest_handles_dict[Response.CREATED].values())
 
     def updatedManifests(self):
-        return self.manifest_handles_dict[Response.UPDATED]
+        return list(self.manifest_handles_dict[Response.UPDATED].values())
 
     def deletedManifests(self):
-        return self.manifest_handles_dict[Response.DELETED]
+        return list(self.manifest_handles_dict[Response.DELETED].values())
+
+    def unchangedManifests(self):
+        return list(self.manifest_handles_dict[Response.UNCHANGED].values())
+
+    def allActiveManifests(self, parent_trace):
+        '''
+        Returns a list of ManifestHandles in this response corresponding to create, update, or unchanged
+        events (so it does not include deletes, since those are not "active").
+
+        Typical use case is for the caller to want such list in order to assemble a list of forms that
+        are needed if in the future the user wants to update the manifests manipulated by the controller
+        that produced this response.
+
+        For deterministic reasons (so that caller can process them in the right sequence of dependencies),
+        the list of ManifestHandles is *sorted* based on the manifest_nb that was passed to this Response
+        object when the manifest was recorded into the response.
+        '''
+        all_handles_dict    = self.manifest_handles_dict[Response.CREATED] | self.manifest_handles_dict[Response.UPDATED] \
+                                | self.manifest_handles_dict[Response.UNCHANGED]
+        all_manifest_nbs    = list(all_handles_dict.keys())
+        all_manifest_nbs.sort()
+        result              = []
+        for nb in all_manifest_nbs:
+            result.append(all_handles_dict[nb])
+        return result
+
 
     def archivedPostings(self):
         return self.posting_handles_dict[Response.ARCHIVED]   
@@ -351,7 +384,7 @@ class PostResponse(Response):
     def __init__(self):
         super().__init__()
 
-    def recordCreation(self, parent_trace, manifest_dict):
+    def recordCreation(self, parent_trace, manifest_dict, manifest_nb):
         '''
         Used to enrich the content of this PostResponse by recording that a manifest was created
 
@@ -359,7 +392,29 @@ class PostResponse(Response):
                                 since those are mandatory fields for all manifests.
         '''
         handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
-        self.manifest_handles_dict[Response.CREATED].append(handle)
+        self.manifest_handles_dict[Response.CREATED][manifest_nb] = handle
+
+    def recordUpdate(self, parent_trace, manifest_dict, manifest_nb):
+        '''
+        Used to enrich the content of this PostResponse by recording that a manifest was updated
+
+        @param manifest_dict A dictionary representation of a manifest. It must have 'metadata.name', 
+                                'metadata.namespace' and 'kind'
+                                since those are mandatory fields for all manifests.
+        '''
+        handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+        self.manifest_handles_dict[Response.UPDATED][manifest_nb] = handle
+
+    def recordUnchanged(self, parent_trace, manifest_dict, manifest_nb):
+        '''
+        Used to enrich the content of this PostResponse by recording that a manifest was not changed
+
+        @param manifest_dict A dictionary representation of a manifest. It must have 'metadata.name', 
+                                'metadata.namespace' and 'kind'
+                                since those are mandatory fields for all manifests.
+        '''
+        handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+        self.manifest_handles_dict[Response.UNCHANGED][manifest_nb] = handle
 
     def recordArchival(self, parent_trace, original_handle, archival_handle):
         self.posting_handles_dict[Response.ARCHIVED].append([original_handle, archival_handle])

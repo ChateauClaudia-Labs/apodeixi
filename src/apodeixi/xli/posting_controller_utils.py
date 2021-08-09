@@ -467,7 +467,10 @@ class PostingLabel():
         ctx = {}
 
         for appearance in appearances:
-            ctx[appearance]     = label_df.iloc[0][appearance] # label_df has exactly one row (we checked earlier in this function)
+            val                 = label_df.iloc[0][appearance] # label_df has exactly one row (we checked earlier in this function)
+            clean_val           = DataFrameUtils().clean(val) # Get rid of nan, etc.
+            ctx[appearance]     = clean_val
+            
             
         # Special validations for date fields - we only support "one appearance" for such fields. I.e.,
         # don't currently support something like "posted-on.0", "posted-on.1", "posted-on.2". Only support "posted-on"

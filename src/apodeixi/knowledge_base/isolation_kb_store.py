@@ -1023,6 +1023,9 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         for handle in controller_response.deletedManifests():
             log_txt                         += "\nDELETED MANIFEST:        " + handle.display(parent_trace) + "\n"
 
+        for handle in controller_response.unchangedManifests():
+            log_txt                         += "\nUNCHANGED MANIFEST:        " + handle.display(parent_trace) + "\n"
+
         for handle1, handle2 in controller_response.archivedPostings():
             log_txt                         += "\nARCHIVED POSTING FROM:   " + handle1.display(parent_trace)
             log_txt                         += "\n             TO:         " + handle2.display(parent_trace) + "\n"

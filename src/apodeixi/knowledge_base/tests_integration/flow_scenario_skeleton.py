@@ -196,15 +196,16 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
 
 
     def check_manifest_count(self, parent_trace, posting_response, nb_manifests_expected):
-        # Check we created as many manifests as was expected
-        if len(posting_response.createdManifests()) != nb_manifests_expected:
+        # Check we created or updated as many manifests as was expected
+        created_or_updated      = len(posting_response.createdManifests()) + len(posting_response.updatedManifests())
+        if created_or_updated != nb_manifests_expected:
             raise ApodeixiError(parent_trace, 'Expected ' + str(nb_manifests_expected) + ' manifests, but found ' 
-                                + str(len(posting_response.createdManifests())))
+                                + str(created_or_updated))
 
     def check_manifests_contents(self, parent_trace, posting_response):
         # Retrieve the manifests created and check they have the data we expect
         manifest_dict                       = {}
-        for handle in posting_response.createdManifests():
+        for handle in posting_response.createdManifests() + posting_response.updatedManifests():
             loop_trace                      = self.trace_environment(parent_trace, "Retrieving manifest for handle " 
                                                                                     + str(handle))
             manifest_dict, manifest_path    = self.stack().store().retrieveManifest(loop_trace, handle)
