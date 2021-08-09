@@ -168,6 +168,7 @@ class SkeletonController(PostingController):
             editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
             xlw_config          = ManifestXLWriteConfig(sheet               = SkeletonController.GENERATED_FORM_WORKSHEET,
                                                         manifest_name       = key,
+                                                        read_only           = False,
                                                         is_transposed       = False,     
                                                         viewport_width      = 100,  
                                                         viewport_height     = 40,   
@@ -935,18 +936,19 @@ class SkeletonController(PostingController):
             That is why it can't be called within label.read(-) at the PostingLabel parent class level,
             and why the design choice was made to have the calling code invoke this check right after calling label.read()
             '''
-            expected_organization           = self.controller.a6i_config.getOrganization(parent_trace)
-            allowed_kb_areas                = self.controller.a6i_config.getKnowledgeBaseAreas(parent_trace)
+            my_trace                        = parent_trace.doing("Checking referential integrity")
+            expected_organization           = self.controller.a6i_config.getOrganization(my_trace)
+            allowed_kb_areas                = self.controller.a6i_config.getKnowledgeBaseAreas(my_trace)
 
-            if self.organization(parent_trace) != expected_organization:
-                raise ApodeixiError(parent_trace, "Invalid organization field in Posting Label",
+            if not StringUtils().equal_as_yaml(self.organization(my_trace), expected_organization):
+                raise ApodeixiError(my_trace, "Invalid organization field in Posting Label",
                                 data = {    "Expected":     str(expected_organization),
-                                            "Submitted":    str(self.organization(parent_trace))})
+                                            "Submitted":    str(self.organization(my_trace))})
 
-            if not self.knowledgeBaseArea(parent_trace) in allowed_kb_areas:
-                raise ApodeixiError(parent_trace, "Invalid knowledge base field in Posting Label",
+            if not StringUtils().is_in_as_yaml(txt = self.knowledgeBaseArea(my_trace), a_list = allowed_kb_areas):
+                raise ApodeixiError(my_trace, "Invalid knowledge base field in Posting Label",
                                 data = {    "Allowed any of":   str(allowed_kb_areas),
-                                            "Submitted":        str(self.knowledgeBaseArea(parent_trace))})
+                                            "Submitted":        str(self.knowledgeBaseArea(my_trace))})
 
         def infer(self, parent_trace, manifest_dict, manifest_key):
             '''

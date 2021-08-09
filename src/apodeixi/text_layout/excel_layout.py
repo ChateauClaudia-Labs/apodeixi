@@ -450,7 +450,8 @@ class AsExcel_Config():
                 the end of a region.
     
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears.
+                                    to be displayed appears. If it is -1, then it is assumed to correspond
+                                    to the headers
         @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
                                     displayed appears.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
@@ -528,7 +529,8 @@ class ManifestXLWriteConfig(AsExcel_Config):
                                     its state needs to be interrogated.
 
     '''
-    def __init__(self, manifest_name,  is_transposed, sheet,  viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+    def __init__(self, manifest_name,  read_only, is_transposed, sheet,  
+                                viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
                                 excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
@@ -541,6 +543,8 @@ class ManifestXLWriteConfig(AsExcel_Config):
         self.editable_headers       = editable_headers
 
         self.manifest_name          = manifest_name
+        
+        self.read_only              = read_only
 
         self.layout                 =  PostingLayout(manifest_name, is_transposed)
 
@@ -612,7 +616,8 @@ class ManifestXLWriteConfig(AsExcel_Config):
                 the end of a region.
     
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears.
+                                    to be displayed appears. If it is -1, then it is assumed to correspond
+                                    to the headers
         @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
                                     displayed appears.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
@@ -622,7 +627,13 @@ class ManifestXLWriteConfig(AsExcel_Config):
         '''
         if self.df_xy_2_excel_xy_mapper != None:
             # TODO - ADD SUPPORT FOR transposes
-            excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper(   manifest_df             = self.data_df, 
+            if df_row_number == -1: 
+                # TODO - For now we can't support mappers for headers (header is when df_row_number=-1), as there 
+                # is no UID to map to
+                excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+                final_excel_row             = None # Doesn't matter what this is if we are doing headers
+            else:
+                excel_row, final_excel_row  = self.df_xy_2_excel_xy_mapper( manifest_df             = self.data_df, 
                                                                             manifest_df_row_number  = df_row_number, 
                                                                             representer             = representer)
             excel_col                   = self.x_offset + df_col_number
@@ -656,13 +667,13 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
     
 
     '''
-    def __init__(self, manifest_name,  referenced_manifest_name, my_entity, mapped_entity, is_transposed, sheet,  
+    def __init__(self, manifest_name,  read_only, referenced_manifest_name, my_entity, mapped_entity, is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
                                 excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
 
-        super().__init__(manifest_name,  is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
+        super().__init__(manifest_name, read_only, is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
                                 editable_cols,   hidden_cols, num_formats, editable_headers, 
                                 excel_formulas,  df_xy_2_excel_xy_mapper,
                                 x_offset,    y_offset)
@@ -670,6 +681,9 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         self.my_entity                  = my_entity
         self.referenced_manifest_name   = referenced_manifest_name
         self.mapped_entities            = mapped_entity
+
+        self.original_content_df        = None # Will be the original manifest content, as it is in the YAML manifest
+        self.data_df                    = None # Will be built by enriching the original_content_df with extra columns for each referenced UID
 
     def _buildLayout(self, parent_trace, content_df): # Not yet changed from parent
         columns                         = list(content_df.columns)
@@ -756,7 +770,9 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                     return ""
             return do_it
 
-        # Now add the new columns to an enriched df
+        # Now add the new columns to an enriched df. And we remember the original content df for 
+        # future reference
+        self.original_content_df        = content_df
         enriched_df                     = content_df.copy()
         for uid in all_mapped_UIDs:
             enriched_df[uid]         = enriched_df.apply(lambda row: put_an_x_on_mappings(uid)(row), axis = 1) 
@@ -795,7 +811,8 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                 the end of a region.
     
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears.
+                                    to be displayed appears. If it is -1, then it is assumed to correspond
+                                    to the headers
         @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
                                     displayed appears.
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
@@ -812,18 +829,32 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
             final_excel_col             = self.x_offset + len(self.data_df.columns) - 1
             return excel_row, excel_col, final_excel_row, final_excel_col
         else:
-            if self.layout.is_transposed:
-                excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
-                final_excel_col             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
-    
-                excel_row                   = self.x_offset + df_col_number
-                final_excel_row             = self.x_offset + len(self.data_df.columns) - 1
-            else:
-                excel_row                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
-                final_excel_row             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
-    
-                excel_col                   = self.x_offset + df_col_number
-                final_excel_col             = self.x_offset + len(self.data_df.columns) - 1 
+            if not self.layout.is_transposed:
+                raise ApodeixiError(parent_trace, "Sorry, mapping between manifests is only suppored when referening "
+                                                    + "manifest is transposed")
+
+            link_table                  = representer.link_table
+            column                      = self.data_df.columns[df_col_number]
+
+            if column in self.original_content_df.columns: # This was not an enriched column
+                excel_row               = self.x_offset + df_col_number
+            else: # this is an enriched column correponding to a UID in another reference manifest
+                referenced_uid          = column
+                excel_row               = link_table.row_from_uid(  parent_trace        = parent_trace, 
+                                                                    manifest_identifier = self.referenced_manifest_name, 
+                                                                    uid                 = referenced_uid)
+                if excel_row == None:
+                    raise ApodeixiError(parent_trace, "Manifest seems corrupted: it references " + str(referenced_uid)
+                                            + " in another manifest called '" + str(self.referenced_manifest_name)
+                                            + "' but this other manifest lacks such UID")
+
+            final_excel_row             = link_table.last_row_number(   
+                                                                    parent_trace        = parent_trace,
+                                                                    manifest_identifier = self.referenced_manifest_name)
+
+            excel_col                   = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
+            final_excel_col             = self.y_offset + len(self.data_df.index) # Don't do len(index)-1 since headers add a row
+
         return excel_row, excel_col, final_excel_row, final_excel_col
 
 class PostingLabelXLWriteConfig(AsExcel_Config):
@@ -915,9 +946,10 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
                 the end of a region.
     
         @param df_row_number An int, representing the row number in a DataFrame in which the datum
-                                    to be displayed appears.
+                                    to be displayed appears. If it is -1, then it is assumed to correspond
+                                    to the headers
         @param df_col_number An int, representing the column number in a DataFrame in which the datum to be
-                                    displayed appears.
+                                    displayed appears. 
         @param representer A ManifestReprenter object that is running the process of writing the Excel spreadsheet
                             in question, and which probably led to this method being called. Provided in case the
                             logic to determine an Excel row needs to access some state of where the overall process

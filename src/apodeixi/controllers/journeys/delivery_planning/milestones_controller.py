@@ -1,5 +1,7 @@
 import pandas as                                                            _pd
+
 from apodeixi.util.a6i_error                                                import ApodeixiError
+from apodeixi.util.formatting_utils                                         import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label import JourneysPostingLabel
@@ -107,6 +109,7 @@ class MilestonesController(JourneysController):
                 xlw_config  = ManifestXLWriteConfig( 
                                             sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
                                             manifest_name               = key, 
+                                            read_only                   = True,
                                             is_transposed               = is_transposed,    
                                             viewport_width              = 100,  
                                             viewport_height             = 40,   
@@ -140,6 +143,7 @@ class MilestonesController(JourneysController):
                 xlw_config  = MappedManifestXLWriteConfig( 
                                             sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
                                             manifest_name               = key, 
+                                            read_only                   = False,
                                             referenced_manifest_name    = 'big-rock.0',
                                             my_entity                   = "milestone", 
                                             mapped_entity               = "big-rock",
@@ -286,6 +290,10 @@ class MilestonesController(JourneysController):
         def entity_name(self):
             ME                      = MilestonesController._MilestonesConfig
             return ME._ENTITY_NAME
+
+        def entity_as_yaml_fieldname(self):
+            ME                          = MilestonesController._MilestonesConfig
+            return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
 
     class _MyPostingLabel(JourneysPostingLabel):
         '''

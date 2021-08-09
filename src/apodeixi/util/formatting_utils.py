@@ -37,6 +37,42 @@ class StringUtils():
         
         return tyt.strip().lower().replace(' ', '-')
 
+    def equal_as_yaml(self, txt_1, txt_2):
+        '''
+        Returns a boolean:
+
+        * True if both `txt_1` and `txt_2` are strings and their conversions to a YAML field are equal
+        * False otherwise
+        '''
+        if type(txt_1) != str or type(txt_2) != str:
+            return False
+        
+        yaml_1          = self.format_as_yaml_fieldname(txt_1)
+        yaml_2          = self.format_as_yaml_fieldname(txt_2)
+
+        if yaml_1 == yaml_2:
+            return True
+        else:
+            return False
+
+    def is_in_as_yaml(self, txt, a_list):
+        '''
+        Returns a boolean:
+
+        * True if `txt` is a string and `a_list` is a list and the YAML conversion of `txt` belongs to the
+          element-wise YAML conversion of `a_list`
+        * False otherwise
+        '''
+        if type(txt) != str or type(a_list) != list:
+            return False
+        yaml_txt        = self.format_as_yaml_fieldname(txt)
+        yaml_list       = [self.format_as_yaml_fieldname(elt) for elt in a_list]
+
+        if yaml_txt in yaml_list:
+            return True
+        else:
+            return False
+
     def is_blank(self, txt):
         '''
         Returns True if 'txt' is a string of just spaces. Else it returns False

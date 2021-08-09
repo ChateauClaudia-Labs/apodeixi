@@ -151,6 +151,7 @@ class BigRocksEstimate_Controller(JourneysController):
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
                                                 manifest_name               = key, 
+                                                read_only                   = False,
                                                 is_transposed               = False,    
                                                 viewport_width              = 100,  
                                                 viewport_height             = 40,   

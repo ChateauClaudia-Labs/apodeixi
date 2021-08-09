@@ -71,8 +71,8 @@ class Test_BasicPostingFlows(FlowScenarioSkeleton):
         self.selectTestDataLocation()
 
         EXCEL_RELATIVE_PATH             = "journeys/Dec 2020/Jack Henry/OfficialPlan" # Match product code in static data
-        EXCEL_FILE                      = "jackhenry.milestone.journeys.a6i.xlsx"
-        NB_MANIFESTS_EXPECTED           = 2
+        EXCEL_FILE                      = "Jack Henry.milestone.journeys.a6i.xlsx"
+        NB_MANIFESTS_EXPECTED           = 1 # Not 2, since big-rock manifest will be read-only
 
         
         self._run_basic_flow(   from_nothing                = True,

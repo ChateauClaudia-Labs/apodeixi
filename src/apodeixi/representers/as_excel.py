@@ -119,22 +119,28 @@ class ManifestRepresenter:
 
             if xlw_config.layout.is_transposed:
                 # Add an extra columns, for the headers
-                x_1             += 1
+                y_1             += 1
+                cell_0          = xl_rowcol_to_cell(x_0, y_0) 
+                cell_1          = xl_rowcol_to_cell(x_1, y_1)
             else: 
                 # Add an extra row, for the headers
                 y_1             += 1
-
-            cell_0              = xl_rowcol_to_cell(y_0, x_0) 
+                cell_0          = xl_rowcol_to_cell(y_0, x_0) 
+                cell_1          = xl_rowcol_to_cell(y_1, x_1)
 
             # x_i, y_i start at 0, whereas Excel ranges start at 1. 
-            cell_1              = xl_rowcol_to_cell(y_1, x_1)
+            
 
-            DATA_KIND           = 'data.kind.'     + str(nb)
-            DATA_RANGE          = 'data.range.'    + str(nb)
-            DATA_SHEET          = 'data.sheet.'    + str(nb)
+            DATA_KIND           = 'data.kind.'      + str(nb)
+            DATA_RANGE          = 'data.range.'     + str(nb)
+            DATA_SHEET          = 'data.sheet.'     + str(nb)
+            READ_ONLY           = 'readOnly.'       + str(nb)
             self.label_ctx['data.kind.'     + str(nb)]     = kind
             self.label_ctx['data.range.'    + str(nb)]     = cell_0 + ":" + cell_1
             self.label_ctx['data.sheet.'    + str(nb)]     = xlw_config.sheet
+
+            if xlw_config.read_only == True:
+                self.label_ctx[READ_ONLY]     = True
 
             label_xlw_config.editable_fields.extend([DATA_RANGE, DATA_SHEET])
 
@@ -367,13 +373,19 @@ class ManifestRepresenter:
                 layout_x                = xlw_config.x_offset + layout_idx
                 layout_y                = xlw_config.y_offset 
 
+                excel_row, excel_col, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
+                                                                            parent_trace            = parent_trace, 
+                                                                            df_row_number           = -1, # -1 for headers
+                                                                            df_col_number           = layout_idx,
+                                                                            representer             = self)
+                '''
                 if layout.is_transposed:
                     excel_row           = layout_x
                     excel_col           = layout_y
                 else:
                     excel_row           = layout_y
                     excel_col           = layout_x
-
+                '''
                 self._write_val(        parent_trace        = loop_trace, 
                                         workbook            = workbook, 
                                         worksheet           = worksheet, 

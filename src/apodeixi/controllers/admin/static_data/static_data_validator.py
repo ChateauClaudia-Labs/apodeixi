@@ -75,7 +75,11 @@ class StaticDataValidator():
                     scoring_cycle       = row[1][SCORING_CYCLE_COL]
                     scenario            = row[1][SCENARIO_COL]
 
-                    if alleged_journey == journey and alleged_scoring_cycle == scoring_cycle and alleged_scenario == scenario:
+                    EQ                  = StringUtils().equal_as_yaml
+
+                    if EQ(alleged_journey, journey) and EQ(alleged_scoring_cycle, scoring_cycle) \
+                                                    and EQ(alleged_scenario, scenario):
+                    #if alleged_journey == journey and alleged_scoring_cycle == scoring_cycle and alleged_scenario == scenario:
                         # Good, we have a match so that Posting Label is referencing things that exist.
                         # So just return, validation is a success
                         return

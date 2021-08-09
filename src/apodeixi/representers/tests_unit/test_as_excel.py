@@ -43,6 +43,7 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
             
             xlw_config          = ManifestXLWriteConfig(sheet               = SHEET,
                                                         manifest_name       = MANIFEST_NAME,
+                                                        read_only           = False,
                                                         is_transposed       = False,     
                                                         viewport_width      = 100,  
                                                         viewport_height     = 40,   

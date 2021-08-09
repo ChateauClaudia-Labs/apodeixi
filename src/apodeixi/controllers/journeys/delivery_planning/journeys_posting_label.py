@@ -18,10 +18,10 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
         ME = JourneysPostingLabel
 
         combined_mandatory_fields               = [ ME._PRODUCT,        ME._JOURNEY,            ME._SCENARIO,    # Determine name  
-                                                    ME._SCORING_CYCLE,  ME._SCORING_MATURITY]
+                                                    ME._SCORING_CYCLE,  ]
         combined_mandatory_fields.extend(mandatory_fields)
 
-        combined_optional_fields                = []
+        combined_optional_fields                = [ME._SCORING_MATURITY]
         combined_optional_fields.extend(optional_fields)
 
         combined_date_fields                    = []
