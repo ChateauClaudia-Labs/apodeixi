@@ -22,6 +22,23 @@ class ApodeixiSkeletonTest(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
+        def _path_mask(path):
+            tokens                                          = path.split('apodeixi')
+            masked_path                                     = '<MASKED>/apodeixi' + "/".join(tokens[1:])
+            return masked_path
+
+        # Used by derived classes to mask some paths that are logged out so that regression output is
+        # deterministic
+        self._path_mask                                     = _path_mask
+
+        self.activateTestConfig()
+
+
+    def activateTestConfig(self):
+        '''
+        Modifies environment variables to ensure that Apodeixi uses a configuration specific for tests.
+        This change endures until the dual method self.deactivateTestConfig() is called.
+        '''
         # Remember it before we change it to use a test configuration, and then restore it in the tearDown method
         self.original_config_directory                      = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 
@@ -30,28 +47,28 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # So we use __file__ 
         _os.environ['APODEIXI_CONFIG_DIRECTORY']            = _os.path.join(_os.path.dirname(__file__), 'config') 
 
-        def _path_mask(path):
-            tokens                                          = path.split('apodeixi')
-            masked_path                                     = '<MASKED>/apodeixi' + "/".join(tokens[1:])
-            return masked_path
-
-        # Used by derived classes to mask some paths that are logged out so that regressino output is
-        # deterministic
-        self._path_mask                                     = _path_mask
-
         root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
                                                                         origination = {'signaled_from': __file__})
         self.a6i_config                = ApodeixiConfig(root_trace)
 
-    def tearDown(self):
-        super().tearDown()
-
+    def deactivateTestConfig(self):
+        '''
+        Restores process to state before the dual method seld.activateTestConfig was called.
+        In particular, environment variables are restored to their original value
+        '''
         # Restore the environment variable that we modeified in setUp
         old_dir                                             = self.original_config_directory
         # Dictionaries abhor null values, so default of empty string if null. 
         if old_dir == None:
             old_dir                                         = ''
         _os.environ['APODEIXI_CONFIG_DIRECTORY']            = old_dir
+
+    def tearDown(self):
+        super().tearDown()
+
+        self.deactivateTestConfig()
+
+
 
     def load_csv(self, parent_trace, path):
         '''

@@ -113,7 +113,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             # Check parameters are indeed directories
             if not _os.path.isdir(kb_rootdir):
                 raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore because an invalid directory was given "
-                                                    + " for the root of the KnoweldgeBaseStore",
+                                                    + " for the root of the KnowledgeBaseStore",
                                                     data = {"kb_rootdir": kb_rootdir})
             if not _os.path.isdir(clientURL):
                 raise ApodeixiError(parent_trace, "Unable to initialize KnowledgeBaseStore because an invalid directory was given "

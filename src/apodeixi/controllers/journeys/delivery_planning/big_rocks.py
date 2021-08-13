@@ -9,6 +9,7 @@ from apodeixi.controllers.journeys.delivery_planning.journeys_controller     imp
 
 from apodeixi.text_layout.excel_layout                                      import AsExcel_Config_Table, \
                                                                                 ManifestXLWriteConfig, \
+                                                                                JoinedManifestXLWriteConfig, \
                                                                                 NumFormats, ExcelFormulas
 
 from apodeixi.xli.interval                                                  import IntervalUtils, GreedyIntervalSpec, \
@@ -103,6 +104,21 @@ class BigRocksEstimate_Controller(JourneysController):
                 num_formats                 = {}
                 excel_formulas              = None
                 df_xy_2_excel_xy_mapper   = None
+                xlw_config  = ManifestXLWriteConfig(sheet                   = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                manifest_name               = key, 
+                                                read_only                   = False,
+                                                is_transposed               = False,    
+                                                viewport_width              = 100,  
+                                                viewport_height             = 40,   
+                                                max_word_length             = 20, 
+                                                editable_cols               = editable_cols,
+                                                hidden_cols                 = hidden_cols,  
+                                                num_formats                 = num_formats, 
+                                                excel_formulas              = excel_formulas,
+                                                df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
+                                                editable_headers            = [],   
+                                                x_offset                    = x_offset,    
+                                                y_offset                    = y_offset)
             elif key == 'big-rock-estimate.1':
                 # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
                 # make a join, and pass the mapper that effects this associate
@@ -138,7 +154,22 @@ class BigRocksEstimate_Controller(JourneysController):
                     raise ApodeixiError(loop_trace, "Can't format Excel for '" + key + "' because variant is unsupported",
                                             data = {"variant given":        str(self.variant),
                                                     "supported variants": str([ME.VARIANT_BURNOUT, ME.VARIANT_EXPLAINED])})
-
+                xlw_config  = JoinedManifestXLWriteConfig(sheet             = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                                manifest_name               = key, 
+                                                read_only                   = False,
+                                                referenced_manifest_name    = 'big-rock.0',
+                                                is_transposed               = False,    
+                                                viewport_width              = 100,  
+                                                viewport_height             = 40,   
+                                                max_word_length             = 20, 
+                                                editable_cols               = editable_cols,
+                                                hidden_cols                 = hidden_cols,  
+                                                num_formats                 = num_formats, 
+                                                excel_formulas              = excel_formulas,
+                                                df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
+                                                editable_headers            = [],   
+                                                x_offset                    = x_offset,    
+                                                y_offset                    = y_offset)
             elif key == 'investment.2':
                 hidden_cols                 = ['UID']
                 right_margin                = 1
@@ -147,9 +178,7 @@ class BigRocksEstimate_Controller(JourneysController):
                 excel_formulas              = ExcelFormulas(key)
                 excel_formulas.addCumulativeSum(parent_trace, 'Incremental')
                 df_xy_2_excel_xy_mapper   = None
-            else:
-                raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
-            xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
+                xlw_config  = ManifestXLWriteConfig(sheet                   = SkeletonController.GENERATED_FORM_WORKSHEET,
                                                 manifest_name               = key, 
                                                 read_only                   = False,
                                                 is_transposed               = False,    
@@ -164,6 +193,9 @@ class BigRocksEstimate_Controller(JourneysController):
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)
+            else:
+                raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
+
             # Put next manifest to the right of this one, separated by an empty column
             x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
             xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)

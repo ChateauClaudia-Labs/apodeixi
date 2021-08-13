@@ -20,9 +20,10 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         EXCEL_FILES                 = [ "products.static-data.admin.a6i.xlsx",
                                         "scoring-cycles.static-data.admin.a6i.xlsx"]
 
-        my_trace                    = parent_trace.doing("Setting up product static data")
+        my_trace                    = parent_trace.doing("Setting up static data")
 
         for file in EXCEL_FILES:
+            loop_trace              = my_trace.doing("Posting file '" + str(file) + "'")
             posting_path                = self.getInputDataFolder(parent_trace)  + "/" + self.scenario() + "/" + file
             response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                         path_of_file_being_posted   = posting_path, 
@@ -99,8 +100,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                                                                             form_request    = blind_form_request) 
 
                     self.check_environment_contents(my_trace) 
-                    layout_info, pl_fmt_info, \
-                        ws_fmt_info         = self._generated_form_test_output( my_trace, 
+                    layout_info, pl_fmt_info, ws_fmt_info, label_ctx_nice \
+                                             = self._generated_form_test_output( my_trace, 
                                                                                 blind_form_request, 
                                                                                 fr_response, 
                                                                                 fr_log_txt, 
@@ -109,6 +110,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     api_called              = "initial requestForm"
 
                     self.check_log(my_trace, fr_log_txt, api_called=api_called)
+
+                    self.check_posting_label(my_trace, label_ctx_nice, api_called=api_called)
 
                     self.check_xl_layout(my_trace, layout_info, generated_form_worksheet, api_called)
 
@@ -143,8 +146,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                                                                             form_request    = form_request) 
 
                     self.check_environment_contents(my_trace) 
-                    layout_info, pl_fmt_info, \
-                        ws_fmt_info         = self._generated_form_test_output( my_trace, 
+                    layout_info, pl_fmt_info, ws_fmt_info, label_ctx_nice \
+                                            = self._generated_form_test_output( my_trace, 
                                                                                 form_request, 
                                                                                 fr_response, 
                                                                                 fr_log_txt, 
@@ -153,6 +156,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     api_called              = "requestForm #" + str(form_idx) 
 
                     self.check_log(my_trace, fr_log_txt, api_called=api_called)
+
+                    self.check_posting_label(my_trace, label_ctx_nice, api_called=api_called)
 
                     self.check_xl_layout(my_trace, layout_info, generated_form_worksheet, api_called)
 
@@ -216,6 +221,12 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                                         output_txt          = log_data,
                                         test_output_name    = self.next_log(api_called), 
                                         save_output_txt     = True)
+
+    def check_posting_label(self, parent_trace, label_ctx_nice, api_called):
+        self._compare_to_expected_txt(  parent_trace        = parent_trace,
+                                        output_txt          = label_ctx_nice,
+                                        test_output_name    = self.next_posting_label(api_called), 
+                                        save_output_txt     = True)
         
     def check_xl_layout(self, parent_trace, layout_info, sheet, api_called):
         self._compare_to_expected_txt(  parent_trace    = parent_trace,
@@ -231,7 +242,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
 
     def _generated_form_test_output(self, parent_trace, form_request, fr_response, fr_log_txt, fr_rep, generated_form_worksheet):
         '''
-        Helper method that returns 3 strings with information on the generated form, so that it can be 
+        Helper method that returns 4 strings with information on the generated form, so that it can be 
         validated that it matches regression output.
 
         It returns (in this order):
@@ -239,6 +250,7 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         * A string with layout information (e.g., # of columns, rows, widths, etc)
         * A string with Excel formatting information for the posting label worksheet of the generated form
         * A string with Excel formatting information for the main worksheet of the generated form
+        * A string with the contents of the Posting Label that was generated
         '''
         # Check the layout for the generated form is right
         layout_output_nice                  = ""
@@ -265,7 +277,16 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         worksheet_info                      = fr_rep.worksheet_info_dict[generated_form_worksheet]
         ws_info_nice                        = self._nice_ws_info(parent_trace, worksheet_info)
 
-        return layout_output_nice, pl_ws_info_nice, ws_info_nice
+        # Extract Posting Label content
+        label_ctx                           = fr_rep.label_ctx
+
+        label_ctx_nice                  = "************** Content of Posting Label **********\n\n"
+
+        label_ctx_nice                  += DictionaryFormatter().dict_2_nice(parent_trace = parent_trace, 
+                                                                            a_dict = label_ctx)
+
+
+        return layout_output_nice, pl_ws_info_nice, ws_info_nice, label_ctx_nice
                                                               
 
     def _nice_ws_info(self, parent_trace, worksheet_info):

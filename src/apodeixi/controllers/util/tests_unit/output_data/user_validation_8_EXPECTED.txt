@@ -6,7 +6,8 @@ User has a typo in the worksheets in the posting label
 
 ******** Functional Trace ********
 
-Problem:	Did you forget to define a Posting Label in the Excel spreadsheet? Got this error:
+Problem:	Are you missing the Posting Label, or perhaps you have a typo or missing value in the Posting Label's 'data.sheet' fields? 
+Got this error:
 
 Worksheet named 'Bar' not found
 Here are the functional activities that led to the problem:

@@ -1,6 +1,7 @@
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
 from apodeixi.controllers.util.skeleton_controller                  import SkeletonController
 from apodeixi.util.formatting_utils                                 import StringUtils
+from apodeixi.util.a6i_error                                        import ApodeixiError
 
 class JourneysPostingLabel(SkeletonController._MyPostingLabel):
     '''
@@ -52,6 +53,9 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
                                                                         a6i_config      = self.controller.a6i_config)
             namespace                           = self.determineNamespace(parent_trace)
             product_code                        = validator.getProductCode(parent_trace, namespace, submitted_product)
+            if product_code == None:
+                raise ApodeixiError(parent_trace, "Sorry, product '" + str(submitted_product) + "' in the Posting Label "
+                                                    + "is not configured as a valid product in the KnowledgeBase.")
             if submitted_product != product_code:
                 self.ctx[ME._PRODUCT] = product_code
 

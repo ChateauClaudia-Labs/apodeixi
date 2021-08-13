@@ -7,7 +7,8 @@ from apodeixi.util.path_utils               import PathUtils
 from apodeixi.util.formatting_utils         import StringUtils
 from apodeixi.util.dataframe_utils          import DataFrameUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
-from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas, MappedManifestXLWriteConfig
+from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas, MappedManifestXLWriteConfig, \
+                                                    JoinedManifestXLWriteConfig
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 from apodeixi.xli.interval                  import IntervalUtils
 
@@ -141,6 +142,14 @@ class ManifestRepresenter:
                 # 3) An additional + BUG_WORKAROUND_BUFFER for the reasons in the comment above.
                 #
                 x_1             += len(referenced_df.index) + 1 + 1 + BUG_WORKAROUND_BUFFER
+            
+            elif issubclass(type(xlw_config), JoinedManifestXLWriteConfig):
+                # In this case, there is an injection between our manifest's rows and those of the 
+                # referenced rows, which may not be a bijection, i.e., there may be empty Excel rows
+                # between our manifest's rows. In that case, we need to record that the number of
+                # Excel rows is at least as big as the Excel rows of the referenced manifest
+                referenced_df   = self.content_df_dict[xlw_config.referenced_manifest_name]
+                y_1             = max(y_1, len(referenced_df.index))
                 
             if xlw_config.layout.is_transposed:
                 # Add an extra columns, for the headers
