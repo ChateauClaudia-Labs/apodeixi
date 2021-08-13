@@ -1,4 +1,5 @@
 # Added by Alejandro
+~*.xlsx
 *.~vsdx
 tmp.*
 *.tmp.*

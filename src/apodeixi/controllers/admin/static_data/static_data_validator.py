@@ -125,7 +125,7 @@ class StaticDataValidator():
                                                             + "' appears in product static data")
         for row in contents_df.iterrows():
             prod_code               = row[1][PRODUCT_COL]
-            alias_list              = row[1][ALIAS_COL]
+            alias_list              = row[1][ALIAS_COL].split(",")
             if alleged_product == prod_code or alleged_product in alias_list:
                 return prod_code
 
@@ -156,7 +156,7 @@ class StaticDataValidator():
                         of the content for the manifest.
         '''
         prod_ctrl           = ProductsController(parent_trace, self.store, self.a6i_config)
-        STATIC_DATA_API     = 'static-data.admin.a6i.io' 
+        STATIC_DATA_API     = self.a6i_config.get_static_data_api(parent_trace)
 
         SCORING_CYCLE_COL   = 'scoring-cycles'
 

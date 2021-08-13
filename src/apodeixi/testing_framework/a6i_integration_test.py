@@ -301,7 +301,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         is based on scenario.
         '''
         result_directories          = self.test_config_dict['integration-tests-results']
-        if self.scenario() in result_directories.keys():
+        if result_directories != None and self.scenario() in result_directories.keys():
             test_id                 = result_directories[self.scenario()]
             new_results_location    = self.test_db_dir + "/results_data/" + str(test_id)
             self.results_data       = new_results_location
@@ -514,6 +514,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         produced KnowledgeBase processing
         '''
         return self.next_output_name(output_type="log", description=description)
+
+    def next_posting_label(self, description=None):
+        '''
+        Returns a string that can be used as the output name for test output that is a posting label's content
+        produced KnowledgeBase processing
+        '''
+        return self.next_output_name(output_type="posting_label", description=description)
 
     def next_xl_layout(self, worksheet_name, description=None):
         '''

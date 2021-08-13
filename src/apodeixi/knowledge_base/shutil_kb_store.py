@@ -303,7 +303,8 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                                                 to_environment      = self.current_environment(my_trace))
 
         my_trace                = parent_trace.doing("Searching in environment '" 
-                                                        + str(self.current_environment(parent_trace)) + "'" )
+                                                        + str(self.current_environment(parent_trace).name(parent_trace)) 
+                                                        + "'" )
         scanned_handles             = super().searchPostings(
                                                 parent_trace                = my_trace, 
                                                 posting_api                 = posting_api, 

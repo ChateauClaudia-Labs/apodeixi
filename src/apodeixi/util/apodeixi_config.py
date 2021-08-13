@@ -71,6 +71,18 @@ class ApodeixiConfig():
         '''
         return 'apodeixi_config.toml'
 
+    def get_static_data_api(self, parent_trace):
+        '''
+        Returns the Manifest API for static data. Typical usage is for code that needs to retrieve static
+        data manifests.
+        '''
+        # This is hard-coded on purpose. Other systems that extend Apodeixi may have different APIs for static
+        # data, so by making this a function that is overwritable by derived non-Apodeixi classes, we ensure
+        # that Apodeixi code like the StaticDataValidator still works, since it can query this method to find
+        # out what manifest API corresponds to static data.
+        STATIC_DATA_API     = 'static-data.admin.a6i.io'
+        return STATIC_DATA_API
+
     def getSecretsFolder(self, parent_trace):
         my_trace            = parent_trace.doing("Retrieving the secrets' folder from the Apodeixi Configuration ")
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 

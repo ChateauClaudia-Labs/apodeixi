@@ -684,8 +684,6 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
     It requires the referenced manifest to also appear in the same Excel worksheet, and for it to be displayed
     at 90 degrees relative to this referencing manifest, so that the mapping can be expressed by a tabular map
     where an "x" indicates a mapping between UIDs from the two manifests.
-    
-
     '''
     def __init__(self, manifest_name,  read_only, referenced_manifest_name, my_entity, mapped_entity, is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
@@ -703,22 +701,8 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         self.mapped_entities            = mapped_entity
 
         self.original_content_df        = None # Will be the original manifest content, as it is in the YAML manifest
-        self.data_df                    = None # Will be built by enriching the original_content_df with extra columns for each referenced UID
 
-    def _buildLayout(self, parent_trace, content_df): # Not yet changed from parent
-        columns                         = list(content_df.columns)
-        nb_rows                         = len(content_df.index)
-        self.layout.build(parent_trace, columns             = columns,
-                                        nb_rows             = nb_rows,
-                                        editable_cols       = self.editable_cols, 
-                                        hidden_cols         = self.hidden_cols,
-                                        editable_headers    = self.editable_headers, 
-                                        x_offset            = self.x_offset, 
-                                        y_offset            = self.y_offset,
-                                        has_headers         = True)
-        # Remember content_df in case it must be interrogated later during processing
-        self.data_df                 = content_df
-
+ 
     def build_displayable_df(self, parent_trace, content_df, representer):
         '''
         Overwrites parent class's implementation to support displaying of many-to-many mappings
@@ -890,6 +874,32 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
             final_excel_col             = self.y_offset + len(displayable_df.index) # Don't do len(index)-1 since headers add a row
 
         return excel_row, excel_col, final_excel_row, final_excel_col
+
+class JoinedManifestXLWriteConfig(ManifestXLWriteConfig):
+    '''
+    Please refer to the documentation of the parent class for overall explanation on the  constructor parameters.
+
+    This is a specialized class to configure how to display in Excel a manifest that has an injection
+    relationship to another manifest, such that every single entry in this manifest is associated to a unique
+    entry in the ther manifest.
+
+    It requires the referenced manifest to also appear in the same Excel worksheet, and for it to be displayed
+    aligned (row-by-row) with the referenced manifest.
+    '''
+    def __init__(self, manifest_name,  read_only, referenced_manifest_name, is_transposed, sheet,  
+                                viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
+                                editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
+                                excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
+                                x_offset        = 0,    y_offset = 0):
+
+        super().__init__(manifest_name, read_only, is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
+                                editable_cols,   hidden_cols, num_formats, editable_headers, 
+                                excel_formulas,  df_xy_2_excel_xy_mapper,
+                                x_offset,    y_offset)
+
+        self.referenced_manifest_name   = referenced_manifest_name
+
+
 
 class PostingLabelXLWriteConfig(AsExcel_Config):
     '''

@@ -343,7 +343,9 @@ class ExcelTableReader:
         except ValueError as ex:
             error_msg           = str(ex)
             if error_msg.startswith("Worksheet named '") and error_msg.endswith("' not found"):
-                raise ApodeixiError(my_trace, "Did you forget to define a Posting Label in the Excel spreadsheet? Got this error:"
+                raise ApodeixiError(my_trace, "Are you missing the Posting Label, or perhaps you have a typo or "
+                                                + "missing value in the Posting Label's 'data.sheet' fields? " 
+                                                + "\nGot this error:"
                                                 + "\n\n" + error_msg)
             else:
                 raise ApodeixiError(my_trace, "Found an error while reading the Excel file",
