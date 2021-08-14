@@ -51,12 +51,6 @@ util:
 
       '
     input_data:
-      .ipynb_checkpoints:
-        test_notebook_run_INPUT-checkpoint.ipynb: '
-
-          Size (in bytes):  3035
-
-          '
       test_compare_dataframes_df1_INPUT.csv: '
 
         Size (in bytes):  1097
@@ -116,22 +110,22 @@ util:
         '
       test_compare_dataframes_comparison_EXPECTED.txt: '
 
-        Size (in bytes):  960
+        Size (in bytes):  956
 
         '
       test_compare_dataframes_comparison_OUTPUT.txt: '
 
-        Size (in bytes):  960
+        Size (in bytes):  956
 
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  3657
+        Size (in bytes):  3526
 
         '
       test_create_OUTPUT.yaml: '
 
-        Size (in bytes):  3657
+        Size (in bytes):  3526
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -201,7 +195,7 @@ util:
       '
     test_folder_hierarchy.py: '
 
-      Size (in bytes):  2300
+      Size (in bytes):  2381
 
       '
     test_formatting_utils.py: '

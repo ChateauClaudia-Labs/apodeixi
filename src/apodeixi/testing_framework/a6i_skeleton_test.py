@@ -75,7 +75,9 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         Helper method to load a "clean DataFrame" from a CSV file, correcting for spurious columns and NAs
         '''
         try:
-            data_df             = _pd.read_csv(path)
+            # Important to set the encoding to "ISO-8859-1". Otherwise will get errors as explained in
+            # https://stackoverflow.com/questions/19699367/for-line-in-results-in-unicodedecodeerror-utf-8-codec-cant-decode-byte
+            data_df             = _pd.read_csv(path, encoding = "ISO-8859-1")
         except FileNotFoundError as ex:
             raise ApodeixiError(parent_trace, "Can't load CSV file because it doesn't exist",
                                     data = {'path':             path,
@@ -159,7 +161,14 @@ class ApodeixiSkeletonTest(unittest.TestCase):
           generated Excel files may display a size that differs by 1 or 2 bytes because of the non-determinism involved
           in creating Excel files since "xlsx" files are really zip files with XML contents, and it is well
           known that zip files are non-deterministcically created (for example, see 
-          https://medium.com/@pat_wilson/building-deterministic-zip-files-with-built-in-commands-741275116a19)
+          https://medium.com/@pat_wilson/building-deterministic-zip-files-with-built-in-commands-741275116a19).
+
+          Sometimes simply running Apodeixi in a different deployment or machine will cause generated Excel
+          files to change in size by 19 bytes or more. 
+
+          So the tolerance level can be configured in the test_config.yaml, a file that is located under the
+          root folder for the testing database that you have configured to use in ApodeixiConfig (i.e., 
+          the folder above the knowledge base's root folder configured in ApodeixiConfig.)
         '''
         # Check not null, or else rest of actions will "gracefully do nothing" and give the false impression that test passes
         # (at least it would erroneously pass when the expected output is set to an empty file)

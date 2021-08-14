@@ -42,7 +42,7 @@ cells:
             1  Costa Rica  Colon
 
             2     Francia   Euro'
-        execution_count: 1
+        execution_count: 2
         metadata: {}
         output_type: execute_result
     source: 'df = pd.DataFrame({''Paises'': [''Argentina'', ''Costa Rica'', ''Francia''],
@@ -63,7 +63,7 @@ cells:
       0:
         data:
           text/plain: <Root directory hidden in test output>apodeixi\\util\\tests_unit\\output_data\\notebooks'
-        execution_count: 1
+        execution_count: 3
         metadata: {}
         output_type: execute_result
     source: '# We print a path to test that the test harness will hide the user-specific
@@ -93,6 +93,6 @@ metadata:
     name: python
     nbconvert_exporter: python
     pygments_lexer: ipython3
-    version: 3.9.5
+    version: 3.9.6
 nbformat: 4
 nbformat_minor: 5

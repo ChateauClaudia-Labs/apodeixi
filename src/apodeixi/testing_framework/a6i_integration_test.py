@@ -8,6 +8,7 @@ import yaml                                             as _yaml
 from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
 
 from apodeixi.util.a6i_error                            import FunctionalTrace , ApodeixiError
+from apodeixi.util.dictionary_utils                     import DictionaryUtils
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
@@ -384,12 +385,22 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         description_dict    = current_env.describe(parent_trace, include_timestamps = False)
 
-        '''
-        self._compare_to_expected_yaml( parent_trace        = parent_trace,
-                                        output_dict         = description_dict,
-                                        test_output_name    = snapshot_name, 
-                                        save_output_dict    = True)
-        '''
+        
+        #TOLERANCE               = 4 # We will tolerate up to these many bites of difference
+
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = parent_trace, 
+                                                                root_dict       = self.test_config_dict, 
+                                                                root_dict_name  = "test_config.yaml",
+                                                                path_list       = ["regression-parameters", "xl-tolerance"],
+                                                                valid_types     = [int])  
+        if check == False:
+            raise ApodeixiError(parent_trace, "test_config.yaml misses a correct configuration for 'xl-tolerance' "
+                                                + " under the grouping 'regression-parameters'",
+                                                data        = { "explanation":    explanation},
+                                                origination = { 'concrete class':   str(self.__class__.__name__), 
+                                                                'signaled_from':    __file__})      
+        TOLERANCE               = self.test_config_dict["regression-parameters"]["xl-tolerance"]
+
         def tolerance_lambda(key, output_val, expected_val):
             '''
             When an Excel filename is displayed as a key in a folder hierarchy, and it has a 
@@ -397,7 +408,6 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             we want to tolerate a small deviation from the number of bytes in the size.
             For example, "Size (in bytes):  7678" would not be considered a test failure
             '''
-            TOLERANCE               = 4 # We will tolerate up to these many bites of difference
             if type(key) == str and key.endswith(".xlsx"): # This is an Excel file, apply tolerance
                 output_bytes        = _extract_bytes(output_val)
                 expected_bytes      = _extract_bytes(expected_val)

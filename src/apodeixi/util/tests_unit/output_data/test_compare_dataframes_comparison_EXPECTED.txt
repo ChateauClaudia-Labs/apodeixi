@@ -14,15 +14,15 @@
 
 -------------------- elt-by-elt comparison ----------------------
 [Tema][FIGARO-38]:
-df1		aldeas como Pun� en la Amazonia
-df2		Apr�s les fortes chaleurs de ces
+df1		aldeas como Punã en la Amazonia
+df2		Après les fortes chaleurs de ces
 
 [Tema][FIGARO-39]:
-df1		como Pun� en la Amazonia profunda
+df1		como Punã en la Amazonia profunda
 df2		les fortes chaleurs de ces derniers
 
 [Tema][FIGARO-40]:
-df1		Pun� en la Amazonia profunda triunfa
+df1		Punã en la Amazonia profunda triunfa
 df2		fortes chaleurs de ces derniers jours,
 
 [Tema][FIGARO-41]:
