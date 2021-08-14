@@ -119,26 +119,29 @@ class FunctionalTrace():
         '''
         Returns a human-readable string with the content of the functional trace
         '''
+        def MSK(txt): # Abbreviaation for the masking logic
+            if self.path_mask != None:
+                return self.path_mask(txt)
+            else:
+                return txt
+
         if self.functional_purpose == None:
             return ''
         result                  = ''
-        result                  += '---->\tactivity\t'  + self.functional_purpose[FunctionalTrace.ACTIVITY] + '\n'
+        result                  += '---->\tactivity\t'  + MSK(self.functional_purpose[FunctionalTrace.ACTIVITY]) + '\n'
         
         flow_stage              = self.functional_purpose[FunctionalTrace.FLOW_STAGE]
         if flow_stage != None and len(flow_stage.strip()) > 0:
-            result              += '\n' + FunctionalTrace._ins(FunctionalTrace.FLOW_STAGE) + ': ' \
-                                    + self.functional_purpose[FunctionalTrace.FLOW_STAGE]
+            result              += '\n' + MSK(FunctionalTrace._ins(FunctionalTrace.FLOW_STAGE)) + ': ' \
+                                    + MSK(self.functional_purpose[FunctionalTrace.FLOW_STAGE])
         data                    = self.functional_purpose[FunctionalTrace.DATA]
         for k in data.keys():
-            result              += '\n' + FunctionalTrace._ins(k) + ': ' + str(data[k])
+            result              += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(data[k]))
 
         origination             = self.functional_purpose[FunctionalTrace.ORIGINATION]
         if not exclude_origination:
             for k in origination.keys():
-                if self.path_mask != None:
-                    result      += '\n' + self.path_mask(FunctionalTrace._ins(k)) + ': ' + self.path_mask(str(origination[k]))
-                else:
-                    result      += '\n' + FunctionalTrace._ins(k) + ': ' + str(origination[k])
+                result      += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(origination[k]))
         return result
 
     def _ins(txt):
