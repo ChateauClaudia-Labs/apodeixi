@@ -21,7 +21,7 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
         OUTPUT_FILE         = 'yaml_2_sparse_dataframe_OUTPUT.csv'
         df                  = None
         subtree             = None
-        root_trace   = FunctionalTrace(parent_trace=None).doing("Testing yam_2_df")
+        root_trace   = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing yam_2_df")
         try:
             rep          = AsDataframe_Representer()
             df, subtree  = rep.yaml_2_df(root_trace, MANIFESTS_FOLDER, MANIFEST_FILE, 'scaffolding.jobs-to-be-done',
@@ -47,7 +47,7 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
         OUTPUT_FILE         = 'yaml_2_full_dataframe_OUTPUT.csv'
         df                  = None
         subtree             = None
-        root_trace   = FunctionalTrace(parent_trace=None).doing("Testing yam_2_full_df")
+        root_trace   = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing yam_2_full_df")
         try:
             rep          = AsDataframe_Representer()
             df, subtree  = rep.yaml_2_df(root_trace, MANIFESTS_FOLDER, MANIFEST_FILE, 'scaffolding.jobs-to-be-done',

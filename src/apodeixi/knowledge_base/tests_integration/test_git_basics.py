@@ -12,7 +12,7 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
-        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
         self.selectStack(root_trace) 
 
     def selectStack(self, parent_trace):
@@ -38,7 +38,7 @@ class Test_GIT_Basics(ApodeixiIntegrationTest):
         all_manifests_dicts     = []
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Running " + TEST_CASE)
+            root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Running " + TEST_CASE)
 
 
         except ApodeixiError as ex:

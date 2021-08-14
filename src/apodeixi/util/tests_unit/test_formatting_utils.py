@@ -16,7 +16,7 @@ class Test_NotebookUtils(ApodeixiUnitTest):
 
     @_unittest.skipIf(SMOKE_TESTS_ONLY != None, "Skip long-running routines")
     def test_notebook_run(self):
-        root_trace                      = FunctionalTrace(None).doing("Testing Notebook execution")
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing Notebook execution")
         try:
             INPUT_FOLDER                    = self.input_data
             OUTPUT_FOLDER                   = self.output_data

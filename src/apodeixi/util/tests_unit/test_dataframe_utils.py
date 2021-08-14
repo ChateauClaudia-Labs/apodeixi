@@ -17,7 +17,7 @@ class Test_DataFrameComparator(ApodeixiUnitTest):
         super().setUp()
 
     def test_compare_dataframes(self):
-        root_trace                      = FunctionalTrace(None).doing("Testing DataFrame Comparison")
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing DataFrame Comparison")
         try:
             INPUT_FOLDER                    = self.input_data
             OUTPUT_FOLDER                   = self.output_data

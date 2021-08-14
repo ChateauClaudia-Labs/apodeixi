@@ -21,7 +21,7 @@ class KB_Environment_Config():
                 logs and archival folder names, will include a timestamp. If False, such timestamp
                 information is omitted. A typical use case for setting this to False is regression testing,
                 to ensure that the output data is always the same.\
-    @param path_mask A function that takes as tring argument and returns a string. Normally it is None, but
+    @param path_mask A function that takes a string argument and returns a string. Normally it is None, but
                 it is used in situations (such as in regression testing) when observability should not
                 report the paths "as is", but with a mask. For example, this can be used in regression
                 tests to hide the user-dependent portion of paths, so that logs would otherwise display a path

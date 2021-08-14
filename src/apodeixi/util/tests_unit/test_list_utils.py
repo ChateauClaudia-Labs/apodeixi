@@ -15,7 +15,7 @@ class Test_ListMerger(ApodeixiUnitTest):
         super().setUp()
 
     def test_merge_lists(self):
-        root_trace                      = FunctionalTrace(None).doing("Testing List Merger")
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing List Merger")
         try:
             INPUT_FOLDER                    = self.input_data
             OUTPUT_FOLDER                   = self.output_data

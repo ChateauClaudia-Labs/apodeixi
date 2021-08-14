@@ -9,7 +9,7 @@ class Test_UIDStore(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
-        my_trace                = FunctionalTrace(None).doing("Creating a UID Store")
+        my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating a UID Store")
         self.store = UID_Store(my_trace)
         
     def attempt_tokenize(self, parent_trace, uid):
@@ -21,7 +21,7 @@ class Test_UIDStore(ApodeixiUnitTest):
         return x
     def test_tokenize(self):
         # Each scenario is a pair of [input, expected output]
-        root_trace      = FunctionalTrace(None).doing("Testing tokenize")
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing tokenize")
         scenarios = [['av45.p1.e12', ['av45', 'p1', 'e12']],
                      ['w0',          ['w0']],
                      ['eq3.q',       'error'],
@@ -44,7 +44,7 @@ class Test_UIDStore(ApodeixiUnitTest):
         return x
     def test_generateUID(self):
         # Each scenario is a triple of [parent uid input, acronym input, expected output]
-        root_trace      = FunctionalTrace(None).doing("Testing generateUID")
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing generateUID")
         scenarios = [[None, 'FRA', ('FRA1', 'FRA1')],
                      [None, 'W', ('W1', 'W1')],
                      ['W1', 'PO', ('W1.PO1', 'PO1')],

@@ -38,7 +38,7 @@ class SkeletonControllerUnitTest(ApodeixiUnitTest):
                                                                 output_postings_dir     = self.output_data)
         
 
-        root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+        root_trace              = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                   'sheet' : SHEET})
         STORE                   = KnowledgeBaseStore(root_trace, STORE_IMPL)
         posting_handle          = STORE.buildPostingHandle(root_trace, EXCEL_FILE, sheet=SHEET, excel_range=CTX_RANGE)

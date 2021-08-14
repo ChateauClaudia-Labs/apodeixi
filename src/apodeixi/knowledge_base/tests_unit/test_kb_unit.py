@@ -26,7 +26,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
                                                                 output_postings_dir     = self.output_data)
 
         EXCEL_FILE              = MANIFEST_FILE_PREFIX + '_big-rocks.journeys.a6i.xlsx'
-        root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+        root_trace              = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     })
         STORE                   = KnowledgeBaseStore(root_trace, STORE_IMPL)
 
@@ -42,7 +42,7 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
         all_manifests_dicts                     = []
 
         try:
-            root_trace                          = FunctionalTrace(parent_trace=None).doing("Posting excel file", 
+            root_trace                          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Posting excel file", 
                                                                                 data={  'excel_file'    : excel_file},
                                                                                 origination = {
                                                                                         'signaled_from' : __file__,

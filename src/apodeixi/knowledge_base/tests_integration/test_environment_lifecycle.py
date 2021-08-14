@@ -11,7 +11,7 @@ class Test_EnvironmentLIfecycle(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
-        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
         self.selectStack(root_trace) 
 
     def selectStack(self, parent_trace):
@@ -34,7 +34,7 @@ class Test_EnvironmentLIfecycle(ApodeixiIntegrationTest):
         all_manifests_dicts         = []
 
         try:
-            root_trace              = FunctionalTrace(parent_trace=None).doing("Running " + self.currentTestName())
+            root_trace              = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Running " + self.currentTestName())
 
             my_trace                = self.trace_environment(root_trace, "Isolating test case")
             self.provisionIsolatedEnvironment(my_trace)

@@ -19,7 +19,7 @@ class Post_and_Update_Skeleton(ApodeixiIntegrationTest):
         # Flow scenario tests are "realistic", so for them we want to enforce referential integrity.
         self.a6i_config.enforce_referential_integrity = True
 
-        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
         self.selectStack(root_trace) 
 
     def selectStack(self, parent_trace):
@@ -39,7 +39,7 @@ class Post_and_Update_Skeleton(ApodeixiIntegrationTest):
 
         script                      = Post_and_Update_Script(self)
 
-        root_trace                  = FunctionalTrace(None).doing("Running script for " + self.scenario())
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Running script for " + self.scenario())
 
         script._run_basic_flow( parent_trace                =root_trace,
                                 from_nothing                = from_nothing,

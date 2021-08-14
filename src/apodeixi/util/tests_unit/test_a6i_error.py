@@ -8,7 +8,7 @@ class Test_ApodeixiError(ApodeixiUnitTest):
     def setUp(self):
         super().setUp()
 
-        self.root                   = FunctionalTrace(parent_trace=None)
+        self.root                   = FunctionalTrace(parent_trace=None, path_mask=self._path_mask)
         self.step1                  = self.root.doing(activity="Processing Step 1", flow_stage=None, data={'fun fact': '-'},
                                                                                 origination={'secret origin': '-'})
 
@@ -23,7 +23,7 @@ class Test_ApodeixiError(ApodeixiUnitTest):
 
     def test_functional_trace(self):
 
-        root_trace                          = FunctionalTrace(None).doing('Testing functional trace')
+        root_trace                          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing('Testing functional trace')
         output = "================== Step 1 =============\n\n" \
                 + '\n\n'.join([str(trace_level) for trace_level in self.step1.examine(as_string=True,)]) \
                 + "\n\n\n================== Step 2 =============\n\n" \
@@ -35,7 +35,7 @@ class Test_ApodeixiError(ApodeixiUnitTest):
 
     def test_a6i_error(self):
         MSG                                         = "Error with horrible consequences for you"
-        root_trace                          = FunctionalTrace(None).doing('Testing Apodeixi error message')
+        root_trace                          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing('Testing Apodeixi error message')
         try:
             raise ApodeixiError(self.step2i, MSG)
         except ApodeixiError as                     ex:

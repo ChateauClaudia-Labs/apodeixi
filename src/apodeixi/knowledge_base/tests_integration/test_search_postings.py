@@ -10,10 +10,10 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()
-        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
         self.selectStack(root_trace) 
         
-        root_trace                      = FunctionalTrace(None).doing("Retrieving product list from config",
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Retrieving product list from config",
                                                                         origination = {'signaled_from': __file__})
         self.products                   = self.config().getProducts(root_trace)
 
@@ -41,7 +41,7 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
     def _locate_product_postings(self, posting_api, test_name):
         coords_txt                          = ''
 
-        root_trace                          = FunctionalTrace(None).doing("Testing File Knowledge Base::locate product postings")
+        root_trace                          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing File Knowledge Base::locate product postings")
         
         try:
 
@@ -96,7 +96,7 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
     def _locate_workstream_postings(self, posting_api, test_name):
         
         coords_txt                      = ''
-        root_trace                      = FunctionalTrace(None).doing("Testing File Knowledge Base::locate postings")
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing File Knowledge Base::locate postings")
         try:
             
 

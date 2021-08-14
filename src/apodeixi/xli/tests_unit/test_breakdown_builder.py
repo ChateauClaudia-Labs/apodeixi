@@ -38,7 +38,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
     def test_read_df_fragment(self):  
         result_dict                 = None
-        root_trace                  = FunctionalTrace(None).doing("Reading df fragment")  
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Reading df fragment")  
         try:
             tree                    = self._create_breakdown_tree()
             result_dict             = tree.as_dicts()
@@ -55,7 +55,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         entity_instance             = None
         try:
             tree                    = self._create_breakdown_tree()
-            my_trace                = FunctionalTrace(None).doing("Finding uid='" + UID_TO_FIND + "'")
+            my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Finding uid='" + UID_TO_FIND + "'")
             entity_instance         = tree.find (UID_TO_FIND, my_trace)
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -71,13 +71,13 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         df              = _pd.DataFrame(columns=columns, data = [row0])
 
         DATA_TO_ATTACH  = next(df.iterrows())[1]
-        root_trace                  = FunctionalTrace(None).doing("Tesing docking")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Tesing docking")
 
         entity_instance             = None
         try:
             tree                    = self._create_breakdown_tree()
             xlr_config              = self._create_posting_config()
-            my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
+            my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
                                     data_to_attach      = DATA_TO_ATTACH, 
@@ -98,13 +98,13 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         df              = _pd.DataFrame(columns=columns, data = [row0])
 
         DATA_TO_ATTACH  = next(df.iterrows())[1]
-        root_trace                  = FunctionalTrace(None).doing("Testing docking")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing docking")
 
         entity_instance             = None
         try:
             tree                    = self._create_breakdown_tree()
             xlr_config              = self._create_posting_config()
-            my_trace                = FunctionalTrace(None).doing("Docking uid='" + DOCKING_UID + "'")
+            my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
                                     data_to_attach      = DATA_TO_ATTACH,
@@ -122,7 +122,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         try:
             tree                    = self._create_breakdown_tree()
             result                  = []
-            my_trace                = FunctionalTrace(None).doing("Testing acronym generation")
+            my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing acronym generation")
             for e in entities:
                 result.append(tree.getAcronym(my_trace, e))
 
@@ -132,7 +132,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
     def test_attach_subtree(self):  
         result_dict                 = None  
-        root_trace                  = FunctionalTrace(None).doing("Attaching subtree")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Attaching subtree")
         try:
             tree1                   = self._create_breakdown_tree()
             subtree_df              = self._create_df2()
@@ -151,17 +151,17 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'attach_subtree', save_output_dict=True)
 
     def _create_breakdown_tree(self):
-        root_trace      = FunctionalTrace(None).doing("Creating UID Store")
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating UID Store")
         store           = UID_Store(root_trace)
         xlr_config      = self._create_posting_config()
         entity_type     = 'A'
         parent_UID      = None
-        root_trace      = FunctionalTrace(None).doing("Creating BreakdownTree", data={  'entity_type'   : entity_type,
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating BreakdownTree", data={  'entity_type'   : entity_type,
                                                                                         'parent_UID'    : parent_UID})        
         tree            = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=parent_UID)
         df              = self._create_df()
 
-        root_trace      = FunctionalTrace(None).doing("Creating intervals", data={'tree.entity_type'  : tree.entity_type,
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating intervals", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})        
         interval_A      = Interval(root_trace, ['A',     'color',    'size'])
         interval_B      = Interval(root_trace, ['B',    'height',   'coolness'])
@@ -169,7 +169,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
         rows            = list(df.iterrows())
         intervals       = [interval_A, interval_B, interval_C]
-        root_trace      = FunctionalTrace(None).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})
 
         for idx in range(len(rows)):
@@ -204,7 +204,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         subtree         = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=docking_uid)
          
         rows            = list(df_to_attach.iterrows())
-        root_trace      = FunctionalTrace(None).doing("Populating subtree", data={'subtree.entity_type'  : entity_type,
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Populating subtree", data={'subtree.entity_type'  : entity_type,
                                                                                     'columns'           : list(df_to_attach.columns)},
                                                                             origination = {
                                                                                     'signaled_from': __file__})
@@ -218,7 +218,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                                 all_rows            = rows, 
                                                 xlr_config          = xlr_config)
 
-        root_trace      = FunctionalTrace(None).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
+        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
                                                                                     "entity_type"  : "'" + entity_type + "'"})
         tree_to_attach_to.dock_subtree(entity_type, subtree, root_trace)
 

@@ -23,9 +23,12 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         super().setUp()
 
         def _path_mask(path):
-            tokens                                          = path.split('apodeixi')
-            masked_path                                     = '<MASKED>/apodeixi' + "/".join(tokens[1:])
-            return masked_path
+            if 'apodeixi' in path:
+                tokens                                          = path.split('apodeixi')
+                masked_path                                     = '<MASKED>/apodeixi' + tokens[-1]
+                return masked_path
+            else:
+                return path
 
         # Used by derived classes to mask some paths that are logged out so that regression output is
         # deterministic
@@ -47,7 +50,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # So we use __file__ 
         _os.environ['APODEIXI_CONFIG_DIRECTORY']            = _os.path.join(_os.path.dirname(__file__), 'config') 
 
-        root_trace                  = FunctionalTrace(None).doing("Loading Apodeixi configuration",
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Loading Apodeixi configuration",
                                                                         origination = {'signaled_from': __file__})
         self.a6i_config                = ApodeixiConfig(root_trace)
 

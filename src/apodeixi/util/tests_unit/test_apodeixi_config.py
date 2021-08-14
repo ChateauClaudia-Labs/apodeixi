@@ -13,7 +13,7 @@ class Test_ApodeixiConfig(ApodeixiUnitTest):
 
     def test_a6i_config(self):
         try:
-            root_trace                      = FunctionalTrace(None).doing("Testing loading for Apodeixi Config")
+            root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing loading for Apodeixi Config")
             config                          = ApodeixiConfig(root_trace)
 
             config_txt                      = DictionaryFormatter().dict_2_nice(    parent_trace    = root_trace,
@@ -29,7 +29,7 @@ class Test_ApodeixiConfig(ApodeixiUnitTest):
 
     def test_get_products(self):
         try:
-            root_trace                      = FunctionalTrace(None).doing("Testing getProducts for Apodeixi Config")
+            root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing getProducts for Apodeixi Config")
             config                          = ApodeixiConfig(root_trace)
 
             products                        = config.getProducts(root_trace)

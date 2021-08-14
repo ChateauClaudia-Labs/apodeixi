@@ -89,7 +89,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
     def _malformed_input_test_skeleton(self, test_case_nb, expect_error):
         test_case_name              = 'user_validation_' + str(test_case_nb)
         result_dict                 = None  
-        root_trace                  = FunctionalTrace(None).doing("Validating mal-formed input")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Validating mal-formed input")
         try:
             self._attempt_to_run(test_case_name, expect_error)
         except ApodeixiError as ex:
@@ -116,7 +116,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
 
         EXCEL_FILE                      = test_case_name + "_INPUT.xlsx"
 
-        root_trace                      = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     })
         STORE                           = KnowledgeBaseStore(root_trace, STORE_IMPL)                                                                                            
         posting_handle                  = STORE.buildPostingHandle(root_trace, EXCEL_FILE,
@@ -130,7 +130,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
         PL                              = Mock_Controller._MyPostingLabel # Abbreviation for readability purposes
 
         try:
-            root_trace                  = FunctionalTrace(parent_trace=None).doing("Running Mock_Controller")
+            root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Running Mock_Controller")
 
             controller                  = Mock_Controller(root_trace, STORE, a6i_config = self.a6i_config)
             all_manifests_dict, label   = controller._buildAllManifests(root_trace, posting_handle)

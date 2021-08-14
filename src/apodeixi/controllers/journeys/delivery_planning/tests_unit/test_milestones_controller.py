@@ -12,7 +12,7 @@ class Test_MilestonesController(SkeletonControllerUnitTest):
         super().setUp()
 
     def test_milestones(self):
-        root_trace                                      = FunctionalTrace(parent_trace=None).doing('Testing MilestoneController')
+        root_trace                                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing('Testing MilestoneController')
         self.impl_testcase(     parent_trace            = root_trace, 
                                 test_name               = 'milestones',
                                 controller_class        = MilestonesController,

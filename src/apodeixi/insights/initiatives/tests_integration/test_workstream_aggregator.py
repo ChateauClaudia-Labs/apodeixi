@@ -11,7 +11,7 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
 
     def setUp(self):
         super().setUp()      
-        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
         self.selectStack(root_trace) 
 
     def selectStack(self, parent_trace):
@@ -31,7 +31,7 @@ class Test_WorkstreamAggregator(ApodeixiIntegrationTest):
         self.selectTestDataLocation()
 
         try:
-            root_trace                  = FunctionalTrace(None).doing("Testing Workstream Aggregators")
+            root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing Workstream Aggregators")
 
             my_trace                        = self.trace_environment(root_trace, "Isolating test case")
 

@@ -7,7 +7,7 @@ from apodeixi.knowledge_base.tests_integration.post_update_skeleton     import P
 class Test_StaticDataFlows(Post_and_Update_Skeleton):
 
     def _select_namespace(self):
-        root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas "
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Retrieving organization and knowledge base areas "
                                                                         " from ApodeixiConfig")
         ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
         KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)

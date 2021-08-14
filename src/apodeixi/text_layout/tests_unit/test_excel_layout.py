@@ -16,7 +16,7 @@ class Test_PostingLayout(ApodeixiUnitTest):
         outputs     = [] 
         expected    = []
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Testing layout validation")
+            root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing layout validation")
             outputs             = []
             layout              = PostingLayout("good-layout", is_transposed=False)
 

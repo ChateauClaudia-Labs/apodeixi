@@ -12,7 +12,7 @@ class Test_FolderHierarchy(ApodeixiUnitTest):
         super().setUp()
 
     def test_create(self):
-        root_trace                      = FunctionalTrace(None).doing("Testing Creation of FolderHierarhcy")
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing Creation of FolderHierarhcy")
         try:
             INPUT_FOLDER                    = self.input_data
             OUTPUT_FOLDER                   = self.output_data

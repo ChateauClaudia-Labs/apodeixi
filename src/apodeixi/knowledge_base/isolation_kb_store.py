@@ -143,13 +143,13 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                     data = {"manifests root": manifests_roodir}) 
 
         _BASE_ENVIRONMENT           = '_BASE_ENVIRONMENT'
-        root_trace                  = FunctionalTrace(None).doing("Creating KB's store's base environment")
+        my_trace                  = parent_trace.doing("Creating KB's store's base environment")
         env_config                  = KB_Environment_Config(
-                                            root_trace, 
+                                            my_trace, 
                                             read_misses_policy  = KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT,
                                             use_timestamps      = True,
                                             path_mask           = None)
-        base_env_impl               = File_KBEnv_Impl(  parent_trace            = root_trace, 
+        base_env_impl               = File_KBEnv_Impl(      parent_trace            = my_trace, 
                                                             name                    = _BASE_ENVIRONMENT, 
                                                             store                   = self, 
                                                             parent_environment      = None,

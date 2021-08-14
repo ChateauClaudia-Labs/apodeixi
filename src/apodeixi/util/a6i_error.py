@@ -21,10 +21,26 @@ class FunctionalTrace():
 
     The `FunctionalTrace` records the branch of such conceptual BPNM tree, thus identifying top-down the functional
     intention that lead to wanting to execute the code for the leaf of such branch.
+
+    @param path_mask A function that takes a string argument and returns a string. Normally it is None, but
+                it is used in situations (such as in regression testing) when observability should not
+                report the paths "as is", but with a mask. For example, this can be used in regression
+                tests to hide the user-dependent portion of paths, so that logs would otherwise display a path
+                like:
+
+                'C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/big_rocks_posting_ENV/excel-postings'
+
+                instead display a "masked" path where the user-specific prefix is masked, so that only the
+                logical portion of the path (logical as in: it is the structure mandated by the KnowledgeStore)
+                is displayed. In the above example, that might become:
+
+                '<MASKED>/envs/big_rocks_posting_ENV/excel-postings'
     '''
-    def __init__(self, parent_trace):
+    def __init__(self, parent_trace, path_mask):
         self.functional_purpose     = None
         self.parent_trace           = parent_trace # Caller's FunctionalTrace
+
+        self.path_mask              = path_mask
 
     ACTIVITY                        = 'activity'
     DATA                            = 'data'
@@ -63,7 +79,7 @@ class FunctionalTrace():
         if origination == None:
             origination                     = {}
 
-        subroutine_ctx                      = FunctionalTrace(parent_trace=self)
+        subroutine_ctx                      = FunctionalTrace(parent_trace=self, path_mask=self.path_mask)
         subroutine_ctx.functional_purpose   = { FunctionalTrace.ACTIVITY        : activity, 
                                                 FunctionalTrace.FLOW_STAGE      : flow_stage,
                                                 FunctionalTrace.DATA            : data,
@@ -105,20 +121,24 @@ class FunctionalTrace():
         '''
         if self.functional_purpose == None:
             return ''
-        result          = ''
-        result          += '---->\tactivity\t'  + self.functional_purpose[FunctionalTrace.ACTIVITY] + '\n'
+        result                  = ''
+        result                  += '---->\tactivity\t'  + self.functional_purpose[FunctionalTrace.ACTIVITY] + '\n'
         
-        flow_stage      = self.functional_purpose[FunctionalTrace.FLOW_STAGE]
+        flow_stage              = self.functional_purpose[FunctionalTrace.FLOW_STAGE]
         if flow_stage != None and len(flow_stage.strip()) > 0:
-            result          += '\n' + FunctionalTrace._ins(FunctionalTrace.FLOW_STAGE) + ': '   + self.functional_purpose[FunctionalTrace.FLOW_STAGE]
-        data            = self.functional_purpose[FunctionalTrace.DATA]
+            result              += '\n' + FunctionalTrace._ins(FunctionalTrace.FLOW_STAGE) + ': ' \
+                                    + self.functional_purpose[FunctionalTrace.FLOW_STAGE]
+        data                    = self.functional_purpose[FunctionalTrace.DATA]
         for k in data.keys():
-            result          += '\n' + FunctionalTrace._ins(k) + ': ' + str(data[k])
+            result              += '\n' + FunctionalTrace._ins(k) + ': ' + str(data[k])
 
-        origination    = self.functional_purpose[FunctionalTrace.ORIGINATION]
+        origination             = self.functional_purpose[FunctionalTrace.ORIGINATION]
         if not exclude_origination:
             for k in origination.keys():
-                result          += '\n' + FunctionalTrace._ins(k) + ': ' + str(origination[k])
+                if self.path_mask != None:
+                    result      += '\n' + self.path_mask(FunctionalTrace._ins(k)) + ': ' + self.path_mask(str(origination[k]))
+                else:
+                    result      += '\n' + FunctionalTrace._ins(k) + ': ' + str(origination[k])
         return result
 
     def _ins(txt):

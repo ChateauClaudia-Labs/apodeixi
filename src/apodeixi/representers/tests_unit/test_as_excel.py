@@ -33,7 +33,7 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
 
         worksheet_info_dict     = {}
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Testing generating an Excel from a manifest")
+            root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing generating an Excel from a manifest")
             my_trace            = root_trace.doing("Loading input CSV file for test")
             data_df             = self.load_csv(my_trace, INPUT_FOLDER + '/' + INPUT_FILE)
 

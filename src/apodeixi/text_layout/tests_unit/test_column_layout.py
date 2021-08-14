@@ -38,7 +38,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         EXPECTED_RESULTS_FILE       = name + '_results_EXPECTED.txt'
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Testing computation of column widths")
+            root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing computation of column widths")
 
             data_df             = self.load_csv(root_trace, INPUT_FOLDER + '/' + INPUT_FILE)
 

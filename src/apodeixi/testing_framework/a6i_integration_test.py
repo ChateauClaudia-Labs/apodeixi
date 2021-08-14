@@ -216,13 +216,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         #   - self.test_db_dir
         #   - self.test_config_dict
         #.
-        root_trace                  = FunctionalTrace(None).doing("Checking where results should be saved to",
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Checking where results should be saved to",
                                                                     origination = {'signaled_from': __file__})
         self.test_db_dir            = _os.path.dirname(self.a6i_config.get_KB_RootFolder(root_trace))           
         with open(self.test_db_dir + '/test_config.yaml', 'r', encoding="utf8") as file:
             self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
 
-        root_trace                  = FunctionalTrace(None).doing("Provisioning stack for integration test",
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Provisioning stack for integration test",
                                                                     origination = {'signaled_from': __file__})
 
         # These will be set by each individual test case (i.e., each method in a derived class with a name like "test_*")

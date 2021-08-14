@@ -14,7 +14,7 @@ class Test_FY_Quarter(ApodeixiUnitTest):
 
     def test_fy_quarter(self):
 
-        root_trace                  = FunctionalTrace(None).doing("Testing quarter time buckets")
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing quarter time buckets")
         Q1                          = FY_Quarter(2021, 1, month_fiscal_year_starts=6)
         Q2                          = FY_Quarter(2021, 2, month_fiscal_year_starts=6)
         Q3                          = FY_Quarter(2021, 3, month_fiscal_year_starts=6)

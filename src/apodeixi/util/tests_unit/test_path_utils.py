@@ -15,7 +15,7 @@ class Test_PathUtils(ApodeixiUnitTest):
         super().setUp()
 
     def test_path_utils(self):
-        root_trace                      = FunctionalTrace(None).doing("Testing Path Utils")
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing Path Utils")
         try:
             INPUT_FOLDER                    = self.input_data
             OUTPUT_FOLDER                   = self.output_data

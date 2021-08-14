@@ -30,7 +30,7 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
                                                                 input_postings_dir      = self.input_data, 
                                                                 output_manifests_dir    = self.output_data, 
                                                                 output_postings_dir     = self.output_data)
-        root_trace              = FunctionalTrace(parent_trace=None).doing("Discovering URL", data={'path'  : EXCEL_FILE,
+        root_trace              = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Discovering URL", data={'path'  : EXCEL_FILE,
                                                                                                     'sheet' : SHEET})
 
         STORE                   = KnowledgeBaseStore(root_trace, STORE_IMPL)                                                                                           
@@ -44,7 +44,7 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
         PL                      = big_rocks.BigRocksEstimate_Controller._MyPostingLabel # Abbreviation for readability purposes
 
         try:
-            root_trace          = FunctionalTrace(parent_trace=None).doing("Generating Big Rocks (simple burnout)")
+            root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Generating Big Rocks (simple burnout)")
 
             controller          = big_rocks.BigRocksEstimate_Controller(root_trace, STORE, a6i_config = self.a6i_config)
             all_manifests_dict, label,   = controller._buildAllManifests(root_trace, posting_handle)
