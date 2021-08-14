@@ -1,76 +1,47 @@
 import sys                                                              as _sys
 
-from apodeixi.testing_framework.a6i_integration_test                    import ShutilStoreTestStack
-from apodeixi.util.a6i_error                                            import ApodeixiError, FunctionalTrace
-
+from apodeixi.util.a6i_error                                            import FunctionalTrace
 from apodeixi.controllers.util.skeleton_controller                      import SkeletonController
-from apodeixi.knowledge_base.tests_integration.flow_scenario_skeleton   import FlowScenarioSkeleton
+from apodeixi.knowledge_base.tests_integration.post_update_skeleton     import Post_and_Update_Skeleton
 
-class Test_StaticDataFlows(FlowScenarioSkeleton):
+class Test_StaticDataFlows(Post_and_Update_Skeleton):
 
-    def setUp(self):
-        super().setUp()
-        root_trace                  = FunctionalTrace(None).doing("Selecting stack for test case")
-        self.selectStack(root_trace) 
-
-    def selectStack(self, parent_trace):
-        '''
-        Called as part of setting up each integration test case. It chooses and provisions the stack that should
-        be used by this test case.
-        '''
-        self._stack                 = ShutilStoreTestStack(parent_trace, self.a6i_config)
+    def _select_namespace(self):
+        root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas "
+                                                                        " from ApodeixiConfig")
+        ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
+        KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
+        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1] 
+        return NAMESPACE
 
     def test_products(self):
 
-        self.setScenario("static_data_flows.products")
-        self.setCurrentTestName('products') 
-        self.selectTestDataLocation()
+        self.run_script(    scenario                    = "static_data_flows.products", 
+                            test_name                   = "products", 
+                            excel_relative_path         = "admin/static-data", 
+                            excel_file                  = "products.static-data.admin.a6i.xlsx", 
+                            excel_sheet                 = "Posting Label", 
+                            nb_manifests                = 2, 
+                            from_nothing                = True, 
+                            namespace                   = self._select_namespace(), 
+                            subnamespace                = None, 
+                            posting_api                 = "products.static-data.admin.a6i", 
+                            setup_dependencies          = False)
 
-        EXCEL_RELATIVE_PATH             = "admin/static-data"
-        EXCEL_FILE                      = "products.static-data.admin.a6i.xlsx"
-        NB_MANIFESTS_EXPECTED           = 2
-        root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
-        ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
-        KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
-        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  
-        SUBNAMESPACE                    = None
-        
-        self._run_basic_flow(   from_nothing                = True,
-                                namespace                   = NAMESPACE,
-                                subnamespace                = SUBNAMESPACE,
-                                posting_api                 = 'products.static-data.admin.a6i',
-                                excel_relative_path         = EXCEL_RELATIVE_PATH,
-                                excel_file                  = EXCEL_FILE,
-                                excel_sheet                 = "Posting Label",
-                                nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_dependencies           = False)
 
     def test_scoring_cycles(self):
 
-        self.setScenario("static_data_flows.s_c")
-        self.setCurrentTestName('scoring_cycles')
-        self.selectTestDataLocation() 
-
-        EXCEL_RELATIVE_PATH             = "admin/static-data"
-        EXCEL_FILE                      = "scoring-cycles.static-data.admin.a6i.xlsx"
-        NB_MANIFESTS_EXPECTED           = 1
-        root_trace                      = FunctionalTrace(None).doing("Retrieving organization and knowledge base areas from ApodeixiConfig")
-        ORGANIZATION                    = self.a6i_config.getOrganization(root_trace)
-        KNOWLEDGE_BASE_AREAS            = self.a6i_config.getKnowledgeBaseAreas(root_trace)
-        NAMESPACE                       = ORGANIZATION + "." + KNOWLEDGE_BASE_AREAS[1]  #"my_corp.testing-area"
-        SUBNAMESPACE                    = None
-        
-        self._run_basic_flow(   from_nothing                = True,
-                                namespace                   = NAMESPACE,
-                                subnamespace                = SUBNAMESPACE,
-                                posting_api                 = 'scoring-cycles.static-data.admin.a6i',
-                                excel_relative_path         = EXCEL_RELATIVE_PATH,
-                                excel_file                  = EXCEL_FILE,
-                                excel_sheet                 = "Posting Label",
-                                nb_manifests_expected       = NB_MANIFESTS_EXPECTED,
-                                generated_form_worksheet    = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                setup_dependencies           = False)
+        self.run_script(    scenario                    = "static_data_flows.s_c", 
+                            test_name                   = "scoring_cycles", 
+                            excel_relative_path         = "admin/static-data", 
+                            excel_file                  = "scoring-cycles.static-data.admin.a6i.xlsx", 
+                            excel_sheet                 = "Posting Label", 
+                            nb_manifests                = 1, 
+                            from_nothing                = True, 
+                            namespace                   = self._select_namespace(), 
+                            subnamespace                = None, 
+                            posting_api                 = "scoring-cycles.static-data.admin.a6i", 
+                            setup_dependencies          = False)
 
 
 if __name__ == "__main__":

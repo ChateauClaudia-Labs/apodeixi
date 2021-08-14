@@ -9,92 +9,86 @@ from apodeixi.knowledge_base.knowledge_base_util                import FormReque
 from apodeixi.representers.as_excel                             import ManifestRepresenter
 
 
-class FlowScenarioSkeleton(ApodeixiIntegrationTest):
-
-    def setUp(self):
-        super().setUp()
-        # Flow scenario tests are "realistic", so for them we want to enforce referential integrity.
-        self.a6i_config.enforce_referential_integrity = True
-
-    def setup_static_data(self, parent_trace):
-        '''
-        Sets up the static data that is generally needed by flow tests
-        '''
-        EXCEL_FILES                 = [ "products.static-data.admin.a6i.xlsx",
-                                        "scoring-cycles.static-data.admin.a6i.xlsx"]
-
-        my_trace                    = parent_trace.doing("Setting up static data")
-
-        for file in EXCEL_FILES:
-            loop_trace              = my_trace.doing("Posting file '" + str(file) + "'")
-            posting_path                = self.getInputDataFolder(loop_trace)  + "/" + self.scenario() + "/" + file
-            response, log_txt           = self.stack().kb().postByFile( parent_trace                = loop_trace, 
-                                                                        path_of_file_being_posted   = posting_path, 
-                                                                        excel_sheet                 = "Posting Label")
-
-    def setup_reference_data(self, parent_trace):
-        '''
-        Sets up any reference data (such as other manifests) that are assumed as pre-conditions by this test. 
-        '''
-        return # No-op: concrete classes are responsible for implementing this if they need it.
-
+class Post_and_Update_Script():
     '''
-    Abstract class.
+    Helper script for integration tests that test posting flows for a particular posting API.
+    Specifically, this script will:
 
-    Used as a helper class for integration test cases involving flows of multiple KnowledgeBase API calls.
-    Provides re-usable utilities for common things to check, consistent naming of regression output files,
-    and skeleton test drivers that concrete classes can use to succintly define flow test scenarios.
+    1. Generate a form for the initial posting, or alternatively import a pre-made initial posting.
+    2. Make the initial "create" posting
+    3. Generate an "update" form 
+    4. Make an "update" posting
 
-    @param from_nothing A boolean to determine if we should request a form even before any manifest exists
-                        (i.e., a "blank" form)
-    @param namespace A string. Only relevant if from_nothing=True. Used to delimit the search for manifests
-                        when generating a form without explicit manifest handles being given.
-    @param subnamespace A string. Only relevant if from_nothing=True. Used to delimit search for manifests.
-                    An optional string representing a slice of the namespace that further restricts
-                    the manifest names to search. If set to None, not subspace is assumed.
-                    Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
-                            token "modernization" is the subnamespace. The other tokens come from filing coordinates
-                            for the posting from whence the manifest arose.
-    @param setup_dependencies A boolean. If True, dependencies like static data or referenced manifests will be created 
-                    before the test scenario's flows.
+    Everything is done in a fully isolated environment. All data in the environment is created by this script.
+
+    Throughout all these steps, observability records are kept around:
+
+    * snapshots of the content of the environment at each step in the way
+    * logs for KnowledgeBase services (post or generation of forms)
+    * validation of number of manifests created/updated, and their content
+    * layout and formatting properties of all Excel forms generated
+
+    @param myTest An instance of the ApodeixiIntegrationTest class, which will be invoking the methods of this
+                    script object.
     '''
-    def _run_basic_flow(self,   from_nothing,           namespace,                  subnamespace,       posting_api, 
+    def __init__(self, myTest):
+        self.myTest             = myTest
+
+    def _run_basic_flow(self,   parent_trace, 
+                                from_nothing,           namespace,                  subnamespace,       posting_api, 
                                 excel_relative_path,    excel_file,                 excel_sheet, 
                                 nb_manifests_expected,  generated_form_worksheet,   setup_dependencies):
         '''
-        Tests a basic flow for a single posting API consisting of:
+        Main service offered by this script class.
 
-        * Request a blind form (only if "from_nothing" = True)
+        It executes the script logic and creates and checks all regression output.
+
+        * Request a blind form (only if "from_nothing" = True) or import a previously created Excel posting file.
         * Submit an initial posting
         * Request update form
         * Submit an update to initial posting
+        
+        @param from_nothing A boolean to determine if we should request a form even before any manifest exists
+                            (i.e., a "blank" form)
+        @param namespace A string. Only relevant if from_nothing=True. Used to delimit the search for manifests
+                            when generating a form without explicit manifest handles being given.
+        @param subnamespace A string. Only relevant if from_nothing=True. Used to delimit search for manifests.
+                        An optional string representing a slice of the namespace that further restricts
+                        the manifest names to search. If set to None, not subspace is assumed.
+                        Example: in the manifest name "modernization.default.dec-2020.fusionopus", the
+                                token "modernization" is the subnamespace. The other tokens come from filing coordinates
+                                for the posting from whence the manifest arose.
+        @param setup_dependencies A boolean. If True, dependencies like static data or referenced manifests will be created 
+                        before the test scenario's flows.
+
+        Tests a basic flow for a single posting API consisting of:
         '''
         try:
-            root_trace                      = FunctionalTrace(parent_trace=None).doing("Test scenario", 
+            script_trace                      = parent_trace.doing("Test scenario", 
                                                     data={  'excel_file'    : excel_file,
-                                                            'scenario'      : self.scenario(),
-                                                            'test name'     : self.currentTestName()},
+                                                            'scenario'      : self.myTest.scenario(),
+                                                            'test name'     : self.myTest.currentTestName()},
                                                     origination = {
                                                             'signaled_from' : __file__,
                                                             'concrete class': str(self.__class__.__name__)})
 
-            my_trace                        = self.trace_environment(root_trace, "Isolating test case")
+            my_trace                        = self.myTest.trace_environment(script_trace, "Isolating test case")
             if True:
-                self.provisionIsolatedEnvironment(my_trace)
+                self.myTest.provisionIsolatedEnvironment(my_trace)
                 
 
             if setup_dependencies:
-                my_trace                        = self.trace_environment(root_trace, "Setting up dependency data")
-                self.setup_static_data(my_trace)
-                self.setup_reference_data(my_trace)
+                my_trace                    = self.myTest.trace_environment(script_trace, "Setting up dependency data")
+                self.myTest.setup_static_data(my_trace)
+                self.myTest.setup_reference_data(my_trace)
 
             # Now that dependencies have been set up, let's check how the environment looks.
-            self.check_environment_contents(my_trace)
+            self.myTest.check_environment_contents(my_trace)
 
             if from_nothing: # Make a blind call get `requestForm`, without knowing a priori the manifest handles
-                my_trace                    = self.trace_environment(root_trace, "Blind call to 'requestForm' API")
+                my_trace                    = self.myTest.trace_environment(script_trace, "Blind call to 'requestForm' API")
                 if True: 
-                    store                   = self.stack().kb().store
+                    store                   = self.myTest.stack().kb().store
                     blind_form_request      = store.getBlindFormRequest(    parent_trace    = my_trace, 
                                                                             relative_path   = excel_relative_path, 
                                                                             posting_api     = posting_api,
@@ -102,17 +96,17 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                                                                             subnamespace    = subnamespace)
 
                     fr_response, fr_log_txt, \
-                        fr_rep              = self.stack().kb().requestForm(parent_trace    = root_trace, 
-                                                                            form_request    = blind_form_request) 
+                        fr_rep              = self.myTest.stack().kb().requestForm( parent_trace    = script_trace, 
+                                                                                    form_request    = blind_form_request) 
 
-                    self.check_environment_contents(my_trace) 
+                    self.myTest.check_environment_contents(my_trace) 
                     layout_info, pl_fmt_info, ws_fmt_info, label_ctx_nice \
                                              = self._generated_form_test_output( my_trace, 
-                                                                                blind_form_request, 
-                                                                                fr_response, 
-                                                                                fr_log_txt, 
-                                                                                fr_rep, 
-                                                                                generated_form_worksheet)
+                                                                                        blind_form_request, 
+                                                                                        fr_response, 
+                                                                                        fr_log_txt, 
+                                                                                        fr_rep, 
+                                                                                        generated_form_worksheet)
                     api_called              = "initial requestForm"
 
                     self.check_log(my_trace, fr_log_txt, api_called=api_called)
@@ -126,42 +120,44 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     self.check_xl_format(my_trace, ws_fmt_info, generated_form_worksheet, api_called)
 
             else: # Copy the input file into the collaboration area
-                my_trace                    = self.trace_environment(root_trace, "Copying input into the shared collaboration area")
-                input_path                  = self.getInputDataFolder(my_trace) + "/" + self.scenario() + "/" + self.currentTestName() \
-                                                                                                + ".original." + excel_file
-                clientURL                   = self.stack().store().current_environment(my_trace).clientURL(my_trace)
+                my_trace                    = self.myTest.trace_environment(script_trace, "Copying input into the shared collaboration area")
+                input_path                  = self.myTest.getInputDataFolder(my_trace) \
+                                                                                + "/" + self.myTest.scenario() \
+                                                                                + "/" + self.myTest.currentTestName() \
+                                                                                + ".original." + excel_file
+                clientURL                   = self.myTest.stack().store().current_environment(my_trace).clientURL(my_trace)
                 collab_area_folder          = clientURL + "/" + excel_relative_path
                 collab_area_path            = collab_area_folder + "/" + excel_file
                 PathUtils().create_path_if_needed(my_trace, collab_area_folder)
                 _shutil.copy2(src = input_path, dst = collab_area_path)
-                self.check_environment_contents(my_trace)
+                self.myTest.check_environment_contents(my_trace)
 
-            my_trace                        = self.trace_environment(root_trace, "Calling 'postByFile' API")
+            my_trace                        = self.myTest.trace_environment(script_trace, "Calling 'postByFile' API")
             if True:
-                clientURL                   = self.stack().store().current_environment(my_trace).clientURL(my_trace)
+                clientURL                   = self.myTest.stack().store().current_environment(my_trace).clientURL(my_trace)
                 posting_path                = clientURL + "/" + excel_relative_path + "/" + excel_file
-                response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                response, log_txt           = self.myTest.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                             path_of_file_being_posted   = posting_path, 
                                                                             excel_sheet                 = excel_sheet)
                 self.check_manifest_count(my_trace, response, nb_manifests_expected)
 
                 self.check_manifests_contents(my_trace, response)
 
-                self.check_environment_contents(   parent_trace    = my_trace)
+                self.myTest.check_environment_contents(   parent_trace    = my_trace)
 
                 self.check_log(my_trace, log_txt, api_called="postByFile")
 
-            my_trace                        = self.trace_environment(root_trace, "Calling 'requestForm' API")
+            my_trace                        = self.myTest.trace_environment(script_trace, "Calling 'requestForm' API")
             form_request_responses          = []
             if True:
                 form_idx = 0
 
                 for form_request in response.optionalForms() + response.mandatoryForms():
                     fr_response, fr_log_txt, \
-                        fr_rep              = self.stack().kb().requestForm(parent_trace    = root_trace, 
+                        fr_rep              = self.myTest.stack().kb().requestForm(parent_trace    = script_trace, 
                                                                             form_request    = form_request) 
 
-                    self.check_environment_contents(my_trace) 
+                    self.myTest.check_environment_contents(my_trace) 
                     layout_info, pl_fmt_info, ws_fmt_info, label_ctx_nice \
                                             = self._generated_form_test_output( my_trace, 
                                                                                 form_request, 
@@ -184,26 +180,26 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
                     '''
                     Save the form before we change it
                     '''
-                    self.snapshot_generated_form(my_trace, fr_response)
+                    self.myTest.snapshot_generated_form(my_trace, fr_response)
 
                     form_request_responses.append(fr_response)
                     form_idx += 1
 
-            my_trace                        = self.trace_environment(root_trace, "Doing an update via 'postByFile' API")
+            my_trace                        = self.myTest.trace_environment(script_trace, "Doing an update via 'postByFile' API")
             if True:
                 for fr_response in form_request_responses:
                     # Copy the "modified form" that has some edits in it
-                    self.modify_form(my_trace, fr_response)
+                    self.myTest.modify_form(my_trace, fr_response)
                     form_path   = fr_response.clientURL(my_trace) + "/" + fr_response.getRelativePath(my_trace)
 
-                    update_response, update_log_txt = self.stack().kb().postByFile( parent_trace                = my_trace, 
+                    update_response, update_log_txt = self.myTest.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                                 path_of_file_being_posted   = form_path)
 
                     self.check_manifest_count(my_trace, update_response, nb_manifests_expected)
 
                     self.check_manifests_contents(my_trace, update_response)
 
-                    self.check_environment_contents(   parent_trace    = my_trace)
+                    self.myTest.check_environment_contents(   parent_trace    = my_trace)
 
                     self.check_log(my_trace, update_log_txt, api_called="postByFile")
 
@@ -227,34 +223,36 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
         # Retrieve the manifests created and check they have the data we expect
         manifest_dict                       = {}
         for handle in posting_response.createdManifests() + posting_response.updatedManifests():
-            loop_trace                      = self.trace_environment(parent_trace, "Retrieving manifest for handle " 
-                                                                                    + str(handle))
-            manifest_dict, manifest_path    = self.stack().store().retrieveManifest(loop_trace, handle)
-            self._compare_to_expected_yaml(loop_trace, manifest_dict, test_output_name = self.next_manifest(handle.kind))
+            loop_trace                      = self.myTest.trace_environment(    parent_trace, 
+                                                                            "Retrieving manifest for handle " + str(handle))
+            manifest_dict, manifest_path    = self.myTest.stack().store().retrieveManifest(loop_trace, handle)
+            self.myTest._compare_to_expected_yaml(  loop_trace, 
+                                                    manifest_dict, 
+                                                    test_output_name = self.myTest.next_manifest(handle.kind))
 
     def check_log(self, parent_trace, log_data, api_called):
-        self._compare_to_expected_txt(  parent_trace        = parent_trace,
-                                        output_txt          = log_data,
-                                        test_output_name    = self.next_log(api_called), 
-                                        save_output_txt     = True)
+        self.myTest._compare_to_expected_txt(   parent_trace        = parent_trace,
+                                                output_txt          = log_data,
+                                                test_output_name    = self.myTest.next_log(api_called), 
+                                                save_output_txt     = True)
 
     def check_posting_label(self, parent_trace, label_ctx_nice, api_called):
-        self._compare_to_expected_txt(  parent_trace        = parent_trace,
-                                        output_txt          = label_ctx_nice,
-                                        test_output_name    = self.next_posting_label(api_called), 
-                                        save_output_txt     = True)
+        self.myTest._compare_to_expected_txt(   parent_trace        = parent_trace,
+                                                output_txt          = label_ctx_nice,
+                                                test_output_name    = self.myTest.next_posting_label(api_called), 
+                                                save_output_txt     = True)
         
     def check_xl_layout(self, parent_trace, layout_info, sheet, api_called):
-        self._compare_to_expected_txt(  parent_trace    = parent_trace,
-                                    output_txt          = layout_info,
-                                    test_output_name    = self.next_xl_layout(sheet, api_called),
-                                    save_output_txt     = True) 
+        self.myTest._compare_to_expected_txt(   parent_trace    = parent_trace,
+                                                output_txt          = layout_info,
+                                                test_output_name    = self.myTest.next_xl_layout(sheet, api_called),
+                                                save_output_txt     = True) 
 
     def check_xl_format(self, parent_trace, format_info, sheet, api_called):
-        self._compare_to_expected_txt(  parent_trace        = parent_trace,
-                                        output_txt          = format_info,
-                                        test_output_name    = self.next_xl_format(sheet, api_called),
-                                        save_output_txt     = True) 
+        self.myTest._compare_to_expected_txt(   parent_trace        = parent_trace,
+                                                output_txt          = format_info,
+                                                test_output_name    = self.myTest.next_xl_format(sheet, api_called),
+                                                save_output_txt     = True) 
 
     def _generated_form_test_output(self, parent_trace, form_request, fr_response, fr_log_txt, fr_rep, generated_form_worksheet):
         '''
