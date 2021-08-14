@@ -1,5 +1,8 @@
+import shutil                                                   as _shutil
+
 from apodeixi.testing_framework.a6i_integration_test            import ApodeixiIntegrationTest
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
+from apodeixi.util.path_utils                                   import PathUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
 from apodeixi.knowledge_base.knowledge_base_util                import FormRequest
@@ -24,8 +27,8 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
 
         for file in EXCEL_FILES:
             loop_trace              = my_trace.doing("Posting file '" + str(file) + "'")
-            posting_path                = self.getInputDataFolder(parent_trace)  + "/" + self.scenario() + "/" + file
-            response, log_txt           = self.stack().kb().postByFile( parent_trace                = my_trace, 
+            posting_path                = self.getInputDataFolder(loop_trace)  + "/" + self.scenario() + "/" + file
+            response, log_txt           = self.stack().kb().postByFile( parent_trace                = loop_trace, 
                                                                         path_of_file_being_posted   = posting_path, 
                                                                         excel_sheet                 = "Posting Label")
 
@@ -78,12 +81,15 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
             my_trace                        = self.trace_environment(root_trace, "Isolating test case")
             if True:
                 self.provisionIsolatedEnvironment(my_trace)
-                self.check_environment_contents(my_trace)
+                
 
             if setup_dependencies:
                 my_trace                        = self.trace_environment(root_trace, "Setting up dependency data")
                 self.setup_static_data(my_trace)
                 self.setup_reference_data(my_trace)
+
+            # Now that dependencies have been set up, let's check how the environment looks.
+            self.check_environment_contents(my_trace)
 
             if from_nothing: # Make a blind call get `requestForm`, without knowing a priori the manifest handles
                 my_trace                    = self.trace_environment(root_trace, "Blind call to 'requestForm' API")
@@ -119,6 +125,16 @@ class FlowScenarioSkeleton(ApodeixiIntegrationTest):
 
                     self.check_xl_format(my_trace, ws_fmt_info, generated_form_worksheet, api_called)
 
+            else: # Copy the input file into the collaboration area
+                my_trace                    = self.trace_environment(root_trace, "Copying input into the shared collaboration area")
+                input_path                  = self.getInputDataFolder(my_trace) + "/" + self.scenario() + "/" + self.currentTestName() \
+                                                                                                + ".original." + excel_file
+                clientURL                   = self.stack().store().current_environment(my_trace).clientURL(my_trace)
+                collab_area_folder          = clientURL + "/" + excel_relative_path
+                collab_area_path            = collab_area_folder + "/" + excel_file
+                PathUtils().create_path_if_needed(my_trace, collab_area_folder)
+                _shutil.copy2(src = input_path, dst = collab_area_path)
+                self.check_environment_contents(my_trace)
 
             my_trace                        = self.trace_environment(root_trace, "Calling 'postByFile' API")
             if True:

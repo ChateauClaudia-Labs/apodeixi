@@ -309,7 +309,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             self.input_data       = new_input_location
 
     def provisionIsolatedEnvironment(self, parent_trace, environment_name = None, 
-                                            read_misses_policy  = KB_Environment_Config.FAIL_ON_READ_MISSES,):
+                                            read_misses_policy  = KB_Environment_Config.FAIL_ON_READ_MISSES,
+                                            seed_client_area    = False):
         '''
         Creates a new environment as a sub-environment of the current environment, and activates it.
         The new environment is configured to have a dedicated, isolated collaboration area which
@@ -337,6 +338,9 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                 (not from the collaboration area), using postings saved in the base environment.
                 For them a different policy should be used (such as KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT).
 
+        @param seed_client_area A boolean. If True, this method will initialize the isolated environment's
+                collaboration area by copying the contents of the base environment's collaboration area.
+
         '''
         if environment_name == None:
             result_directories          = self.test_config_dict['integration-tests-results']
@@ -354,7 +358,6 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         my_trace                    = parent_trace.doing("Creating an isolated environment for integration test")
         env_config                  = KB_Environment_Config(
                                             parent_trace, 
-                                            #read_misses_policy  = KB_Environment_Config.FAILOVER_ALL_READS_TO_PARENT,
                                             read_misses_policy  = read_misses_policy,
                                             use_timestamps      = False,
                                             path_mask           = self._path_mask)
@@ -362,8 +365,9 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                                                     isolate_collab_area = True)
         store.activate(parent_trace = my_trace, environment_name = environment_name)
 
-        my_trace                    = parent_trace.doing("Seeding client area for integration test")
-        self.stack().seedTestClientArea(parent_trace)
+        if seed_client_area == True:
+            my_trace                    = parent_trace.doing("Seeding client area for integration test")
+            self.stack().seedTestClientArea(parent_trace)
 
     def check_environment_contents(self, parent_trace, snapshot_name = None):     
         '''
