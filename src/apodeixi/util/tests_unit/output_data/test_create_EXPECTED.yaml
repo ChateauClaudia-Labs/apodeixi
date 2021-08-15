@@ -163,11 +163,6 @@ util:
         Size (in bytes):  3359
 
         '
-      test_notebook_run_OUTPUT.yaml: '
-
-        Size (in bytes):  3359
-
-        '
       test_path_utils_EXPECTED.txt: '
 
         Size (in bytes):  906

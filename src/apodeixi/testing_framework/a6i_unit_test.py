@@ -3,6 +3,8 @@ import os                   as _os
 import inspect
 
 from apodeixi.testing_framework.a6i_skeleton_test   import ApodeixiSkeletonTest
+from apodeixi.util.a6i_error                        import FunctionalTrace
+from apodeixi.util.path_utils                       import PathUtils
 
 
 class ApodeixiUnitTest(ApodeixiSkeletonTest):  
@@ -21,6 +23,11 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
         self.input_data             = _os.path.join(_os.path.dirname(me__file__), 'input_data') # Works ! :-) Thanks inspect!
         # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
         self.output_data            = _os.path.join(_os.path.dirname(me__file__), 'output_data') # Works ! :-) Thanks inspect!
+
+        # Output data is not in source control, so if we are in a clean repo the folder might not exist, so created it
+        # if needed
+        root_trace                  = FunctionalTrace(None, path_mask=self._path_mask)
+        PathUtils().create_path_if_needed(root_trace, self.output_data)
 
         # For unit tests, don't enforce referential integrity since we will test data in mock stores that may
         # reference things that don't really exist
