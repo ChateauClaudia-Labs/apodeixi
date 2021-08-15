@@ -130,7 +130,7 @@ class PathUtils():
         '''
         Path(path).mkdir(parents=True, exist_ok=True)
 
-    def get_mask_lambda(self):
+    def get_mask_lambda(self, parent_trace, a6i_config):
         '''
         Returns a mask function to hide the top levels of a path if the path refers to a file in an Apodeixi
         deployment, i.e., the deployment of Apodeixi code or of the knowledge base.
@@ -151,14 +151,27 @@ class PathUtils():
 
                 '<MASKED>/envs/big_rocks_posting_ENV/excel-postings'
         '''
+        KB_ROOT                             = a6i_config.get_KB_RootFolder(parent_trace)
+        COLLAB_ROOT                         = a6i_config.get_ExternalCollaborationFolder(parent_trace)
+        A6I_DB                              = _os.path.dirname(KB_ROOT)
         def _path_mask(path):
-            if '/envs' in path:
-                tokens                                          = path.split('/envs/')
-                masked_path                                     = '<MASKED>/envs/' + tokens[-1]
+            '''
+            '''
+            if self.is_parent(parent_trace, parent_dir=KB_ROOT, path=path):
+                tokens                                          = path.split(KB_ROOT)
+                masked_path                                     = '<KNOWLEDGE BASE ROOT>' + tokens[-1]
+                return masked_path
+            elif self.is_parent(parent_trace, parent_dir=COLLAB_ROOT, path=path):
+                tokens                                          = path.split(COLLAB_ROOT)
+                masked_path                                     = '<EXTERNAL COLLABORATION FOLDER>' + tokens[-1]
+                return masked_path
+            elif self.is_parent(parent_trace, parent_dir=A6I_DB, path=path):
+                tokens                                          = path.split(A6I_DB)
+                masked_path                                     = '<APODEIXI DATABASE>' + tokens[-1]
                 return masked_path
             elif 'apodeixi' in path:
                 tokens                                          = path.split('apodeixi')
-                masked_path                                     = '<MASKED>/apodeixi' + tokens[-1]
+                masked_path                                     = '<APODEIXI INSTALLATION>/apodeixi' + tokens[-1]
                 return masked_path
             else:
                 return path

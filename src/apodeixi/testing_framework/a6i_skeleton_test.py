@@ -21,24 +21,14 @@ class ApodeixiSkeletonTest(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-
-        '''
-        def _path_mask(path):
-            if 'apodeixi' in path:
-                tokens                                          = path.split('apodeixi')
-                masked_path                                     = '<MASKED>/apodeixi' + tokens[-1]
-                return masked_path
-            else:
-                return path
-        '''
+        self.activateTestConfig()
 
         # Used by derived classes to mask some paths that are logged out so that regression output is
         # deterministic
-        #self._path_mask                                     = _path_mask
+        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=None).doing("Configuring test path mask",
+                                                                    origination = {'signaled_from': __file__})
 
-        self._path_mask                     = PathUtils().get_mask_lambda()
-
-        self.activateTestConfig()
+        self._path_mask             = PathUtils().get_mask_lambda(parent_trace=root_trace, a6i_config=self.a6i_config)
 
 
     def activateTestConfig(self):
@@ -47,16 +37,18 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         This change endures until the dual method self.deactivateTestConfig() is called.
         '''
         # Remember it before we change it to use a test configuration, and then restore it in the tearDown method
-        self.original_config_directory                      = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
+        self.original_config_directory              = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 
         # Here we want the location of this class, not its concrete derived class,
         # since the location of the Apodexei config to be used for tests is globally unique
         # So we use __file__ 
-        _os.environ['APODEIXI_CONFIG_DIRECTORY']            = _os.path.join(_os.path.dirname(__file__), 'config') 
+        _os.environ['APODEIXI_CONFIG_DIRECTORY']    = _os.path.join(_os.path.dirname(__file__), 'config') 
 
-        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Loading Apodeixi configuration",
-                                                                        origination = {'signaled_from': __file__})
-        self.a6i_config                = ApodeixiConfig(root_trace)
+        func_trace              = FunctionalTrace(  parent_trace    = None, 
+                                                    path_mask       = None) # path_mask has not been set yet as an attribute
+        root_trace              = func_trace.doing("Loading Apodeixi configuration",
+                                                    origination     = {'signaled_from': __file__})
+        self.a6i_config         = ApodeixiConfig(root_trace)
 
     def deactivateTestConfig(self):
         '''
