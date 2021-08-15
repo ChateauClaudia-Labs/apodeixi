@@ -22,6 +22,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
+        '''
         def _path_mask(path):
             if 'apodeixi' in path:
                 tokens                                          = path.split('apodeixi')
@@ -29,10 +30,13 @@ class ApodeixiSkeletonTest(unittest.TestCase):
                 return masked_path
             else:
                 return path
+        '''
 
         # Used by derived classes to mask some paths that are logged out so that regression output is
         # deterministic
-        self._path_mask                                     = _path_mask
+        #self._path_mask                                     = _path_mask
+
+        self._path_mask                     = PathUtils().get_mask_lambda()
 
         self.activateTestConfig()
 

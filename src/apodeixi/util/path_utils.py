@@ -130,6 +130,41 @@ class PathUtils():
         '''
         Path(path).mkdir(parents=True, exist_ok=True)
 
+    def get_mask_lambda(self):
+        '''
+        Returns a mask function to hide the top levels of a path if the path refers to a file in an Apodeixi
+        deployment, i.e., the deployment of Apodeixi code or of the knowledge base.
+
+        A mask function takes a string argument and returns a string. 
+        It is used in situations (such as in regression testing) when observability should not
+        report the paths "as is", but with a mask. 
+        
+        For example, without a mask function regression tests might output text that displays paths like:
+    
+
+                'C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test-knowledge-base/envs/big_rocks_posting_ENV/excel-postings'
+
+        By contrast, if the regression tests feeds that path to the "mask lambda" returned by this method, the
+        regression thest gets instead a "masked path" that it can use to display in regression output in a way
+        that makes the regression output be independent of the physical location for thee Apodeixi deployment
+        In our example, that would become:
+
+                '<MASKED>/envs/big_rocks_posting_ENV/excel-postings'
+        '''
+        def _path_mask(path):
+            if '/envs' in path:
+                tokens                                          = path.split('/envs/')
+                masked_path                                     = '<MASKED>/envs/' + tokens[-1]
+                return masked_path
+            elif 'apodeixi' in path:
+                tokens                                          = path.split('apodeixi')
+                masked_path                                     = '<MASKED>/apodeixi' + tokens[-1]
+                return masked_path
+            else:
+                return path
+
+        return _path_mask
+
 class FileMetadata():
     '''
     Helper class to encapsulates properties about a file (notably, its filename) that should be 

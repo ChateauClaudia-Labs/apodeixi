@@ -170,12 +170,18 @@ class ApodeixiError (Exception):
 
     def trace_message(self, exclude_stack_trace=False):
 
+        def MSK(txt): # Abbreviaation for the masking logic
+            if self.functional_trace.path_mask != None:
+                return self.functional_trace.path_mask(txt)
+            else:
+                return txt
+
         data_msg                    = ''
         for k in self.data.keys():
-            data_msg          += '\n' + FunctionalTrace._ins(k) + ': ' + str(self.data[k])
+            data_msg                += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(self.data[k]))
         if not exclude_stack_trace:
             for k in self.origination.keys():
-                data_msg          += '\n' + FunctionalTrace._ins(k) + ': ' + str(self.origination[k])
+                data_msg            += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(self.origination[k]))
         if len(data_msg) > 0:
             data_msg                = '\n' + data_msg + '\n'
 
