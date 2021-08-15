@@ -1,0 +1,198 @@
+apiVersion: workstream.initiatives.a6i.io/v1a
+assertion:
+  entity_type: Metric
+  estimatedBy: joe.theworkstreamlead@mycorp.com
+  estimatedOn: &id001 2021-04-29 00:00:00
+  initiative: S1
+  metric:
+    M1:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: Aggregation across all products of the product-specific
+        metric M4
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Annual
+      Granularity: ELT
+      Metric Type: R
+      Q1 FY 22 Target: ''
+      Q2 FY22 Target: ''
+      Q3 FY22 Target: ''
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M1
+      name: FusionOperate readiness
+    M1-name: FusionOperate readiness
+    M2:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: Aggregation across all products of the product-specific
+        metrics M6, M7, M8
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Quarterly
+      Granularity: ELT
+      Metric Type: P
+      Q1 FY 22 Target: TBD 8/31/21
+      Q2 FY22 Target: TBD 8/31/21
+      Q3 FY22 Target: TBD 8/31/21
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M2
+      name: Containerization, PaaS, Multi-tenancy
+    M2-name: Containerization, PaaS, Multi-tenancy
+    M3:
+      Baseline Value: ''
+      Definition of metric: Aggregation across all products of the product-specific
+        metric M9
+      FY 23 Target: 1
+      FY 24 Target: 1
+      Frequency of Collection: Quarterly
+      Granularity: ELT
+      Metric Type: P
+      Q1 FY 22 Target: 1
+      Q2 FY22 Target: 1
+      Q3 FY22 Target: 1
+      Q4 FY 22 Target: 1
+      Source: Aha and the the ea-journeys knowledge base system.
+      UID: M3
+      name: 'Aggregated # of epics delivered'
+    M3-name: 'Aggregated # of epics delivered'
+    M4:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: "Metric computed from the 7 FusionOperate adoption indicators\
+        \ that exist for each growth product that is stacked ranked above a threshold\
+        \ (~8 products). Of the 7 indicators, 3 are for W1 and 4 are for W2.\n Computation\
+        \ procedure is:\n1. For a given fiscal year, we sum up the numerical targets\
+        \ across 3 W1 FO indicators * ~8 growth products (~24 numbers added). This\
+        \ is the denominator\n2. For the same fiscal year, we measure what the actuals\
+        \ are for these indicators, and add them up (~24 numbers added). This is the\
+        \ numerator\n3. Metric is defined as the ratio, defined as a percent."
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Annual
+      Granularity: Growth products
+      Metric Type: R
+      Q1 FY 22 Target: ''
+      Q2 FY22 Target: ''
+      Q3 FY22 Target: ''
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M4
+      name: Roadmap delivery (growth products)
+    M4-name: Roadmap delivery (growth products)
+    M5:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: Same as above, for for new products instead of growth
+        products.
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Annual
+      Granularity: New products
+      Metric Type: R
+      Q1 FY 22 Target: ''
+      Q2 FY22 Target: ''
+      Q3 FY22 Target: ''
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M5
+      name: Roadmap delivery (new products)
+    M5-name: Roadmap delivery (new products)
+    M6:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: Same as for roadmap delivery, except the sum is only over
+        1 FO Adoption indicator (the "% containerized" indicator)
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Quarterly
+      Granularity: Growth products
+      Metric Type: P
+      Q1 FY 22 Target: TBD 8/31/21
+      Q2 FY22 Target: TBD 8/31/21
+      Q3 FY22 Target: TBD 8/31/21
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M6
+      name: Margin enablement
+    M6-name: Margin enablement
+    M7:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: Same as for roadmap delivery, except the sum is only over
+        1 FO Adoption indicator (the "% PaaS" indicator)
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Quarterly
+      Granularity: Growth products
+      Metric Type: P
+      Q1 FY 22 Target: TBD 8/31/21
+      Q2 FY22 Target: TBD 8/31/21
+      Q3 FY22 Target: TBD 8/31/21
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M7
+      name: Maintainability enablement
+    M7-name: Maintainability enablement
+    M8:
+      Baseline Value: TBD 8/31/21
+      Definition of metric: Same as for roadmap delivery, except the sum is only over
+        1 FO Adoption indicator (the "% multi-tenant" indicator)
+      FY 23 Target: TBD 8/31/21
+      FY 24 Target: TBD 8/31/21
+      Frequency of Collection: Quarterly
+      Granularity: Growth products
+      Metric Type: P
+      Q1 FY 22 Target: TBD 8/31/21
+      Q2 FY22 Target: TBD 8/31/21
+      Q3 FY22 Target: TBD 8/31/21
+      Q4 FY 22 Target: TBD 8/31/21
+      Source: ea-journeys knowledge base system
+      UID: M8
+      name: Scalability enablement
+    M8-name: Scalability enablement
+    M9:
+      Baseline Value: ''
+      Definition of metric: "Metric is separately reported for each of 14 growth products\
+        \ and computed as follows:\n1. Product modernization roadmaps will be defined\
+        \ based on milestones that align to Amplify booking projections. \n2. A given\
+        \ milestone M will map to some Aha epics E1, E2,, En defining the scope of\
+        \ M. \n3. Each epic Ei has particular delivery date Ti. \n4. For a given quarter\
+        \ Q, we define the metric by looking at the subset E_Q of {E1, ...., En} that\
+        \ were initially committed for delivery in Q. Metric is the % of E_Q that\
+        \ was actualy delivered in quarter Q."
+      FY 23 Target: 1
+      FY 24 Target: 1
+      Frequency of Collection: Quarterly
+      Granularity: Per growth product
+      Metric Type: P
+      Q1 FY 22 Target: 1
+      Q2 FY22 Target: 1
+      Q3 FY22 Target: 1
+      Q4 FY 22 Target: 1
+      Source: Aha and the the ea-journeys knowledge base system.
+      UID: M9
+      name: '# of EPICs delivered in time and budget'
+    M9-name: '# of EPICs delivered in time and budget'
+  program: Amplify
+  recordedBy: jill.theinitiativepmo@mycorp.com
+  scenario: Default
+  scoringCycle: Dec 2020
+  scoringMaturity: Draft
+  workstreamTitle: Modernization
+  workstreamUID: W1
+kind: workstream-metric
+metadata:
+  labels:
+    estimatedBy: joe.theworkstreamlead@mycorp.com
+    estimatedOn: *id001
+    initiative: S1
+    knowledgeBase: Production
+    organization: My Corp
+    program: Amplify
+    recordedBy: jill.theinitiativepmo@mycorp.com
+    scenario: Default
+    scoringCycle: Dec 2020
+    scoringMaturity: Draft
+    version: 1
+    workstreamTitle: Modernization
+    workstreamUID: W1
+  name: amplify.dec-2020.s1.w1.default
+  namespace: my-corp.production
+  version: 1

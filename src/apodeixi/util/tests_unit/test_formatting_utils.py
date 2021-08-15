@@ -6,8 +6,9 @@ from apodeixi.testing_framework.a6i_unit_test       import ApodeixiUnitTest
 from apodeixi.util.a6i_error                        import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                 import DictionaryFormatter, NotebookUtils
 from apodeixi.util.dictionary_utils                 import DictionaryUtils 
+from apodeixi.util.path_utils                       import PathUtils
 
-SMOKE_TESTS_ONLY                                = _os.environ.get('SMOKE_TESTS_ONLY')
+SMOKE_TESTS_ONLY                                    = _os.environ.get('SMOKE_TESTS_ONLY')
 
 class Test_NotebookUtils(ApodeixiUnitTest):
 
@@ -20,8 +21,10 @@ class Test_NotebookUtils(ApodeixiUnitTest):
         try:
             INPUT_FOLDER                    = self.input_data
             OUTPUT_FOLDER                   = self.output_data
-            TEST_SCENARIO                   = 'test_notebook_run'
+            EXPECTED_FOLDER                 = self.expected_data
+            TEST_SCENARIO                   = 'test_notebook_run' 
 
+            PathUtils().create_path_if_needed(root_trace, OUTPUT_FOLDER + "/notebooks/")
             nb_utils                        = NotebookUtils(    src_folder              = INPUT_FOLDER, 
                                                                 src_filename            = TEST_SCENARIO + "_INPUT.ipynb", 
                                                                 destination_folder      = OUTPUT_FOLDER + "/notebooks/", 

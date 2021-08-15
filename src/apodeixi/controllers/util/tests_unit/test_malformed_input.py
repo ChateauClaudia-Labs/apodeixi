@@ -122,7 +122,8 @@ class Test_MalformedInput(ApodeixiUnitTest):
         posting_handle                  = STORE.buildPostingHandle(root_trace, EXCEL_FILE,
                                                                     sheet="Posting Label", excel_range="B2:C100") 
 
-        MANIFESTS_DIR                   = self.output_data
+        MANIFESTS_OUTPUT_DIR            = self.output_data
+        MANIFESTS_EXPECTED_DIR          = self.expected_data
         EXPLANATIONS_OUTPUT             = test_case_name + '_explanations_OUTPUT.yaml'
         EXPLANATIONS_EXPECTED           = test_case_name + '_explanations_EXPECTED.yaml'
         all_manifests_dicts             = []
@@ -152,7 +153,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
                                                                         a_dict          = explanations_dict, 
                                                                         flatten=True, 
                                                                         delimeter="::")
-            with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
+            with open(MANIFESTS_OUTPUT_DIR + '/'  + EXPLANATIONS_OUTPUT, 'w') as file:
                 file            .write(explanations_nice)
 
         except ApodeixiError as ex:
@@ -166,7 +167,7 @@ class Test_MalformedInput(ApodeixiUnitTest):
             manifest_dict   = all_manifests_dict[manifest_nb]
             kind            = manifest_dict['kind']
             self._compare_to_expected_yaml(root_trace, manifest_dict, test_case_name + "." + kind)
-        with open(MANIFESTS_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
+        with open(MANIFESTS_EXPECTED_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()
         self.assertEqual(explanations_nice,    expected_explain)
 

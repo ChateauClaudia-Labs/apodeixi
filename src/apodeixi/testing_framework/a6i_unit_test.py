@@ -23,6 +23,8 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
         self.input_data             = _os.path.join(_os.path.dirname(me__file__), 'input_data') # Works ! :-) Thanks inspect!
         # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
         self.output_data            = _os.path.join(_os.path.dirname(me__file__), 'output_data') # Works ! :-) Thanks inspect!
+        # self.output_data            = _os.path.join(_os.path.dirname(__file__), 'output_data') # Doesn't work - use inpectt instead
+        self.expected_data           = _os.path.join(_os.path.dirname(me__file__), 'expected_data') # Works ! :-) Thanks inspect!
 
         # Output data is not in source control, so if we are in a clean repo the folder might not exist, so created it
         # if needed
@@ -47,7 +49,7 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
                                             output_dict, 
                                             test_output_name    = test_output_name, 
                                             output_data_dir     = self.output_data, 
-                                            expected_data_dir   = self.output_data, 
+                                            expected_data_dir   = self.expected_data, 
                                             save_output_dict    = save_output_dict)
 
     def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, save_output_txt=False):
@@ -61,7 +63,7 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
                                             output_txt, 
                                             test_output_name    = test_output_name, 
                                             output_data_dir     = self.output_data, 
-                                            expected_data_dir   = self.output_data, 
+                                            expected_data_dir   = self.expected_data, 
                                             save_output_txt     = save_output_txt)
 
     def _compare_to_expected_df(self, parent_trace, output_df, test_output_name, columns_to_ignore=[], id_column=None):
@@ -79,6 +81,6 @@ class ApodeixiUnitTest(ApodeixiSkeletonTest):
                                             output_df, 
                                             test_output_name    = test_output_name, 
                                             output_data_dir     = self.output_data, 
-                                            expected_data_dir   = self.output_data, 
+                                            expected_data_dir   = self.expected_data, 
                                             columns_to_ignore   = columns_to_ignore, 
                                             id_column=id_column)

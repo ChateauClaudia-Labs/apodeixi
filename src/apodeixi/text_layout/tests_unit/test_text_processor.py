@@ -30,7 +30,7 @@ class Test_TextProcessor(ApodeixiUnitTest):
                 outputs[w]          = '\n'.join(processor.lines)
                 with open(self.output_data + '/'  'test_small_text_' + str(w) + '_OUTPUT.txt', 'w') as file:
                     file            .write(outputs[w])
-                with open(self.output_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'r') as file:
+                with open(self.expected_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'r') as file:
                     expected[w]     = file.read()
         except ApodeixiError as ex:
             print(ex.trace_message())                                                                                        

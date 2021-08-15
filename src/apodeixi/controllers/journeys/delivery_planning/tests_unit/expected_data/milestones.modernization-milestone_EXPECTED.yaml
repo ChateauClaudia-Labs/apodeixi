@@ -1,0 +1,76 @@
+apiVersion: delivery-planning.journeys.a6i.io/v1a
+assertion:
+  entity_type: Milestone
+  estimatedBy: joe@my-org.com
+  estimatedOn: &id001 2021-06-06 00:00:00
+  milestone:
+    M1:
+      Date: Q3 FY22
+      Theme: Complete MVP for medium-sized hospital market
+      UID: M1
+      big-rock:
+      - BR1.B1
+      - BR1.B2
+      - BR2.B1
+      - BR2.B2
+      - BR2.B3
+      - BR2.B4.SB3
+      - BR3.B1
+      - BR3.B2
+      - BR3.B3.SB1
+      name: M1
+    M1-name: M1
+    M2:
+      Date: Q2 FY 23
+      Theme: Complete digital records for patients
+      UID: M2
+      big-rock:
+      - BR1.B3.SB1
+      - BR2.B4.SB1
+      - BR3.B3.SB2
+      name: M2
+    M2-name: M2
+    M3:
+      Date: Q4 FY 24
+      Theme: Saas Solution for US
+      UID: M3
+      big-rock:
+      - BR1.B3.SB2
+      - BR2.B4.SB2
+      - BR2.B4.SB4
+      - BR2.B4.SB5
+      - BR3.B3.SB3
+      name: M3
+    M3-name: M3
+    M4:
+      Date: Q4 FY 25
+      Theme: SaaS solution for Latin America
+      UID: M4
+      big-rock:
+      - BR1.B3.SB3
+      - BR2.B4.SB6
+      - BR2.B4.SB7
+      - BR3.B3.SB4
+      name: M4
+    M4-name: M4
+  recordedBy: tulia@my-org.com
+  scenario: Annual plan
+  scoringCycle: FY 22
+  scoringMaturity: Draft
+kind: modernization-milestone
+metadata:
+  labels:
+    estimatedBy: joe@my-org.com
+    estimatedOn: *id001
+    journey: Modernization
+    knowledgeBase: Production
+    organization: CCL
+    product: Opus Health Pro
+    recordedBy: tulia@my-org.com
+    scenario: Annual plan
+    scoringCycle: FY 22
+    scoringMaturity: Draft
+    version: 1
+  name: modernization.fy-22.opus-health-pro.annual-plan
+  namespace: ccl.production
+  version: 1

@@ -1,0 +1,82 @@
+apiVersion: account.mock.a6i.io/v1
+assertion:
+  account:
+    A1:
+      Balance: 1023.34
+      Currency: USD
+      UID: A1
+      name: IRA xxx435
+    A1-name: IRA xxx435
+    A2:
+      Balance: 23589.32
+      Currency: USD
+      UID: A2
+      name: CMA xxx832
+    A2-name: CMA xxx832
+    A3:
+      Balance: 10000
+      Currency: GBP
+      UID: A3
+      name: IRA xxx2954
+    A3-name: IRA xxx2954
+    A4:
+      Balance: 500
+      Currency: USD
+      UID: A4
+      name: Mutual Funds xxx972
+    A4-name: Mutual Funds xxx972
+    A5:
+      Balance: 3200
+      Currency: USD
+      UID: A5
+      name: Savings xxx777
+    A5-name: Savings xxx777
+    A6:
+      Balance: 321.43
+      Currency: EUR
+      UID: A6
+      name: Checking xxx893
+    A6-name: Checking xxx893
+    A7:
+      Balance: 200000
+      Currency: USD
+      UID: A7
+      name: CD xxx621
+    A7-name: CD xxx621
+    A8:
+      Balance: 8123
+      Currency: USD
+      UID: A8
+      name: Savings xxx982
+    A8-name: Savings xxx982
+    A9:
+      Balance: -35.67
+      Currency: USD
+      UID: A9
+      name: Checking xxx999
+    A9-name: Checking xxx999
+  entity_type: Account
+  estimatedBy: joe.thetestlead@mycorp.com
+  estimatedOn: &id001 2021-06-26 00:00:00
+  recordedBy: jill.thesprintmaster@mycorp.com
+  testCase: user_validation_9
+  testDescription: "User left blank the entity name in a row with data for that entity,\
+    \ and the software can 'correct it' if what happened is that the user entered\
+    \ it in the previous row and then left the previous row blank starting at some\
+    \ column, using the next row insted for such data. This is the first of two sub-cases:\
+    \ \n\nthe extra row data is in the same interval as the missing entity name"
+  testFamily: Test_MalformedInput
+kind: balances
+metadata:
+  labels:
+    estimatedBy: joe.thetestlead@mycorp.com
+    estimatedOn: *id001
+    knowledgeBase: Production
+    organization: My Corp
+    recordedBy: jill.thesprintmaster@mycorp.com
+    testCase: user_validation_9
+    testFamily: Test_MalformedInput
+    version: 1
+  name: test_malformedinput.user_validation_9
+  namespace: my-corp.production
+  version: 1

@@ -68,7 +68,7 @@ class Test_PostingLayout(ApodeixiUnitTest):
             output_as_str = '\n'.join(outputs)
             with open(self.output_data + '/'  'test_validate_layout_OUTPUT.txt', 'w') as file:
                 file            .write(output_as_str)
-            with open(self.output_data + '/'  'test_validate_layout_EXPECTED.txt', 'r') as file:
+            with open(self.expected_data + '/'  'test_validate_layout_EXPECTED.txt', 'r') as file:
                 expected     = file.read()
         except ApodeixiError as ex:
             print(ex.trace_message())                                                                                       

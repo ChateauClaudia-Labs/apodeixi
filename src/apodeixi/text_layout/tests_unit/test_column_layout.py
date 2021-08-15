@@ -26,6 +26,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
         INPUT_FILE                  = name + '_INPUT.csv'
         OUTPUT_FOLDER               = self.output_data
         OUTPUT_FILE                 = name + '_OUTPUT.csv'
+        EXPECTED_FOLDER             = self.expected_data
         EXPECTED_FILE               = name + '_EXPECTED.csv'
 
         OUTPUT_COMPARISON_FILE      = name + '_comparison_OUTPUT.txt'
@@ -66,7 +67,7 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
 
 
             # Now load the expected output. 
-            expected_df         = self.load_csv(root_trace, OUTPUT_FOLDER + '/' + EXPECTED_FILE)
+            expected_df         = self.load_csv(root_trace, EXPECTED_FOLDER + '/' + EXPECTED_FILE)
 
             check, comparison_dict = self._compare_dataframes(  df1         = loaded_output_df, 
                                                                 df1_name    = "output",
@@ -76,14 +77,14 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
             df_comparison_nice              = DictionaryFormatter().dict_2_nice(parent_trace    = root_trace, 
                                                                                 a_dict          = comparison_dict, 
                                                                                 flatten=True)
-            with open(OUTPUT_FOLDER + '/'  + OUTPUT_COMPARISON_FILE, 'w') as file:
+            with open(OUTPUT_FOLDER + '/' + OUTPUT_COMPARISON_FILE, 'w') as file:
                 file            .write(df_comparison_nice)
 
-            with open(OUTPUT_FOLDER + '/'  + EXPECTED_COMPARISON_FILE, 'r') as file:
+            with open(EXPECTED_FOLDER + '/' + EXPECTED_COMPARISON_FILE, 'r') as file:
                 expected_df_comparison  = file.read()           
-            with open(OUTPUT_FOLDER + '/'  + EXPECTED_EXPLAIN_FILE, 'r') as file:
+            with open(EXPECTED_FOLDER + '/' + EXPECTED_EXPLAIN_FILE, 'r') as file:
                 expected_explain        = file.read()
-            with open(OUTPUT_FOLDER + '/'  + EXPECTED_RESULTS_FILE, 'r') as file:
+            with open(EXPECTED_FOLDER + '/' + EXPECTED_RESULTS_FILE, 'r') as file:
                 expected_result     = file.read()
 
         except ApodeixiError as ex:

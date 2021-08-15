@@ -50,6 +50,63 @@ util:
       Size (in bytes):  0
 
       '
+    expected_data:
+      a6i_error_EXPECTED.txt: '
+
+        Size (in bytes):  376
+
+        '
+      functional_trace_EXPECTED.txt: '
+
+        Size (in bytes):  667
+
+        '
+      notebooks:
+        test_notebook_run_executed_notebook.ipynb: '
+
+          Size (in bytes):  4012
+
+          '
+      test_a6i_config_EXPECTED.txt: '
+
+        Size (in bytes):  2222
+
+        '
+      test_compare_dataframes_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  956
+
+        '
+      test_create_EXPECTED.yaml: '
+
+        Size (in bytes):  3669
+
+        '
+      test_fy_quarter_EXPECTED.txt: '
+
+        Size (in bytes):  2193
+
+        '
+      test_get_products_EXPECTED.txt: '
+
+        Size (in bytes):  1871
+
+        '
+      test_merge_lists_EXPECTED.txt: '
+
+        Size (in bytes):  461
+
+        '
+      test_notebook_run_EXPECTED.yaml: '
+
+        Size (in bytes):  3359
+
+        '
+      test_path_utils_EXPECTED.txt: '
+
+        Size (in bytes):  906
+
+        '
     input_data:
       test_compare_dataframes_df1_INPUT.csv: '
 
@@ -72,19 +129,9 @@ util:
 
         '
     output_data:
-      a6i_error_EXPECTED.txt: '
-
-        Size (in bytes):  376
-
-        '
       a6i_error_OUTPUT.txt: '
 
         Size (in bytes):  376
-
-        '
-      functional_trace_EXPECTED.txt: '
-
-        Size (in bytes):  667
 
         '
       functional_trace_OUTPUT.txt: '
@@ -98,19 +145,9 @@ util:
           Size (in bytes):  4012
 
           '
-      test_a6i_config_EXPECTED.txt: '
-
-        Size (in bytes):  2222
-
-        '
       test_a6i_config_OUTPUT.txt: '
 
         Size (in bytes):  2222
-
-        '
-      test_compare_dataframes_comparison_EXPECTED.txt: '
-
-        Size (in bytes):  956
 
         '
       test_compare_dataframes_comparison_OUTPUT.txt: '
@@ -118,19 +155,9 @@ util:
         Size (in bytes):  956
 
         '
-      test_create_EXPECTED.yaml: '
-
-        Size (in bytes):  3526
-
-        '
       test_create_OUTPUT.yaml: '
 
-        Size (in bytes):  3526
-
-        '
-      test_fy_quarter_EXPECTED.txt: '
-
-        Size (in bytes):  2193
+        Size (in bytes):  3669
 
         '
       test_fy_quarter_OUTPUT.txt: '
@@ -138,19 +165,9 @@ util:
         Size (in bytes):  2193
 
         '
-      test_get_products_EXPECTED.txt: '
-
-        Size (in bytes):  1871
-
-        '
       test_get_products_OUTPUT.txt: '
 
         Size (in bytes):  1871
-
-        '
-      test_merge_lists_EXPECTED.txt: '
-
-        Size (in bytes):  461
 
         '
       test_merge_lists_OUTPUT.txt: '
@@ -158,14 +175,9 @@ util:
         Size (in bytes):  461
 
         '
-      test_notebook_run_EXPECTED.yaml: '
+      test_notebook_run_OUTPUT.yaml: '
 
         Size (in bytes):  3359
-
-        '
-      test_path_utils_EXPECTED.txt: '
-
-        Size (in bytes):  906
 
         '
       test_path_utils_OUTPUT.txt: '
@@ -195,7 +207,7 @@ util:
       '
     test_formatting_utils.py: '
 
-      Size (in bytes):  4748
+      Size (in bytes):  4979
 
       '
     test_list_utils.py: '
