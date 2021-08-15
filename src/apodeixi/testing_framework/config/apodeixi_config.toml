@@ -6,8 +6,8 @@ folder = "C:/Alex/Code/ea-journeys/secrets"
 knowledge-base-root-folder = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/knowledge-base"
 external-collaboration-folder = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/share-point"
 
-#knowledge-base-root-folder = "C:/Users/aleja/tmp/test_db/knowledge-base"
-#external-collaboration-folder = "C:/Users/aleja/tmp/test_db/share-point"
+#knowledge-base-root-folder = "C:/Users/aleja/tmp/tmp_test_Db/knowledge-base"
+#external-collaboration-folder = "C:/Users/aleja/tmp/tmp_test_Db/share-point"
 
 [organization-settings]
 month-fiscal-year-starts = 6
