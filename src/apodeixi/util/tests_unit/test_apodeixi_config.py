@@ -3,6 +3,7 @@ import sys                                      as _sys
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils             import DictionaryFormatter
+from apodeixi.util.dictionary_utils             import DictionaryUtils
 
 from apodeixi.util.apodeixi_config              import ApodeixiConfig 
 
@@ -16,8 +17,16 @@ class Test_ApodeixiConfig(ApodeixiUnitTest):
             root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing loading for Apodeixi Config")
             config                          = ApodeixiConfig(root_trace)
 
+            # To ensure determistic output, mask parent part of any path that is mentioned in the configuration before 
+            # displaying it in regression putput
+            #
+            clean_dict                      = DictionaryUtils().apply_lambda(       parent_trace    = root_trace, 
+                                                                                    root_dict       = config.config_dict, 
+                                                                                    root_dict_name  = "Apodeixi config", 
+                                                                                    lambda_function = self._path_mask)
+
             config_txt                      = DictionaryFormatter().dict_2_nice(    parent_trace    = root_trace,
-                                                                                    a_dict          = config.config_dict, 
+                                                                                    a_dict          = clean_dict, 
                                                                                     flatten         = True)
 
             self._compare_to_expected_txt(  parent_trace        = root_trace,

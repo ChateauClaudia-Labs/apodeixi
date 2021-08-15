@@ -21,7 +21,7 @@ util:
     '
   dictionary_utils.py: '
 
-    Size (in bytes):  19178
+    Size (in bytes):  22194
 
     '
   excel_writer_utils.py: '
@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  17295
+    Size (in bytes):  17361
 
     '
   tests_unit:
@@ -69,7 +69,7 @@ util:
           '
       test_a6i_config_EXPECTED.txt: '
 
-        Size (in bytes):  2222
+        Size (in bytes):  2115
 
         '
       test_compare_dataframes_comparison_EXPECTED.txt: '
@@ -135,7 +135,7 @@ util:
       '
     test_apodeixi_config.py: '
 
-      Size (in bytes):  3253
+      Size (in bytes):  3988
 
       '
     test_dataframe_utils.py: '

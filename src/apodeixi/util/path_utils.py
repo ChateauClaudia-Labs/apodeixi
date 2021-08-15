@@ -157,7 +157,9 @@ class PathUtils():
         def _path_mask(path):
             '''
             '''
-            if self.is_parent(parent_trace, parent_dir=KB_ROOT, path=path):
+            if type(path) != str:
+                return path
+            elif self.is_parent(parent_trace, parent_dir=KB_ROOT, path=path):
                 tokens                                          = path.split(KB_ROOT)
                 masked_path                                     = '<KNOWLEDGE BASE ROOT>' + tokens[-1]
                 return masked_path

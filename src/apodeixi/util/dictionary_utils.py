@@ -181,6 +181,51 @@ class DictionaryUtils():
 
         return new_dict
 
+    def apply_lambda(self, parent_trace, root_dict, root_dict_name, lambda_function):
+        '''
+        Returns a dictionary which is obtained from `root_dict` by applying the `lambda_function` to
+        the "leaves" of the tree that `root_dict` represents, if one thinks of `root_dict` as a "tree" in the 
+        sense that all values are either other dict objects ("sub trees") or leaves.
+
+        Thus, the returned dict has the same tree structure as `root_dict` (same number of branches, levels, leaves,
+        and their nodes map 1-1 in a manner that preserves child relationships). It is just that the value
+        of leaf nodes in the returned dict is obtained by applying the `lambda_function` at the leaf nodes of `root_dict`
+
+        @param parent_trace An Apodeixi FunctionalTrace, used to send functionally friendlier errors in case of problems.
+        @param root_dict A dictionary against whose leaves we want to apply the lambda function
+
+        @param root_dict_name A string used as a friendly name when referring to this dictionary in error messages
+        @param lambda_function A function that takes as input the value of a `root_dict`'s leaf, and returns 
+                the value that the corresponding node leaf should have in the returned dict.
+        '''
+        if type(root_dict) != dict:
+            raise ApodeixiError(parent_trace, "validate_path expects to be given a dictionary, but instead it was given a " 
+                                                    + str(type(root_dict)),
+                                                data = {'root_dict_name': str(root_dict_name)},
+                                                origination = {'signaled_from': __file__})
+        if lambda_function == None:
+            raise ApodeixiError(parent_trace, "Can't apply a null lambda function to dictionary '" 
+                                                    + str(root_dict_name) + "'")
+        result_dict                    = {}
+        
+        my_trace = parent_trace.doing("Applying a lambda to leaves of dict '" + str(root_dict_name) + "'") 
+        children_to_process         = list(root_dict.keys())
+        for child in children_to_process:
+            val                     = root_dict[child]
+            if type(val) == dict:
+                sub_tree            = val
+                sub_tre_name        = root_dict_name + "." + str(child)
+                sub_result_dict     = self.apply_lambda(    parent_trace    = my_trace,
+                                                            root_dict       = sub_tree, 
+                                                            root_dict_name  = sub_tre_name, 
+                                                            lambda_function = lambda_function)
+                result_dict[child]  = sub_result_dict
+            else:
+                new_val             = lambda_function(val)
+                result_dict[child]  = new_val
+
+        return result_dict
+
     def get_val(self, parent_trace, root_dict, root_dict_name, path_list, valid_types = None):
         '''
         Thinking of `root_dict` dictionary as a tree, and of `path_list` as a branch, this method returns the
