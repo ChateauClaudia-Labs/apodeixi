@@ -294,9 +294,17 @@ class PostingCtrl_ShowYourWork():
         path_list               = [manifest_nb, ME._DATA_RANGE]
         check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
                                                                     root_dict           = self.manifest_props_dict, 
-                                                                    root_dict_name      = 'context_dict', 
+                                                                    root_dict_name      = 'manifest_props_dict', 
                                                                     path_list           = path_list, 
                                                                     valid_types         = [str])
+
+        if not check:
+            raise ApodeixiError(parent_trace, "Can't get excel range for manifest number '" + str(manifest_nb) + "'",
+                                                data = {    'Data structure': 'manifest_props_dict', 
+                                                            'path_list': str(path_list),
+                                                            'explanations': str(explanations)},
+                                                origination = { 'concrete class':   str(self.__class__.__name__), 
+                                                                'signaled_from':    __file__})
 
         excel_range             = self.manifest_props_dict[manifest_nb][ME._DATA_RANGE]
         return excel_range  
@@ -306,9 +314,17 @@ class PostingCtrl_ShowYourWork():
         path_list               = [manifest_nb, ME._DATA_SHEET]
         check, explanations     = DictionaryUtils().validate_path(  parent_trace        = parent_trace, 
                                                                     root_dict           = self.manifest_props_dict, 
-                                                                    root_dict_name      = 'context_dict', 
+                                                                    root_dict_name      = 'manifest_props_dict', 
                                                                     path_list           = path_list, 
                                                                     valid_types         = [str])
+
+        if not check:
+            raise ApodeixiError(parent_trace, "Can't get excel sheet for manifest number '" + str(manifest_nb) + "'",
+                                                data = {    'Data structure': 'manifest_props_dict', 
+                                                            'path_list': str(path_list),
+                                                            'explanations': str(explanations)},
+                                                origination = { 'concrete class':   str(self.__class__.__name__), 
+                                                                'signaled_from':    __file__})
 
         excel_range             = self.manifest_props_dict[manifest_nb][ME._DATA_SHEET]
         return excel_range    

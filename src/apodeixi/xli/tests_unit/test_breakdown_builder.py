@@ -1,13 +1,16 @@
-import sys                                      as _sys
-import pandas                                   as _pd
-import yaml                                     as _yaml
+import sys                                                  as _sys
+import pandas                                               as _pd
+import yaml                                                 as _yaml
 
-from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
-from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
+from apodeixi.testing_framework.a6i_unit_test               import ApodeixiUnitTest
+from apodeixi.testing_framework.controllers.mock_controller import Mock_Controller
+from apodeixi.testing_framework.mock_kb_store               import UnitTest_KnowledgeBaseStore
 
-from apodeixi.xli.breakdown_builder             import BreakdownTree, UID_Store, Interval
-from apodeixi.xli.posting_controller_utils      import PostingConfig
-from apodeixi.xli                               import UpdatePolicy
+from apodeixi.util.a6i_error                                import ApodeixiError, FunctionalTrace
+
+from apodeixi.xli.breakdown_builder                         import BreakdownTree, UID_Store, Interval
+from apodeixi.xli.posting_controller_utils                  import PostingConfig
+from apodeixi.xli                                           import UpdatePolicy
 
 class Test_BreakoutTree(ApodeixiUnitTest):
 
@@ -40,7 +43,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         result_dict                 = None
         root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Reading df fragment")  
         try:
-            tree                    = self._create_breakdown_tree()
+            tree                    = self._create_breakdown_tree(root_trace, 'read_df_fragment')
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -54,8 +57,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
         entity_instance             = None
         try:
-            tree                    = self._create_breakdown_tree()
             my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Finding uid='" + UID_TO_FIND + "'")
+            tree                    = self._create_breakdown_tree(my_trace, "Finding UID")
             entity_instance         = tree.find (UID_TO_FIND, my_trace)
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -75,8 +78,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
         entity_instance             = None
         try:
-            tree                    = self._create_breakdown_tree()
-            xlr_config              = self._create_posting_config()
+            tree                    = self._create_breakdown_tree(root_trace, 'docking_1')
+            xlr_config              = self._create_posting_config(root_trace, 'docking_1')
             my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
@@ -102,8 +105,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
         entity_instance             = None
         try:
-            tree                    = self._create_breakdown_tree()
-            xlr_config              = self._create_posting_config()
+            tree                    = self._create_breakdown_tree(root_trace, 'docking_2')
+            xlr_config              = self._create_posting_config(root_trace, 'docking_2')
             my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Docking uid='" + DOCKING_UID + "'")
             tree.dockEntityData (   full_docking_uid    = DOCKING_UID, 
                                     entity_type         = ENTITY_TO_DOCK, 
@@ -120,9 +123,9 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         entities                    = ['Costs', 'Cost Models', "Ferries", 'Carry Mirrors', 'CO', 'Costs']
         EXPECTED                    = ['CO', 'CM', 'F', 'CAMI', 'COC', 'CO']
         try:
-            tree                    = self._create_breakdown_tree()
-            result                  = []
             my_trace                = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing acronym generation")
+            tree                    = self._create_breakdown_tree(my_trace, "Testing acronym generation")
+            result                  = []
             for e in entities:
                 result.append(tree.getAcronym(my_trace, e))
 
@@ -134,9 +137,9 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         result_dict                 = None  
         root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Attaching subtree")
         try:
-            tree1                   = self._create_breakdown_tree()
+            tree1                   = self._create_breakdown_tree(root_trace, 'attach_subtree')
             subtree_df              = self._create_df2()
-            xlr_config              = self._create_posting_config()
+            xlr_config              = self._create_posting_config(root_trace, 'attach_subtree')
             subtree_intervals = [   Interval(None, ['Expectation', 'Description']), 
                                     Interval(None, [ 'Acceptance Criteria', 'Artifact'])]
             self._attach_subtree(   df_to_attach            = subtree_df, 
@@ -150,52 +153,66 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
         self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'attach_subtree', save_output_dict=True)
 
-    def _create_breakdown_tree(self):
-        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating UID Store")
-        store           = UID_Store(root_trace)
-        xlr_config      = self._create_posting_config()
+    def _create_breakdown_tree(self, parent_trace, test_case_name):
+        my_trace        = parent_trace.doing("Creating UID Store")
+        store           = UID_Store(my_trace)
+        xlr_config      = self._create_posting_config(my_trace, test_case_name)
         entity_type     = 'A'
         parent_UID      = None
-        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating BreakdownTree", data={  'entity_type'   : entity_type,
+        my_trace        = parent_trace.doing("Creating BreakdownTree", data={  'entity_type'   : entity_type,
                                                                                         'parent_UID'    : parent_UID})        
         tree            = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=parent_UID)
         df              = self._create_df()
 
-        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Creating intervals", data={'tree.entity_type'  : tree.entity_type,
+        my_trace        = parent_trace.doing("Creating intervals", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})        
-        interval_A      = Interval(root_trace, ['A',     'color',    'size'])
-        interval_B      = Interval(root_trace, ['B',    'height',   'coolness'])
-        interval_C      = Interval(root_trace, ['C'])
+        interval_A      = Interval(my_trace, ['A',     'color',    'size'])
+        interval_B      = Interval(my_trace, ['B',    'height',   'coolness'])
+        interval_C      = Interval(my_trace, ['C'])
 
         rows            = list(df.iterrows())
         intervals       = [interval_A, interval_B, interval_C]
-        root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
+        my_trace        = parent_trace.doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})
 
         for idx in range(len(rows)):
             for interval in intervals:
-                my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 
+                loop_trace        = my_trace.doing(activity="Processing fragment", data={'row': idx, 
                                                                                             'interval': interval.columns},
                                                                 origination = {
                                                                                             'signaled_from': __file__})
                 tree.readDataframeFragment( interval            = interval, 
                                             row                 = rows[idx], 
-                                            parent_trace        = my_trace, 
+                                            parent_trace        = loop_trace, 
                                             all_rows            = rows, 
                                             xlr_config          = xlr_config)
 
         return tree
 
-    def _create_posting_config(self):
+    def _create_posting_config(self, parent_trace, test_case_name):
         '''
         Returns a dummy PostingConfig object. Needed only because some of the functions we test in this module
         require it as a parameter, though all that they require is an UpdatePolicy object within the PostingConfig
         '''
         update_policy       = UpdatePolicy(reuse_uids=True, merge=False)
-        xlr_config          = PostingConfig(    kind            = None, 
-                                                manifest_nb     = None, 
+        kb_store            = UnitTest_KnowledgeBaseStore(  test_case_name          = test_case_name, 
+                                                            input_manifests_dir     = self.input_data, 
+                                                            input_postings_dir      = self.input_data, 
+                                                            output_manifests_dir    = self.output_data, 
+                                                            output_postings_dir     = self.output_data)
+        controller          = Mock_Controller(parent_trace, store=kb_store, a6i_config=self.a6i_config)
+
+        # To avoid error messages, we will need a dummy but structurally complete manifest meta data,
+        # even if there is no real manifest here
+        controller.show_your_work.keep_manifest_meta(       parent_trace            = parent_trace, 
+                                                            manifest_nb             = -99, 
+                                                            kind                    = "FAKE -99 KIND", 
+                                                            excel_range             = "A1:B2",
+                                                            excel_sheet             = "FAKE WORSHEET")        
+        xlr_config          = PostingConfig(    kind            = "FAKE -99 KIND", 
+                                                manifest_nb     = -99, # None would trigger error, so put a dummy number
                                                 update_policy   = update_policy, 
-                                                controller      = None)
+                                                controller      = controller)
         return xlr_config
 
     def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid, xlr_config):
@@ -233,9 +250,11 @@ if __name__ == "__main__":
         T.setUp()
         if what_to_do=='read_df_fragment':
             T.test_read_df_fragment()
-        if what_to_do=='find':
+        elif what_to_do=='find':
             T.test_find()
-        if what_to_do=='attach_subtree':
+        elif what_to_do=='attach_subtree':
             T.test_attach_subtree()
+        elif what_to_do=='docking_2':
+            T.test_docking_2()
 
     main(_sys.argv)

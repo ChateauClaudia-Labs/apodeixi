@@ -7,6 +7,11 @@ User removed or renamed an entity column for the top entity column,so it no long
 ******** Functional Trace ********
 
 Problem:	Could not find a parent entity for 'Asset KLASS'.  You should have a column called 'Asset Class' with a non-blank value
+
+            Excel row           : 3
+            Interval            : ['Asset KLASS']
+            Excel worksheet     : Hierarchy
+
 Here are the functional activities that led to the problem:
 
 ---->	activity	Running Mock_Controller

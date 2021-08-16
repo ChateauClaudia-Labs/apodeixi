@@ -442,6 +442,12 @@ class BreakdownTree():
         columns                         = list(row_data.index)
         ancestor_entities_idxs          = [idx for idx in range(len(columns)) if columns[idx] in known_entity_types 
                                                                                 and idx < entity_column_idx]
+
+        # These Excel pointers are useful in error messages
+        excel_original_row_nb   = xlr_config.excel_row_nb(parent_trace, original_row_nb)
+        excel_current_row_nb    = xlr_config.excel_row_nb(parent_trace, current_row_nb)
+        excel_sheet             = xlr_config.excel_sheet(parent_trace)
+
         if len(ancestor_entities_idxs) == 0: # Only legal if we are the top-level entity, in which case return the parent_UID
             my_trace                    = parent_trace.doing("Validating we are the root entity", 
                                             data={'self.entity_type': self.entity_type,
@@ -452,7 +458,10 @@ class BreakdownTree():
             if FMT(interval.entity_name) != FMT(self.entity_type):
                 raise ApodeixiError(my_trace, "Could not find a parent entity for '" + interval.entity_name + "'."
                                     + "  You should have a column called '" + str(self.entity_type)
-                                    + "' with a non-blank value") 
+                                    + "' with a non-blank value",
+                                    data = {"Excel row":            str(excel_original_row_nb),
+                                            "Interval":             interval.columns,
+                                            "Excel worksheet":      excel_sheet}) 
             else:
                 return self.parent_UID
 
@@ -472,9 +481,6 @@ class BreakdownTree():
             if current_row_nb == 0: # No preceding row, so search stops with failure
                 # Search failed bacause we have only seen blanks in all rows, so fail with an error message explaining
                 # to the user which part of the Excel spreadsheet is blank and needs fixing
-                excel_original_row_nb   = xlr_config.excel_row_nb(my_trace, original_row_nb)
-                excel_current_row_nb    = xlr_config.excel_row_nb(my_trace, current_row_nb)
-                excel_sheet             = xlr_config.excel_sheet(my_trace)
                 ancestor_entities       = [columns[idx] for idx in ancestor_entities_idxs]
                 msg                     = "You left blank columns \n['" + "', '".join(ancestor_entities) + "']" \
                                             + "\nfor excel rows " + str(excel_current_row_nb) + "-" + str(excel_original_row_nb) + "." \
