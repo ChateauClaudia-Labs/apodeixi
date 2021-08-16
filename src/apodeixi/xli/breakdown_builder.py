@@ -228,7 +228,10 @@ class BreakdownTree():
                 
             else:
                 uid_to_overwrite             = None # This will be used later when looking for a docking UID
-            if not encountered_new_entity and len(blank_cols) < len(interval.columns):
+            
+            non_uid_cols                = [col for col in interval.columns \
+                                            if not IntervalUtils().is_a_UID_column(my_trace, col)]
+            if not encountered_new_entity and len(blank_cols) < len(non_uid_cols):
                 # This normally is a user error, because it means that the interval has non-blanks somewhere,
                 # yet the entity column is blank. That is "inconsistent user-provided data" because if the
                 # entity column is blank that should mean that this row is adding sub-entities to an entity 
