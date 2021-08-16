@@ -227,7 +227,7 @@ class BreakdownTree():
                                                                             last_acronym        = last_acronym)
                 
             else:
-                uid_to_overwrite             = None # This will be used later when looking for a docking UID
+                uid_to_overwrite        = None # This will be used later when looking for a docking UID
             
             non_uid_cols                = [col for col in interval.columns \
                                             if not IntervalUtils().is_a_UID_column(my_trace, col)]

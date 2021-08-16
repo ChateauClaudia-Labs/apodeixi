@@ -645,11 +645,20 @@ class SkeletonController(PostingController):
         UID_FINDER                      = self.link_table.find_foreign_uid # Abbreviation for readability
 
         for e_uid in entity_uids:
-            ref_uid                     = UID_FINDER(   parent_trace            = my_trace, 
+            loop_trace                  = my_trace.doing("Aligning " + str(kind) + " " + str(e_uid) 
+                                                            + " to a corresponding " + str(refKind))
+            ref_uid                     = UID_FINDER(   parent_trace            = loop_trace, 
                                                         our_manifest_id         = kind, 
                                                         foreign_manifest_id     = refKind, 
                                                         our_manifest_uid        = e_uid,
                                                         many_to_one             = many_to_one)
+            if ref_uid == None:
+                row_nb                  = self.link_table.row_from_uid(loop_trace, kind, e_uid)
+                msg                     = "Problem linking " + str(kind) + " to " + str(refKind) \
+                                            + " for row #" + str(row_nb) + " in the " + str(kind) + " content." \
+                                            + "\nSeems like you didn't populate the corresponding " + str(refKind) \
+                                            + " content? At least none could be found in that row"
+                raise ApodeixiError(loop_trace, msg)
             
             entity_dict[e_uid][linkField]   = ref_uid
 
