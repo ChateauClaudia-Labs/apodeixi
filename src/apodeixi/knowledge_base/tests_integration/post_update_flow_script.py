@@ -203,7 +203,7 @@ class Post_and_Update_Script():
 
                     self.check_log(my_trace, update_log_txt, api_called="postByFile")
 
-            return
+            return update_response
         except ApodeixiError as ex:
             print(ex.trace_message())                  
 
