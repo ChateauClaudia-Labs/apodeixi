@@ -11,6 +11,7 @@ from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFor
                                                     JoinedManifestXLWriteConfig
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 from apodeixi.xli.interval                  import IntervalUtils
+from apodeixi.xli.uid_store                 import UID_Store
 
 from apodeixi.tree_math.link_table          import LinkTable
 
@@ -19,14 +20,16 @@ class ManifestRepresenter:
     Class that can represent an Apodeixi manifest as an Excel spreadsheet
 
     @param config_table An AsExcel_Config_Table object
-    @param content_df_dict A dictionary where the keys are the string identifiers of the manifests,
-                and the values are DataFrames, each representing the content of a manifest.
+    @param manifestInfo_dict A dictionary where the keys are the string identifiers of the manifests,
+                and the values are ManifestInfo object, containing a lot of information about manifests
+                (a dictionary representation, a DataFrame representation, etc).
     @param label_ctx A dictionary representing the key-value pairs representing the content of a PostingLabel
     '''
-    def __init__(self, parent_trace, xlw_config_table, label_ctx, content_df_dict):
+    def __init__(self, parent_trace, xlw_config_table, label_ctx, manifestInfo_dict):
         self.xlw_config_table   = xlw_config_table
         self.label_ctx          = label_ctx
-        self.content_df_dict    = content_df_dict
+
+        self.manifestInfo_dict  = manifestInfo_dict
 
         # Used to track a mapping between UIDs and row numbers as we go along creating an Excel worksheet
         self.link_table         = LinkTable(parent_trace)
@@ -91,9 +94,10 @@ class ManifestRepresenter:
         to the `self.label_ctx`
         '''
         label_xlw_config        = self.xlw_config_table.getPostingLabelXLWriteConfig(parent_trace)
-        for name in self.content_df_dict.keys():
+        for name in self.manifestInfo_dict.keys():
             loop_trace          = parent_trace.doing("Adding location information for '" + str(name) + "'")
-            df                  = self.content_df_dict[name]
+            manifest_info       = self.manifestInfo_dict[name]
+            df                  = manifest_info.getManifestContents(parent_trace)
             xlw_config          = self.xlw_config_table.getManifestXLWriteConfig(loop_trace, name)
 
             try:
@@ -119,7 +123,8 @@ class ManifestRepresenter:
             # If we are a mapping, we are at 90 degrees relative to the referenced manifest,
             # so need to add more *columns* by an amount equal to the referenced manifest's rows.
             if issubclass(type(xlw_config), MappedManifestXLWriteConfig):
-                referenced_df   = self.content_df_dict[xlw_config.referenced_manifest_name]
+                referenced_manifest_info        = self.manifestInfo_dict[xlw_config.referenced_manifest_name]
+                referenced_df                   = referenced_manifest_info.getManifestContents(parent_trace)
                 # TODO The arithmetic here only works if the referenced manifest is not displayed with
                 # extra padding, i.e., it is displayed "on the first row it can be displayed",
                 # meaning its headers are displayed in the first Excel row after the content of
@@ -148,7 +153,9 @@ class ManifestRepresenter:
                 # referenced rows, which may not be a bijection, i.e., there may be empty Excel rows
                 # between our manifest's rows. In that case, we need to record that the number of
                 # Excel rows is at least as big as the Excel rows of the referenced manifest
-                referenced_df   = self.content_df_dict[xlw_config.referenced_manifest_name]
+                referenced_manifest_info        = self.manifestInfo_dict[xlw_config.referenced_manifest_name]
+                referenced_df                   = referenced_manifest_info.getManifestContents(parent_trace)
+
                 y_1             = max(y_1, len(referenced_df.index))
                 
             if xlw_config.layout.is_transposed:
@@ -185,13 +192,14 @@ class ManifestRepresenter:
 
         The worksheet onto which a manifest's data is laid out is the worksheet whose name is listed in
         self.xlw_config_table[key] where key is a string identifying a manifest (i.e., a dataset). These
-        `key' strings are the same as the dictionary keys in content_df_dict.
+        `key' strings are the same as the dictionary keys in manifestInfo_dict.
         '''
 
         manifest_worksheet_list = []
-        for name in self.content_df_dict.keys():
+        for name in self.manifestInfo_dict.keys():
             loop_trace          = parent_trace.doing("Populating Excel content for '" + str(name) + "'")
-            df                  = self.content_df_dict[name]
+            manifest_info       = self.manifestInfo_dict[name]
+            df                  = manifest_info.getManifestContents(parent_trace)
             config              = self.xlw_config_table.getManifestXLWriteConfig(loop_trace, name)
             worksheet           = workbook.get_worksheet_by_name(config.sheet)
             if worksheet == None:
@@ -314,6 +322,19 @@ class ManifestRepresenter:
             xl_x            = layout_x
             xl_y            = excel_row
         '''
+        clean_val   = DataFrameUtils().clean(val)
+        if excel_row == None:
+            raise ApodeixiError(parent_trace, "Can't write value to a null Excel row",
+                                            data = {"val":              str(clean_val),
+                                                    "layout.name":      str(layout.name),
+                                                    "excel row":        str(excel_row),
+                                                    "excel column":     str(excel_col)})
+        if excel_col == None:
+            raise ApodeixiError(parent_trace, "Can't write value to a null Excel column",
+                                            data = {"val":              str(clean_val),
+                                                    "layout.name":      str(layout.name),
+                                                    "excel row":        str(excel_row),
+                                                    "excel column":     str(excel_col)})
         fmt_dict        = layout.getFormat(parent_trace, layout_x, layout_y)
         if num_format != None:
             fmt_dict    = fmt_dict.copy() # GOTCHA - copy or else subsequent use of xlsxwriter will use a polluted format
@@ -322,7 +343,6 @@ class ManifestRepresenter:
         fmt             = workbook.add_format(fmt_dict)
         
         try:
-            clean_val   = DataFrameUtils().clean(val)
             worksheet.write(excel_row, excel_col, clean_val, fmt)
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Encountered a problem when writing a cell in Excel",
@@ -499,10 +519,23 @@ class ManifestRepresenter:
                     # we default it from earlier rows (as when constructing an n-table instead of a b-table: refer
                     # to the AssertionTree documentation)
                     if IntervalUtils().is_a_UID_column(parent_trace, col) and not StringUtils().is_blank(val):
+
+                        # Bug fix: raw_uid might be abbreviated, like "BR10.1". We need to unabbreviate it to
+                        # something like "BR10.B1"
+                        uid_store       = UID_Store(parent_trace)
+                        manifest_info   = self.manifestInfo_dict[xlw_config.manifest_name]
+
+                        manifest_dict   = manifest_info.getManifestDict(parent_trace)
+                        uid_store.initializeFromManifest(my_trace, manifest_dict)
+                        raw_uid         = row_content[col]
+
+                        good_uid        = uid_store.unabbreviate_uid(   parent_trace        = loop_trace, 
+                                                                        uid                 = str(raw_uid),
+                                                                        last_acronym        = None)
                         self.link_table.keep_row_last_UID(parent_trace, 
                                                             manifest_identifier     = name, 
                                                             row_nb                  = excel_row, 
-                                                            uid                     = row_content[col])
+                                                            uid                     = good_uid)
 
                     last_x              = layout_x
                     last_y              = excel_row

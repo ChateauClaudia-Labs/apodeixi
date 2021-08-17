@@ -1,12 +1,16 @@
-import sys                                  as _sys
-import pandas                               as _pd
+import sys                                                      as _sys
+import pandas                                                   as _pd
 
-from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
-from apodeixi.util.formatting_utils             import DictionaryFormatter
-from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
+from apodeixi.testing_framework.a6i_unit_test                   import ApodeixiUnitTest
+from apodeixi.testing_framework.controllers.mock_controller     import Mock_Controller
+from apodeixi.util.formatting_utils                             import DictionaryFormatter
+from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.representers.as_excel             import ManifestRepresenter
-from apodeixi.text_layout.excel_layout          import ManifestXLWriteConfig, AsExcel_Config_Table, PostingLabelXLWriteConfig
+from apodeixi.controllers.util.skeleton_controller              import SkeletonController
+from apodeixi.representers.as_excel                             import ManifestRepresenter
+from apodeixi.text_layout.excel_layout                          import ManifestXLWriteConfig, \
+                                                                        AsExcel_Config_Table, \
+                                                                        PostingLabelXLWriteConfig
 
 
 class Test_ManifestRepresenter(ApodeixiUnitTest):
@@ -68,12 +72,30 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
                                                             y_offset            = 1)
             xlw_config_table.setPostingLabelXLWriteConfig(my_trace, label_xlw_config)
 
-            rep                 = ManifestRepresenter(  parent_trace        = root_trace,
+            my_trace            = root_trace.doing("Creating content to display")
+            # The ManifestRepresenter API requires a dict of ManifestInfo objects, but for this test
+            # we only care about the part of the ManifestInfo that is the DataFrame. So we create a
+            # ManifestInfo with a dummy manifest_dict, and then manually set the DataFrame we want in the
+            # ManifestInfo (overwriting the DataFrame that was generated from the dummy manifest_dict)
+            #
+            # We also need a dummy controller consistent with the dummy manifest
+            dummy_manifest_dict = {"kind": "hierarchy", "assertion": {"asset-class": {}}}
+            dummy_controller    = Mock_Controller(root_trace, store=None, a6i_config = self.a6i_config)
+            dummy_manifest_info = SkeletonController._ManifestInfo( parent_trace            = my_trace,
+                                                                    key                     = MANIFEST_NAME,
+                                                                    manifest_dict           = dummy_manifest_dict,
+                                                                    controller              = dummy_controller)
+            # A bit of a hack, since content_df should be generated from the ManifestInfo's manifest_dict, but
+            # for our unit test this is the DataFrame we want to use.
+            dummy_manifest_info._contents_df      = data_df 
+
+            my_trace            = root_trace.doing("Displaying the content in Excel")
+            rep                 = ManifestRepresenter(  parent_trace        = my_trace,
                                                         xlw_config_table    = xlw_config_table,
                                                         label_ctx           = label_dict,
-                                                        content_df_dict     = {MANIFEST_NAME: data_df},)
+                                                        manifestInfo_dict   = {MANIFEST_NAME: dummy_manifest_info},)
 
-            status              = rep.dataframe_to_xl(  parent_trace    = root_trace, 
+            status              = rep.dataframe_to_xl(  parent_trace    = my_trace, 
                                                         excel_folder    = OUTPUT_FOLDER, 
                                                         excel_filename  = EXCEL_FILE)
 

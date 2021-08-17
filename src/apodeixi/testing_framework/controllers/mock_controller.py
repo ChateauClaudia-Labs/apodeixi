@@ -173,6 +173,10 @@ class Mock_Controller(SkeletonController):
             ME                      = Mock_Controller._AccountHierarchyConfig
             return ME._ENTITY_NAME
 
+        def entity_as_yaml_fieldname(self):
+            ME                      = Mock_Controller._AccountHierarchyConfig
+            return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
+
     class _AccountPropertiesConfig(PostingConfig):
         '''
         Codifies the schema and integrity expectations for workstream's milestones

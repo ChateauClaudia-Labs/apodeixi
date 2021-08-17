@@ -132,7 +132,7 @@ class SkeletonController(PostingController):
             rep                 = ManifestRepresenter(  parent_trace        = my_trace,
                                                         xlw_config_table    = xlw_config_table,
                                                         label_ctx           = label.ctx,
-                                                        content_df_dict     = contents_df_dict,)
+                                                        manifestInfo_dict   = manifestInfo_dict,)
             filename            = self.store.uploadForm(my_trace, 
                                                         form_request        = form_request, 
                                                         representer         = rep)

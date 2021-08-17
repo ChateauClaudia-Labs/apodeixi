@@ -128,6 +128,10 @@ class BigRocksEstimate_Controller(JourneysController):
                     excel_row_nb        = link_table.row_from_uid(  parent_trace        = loop_trace, 
                                                                     manifest_identifier = 'big-rock.0', 
                                                                     uid                 = big_rock_uid)
+                    if excel_row_nb == None:
+                        raise ApodeixiError(loop_trace, "Unable to link big-rock-estimate referencing big-rock '"
+                                                + str(big_rock_uid) + "': that big rock was not listed in the links",
+                                            data = {"Known big-rock links": str(link_table.all_uids(loop_trace, 'big-rock.0'))})
                     final_excel_row     = link_table.last_row_number(   parent_trace        = loop_trace,
                                                                         manifest_identifier = 'big-rock.0')
                     return excel_row_nb, final_excel_row

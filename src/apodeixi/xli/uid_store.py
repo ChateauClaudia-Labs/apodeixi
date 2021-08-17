@@ -61,23 +61,37 @@ class UID_Store:
             If so, this returns that list, as a list of strings ordered from the top of the tree
             to the leaves.
 
-            In situations where there are multiple acronyms at a given level, it returns a random
-            path of acronyms through the tree
+            In situations where there are multiple acronyms at a given level, it returns the a random
+            "longest" path of acronyms through the tree
             '''
-            result                  = []
-            if len(self.vals.keys()) != 1:
+            result                          = []
+            if len(self.vals.keys()) > 1:
+                raise ApodeixiError(parent_trace, "Can't figure out acronyms for a UID Token Tree because there "
+                                                     + "is not a unique acronyms at the top of this tree",
+                                                     data = {"acronyms": str(list(self.vals.keys()))})
+            elif len(self.vals.keys()) == 0:
                 return []
 
-            top_level_acronym       = next(iter(self.vals))
+            top_level_acronym               = next(iter(self.vals))
             result.append(top_level_acronym)
 
-            idxs                    = self.vals[top_level_acronym]
-            if len(idxs) > 0: # Choose the first path, which is why we can't guarantee the result is only possible list of acronyms in the tree
-                child_uid           = top_level_acronym + str(idxs[0])
-                my_trace            = parent_trace.doing("Getting acronym list below uid '" + child_uid + "'")
-                child               = self.children[child_uid]
-                sub_result          = child.genAcronymList(my_trace)
-                result.extend(sub_result)
+            # idx_list is something like [10, 11, 2, 3, 4] if top_level_acronym is BR and UIDs are
+            # BR10, BR11, BR2, BR3, and BR4
+            idx_list                        = self.vals[top_level_acronym]
+
+            # We will loop through the children and select the child for which its sublist of acronyms is the longest
+            # That way we don't inadvertently miss out on some acronyms, as we used to in a prior buggy implementation
+            # that chose the "first" path, not the "longest" path
+            longest_sub_result              = []
+            for idx in idx_list:
+                child_uid                   = top_level_acronym + str(idx)
+                loop_trace                  = parent_trace.doing("Getting acronym list below uid '" + child_uid + "'")
+                child                       = self.children[child_uid]
+                candidate_sub_result        = child.genAcronymList(loop_trace)
+                if len(candidate_sub_result) > len(longest_sub_result):
+                    longest_sub_result      = candidate_sub_result
+
+            result.extend(longest_sub_result)
 
             return result
 
@@ -300,12 +314,15 @@ class UID_Store:
         In other words, if the uid is one of those "abbreviated UIDs" that lacks acronyms (they arise
         for usability reasons in user-provided UIDs), attempt to infer the acronyms that are missing and
         return the full UID ("P4.C3" in the example)
+
+        @last_acronym Used in cases when the caller wants this store to remember one more acronym
+                    at the end of its list of known acronyms. If set to None, it is ignored. 
         '''
         # Path of the acronyms the store knows about so far. May not yet include the entity, if we
         # are adding a uid for that entity for the first time
         known_acronym_list  = self.tree.genAcronymList(parent_trace) 
 
-        if not last_acronym in known_acronym_list:
+        if last_acronym != None and not last_acronym in known_acronym_list:
             known_acronym_list.append(last_acronym)
 
         # Calling self._tokenize produces "unabbreviated" tokens
