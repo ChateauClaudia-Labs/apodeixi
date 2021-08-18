@@ -747,7 +747,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                             path_list       = ['metadata', 'version'], 
                                             valid_types     = [int])
             version_found                 = manifest_dict['metadata']['version']
-            if version_found <=minimal_version:
+            if version_found < minimal_version:
                 return False
 
         # If we got this far then all checks pass
