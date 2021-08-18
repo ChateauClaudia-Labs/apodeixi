@@ -541,9 +541,20 @@ class SkeletonController(PostingController):
             # path, so it was left out of the self.getPostingConfig which is sometimes called in situations
             # where the label is not known or needed.
             xlr_config.posting_label    = label
-            if prior_version != None and (read_only == None or read_only == False): # we are updating
-                next_version        = prior_version + 1
-            else:
+            if prior_version != None:
+                if read_only == True:
+                    # This manifest won't be updated, and if the posting was not adultered by the user
+                    # then the manifest in the posting must match exactly the manifest in the store.
+                    # Still, we will parse the manifest content in the posting because the parsing
+                    # activity will create metadata needed for joins, for example. We won't persist the
+                    # manifest parsed, so we won't corrupt the store in the unlikely (but possible)
+                    # event that the end user adultered the generated form's section for this manifest
+                    # (which was generated to be read only).
+                    # So we don't change the version number that we put in this parsed manifest
+                    next_version        = prior_version 
+                else:  # we are updating, so increase the version number
+                    next_version        = prior_version + 1
+            else: # There is no prior version, so this must be the first version
                 next_version        = 1
 
         relative_path                   = posting_data_handle.getRelativePath(my_trace)

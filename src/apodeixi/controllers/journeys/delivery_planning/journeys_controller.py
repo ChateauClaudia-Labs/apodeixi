@@ -10,9 +10,6 @@ from apodeixi.knowledge_base.knowledge_base_util                            impo
 from apodeixi.util.a6i_error                                                import ApodeixiError
 from apodeixi.util.formatting_utils                                         import StringUtils
 
-from apodeixi.knowledge_base.filing_coordinates                             import JourneysFilingCoordinates
-
-
 class JourneysController(SkeletonController):
     '''
     Abstrac class to with common properties for posting controllers in the Journey domain.
@@ -29,6 +26,13 @@ class JourneysController(SkeletonController):
                                             api_publisher   = 'a6i',
                                             extension       = 'io')
 
+    def getFilingClass(self):
+        '''
+        Returns a class object, corresponding to the concrete subclass of FilingCoordinates
+        that is supported by this controller
+        '''
+        return JourneysFilingCoordinates
+        
     def getManifestAPI(self):
         return self.MANIFEST_API
 
@@ -66,10 +70,10 @@ class JourneysController(SkeletonController):
         @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
                         `subnamespace` parameter, to build a manifest name.
         '''
-        if not type(coords) == JourneysFilingCoordinates:
+        if not type(coords) == self.getFilingClass():
             raise ApodeixiError(parent_trace, "Can't build manifest name because received wrong type of filing coordinates",
                                                 data = {"Type of coords received": str(type(coords)),
-                                                        "Expected type of coords": "JourneysFilingCoordinates"})
+                                                        "Expected type of coords": str(self.getFilingClass())})
 
         if subnamespace == None:
             raise ApodeixiError(parent_trace, "Can't build manifest name becase subnamespace is null. Should be "
@@ -105,10 +109,10 @@ class JourneysController(SkeletonController):
         @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
                         `subnamespace` parameter, to build a manifest name.
         '''
-        if not type(coords) == JourneysFilingCoordinates:
+        if not type(coords) == self.getFilingClass():
             raise ApodeixiError(parent_trace, "Can't build manifest name because received wrong type of filing coordinates",
                                                 data = {"Type of coords received": str(type(coords)),
-                                                        "Expected type of coords": "JourneysFilingCoordinates"})
+                                                        "Expected type of coords": str(self.getFilingClass())})
 
         if subnamespace == None:
             raise ApodeixiError(parent_trace, "Can't build manifest name becase subnamespace is null. Should be "

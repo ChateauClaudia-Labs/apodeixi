@@ -209,7 +209,7 @@ class Post_and_Update_Script():
 
         # If we get this far, the tests failed since we should have returned within the try statement. 
         # So hardcode an informative failure.
-        self.assertTrue("Shouldn't have gotten to this line" == 0)   
+        self.myTest.assertTrue("Shouldn't have gotten to this line" == 0)   
 
 
     def check_manifest_count(self, parent_trace, posting_response, nb_manifests_expected):
