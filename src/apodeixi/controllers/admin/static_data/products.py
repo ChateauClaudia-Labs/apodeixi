@@ -106,6 +106,21 @@ class ProductsController(StaticData_Controller):
         xlw_config_table                    = AsExcel_Config_Table()
         #x_offset                            = 3 
         y_offset                            = 1
+
+        # Products need to be grouped by line of business, and then displayed in that order. So we do a bit
+        # of pandas manipulation for that
+        products_df                         = manifestInfo_dict['product.0'].getManifestContents(parent_trace)
+        if "lineOfBusiness" in products_df.columns:
+            # In this case, products have already been mapped to LOBs, so we will need to display products
+            # grouped by LOB. First step: sort products by LOB so that they are grouped by LOB, and make
+            # this the order how we display them (see below the definition of my_prod_mapper lambda, that uses
+            # this sorted DataFrame)
+            sorted_products_df                  = products_df.sort_values(by=["lineOfBusiness"], axis=0).reset_index()
+        else:
+            # In this case, we must be displaying a template, so mapping isn't established yet. So
+            # display in the same order
+            sorted_products_df                  = products_df
+
         for key in manifestInfo_dict:
             loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
                                                                 + str(key) + "'")
@@ -118,14 +133,74 @@ class ProductsController(StaticData_Controller):
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
-                df_xy_2_excel_xy_mapper   = None
+
+                def my_prod_mapper(manifest_df, manifest_df_row_number, representer):
+                    if not "UID" in manifest_df.columns:
+                        # Implement vanilla behavior - no UID means this must be a template
+                        excel_row           = y_offset + 1 + manifest_df_row_number # An extra '1' because of the headers
+                        final_excel_row     = y_offset + len(manifest_df.index) # Don't do len(index)-1 since headers add a row
+                        return excel_row, final_excel_row
+                    else:
+                        # This is the tricky case: we must not display products in the order the are listed in the manifest,
+                        # but in an order that segments them into groups based on line-of-business, i.e.,
+                        # in the order in which they appear in sorted_products_df
+                        # So algorithm is:
+                        #   1. Get the UID of the product for this manifest_df_row_number
+                        #   2. Find the idx in sorted_products_df where that product UID appears
+                        #   3. Drive the excel row number from that idx
+                        if len(manifest_df.index) != len(sorted_products_df.index):
+                            raise ApodeixiError(loop_trace, "Misalignment problem: two supposedly equivalent DataFrames "
+                                                                + "(up to sorting) have different number of rows",
+                                                                data = {"Number of rows": str(manifest_df.index) +
+                                                                            " vs " + str(sorted_products_df.index)})
+                        prod_uid            = manifest_df['UID'].iloc[manifest_df_row_number] 
+                        sorted_idx_list     = sorted_products_df.index[sorted_products_df['UID'] == prod_uid].tolist()
+
+                        if len(sorted_idx_list) != 1:
+                            raise ApodeixiError(loop_trace, "Misalignment problem: not a unique entry in product manifest for "
+                                                                + "a given UID",
+                                                                data = {"manifest": key, "product UID": str(prod_uid),
+                                                                        "number of entries": str(len(sorted_idx_list))})
+                        sorted_idx          = sorted_idx_list[0]
+                        excel_row           = y_offset + 1 + sorted_idx # An extra '1' because of the headers
+                        final_excel_row     = y_offset + len(manifest_df.index) # Don't do len(index)-1 since headers add a row
+                        return excel_row, final_excel_row
+
+                df_xy_2_excel_xy_mapper   = my_prod_mapper
             elif key == 'line-of-business.1':
                 x_offset                    = 1 # Lay LOB column to the left of product
                 hidden_cols                 = []
                 right_margin                = 0
                 num_formats                 = {}
                 excel_formulas              = None
-                df_xy_2_excel_xy_mapper   = None
+
+                def my_lob_mapper(manifest_df, manifest_df_row_number, representer):
+                    if not "UID" in manifest_df.columns:
+                        # Implement vanilla behavior - no UID means this must be a template
+                        excel_row           = y_offset + 1 + manifest_df_row_number # An extra '1' because of the headers
+                        final_excel_row     = y_offset + len(manifest_df.index) # Don't do len(index)-1 since headers add a row
+                        return excel_row, final_excel_row
+                    else:
+                        # This is the tricky case: we must not display products in the order the are listed in the manifest,
+                        # but in an order that segments them into groups based on line-of-business, i.e.,
+                        # in the order in which they appear in sorted_products_df
+                        # So algorithm is:
+                        #   1. Get the UID of the product for this manifest_df_row_number
+                        #   2. Find the idx in sorted_products_df where that product UID appears
+                        #   3. Drive the excel row number from that idx
+                        lob_uid             = manifest_df['UID'].iloc[manifest_df_row_number] 
+                        sorted_idx_list     = sorted_products_df.index[sorted_products_df['lineOfBusiness'] == lob_uid].tolist()
+
+                        if len(sorted_idx_list) == 0:
+                            raise ApodeixiError(loop_trace, "Misalignment problem: an LOB is not associated to any product",
+                                                                data = {"manifest": key, "LOB UID": str(lob_uid)})
+                        # Display the LOB on the first product that is associated with it
+                        sorted_idx          = sorted_idx_list[0]
+                        excel_row           = y_offset + 1 + sorted_idx # An extra '1' because of the headers
+                        final_excel_row     = y_offset + len(sorted_products_df.index) # Don't do len(index)-1 since headers add a row
+                        return excel_row, final_excel_row
+
+                df_xy_2_excel_xy_mapper     = my_lob_mapper
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
             xlw_config  = ManifestXLWriteConfig(sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,

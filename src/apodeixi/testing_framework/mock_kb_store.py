@@ -47,6 +47,24 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
         '''
         return
 
+    def current_environment(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return None
+
+    def parent_environment(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return None
+
+    def base_environment(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return None
+
     def supported_apis(self, parent_trace):
         '''
         Returns a list of the posting APIs that this KnowledgeStore knows about.

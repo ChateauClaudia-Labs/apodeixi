@@ -124,7 +124,7 @@ class LinkTable():
         Specifically, it assumes a link exists in this LinkTable between one of our manifest's UIDs and
         one of the foreign manifest's and finds and return's that foreign manifest's UIDs that our UID is linked to.
 
-        @param manyToOne A boolean. If True, it is that multiple rows of our manifest correspond to the same
+        @param many_to_one A boolean. If True, it is that multiple rows of our manifest correspond to the same
                                 row of the foreign manifest, and only the first such row would have displayed
                                 the foreign UID. That triggers a need to "search" for earlier row numbers
         '''

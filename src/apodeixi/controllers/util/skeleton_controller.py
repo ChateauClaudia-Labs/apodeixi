@@ -643,7 +643,7 @@ class SkeletonController(PostingController):
 
                     manifest_dict['assertion']['effort']['E9']['bigRock'] = 'BR5'
 
-        @param manyToOne A boolean. If True, it is assumed that there are multiple entities in manifest_dict
+        @param many_to_one A boolean. If True, it is assumed that there are multiple entities in manifest_dict
                         reference the same UID in the `refKind` manifest, in which case the `refKind` UID is
                         assumed to potentially be in an earlier row than the manifest_dict entity that references
                         it

@@ -1052,6 +1052,9 @@ class AsExcel_Config_Table():
     def manifest_configs(self):
         return self.manifest_xlw_config_dict.values()
 
+    def manifest_names(self):
+        return list(self.manifest_xlw_config_dict.keys())
+
     def setPostingLabelXLWriteConfig(self, parent_trace, label_xlw_config):
         '''
         @param config A PostingLabelXLWriteConfig object for a posting label

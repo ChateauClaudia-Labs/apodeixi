@@ -99,7 +99,14 @@ class Post_and_Update_Script():
                         fr_rep              = self.myTest.stack().kb().requestForm( parent_trace    = script_trace, 
                                                                                     form_request    = blind_form_request) 
 
+                    api_called              = "initial requestForm"
+
+                    self.check_log(my_trace, fr_log_txt, api_called=api_called)
+
+                    self.check_kb_introspection(my_trace, kb=self.myTest.stack().kb(), api_called=api_called)
+                    
                     self.myTest.check_environment_contents(my_trace) 
+
                     layout_info, pl_fmt_info, ws_fmt_info, label_ctx_nice \
                                              = self._generated_form_test_output( my_trace, 
                                                                                         blind_form_request, 
@@ -107,9 +114,6 @@ class Post_and_Update_Script():
                                                                                         fr_log_txt, 
                                                                                         fr_rep, 
                                                                                         generated_form_worksheet)
-                    api_called              = "initial requestForm"
-
-                    self.check_log(my_trace, fr_log_txt, api_called=api_called)
 
                     self.check_posting_label(my_trace, label_ctx_nice, api_called=api_called)
 
@@ -139,13 +143,16 @@ class Post_and_Update_Script():
                 response, log_txt           = self.myTest.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                             path_of_file_being_posted   = posting_path, 
                                                                             excel_sheet                 = excel_sheet)
+
+                self.check_log(my_trace, log_txt, api_called="postByFile")
+
+                self.check_kb_introspection(my_trace, kb=self.myTest.stack().kb(), api_called="postByFile")
+
                 self.check_manifest_count(my_trace, response, nb_manifests_expected)
 
                 self.check_manifests_contents(my_trace, response)
 
                 self.myTest.check_environment_contents(   parent_trace    = my_trace)
-
-                self.check_log(my_trace, log_txt, api_called="postByFile")
 
             my_trace                        = self.myTest.trace_environment(script_trace, "Calling 'requestForm' API")
             form_request_responses          = []
@@ -157,6 +164,12 @@ class Post_and_Update_Script():
                         fr_rep              = self.myTest.stack().kb().requestForm(parent_trace    = script_trace, 
                                                                             form_request    = form_request) 
 
+                    api_called              = "requestForm #" + str(form_idx)
+                    
+                    self.check_log(my_trace, fr_log_txt, api_called=api_called)
+
+                    self.check_kb_introspection(my_trace, kb=self.myTest.stack().kb(), api_called=api_called)
+
                     self.myTest.check_environment_contents(my_trace) 
                     layout_info, pl_fmt_info, ws_fmt_info, label_ctx_nice \
                                             = self._generated_form_test_output( my_trace, 
@@ -165,9 +178,7 @@ class Post_and_Update_Script():
                                                                                 fr_log_txt, 
                                                                                 fr_rep, 
                                                                                 generated_form_worksheet)
-                    api_called              = "requestForm #" + str(form_idx) 
-
-                    self.check_log(my_trace, fr_log_txt, api_called=api_called)
+                     
 
                     self.check_posting_label(my_trace, label_ctx_nice, api_called=api_called)
 
@@ -195,15 +206,41 @@ class Post_and_Update_Script():
                     update_response, update_log_txt = self.myTest.stack().kb().postByFile( parent_trace                = my_trace, 
                                                                                 path_of_file_being_posted   = form_path)
 
+                    self.check_log(my_trace, update_log_txt, api_called="postByFile")
+
+                    self.check_kb_introspection(my_trace, kb=self.myTest.stack().kb(), api_called="postByFile")
+
                     self.check_manifest_count(my_trace, update_response, nb_manifests_expected)
 
                     self.check_manifests_contents(my_trace, update_response)
 
                     self.myTest.check_environment_contents(   parent_trace    = my_trace)
 
-                    self.check_log(my_trace, update_log_txt, api_called="postByFile")
+            # As a last step, generate the form resulting from the prior posting, just to make sure the
+            # end user can get something to work from
+            my_trace                        = self.myTest.trace_environment(script_trace, "Calling 'requestForm' API again")
+            form_request_2nd_responses      = []
+            if True:
+                form_idx = 0
 
-            return update_response
+                for form_request in update_response.optionalForms() + update_response.mandatoryForms():
+                    fr_response, fr_log_txt, \
+                        fr_rep              = self.myTest.stack().kb().requestForm(parent_trace    = script_trace, 
+                                                                            form_request    = form_request) 
+
+                    api_called              = "requestForm #" + str(form_idx)
+                    
+                    self.check_log(my_trace, fr_log_txt, api_called=api_called)
+
+                    self.check_kb_introspection(my_trace, kb=self.myTest.stack().kb(), api_called=api_called)
+
+                    self.myTest.check_environment_contents(my_trace) 
+
+                    self.myTest.snapshot_generated_form(my_trace, fr_response)
+                    form_request_2nd_responses.append(fr_response)
+
+            return form_request_2nd_responses
+
         except ApodeixiError as ex:
             print(ex.trace_message())                  
 
@@ -234,6 +271,12 @@ class Post_and_Update_Script():
         self.myTest._compare_to_expected_txt(   parent_trace        = parent_trace,
                                                 output_txt          = log_data,
                                                 test_output_name    = self.myTest.next_log(api_called), 
+                                                save_output_txt     = True)
+
+    def check_kb_introspection(self, parent_trace, kb, api_called):
+        self.myTest._compare_to_expected_txt(   parent_trace        = parent_trace,
+                                                output_txt          = kb.introspection.as_string(parent_trace),
+                                                test_output_name    = self.myTest.next_kb_introspection(api_called), 
                                                 save_output_txt     = True)
 
     def check_posting_label(self, parent_trace, label_ctx_nice, api_called):

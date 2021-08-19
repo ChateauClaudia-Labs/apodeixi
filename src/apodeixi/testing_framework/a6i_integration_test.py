@@ -529,6 +529,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         '''
         return self.next_output_name(output_type="log", description=description)
 
+    def next_kb_introspection(self, description=None):
+        '''
+        Returns a string that can be used as the output name for test output that is a log
+        produced KnowledgeBase processing
+        '''
+        return self.next_output_name(output_type="kb_introspection", description=description)
+ 
     def next_posting_label(self, description=None):
         '''
         Returns a string that can be used as the output name for test output that is a posting label's content

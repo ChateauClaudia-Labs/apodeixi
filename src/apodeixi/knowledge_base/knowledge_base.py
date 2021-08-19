@@ -1,3 +1,4 @@
+from apodeixi.knowledge_base.isolation_kb_store import Isolation_KBStore_Impl
 from apodeixi.util.a6i_error                                                import ApodeixiError, FunctionalTrace
 
 from apodeixi.controllers.admin.static_data.products                        import ProductsController
@@ -7,6 +8,7 @@ from apodeixi.controllers.journeys.delivery_planning.big_rocks              impo
 from apodeixi.controllers.journeys.delivery_planning.milestones_controller  import MilestonesController
 from apodeixi.controllers.initiatives.workstream                            import Workstream_Controller
 from apodeixi.util.dictionary_utils                                         import DictionaryUtils
+from apodeixi.util.formatting_utils                                         import DictionaryFormatter
 
 class KnowledgeBase():
     '''
@@ -17,8 +19,12 @@ class KnowledgeBase():
         self.store              = store
         self.a6i_config         = a6i_config
         
-        self.controllers           = { #List of associations of posting API => dict of kind=> PostingController class to use 
-                                        # for such posting API
+        # Used for logging internal state of the processing engines
+        self.introspection      = KB_Introspection(self)
+
+        self.controllers        = { 
+            #List of associations of posting API => dict of kind=> PostingController class to use 
+            # for such posting API
             'big-rocks.journeys.a6i':                   BigRocksEstimate_Controller,
             'milestone.journeys.a6i':                   MilestonesController,
 
@@ -45,12 +51,15 @@ class KnowledgeBase():
         '''
         self.store.beginTransaction(parent_trace)
         try:
+            self.introspection.introspectStore(parent_trace)
+
             root_trace              = parent_trace.doing("Posting excel spreadsheet to knowledge base",
                                                                     data = {    'path'          : path_of_file_being_posted,
                                                                                 'excel_sheet'   : excel_sheet,
                                                                                 'ctx_range'     : ctx_range},
                                                                     origination = {'signaled_from' : __file__
                                                                                 })
+
             my_trace                = root_trace.doing("Inferring the posting handle from filename",
                                                             data = {'filename': path_of_file_being_posted})
 
@@ -85,9 +94,11 @@ class KnowledgeBase():
         '''
         self.store.beginTransaction(parent_trace)
         try:
+            self.introspection.introspectStore(parent_trace)
+
             my_trace                = parent_trace.doing("Posting by label",
                                                 data = {'relativePath': label_handle.getRelativePath(parent_trace)})
-
+    
             posting_api             = label_handle.getPostingAPI(my_trace)
 
             ctrl                    = self.findController(  parent_trace        = my_trace,
@@ -100,6 +111,8 @@ class KnowledgeBase():
                                                         posting_label_handle    = label_handle)
 
             log_txt                 = ctrl.log_txt
+
+            self.introspection.introspectController(parent_trace=parent_trace, controller=ctrl)
 
             self.store.commitTransaction(parent_trace)
 
@@ -132,6 +145,8 @@ class KnowledgeBase():
         self.store.beginTransaction(parent_trace)
 
         try:
+            self.introspection.introspectStore(parent_trace)
+
             successes               = {}
             errors                  = {}
             for idx in range(len(label_handle_list)):
@@ -182,6 +197,8 @@ class KnowledgeBase():
         self.store.beginTransaction(parent_trace)
 
         try:
+            self.introspection.introspectStore(parent_trace)
+
             my_trace                = parent_trace.doing("Requestiong a form",
                                                     data = {'posting_api':     form_request.getPostingAPI(parent_trace)})
 
@@ -196,6 +213,8 @@ class KnowledgeBase():
 
             log_txt                 = ctrl.log_txt
             representer             = ctrl.representer
+
+            self.introspection.introspectController(parent_trace=parent_trace, controller=ctrl)
 
             self.store.commitTransaction(parent_trace)
 
@@ -250,3 +269,89 @@ class KnowledgeBase():
                                                             'exception found':      str(ex)})
 
         return ctrl
+
+class KB_Introspection():
+    '''
+    Class used to record technical, internal-processing-focused logs emitted by the KnowledgeBase and its
+    componentry (such as controllers)
+    '''
+    def __init__(self, kb):
+
+        self.kb                                 = kb
+        self.introspection_dict                 = {}
+        return
+
+    def introspectStore(self, parent_trace):
+        '''
+        Records internal transactional state of the store
+        '''
+        # We only support introspection for stores whose implementation extends the Isolation store
+        if issubclass(type(self.kb.store._impl), Isolation_KBStore_Impl): 
+            data_dict                               = {}
+            base_env                                = self.kb.store.base_environment(parent_trace)
+            data_dict["Base_environment"]           = base_env.name(parent_trace)
+            env                                     = self.kb.store.current_environment(parent_trace)
+            data_dict["Current_environment"]        = env.name(parent_trace)
+
+            depth                                   = 1
+            LIMIT                                   = 100 # To avoid infinite loops in the while loop
+            while env.parent(parent_trace) != base_env and depth < LIMIT:
+                env                                 = env.parent(parent_trace)
+                data_dict["Ancestor_" + str(depth)] = env.name(parent_trace)
+                depth                               += 1
+
+            store_impl                              = self.kb.store._impl
+            data_dict["Transaction_environment"]    = store_impl.transaction_env(parent_trace).name(parent_trace)
+            data_dict["Transaction_stack"]          = [env.name(parent_trace) for env in store_impl._transactions_stack]
+
+            transaction_nb                          = store_impl._transaction_nb 
+            # transaction_nb would be the *next* transaction for the store, so subtract 1 to show the current one
+            self.introspection_dict["Store@transaction#" + str(transaction_nb-1)]  = data_dict
+
+    def introspectController(self, parent_trace, controller):
+        '''
+        Records the controller's internal controller state
+        '''
+        ctrl_name                                       = type(controller).__name__
+        
+
+        enriched_ctrl_name                              = self._enrich_key_with_transaction_nb(ctrl_name)
+        self.introspection_dict[enriched_ctrl_name]     = controller.show_your_work.as_dict(parent_trace) | \
+                                                            controller.link_table.as_dict(parent_trace)
+
+        rep                                             = controller.representer
+        if rep != None:
+            rep_name                                    = type(rep).__name__
+            rep_info_dict                               = {}
+            rep_info_dict["manifests"]                  = rep.xlw_config_table.manifest_names()
+            rep_info_dict["links"]                      = rep.link_table.as_dict(parent_trace)
+
+            enriched_rep_name                           = self._enrich_key_with_transaction_nb(rep_name)
+
+            self.introspection_dict[enriched_rep_name]  = rep_info_dict
+
+
+    def as_string(self, parent_trace):
+        introspection_nice                     = DictionaryFormatter().dict_2_nice(    
+                                                                        parent_trace    = parent_trace, 
+                                                                        a_dict          = self.introspection_dict, 
+                                                                        flatten         = True, 
+                                                                        delimeter       = "::")
+        return introspection_nice
+
+    def _enrich_key_with_transaction_nb(self, key):
+        '''
+        Returns a string built from `key` by potentially appending transaction information, if we are
+        in a transaction.
+        For example, if key is "ManifestRepresenter", we may return "ManifestRepresenter@transaction#2", if
+        at the time this method is called the store is at transaction 2.
+
+        If our store does not support transactions, it just returns `key` itself.
+        '''
+        if issubclass(type(self.kb.store._impl), Isolation_KBStore_Impl):
+            store_impl                          = self.kb.store._impl
+            transaction_nb                      = store_impl._transaction_nb 
+            # transaction_nb would be the *next* transaction for the store, so subtract 1 to show the current one
+            return key + "@transaction#" + str(transaction_nb-1)
+        else:
+            return key

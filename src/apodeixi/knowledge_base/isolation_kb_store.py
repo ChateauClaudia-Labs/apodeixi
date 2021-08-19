@@ -252,12 +252,12 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
         # **GOTCHA** 
         #
-        # Mutate the transactions tack state, but do so at the very end of the method, before returning.
+        # Mutate the transactions stack state, but do so at the very end of the method, before returning.
         # This will make it official that we are in a new transaction. 
         # This is not done earlier because the spec of this method is to guarantee
         # that a transaction has not begun unless this method is successful. Thus, if the code above raised
         # an error, we don't want to have appended a new entry in the transaction stack. 
-        # This ensures adherence to the semantics there is no need (and it would be buggy) for the caller
+        # This ensures adherence to the semantics that there is no need (and it would be buggy) for the caller
         # to call abortTransaction in response to an error arising in beginTransaction, since beginTransaction
         # is not supposed to start any transaction at all unless it succeeds.
         self._transactions_stack.append(isolation_env)
