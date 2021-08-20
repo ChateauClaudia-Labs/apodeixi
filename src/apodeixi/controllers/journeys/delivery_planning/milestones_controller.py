@@ -225,7 +225,7 @@ class MilestonesController(JourneysController):
                                         + "\n\tname                 = " + str(name)
                                         + "\n\tkind                 = " + str(kind))
         elif kind == ME.MY_KIND:
-            m_list                      = ["M1", "M2", "M3", "M4"]
+            m_list                      = ["SME market", "SME market", "New UX", "Cloud"]
             t_list                      = ["CAM expansion", "Margin improvement", "New UX", "Cloud Native"]
             d_list                      = ["Q3 FY20", "Q1 FY21", "Q4 FY21", "Q4 FY22"]
 

@@ -693,8 +693,19 @@ class BreakdownTree():
         Returns the entity's acronym. If none exists, it will generate a new one to ensure it does not conflict with
         the previously used acronyms
         '''
-        # By convention, we only use upper case for acronyms
-        if entity_type not in self.acronyms.keys():
+        # We don't do
+        #               if entity_type not in self.acronyms.keys():
+        # 
+        # because it would be buggy. 
+        # For example, perhaps the entity_type changed from "Milestone" when a 
+        # manifest was created to "milestone" by the time the user is trying to update it. In that case,
+        # the UID Store already has an acronym "M" for "Milestone". If our conditional is not based on
+        # YAML-field-equivalence, the code would erroneously think that "milestone" is not one of the
+        # known entities and would generate a new acronym "MI" (since "M" is taken already, by "Milestone")
+        # The upshot is that we would get an error down the line since the could would have multiple
+        # acronyms ("M" and "MI") at the same level. So to avoid this, we drive our logic based on
+        # YAML-equivalence text comparisons
+        if not StringUtils().is_in_as_yaml(entity_type, list(self.acronyms.keys())):
             already_used        = [self.acronyms[e] for e in self.acronyms.keys()]
             nb_letters          = 1
             candidate           = self._acronym(parent_trace, entity_type, nb_letters=nb_letters)
@@ -712,7 +723,14 @@ class BreakdownTree():
 
             self.acronyms[entity_type]  = candidate 
 
-        acronym                 = self.acronyms[entity_type] 
+        # We don't do 
+        #               acronym = self.acronyms[entity_type] 
+        #
+        # because it is buggy, since maybe entity_name="milestone" during an update of a manifest, while the
+        # original posting that created the manifest has a key of "Milestone". So need to do a lookup within
+        # the tolerance of YAML-equivalence
+        acronym                 = StringUtils().val_from_key_as_yaml(parent_trace, key=entity_type, a_dict=self.acronyms)
+        
         return acronym
 
     def _acronym(self, parent_trace, txt, nb_letters=1):

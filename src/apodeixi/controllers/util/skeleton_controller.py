@@ -8,6 +8,7 @@ from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
 from apodeixi.xli.uid_store                             import UID_Store
 from apodeixi.xli.xlimporter                            import ExcelTableReader, SchemaUtils
+from apodeixi.xli.interval                              import Interval
 
 from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle, \
@@ -713,11 +714,17 @@ class SkeletonController(PostingController):
         if True:
             # Re-index raw_df so that its row indices are exactly the same as Excel row numbers.
             # We start at first_row+1 since first_row is the headers of raw_df
-            working_df                  = raw_df.copy()
+            working_df                  = raw_df.copy()         
+            
             working_df.index            = range(first_row + 1, first_row + 1 + len(working_df.index))
 
             # NB: loc is inclusive, so loc[3:5] includes rows 3, 4, and 5 (not just 3,4)
             mapping_df                  = working_df.loc[first_refRow + 1: last_refRow] 
+
+
+
+
+
             ds1_df                      = working_df.loc[:first_refRow] 
             ds2_df                      = working_df.loc[last_refRow + 1:]
             dataset_df                  = _pd.concat([ds1_df, ds2_df])
@@ -744,25 +751,54 @@ class SkeletonController(PostingController):
             #     should not be done on an update
             #    * And in all this logic, comparisons must be done up to YAML equivalence.
             if not StringUtils().is_in_as_yaml(my_entity, list(df2.columns)):
-                # In this case we need to rename the first column to be as the entity. Can happen
-                # when doing an update, since the first column is now UID instead of entity, which makes it likely
-                # we didn't lose the name of the entity column during the transpose operation above.
+                # In this case we need to rename the first column to be as the entity. This typically happens
+                # in a create (as opposed to an update), since a create there is no UID column in dataset_df,
+                # and the first column which was the entity (e.g., "Milestone" in our example) was "lost" during 
+                # the transpose that created df_2, so now the first column of df_2 is probably something like "index".
+                # So we re-name that column from "index" to "Milestone"
+                # 
                 renamed_columns             = [my_entity]
                 renamed_columns.extend(df2.columns[1:])
                 df2.columns                 = renamed_columns
-                entity_column               = my_entity
-            else:
-                entity_column           = [col for col in df2.columns if StringUtils().equal_as_yaml(my_entity, col)][0]
 
+                # This is the column in df_2 whose values are equal to (all but the first) columns in mapping_df.
+                # This is used below to figure out the mapping, i.e., to build the list of uids in the
+                # referenced manifest that our referencing manifest must reference.
+                linkage_column               = my_entity
+            else:
+                # In this case, we are doing an update (as opposed to a create). Consider the example where
+                # the entity is "Milestone". Had this been a create, then "Milestone" would have been the first
+                # column of dataset_df and it woudl have been "lost" in the transpose that created df_2, turning itself
+                # into "index". But since we did not lose it, it means that there must have been another column,
+                # of necessity "UID", to the left of the "Milestone" column. But then this means that we "lost"
+                # UID, so we need to restore it now
+                renamed_columns             = [Interval.UID]
+                renamed_columns.extend(df2.columns[1:])
+                df2.columns                 = renamed_columns     
+
+                # This is the column in df_2 whose values are equal to (all but the first) columns in mapping_df.
+                # This is used below to figure out the mapping, i.e., to build the list of uids in the
+                # referenced manifest that our referencing manifest must reference.
+                linkage_column               = Interval.UID
 
             manifest_df                 = df2
+
+            # Test we correctly chose linkage_column
+            list1                       = list(mapping_df.columns)[1:]
+            list2                       = list(manifest_df[linkage_column])
+            if list1 != list2:
+                raise ApodeixiError(my_trace, "Problem establishing linkage when processing mapping of manifests: lists "
+                                                "should match",
+                                            data = {"list1": str(list1), "list2": str(list2), "referenced Kind": str(refKind),
+                                                        "referencing entity": my_entity})
             
         my_trace                        = parent_trace.doing("Create mapped vectors per referencing entity")
         if True:
-            # The first column of mapping_df are the columns of manifest_df. But the rest correspond to 
-            # referencing entities, which are rows in manifest_df
+            # mapping_df is "only mappings" - we filtered out the rows that were properties or our entity ("Milestones"
+            # in the example), so mappping_df'w rows have "x"s expressing a mapping (e.g., big rocks linked to milestone)
             referencing_mappings          = {}
-            for referencing_entity in list(mapping_df.columns)[1:]:
+
+            for referencing_entity in list(mapping_df.columns)[1:]: # This list is the same as manifest_df[linkage_column]
                 uid_list                = []
                 
                 for row_nb in mapping_df.index:
@@ -782,11 +818,29 @@ class SkeletonController(PostingController):
         my_trace                        = parent_trace.doing("Adding a column of mappings to manifest_df")
         if True:
             def assign_ref_uids(row):
-                referencing_entity      = row[entity_column]
+                referencing_entity      = row[linkage_column]
                 uid_list                = referencing_mappings[referencing_entity]
                 return uid_list
 
             manifest_df[refKind]        = manifest_df.apply(lambda row: assign_ref_uids(row), axis=1)
+
+            # If we are doing an update, we need to clear out spuriously named "UIDs" like "Unnamed: 8". This happens
+            # if the user added additional milestones as part of the update. Since there is a "UID" already (being
+            # an update), these new milestones will have a blank UID in Excel, and Pandas will convert into something
+            # like "Unnamed: 8" (if it is column 8+1 in Excel), since Pandas DataFrame's require non-null columns.
+            # But after the transpose that created manifest_df, in manifest_df these are values in the "UID" column, 
+            # and we need to blank them so that the Apodeixi parser will not error out when it encounters strings like
+            # "Unnamed: 8" that are not valid UIDs. Instead, we want them to be blank so that the Apodeixi parser
+            # will generate a new valid UID for them.
+            if linkage_column == Interval.UID:
+                def _clean_UIDs(row):
+                    raw_uid                 = row[Interval.UID]
+                    if raw_uid.startswith("Unnamed:"):
+                        cleaned_uid         = ""
+                    else:
+                        cleaned_uid         = raw_uid
+                    return cleaned_uid
+                manifest_df[Interval.UID]   = manifest_df.apply(lambda row: _clean_UIDs(row), axis=1)
 
         return manifest_df
 

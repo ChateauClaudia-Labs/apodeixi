@@ -73,6 +73,30 @@ class StringUtils():
         else:
             return False
 
+    def val_from_key_as_yaml(self, parent_trace, key, a_dict):
+        '''
+        Looks up and returns the value of a dictionary. It first identifies a `key2` with the property
+        that the paramenter `key` and `key2` are YAML-equivalent (i.e., if converted to a YAML format their
+        converted representations are equal strings)
+        
+        Then it returns `a_dict[key2]`
+
+        Raises an error if there is no such `key2`
+        '''
+        if type(key) != str or type(a_dict) != dict:
+            raise ApodeixiError(parent_trace, "Invalid parameters: `key` should be a string and `a_dict` should be "
+                                                + "a dictionary",
+                                                data = {"type(key)": str(type(key)), "type(a_dict)": str(type(a_dict))})
+
+        if not self.is_in_as_yaml(key, list(a_dict.keys())):
+            raise ApodeixiError(parent_trace, "'" + str(key) + "' is not a valid YAML-equivalent key in the dictionary.",
+                                                data = {"valid keys": str(list(a_dict.keys()))})
+
+        key2            = [k for k in a_dict.keys() if 
+                                self.format_as_yaml_fieldname(key) == self.format_as_yaml_fieldname(k)][0]
+
+        return a_dict[key2]
+
     def is_blank(self, txt):
         '''
         Returns True if 'txt' is a string of just spaces. Else it returns False

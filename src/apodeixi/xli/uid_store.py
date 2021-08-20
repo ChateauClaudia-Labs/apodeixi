@@ -289,14 +289,14 @@ class UID_Store:
             m                               = _re.match(REGEX, t)
             if m == None:
                 # Before we fail, let's try to recover. It may be that the user entered something like
-                # "45.1.12" for usability reasons, expecting us to infer that the user meant "AV45.P1.E12".
+                # "AV45.1.12" for usability reasons, expecting us to infer that the user meant "AV45.P1.E12".
                 # This kind of "abbreviated UIDs" are expected when doing joins, for example, since the user
                 # needs to type the UIDs and it is more user-friendly to type abbreviated UIDs than the full thing.
                 ABBREVIATED_REGEX           = '^[0-9]+$'
                 m2                          = _re.match(ABBREVIATED_REGEX, t)
                 if m2 == None: # Recovery attempt did not work, so abort
                     raise ApodeixiError(parent_trace, "Invalid uid='" + uid 
-                            + "': expected something like P3 or AV45.P1.E12, or abbreviations like 45.1.12")
+                            + "': expected something like P3 or AV45.P1.E12, or abbreviations like AV45.1.12")
                 else: # t is something like 12
                     if acronym_list != None and len(acronym_list) <= idx:
                         raise ApodeixiError(parent_trace, "Too few known acronyms to infer them for uid='" + uid  + "'",
