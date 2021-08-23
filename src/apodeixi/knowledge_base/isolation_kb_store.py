@@ -1,5 +1,6 @@
 import os                                               as _os
 import shutil                                           as _shutil
+from apodeixi.util.formatting_utils import StringUtils
 import yaml                                             as _yaml
 
 
@@ -610,11 +611,19 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         @param kind A string representing the kind of the manifest. Along with kind, this identifies a unique 
                     logical manifest (other than version number)
         '''
+        # We need to search up to YAML equivalence, so convert namespace and name if needed
+        namespace                                   = StringUtils().format_as_yaml_fieldname(namespace)
+        name                                        = StringUtils().format_as_yaml_fieldname(name)
+        kind                                        = StringUtils().format_as_yaml_fieldname(kind)
+        
         my_trace                                    = parent_trace.doing("Looking for the latest manifest file",
                                                                             data = {'namespace':        namespace,
                                                                                     'name':             name,
                                                                                     'kind':             kind})
-        folder                                      = self._current_env.manifestsURL(parent_trace) + '/' + namespace + '/' + name
+
+
+        folder                                      = self._current_env.manifestsURL(parent_trace) + '/' \
+                                                                    + namespace + '/' + name
         result_dict                                 = None
         result_path                                 = None
         result_api_version_suffix                   = None
@@ -665,7 +674,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                         manifest_api_name, namespace, name, kind, minimal_version):
         '''
         Helper method for self.findLatestVersionManifest. It verifies that the manifest_dict has
-        all the fields as stated in the parameters.
+        all the fields as stated in the parameters (up to YAML equivalence)
 
         Returns True if it does, False if it doesn't. Raises an error if in the process it finds
         any corruption (e.g., fields inside the manifest_dict not matching the expectations
@@ -696,7 +705,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                             path_list       = ['metadata', 'namespace'], 
                                             valid_types     = [str])            
             namespace_found                 = manifest_dict['metadata']['namespace']
-            if namespace_found != namespace:
+            #if namespace_found != namespace:
+            if not StringUtils().equal_as_yaml(namespace_found, namespace):
                 # This YAML file is corrupted, since it is under the namespace directory but internally has a different
                 # namespace
                 raise ApodeixiError(my_trace, "Encountered corrupted YAML file: inconsistent namespace",
@@ -712,7 +722,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                             path_list       = ['metadata', 'name'], 
                                             valid_types     = [str])
             name_found                      = manifest_dict['metadata']['name']
-            if name_found != name:
+            #if name_found != name:
+            if not StringUtils().equal_as_yaml(name_found, name):
                 # This YAML file is corrupted, since it is under the names directory but internally has a different
                 # names
                 raise ApodeixiError(my_trace, "Encountered corrupted YAML file: inconsistent name",
@@ -730,7 +741,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                             valid_types     = [str])
         
             kind_found                      = manifest_dict['kind']
-            if kind_found != kind:
+            #if kind_found != kind:
+            if not StringUtils().equal_as_yaml(kind_found, kind):
                 # This YAML file is corrupted, since it is named after a different kind than what it internally has
                 raise ApodeixiError(my_trace, "Encountered corrupted YAML file: inconsistent kind",
                                 data = {"YAML file":                        str(manifest_filename),
@@ -874,7 +886,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
             
             inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
-            if inferred_handle == manifest_handle:
+            #if inferred_handle == manifest_handle: # This looks wrong as it will fail if later we change API version
+            if inferred_handle.equals_up_to_api_version(manifest_handle):
                 matching_filenames.append(filename)
                 matching_manifests.append(manifest_dict)
 

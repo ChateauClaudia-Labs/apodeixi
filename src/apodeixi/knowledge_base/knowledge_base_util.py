@@ -1,8 +1,14 @@
+import os                                                       as _os
+
 from apodeixi.controllers.util.manifest_api                     import ManifestAPIVersion
+
 from apodeixi.knowledge_base.filing_coordinates                 import TBD_FilingCoordinates
+from apodeixi.representers.as_dataframe                         import AsDataframe_Representer
+from apodeixi.xli.interval                                      import Interval
 
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
+from click.decorators import version_option
 
 class PostingLabelHandle():
     '''
@@ -245,6 +251,197 @@ class ManifestUtils():
         api_suffix_found                = api_tokens[1]  
         return api_found, api_suffix_found      
 
+    def infer_entity(self, parent_trace, manifest_dict, manifest_nickname):
+        '''
+        Finds and retrieves the root entity for the `manifest_dict`, defined as the unique X such that
+
+        * X is a key in manifest_dict["assertion"]
+        * X is the unique key in manifest_dict["assertion"] such that manifest_dict["assertion"][X] is a dict
+        '''      
+        assertion_dict                  = DictionaryUtils().get_val(        parent_trace        = parent_trace, 
+                                                                            root_dict           = manifest_dict, 
+                                                                            root_dict_name      = manifest_nickname, 
+                                                                            path_list           = ["assertion"], 
+                                                                            valid_types         = [dict])
+        entities                        = [key for key in assertion_dict.keys() if type(assertion_dict[key])==dict]
+        if len(entities) != 1:
+            raise ApodeixiError(parent_trace, "Corrupted manifest: expected exactly 1 entity, not " + str(len(entities)),
+                                            data = {    "entities found":   str(entities)})
+
+        entity                              = entities[0]
+        return entity
+
+    def describe_manifest(self, parent_trace, manifest_handle, store, post_response):
+        '''
+        Creates and returns a ManifestEventDescription object that succintly describes what happened
+        to a manifest during a lifecycle event
+
+        @param manifest_handle  A ManifestHandle object for the manifest for which a description is sought
+        @param store            The KnowledgeBaseStore instance where the manifest in question is persisted
+        @param post_response A PostResponse object summarizing the outcome of a lifecycle event
+
+        '''
+        my_trace                        = parent_trace.doing("Retrieving manifest from KnowledgeBaseStore",
+                                                    data = {"manifest handle": manifest_handle.display(parent_trace)})
+        manifest_dict, manifest_path    = store.retrieveManifest(my_trace, manifest_handle)
+
+        manifest_file                   = _os.path.split(manifest_path)[1]
+
+        my_trace                        = parent_trace.doing("Extracting manifest's content as a DataFrame",
+                                                    data = {"manifest": str(manifest_file)})
+        contents_df, entity_name        = self.extract_manifest_content_as_df(my_trace, manifest_dict, manifest_file)
+        entities                        = list(contents_df[Interval.UID].unique())
+
+        my_trace                        = parent_trace.doing("Determining the manifest lifecycle event",
+                                                    data = {"manifest": str(manifest_file)})
+        if manifest_handle in post_response.createdManifests():
+            manifest_event              = PostResponse.CREATED
+        elif manifest_handle in post_response.updatedManifests():
+            manifest_event              = PostResponse.UPDATED
+        elif manifest_handle in post_response.deletedManifests():
+            manifest_event              = PostResponse.DELETED
+        elif manifest_handle in post_response.unchangedManifests():
+            manifest_event              = PostResponse.UNCHANGED
+        else:
+            raise ApodeixiError(my_trace, "Manifest '" + str(manifest_file) + "' was not a part of the post being described")
+
+        my_trace                        = parent_trace.doing("Determining if there's an earlier version for manifest",
+                                                    data = {"manifest": str(manifest_file)})
+        version                         = self.get_manifest_version(my_trace, manifest_dict)
+        if version > 1: # We need to load the prior version of the manifest
+            prior_handle                = manifest_handle.copy()
+            prior_handle.version        = version - 1
+            prior_manifest_dict, prior_manifest_path    = store.retrieveManifest(my_trace, prior_handle)
+            prior_contents_df, prior_e  = self.extract_manifest_content_as_df(my_trace, prior_manifest_dict, manifest_file)
+
+            if prior_e != entity_name:
+                raise ApodeixiError(my_trace, "Manifest's entity name changed between versions. That is not allowed",
+                                            data = {"new entity":       str(entity_name),
+                                                    "new version":      str(version),
+                                                    "prior entity":     str(prior_e),
+                                                    "prior_version":    str(version-1)})
+            prior_entities              = list(prior_contents_df[Interval.UID].unique())
+        
+            inner_trace                 = parent_trace.doing("Computing lifecycle stats",
+                                                    data = {"manifest": str(manifest_file)})        
+            entities_added              = len([e for e in entities if not e in prior_entities])
+            entities_removed            = len([e for e in prior_entities if not e])
+            common_entities             = [e for e in entities if e in prior_entities]
+            entities_changed            = [e for e in common_entities if not self.entity_values_match(
+                                                                                        parent_trace  = my_trace, 
+                                                                                        entity_uid      = e, 
+                                                                                        entity_name     = entity_name, 
+                                                                                        contents_df1    = contents_df, 
+                                                                                        contents_df2    = prior_contents_df)]
+            entities_unchanged          = [e for e in common_entities if self.entity_values_match(
+                                                                                        parent_trace  = my_trace, 
+                                                                                        entity_uid      = e, 
+                                                                                        entity_name     = entity_name, 
+                                                                                        contents_df1    = contents_df, 
+                                                                                        contents_df2    = prior_contents_df)]
+
+        else:
+            entities_added              = len(list(contents_df[Interval.UID].unique()))
+            entities_removed            = 0
+            entities_changed            = 0
+            entities_unchanged          = 0
+
+
+        description                     = ManifestEventDescription( manifest_filename           = manifest_file, 
+                                                                    event                       = manifest_event, 
+                                                                    entities_added              = entities_added, 
+                                                                    entities_removed            = entities_removed, 
+                                                                    entities_changed            = entities_changed, 
+                                                                    entities_unchanged          = entities_unchanged, 
+                                                                    namespace                   = manifest_handle.namespace, 
+                                                                    name                        = manifest_handle.name)
+
+        return description
+
+    def extract_manifest_content_as_df(self, parent_trace, manifest_dict, manifest_nickname):
+        '''
+        Returns two things:
+
+        * A Pandas DataFrame
+        * A string
+
+        The string corresponds to the entity of `manifest_dict`, defined as the unique key <entity> in
+        `manifest_dict` such that manifest_dict["assertion"][<entity>] is a dict
+        
+        The DataFrame corresponds to the content of the `manifest_dict`, i.e., a DataFrame representation
+        of manifest_dict["assertion"][<entity>]
+        '''
+        my_trace                        = parent_trace.doing("Identifying manifest's entity",
+                                                    data = {"manifest": str(manifest_nickname)})
+        entity                          = self.infer_entity(my_trace, manifest_dict, manifest_nickname=manifest_nickname)
+
+        my_trace                        = parent_trace.doing("Extracting manifest's content as a DataFrame",
+                                                    data = {"manifest": str(manifest_nickname)})
+        path_list                       = ["assertion", entity]
+        content_dict                    = DictionaryUtils().get_val(        parent_trace        = my_trace, 
+                                                                            root_dict           = manifest_dict, 
+                                                                            root_dict_name      = manifest_nickname, 
+                                                                            path_list           = path_list, 
+                                                                            valid_types         = [dict])
+
+        contents_path                   = ".".join(path_list)
+        rep                             = AsDataframe_Representer()
+        contents_df                     = rep.dict_2_df(    parent_trace        = my_trace, 
+                                                            content_dict        = content_dict, 
+                                                            contents_path       = contents_path, 
+                                                            sparse              = False)
+        return contents_df, entity
+
+    def entity_values_match(self, parent_trace, entity_uid, entity_name, contents_df1, contents_df2):
+        '''
+        Returns a boolean. 
+        
+        Gets the rows of `contents_df1`, `contents_df2` for which the "UID" column 
+        is equal to `entity_uid`. Then it compares to see if those rows have the same value for the column
+        `entity_name`. Returns True if the values match.
+
+        @param entity_uid A string representing a UID in a manifest. Example: "BR3.B2"
+        @param entity_name A string reprsenting an entity in a manifest. Example: "big-rock"
+        @param contents_df1: A DataFrame with the contents of a manifest. 
+        @param contents_df2: A DataFrame with the contents of a manifest
+        '''
+        if not Interval.UID in contents_df1.columns or not Interval.UID in contents_df2.columns:
+            raise ApodeixiError(parent_trace, "Can't assess if two manifests' entity values match because "
+                                                + "at least one of them lacks a UID column")
+        if not entity_name in contents_df1.columns or not Interval.UID in contents_df2.columns:
+            raise ApodeixiError(parent_trace, "Can't assess if two manifests' entity values match because "
+                                                + "at least one of them lacks the '" + str(entity_name) + "' column")
+
+        row_df1                          = contents_df1[contents_df1[Interval.UID] == entity_uid]
+        row_df2                          = contents_df2[contents_df2[Interval.UID] == entity_uid]
+
+        if len(row_df1.index) != 1 or len(row_df2.index) != 1:
+            raise ApodeixiError(parent_trace, "Can't assess if two manifests' entity values match because "
+                                                + " they don't have a unique row for the given entity_uid",
+                                                data = {"enityt_uid":       str(entity_uid),
+                                                        "rows 1":           str(len(row_df1.index)),
+                                                        "rows 2":           str(len(row_df2.index))})
+        val1                            = row_df1[entity_name].iloc[0]
+        val2                            = row_df2[entity_name].iloc[0]
+        return val1 == val2
+
+
+class ManifestEventDescription():
+    '''
+    Class used as a data structure for a few key properties around manifest lifecycle events, short enough
+    to be presentable to the user in the CLI by way of response of a CLI post command from the user
+    '''
+    def __init__(self, manifest_filename, event, entities_added, entities_removed, entities_changed, entities_unchanged, 
+                                namespace, name):
+        self.manifest_filename      = manifest_filename
+        self.event                  = event
+        self.entities_added         = entities_added
+        self.entities_removed       = entities_removed
+        self.entities_changed       = entities_changed
+        self.entities_unchanged     = entities_unchanged
+        self.namespace              = namespace
+        self.name                   = name
+
 class ManifestHandle():
     '''
     Object that uniquely identifies a manifest in an Apodeixi knowledge base
@@ -261,6 +458,25 @@ class ManifestHandle():
             return self.__dict__ == other.__dict__
         else:
             return False
+
+    def equals_up_to_api_version(self, other_manifest_handle):
+        '''
+        Returns the `other_manifest_handle` is a ManifestHandle object all of whose attributes (except possibly
+        for the apiVersion) are equal.
+        '''
+        if not isinstance(other_manifest_handle, self.__class__):
+            return False
+
+        if  self.kind           == other_manifest_handle.kind       and \
+            self.namespace      == other_manifest_handle.namespace  and \
+            self.name           == other_manifest_handle.name       and \
+            self.version        == other_manifest_handle.version:
+
+            return True
+        else:
+            return False
+
+
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -364,6 +580,24 @@ class Response():
             result.append(all_handles_dict[nb])
         return result
 
+    def allManifests(self, parent_trace):
+        '''
+        Returns a list of ManifestHandles in this response corresponding to create, delete, update, or unchanged
+        events (so unlike the allActiveManifests method, this method includes deletes).
+        
+        One use case where this is used is in the Apodeixi CLI, to provide input to user's on the outcome of
+        a user-initiated posting.
+        '''
+        all_handles_dict    = self.manifest_handles_dict[Response.CREATED] \
+                                | self.manifest_handles_dict[Response.UPDATED] \
+                                | self.manifest_handles_dict[Response.DELETED] \
+                                | self.manifest_handles_dict[Response.UNCHANGED]
+        all_manifest_nbs    = list(all_handles_dict.keys())
+        all_manifest_nbs.sort()
+        result              = []
+        for nb in all_manifest_nbs:
+            result.append(all_handles_dict[nb])
+        return result
 
     def archivedPostings(self):
         return self.posting_handles_dict[Response.ARCHIVED]   
