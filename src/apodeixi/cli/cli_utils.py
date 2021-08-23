@@ -6,6 +6,7 @@ from apodeixi.controllers.admin.static_data.static_data_validator   import Stati
 from apodeixi.knowledge_base.knowledge_base_util                    import ManifestUtils
 from apodeixi.knowledge_base.kb_environment                         import File_KBEnv_Impl
 from apodeixi.util.a6i_error                                        import ApodeixiError
+from apodeixi.util.formatting_utils                                 import StringUtils
 
 class CLI_Utils():
     '''
@@ -163,7 +164,8 @@ class CLI_Utils():
         expected_organization           = kb_session.a6i_config.getOrganization(parent_trace)
         allowed_kb_areas                = kb_session.a6i_config.getKnowledgeBaseAreas(parent_trace)
 
-        description_table               = [[expected_organization + "." + kb_area] for kb_area in allowed_kb_areas]
+        FMT                             = StringUtils().format_as_yaml_fieldname
+        description_table               = [[FMT(expected_organization + "." + kb_area)] for kb_area in allowed_kb_areas]
         description_headers             = ["Namespace"]
 
         description                     = "\n\n"
@@ -180,7 +182,8 @@ class CLI_Utils():
         expected_organization           = kb_session.a6i_config.getOrganization(parent_trace)
         allowed_kb_areas                = kb_session.a6i_config.getKnowledgeBaseAreas(parent_trace)
 
-        namespaces                      = [expected_organization + "." + kb_area for kb_area in allowed_kb_areas]
+        FMT                             = StringUtils().format_as_yaml_fieldname
+        namespaces                      = [FMT(expected_organization + "."+ kb_area) for kb_area in allowed_kb_areas]
 
         description_table               = []
         description_headers             = ["Product", "Namespace", "Environment"]
@@ -238,7 +241,8 @@ class CLI_Utils():
 
         description_table               = []
         description_headers             = ["Sandbox"]
-        description_table.append(sandboxes)
+        for sb in sandboxes:
+            description_table.append([sb])
 
         description                     = "\n\n"
         description                     += tabulate(description_table, headers=description_headers)
