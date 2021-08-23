@@ -10,7 +10,7 @@ class CLI_Utils():
 
     # Static portions of sandbox announcements that should be structured like 
     # 
-    #               "Using sandbox '210821.142725_sandbox'..."
+    #               "Using sandbox '210821.142725_sandbox'...\n"
     #
     PREFIX_EXPECTED             = "Using sandbox '"
     SANDBOX_NAME_LENGTH         = len("210821.142725_sandbox")    

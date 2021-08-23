@@ -81,7 +81,7 @@ class AsDataframe_Representer:
         '''
         Used to represent the contents of a manifest as a Pandas DataFrame. There are two main
         use cases for what such DataFrame would be used for, and the needs of each of them
-        are catered to depending onhow the `sparse` parameter is set:
+        are catered to depending on how the `sparse` parameter is set:
 
         * As input to subsequent processing to render an Excel visualization (using sparse=True)
         * As input to data analysis in Pandas (using sparse=False). 

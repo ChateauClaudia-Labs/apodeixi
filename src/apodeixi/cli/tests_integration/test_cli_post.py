@@ -30,6 +30,8 @@ class Test_CLI_Post(CLI_Test_Skeleton):
                                             PATH_OF("products.static-data.admin.a6i.xlsx")],
                                         ['post', '--sandbox', self.get_sandbox, '--timestamp', "_CLI__2",
                                             PATH_OF("scoring-cycles.static-data.admin.a6i.xlsx")],
+                                        ['post', '--sandbox', self.get_sandbox, '--timestamp', "_CLI__3",
+                                            PATH_OF("pbf_opus.original.OPUS_big-rocks.journeys.a6i.xlsx")],
                                     ]
 
         self.skeleton_test( parent_trace                = root_trace,

@@ -322,12 +322,14 @@ class ExcelTableReader:
         as a Pandas DataFrame 
         '''
         my_trace                = parent_trace.doing("Parsing excel range",
-                                                         data = {"excel_range": str(self.excel_range)})        
+                                                         data = {"excel_range": str(self.excel_range),
+                                                                "excel sheet": str(self.excel_sheet)})        
         first_column, last_column, first_row, last_row  = ExcelTableReader.parse_range(my_trace, self.excel_range)
         
         header, nrows           = self.xlr_config.pandasRowParameters(parent_trace, first_row, last_row)
         my_trace                = parent_trace.doing("Loading Excel spreadsheet",
-                                                        data = {"excel_fullpath": str(self.excel_fullpath)})
+                                                        data = {"excel_fullpath": str(self.excel_fullpath),
+                                                                "excel sheet": str(self.excel_sheet)})
         try:
             df                  = _pd.read_excel(   io         = self.excel_fullpath,
                                                     sheet_name = self.excel_sheet,
@@ -337,6 +339,7 @@ class ExcelTableReader:
         except PermissionError as ex:
             raise ApodeixiError(my_trace, "Was not allowed to access excel file. Perhaps you have it open?",
                                         data = {"excel_fullpath": str(self.excel_fullpath),
+                                                "excel sheet": str(self.excel_sheet),
                                                 "error":         str(ex)},
                                         origination = {'concrete class': str(self.__class__.__name__), 
                                                                         'signaled_from': __file__})
@@ -363,13 +366,15 @@ class ExcelTableReader:
         if len(df.columns)==0:
             raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
                               + "'. It spans no columns with data",
-                              data = {"excel_fullpath": str(self.excel_fullpath)},
+                              data = {"excel_fullpath": str(self.excel_fullpath),
+                                        "excel sheet": str(self.excel_sheet)},
                               origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
         if len(df.index)==0:
             raise ApodeixiError (my_trace, "Incorrectly formatted Excel range was given: '" + self.excel_range 
                               + "'. It spans no rows with data",
-                              data = {"excel_fullpath": str(self.excel_fullpath)},
+                              data = {"excel_fullpath": str(self.excel_fullpath),
+                                        "excel sheet": str(self.excel_sheet)},
                               origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__})
             

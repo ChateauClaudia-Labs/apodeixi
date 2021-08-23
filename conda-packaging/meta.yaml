@@ -25,6 +25,7 @@ requirements:
     - conda-build >=3.21.4
     - toml >=0.10.2
     - click >=8.0.1
+    - tabulate >=0.8.9
 
   run: # Include any dependencies that the user should be prompted to also install when installing our package
     - python >=3.9.6
@@ -37,6 +38,7 @@ requirements:
     - notebook >=6.4.2
     - toml >=0.10.2
     - click >=8.0.1
+    - tabulate >=0.8.9
     
 
 test:
