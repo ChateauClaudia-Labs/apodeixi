@@ -1,4 +1,3 @@
-import sys                                              as _sys
 import os                                               as _os
 import shutil                                           as _shutil
 
@@ -15,8 +14,6 @@ from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStor
 from apodeixi.knowledge_base.shutil_kb_store            import Shutil_KBStore_Impl
 from apodeixi.knowledge_base.git_kb_store               import GIT_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
-
-from apodeixi.util.path_utils                           import PathUtils
 
 class IntegrationTestStack():
     '''
@@ -358,7 +355,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         
         my_trace                    = parent_trace.doing("Creating an isolated environment for integration test")
         env_config                  = KB_Environment_Config(
-                                            parent_trace, 
+                                            parent_trace        = my_trace, 
                                             read_misses_policy  = read_misses_policy,
                                             use_timestamps      = False,
                                             path_mask           = self._path_mask)

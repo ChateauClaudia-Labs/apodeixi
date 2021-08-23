@@ -6,7 +6,7 @@ util:
     '
   a6i_error.py: '
 
-    Size (in bytes):  11651
+    Size (in bytes):  11650
 
     '
   apodeixi_config.py: '
@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  17361
+    Size (in bytes):  18426
 
     '
   tests_unit:

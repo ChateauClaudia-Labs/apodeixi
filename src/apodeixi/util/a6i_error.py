@@ -170,7 +170,7 @@ class ApodeixiError (Exception):
 
     def trace_message(self, exclude_stack_trace=False):
 
-        def MSK(txt): # Abbreviaation for the masking logic
+        def MSK(txt): # Abbreviation for the masking logic
             if self.functional_trace.path_mask != None:
                 return self.functional_trace.path_mask(txt)
             else:

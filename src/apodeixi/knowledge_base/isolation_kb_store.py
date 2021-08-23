@@ -2,16 +2,14 @@ import os                                               as _os
 import shutil                                           as _shutil
 import yaml                                             as _yaml
 
-from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
-from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
-from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
+
 from apodeixi.knowledge_base.file_kb_store              import File_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl, KB_Environment_Config, KB_Environment
 from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoordinates, \
                                                                 InitiativesFilingCoordinates, \
-                                                                ArchiveFilingCoordinates, LogFilingCoordinates, \
-                                                                TBD_FilingCoordinates    
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestHandle, ManifestUtils, PostingLabelHandle
+                                                                ArchiveFilingCoordinates, LogFilingCoordinates   
+from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
+from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils, PostingLabelHandle
 from apodeixi.representers.as_excel                     import ManifestRepresenter
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils

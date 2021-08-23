@@ -513,10 +513,12 @@ class ArchiveFilingCoordinates(FilingCoordinates):
         # This will look like '210703.102746 Posting' for a posting done on the 3rd of July of 2021 at 10:27 am (and 46 sec)
         # Intention is for this folder name to be unique for this posting event, even if other postings (for the same
         # or different Excel files) happen the same day with the same filing coords
-        if use_timestamps:
+        if use_timestamps == True:
             self.archive_folder         = dt.strftime("%y%m%d.%H%M%S") + " Posting"
-        else:
+        elif use_timestamps == False:
             self.archive_folder         = "(Timestamp omitted)" + " Posting"
+        else: # Caller provided a tag to use
+            self.archive_folder         = str(use_timestamps) + " Posting"
         return
 
     ARCHIVED_POSTINGS               = "_ARCHIVE"

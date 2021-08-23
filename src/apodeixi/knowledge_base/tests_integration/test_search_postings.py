@@ -4,8 +4,6 @@ from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrati
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                     import DictionaryFormatter 
 
-from apodeixi.knowledge_base.shutil_kb_store            import Shutil_KBStore_Impl
-
 class Test_SearchPostings(ApodeixiIntegrationTest):
 
     def setUp(self):

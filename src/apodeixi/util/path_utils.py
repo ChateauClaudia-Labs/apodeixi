@@ -1,6 +1,7 @@
 import os                                           as _os
 from pathlib                                        import Path
 import time                                         as _time
+import re                                           as _re
 
 import traceback                                    as _traceback
 from io                                             import StringIO
@@ -261,7 +262,17 @@ class FolderHierarchy():
             hierarchy_dict                      = {}
             parent_folder                       = _os.path.split(rootdir)[1]
             path_to_parent                      = _os.path.split(rootdir)[0]
-            hierarchy_dict[parent_folder]       = {}
+
+            if include_timestamps:
+                clean_parent_folder             = parent_folder
+            else:
+                # In this case, mask all consecutive 6-digit substrings, as they are likely to be timestamps.
+                # Example:
+                #       When the CLI runs, it creates environments with names like '210822.162717_sandbox'
+                # (for the 22nd of August of 2021, at 4:27 pm and 17 seconds). The timestamps need to be masked
+                # in regression test output so that it bcecomes deterministic.
+                clean_parent_folder             = _re.sub(pattern="[0-9]{6}", repl="<MASKED>", string=parent_folder)
+            hierarchy_dict[clean_parent_folder] = {}
             for currentdir, dirs, files in _os.walk(rootdir):
                 
                 if filter != None and not filter(currentdir):
@@ -272,6 +283,11 @@ class FolderHierarchy():
                         loop_trace              = parent_trace.doing("Adding file '" + a_file + "'")
                         relative_path           = PathUtils().relativize(loop_trace, path_to_parent, currentdir)
                         branch_tokens           = PathUtils().tokenizePath(loop_trace, relative_path[0] + "/" + a_file)
+
+                        # If we cleaned timestamps from parent folder, also clean them from the path to the file
+                        # we are looking at
+                        if len(branch_tokens) > 0 and branch_tokens[0] == parent_folder:
+                            branch_tokens[0] = clean_parent_folder
                         
                         full_path               = currentdir + "/" + a_file
                         if include_timestamps:
@@ -294,7 +310,7 @@ class FolderHierarchy():
                                                             origination = {'signaled_from': __file__})
                         DictionaryUtils().set_val(  parent_trace            = inner_trace, 
                                                     root_dict               = hierarchy_dict, 
-                                                    root_dict_name          = parent_folder, 
+                                                    root_dict_name          = clean_parent_folder, 
                                                     path_list               = branch_tokens, 
                                                     val                     = file_meta)
 

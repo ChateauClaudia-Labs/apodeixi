@@ -1,6 +1,6 @@
 import os                                               as _os
 import shutil                                           as _shutil
-
+import yaml                                             as _yaml
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils, FolderHierarchy
@@ -41,7 +41,7 @@ class KB_Environment_Config():
         if not read_misses_policy in ME.READ_MISSES_POLICIES:
             raise ApodeixiError(parent_trace, "The read misses policy that was provided is not supported",
                                 data = {"read_misses_policy": str(read_misses_policy),
-                                        "supported policies": str(READ_MISSES_POLICIES)})
+                                        "supported policies": str(ME.READ_MISSES_POLICIES)})
 
         self.read_misses_policy             = read_misses_policy
         self.use_timestamps                 = use_timestamps
@@ -221,7 +221,7 @@ class KB_Environment():
         '''
         return self._impl.describe(parent_trace, include_timestamps)
 
-class File_KBEnv_Impl(KB_Environment):
+class File_KBEnv_Impl():
     '''
     Implementation of KB_Environment services when KnowledgeBase is configured to use a file-system based stack.
     '''
@@ -236,10 +236,20 @@ class File_KBEnv_Impl(KB_Environment):
         '''
         if not type(config)==KB_Environment_Config:
             raise ApodeixiError(parent_trace, "Unsupported config provided when creating environment",
-                                                data = {"config type expected":         str(KB_Environment_Config),
+                                                data = {"config type expected":         str(KB_Environment_Config.__name__),
                                                         "config type provided":         str(type(config)),
                                                         "environment name":             str(name)})
 
+        # The check below was added to fix bugs whereby the programmer of Apodeixi could get easily confused and
+        # corrupt the dependency tree among environments, by confusing environment vs environment implementation classes,
+        # and not keeping child-parent relationships consistent (e.g., an environment implementation whose
+        # parent is not an environment (as it should be) but instead another environment implementation)
+        if parent_environment != None and not type(parent_environment) == KB_Environment: 
+            raise ApodeixiError(parent_trace, "Invalid parent environment class provided when creating File_KBEnv_Impl",
+                                                data = {"type expected":         str(KB_Environment.__name__),
+                                                        "type provided":         str(type(parent_environment)),
+                                                        "environment name":             str(name)})
+            
         self._parent_environment             = parent_environment
         self._config                         = config
         self._store                          = store
@@ -251,6 +261,7 @@ class File_KBEnv_Impl(KB_Environment):
         self._clientURL                             = clientURL
 
     ENVS_FOLDER                                     = "envs"
+    LOGS_FOLDER                                     = "logs"
     POSTINGS_ENV_DIR                                = "kb/excel-postings"
     MANIFESTS_ENV_DIR                               = "kb/manifests"
     COLLABORATION_DIR                               = "external-collaboration"
@@ -308,6 +319,29 @@ class File_KBEnv_Impl(KB_Environment):
         return self._clientURL
 
     def findSubEnvironment(self, parent_trace, name):
+        '''
+        Searches for a descendent environment with the given name (so a child environment or a 
+        child of a child, etc. 
+
+        If it is not found, this method will attempt to load it from disk if metadata for such
+        an environment exists, but only if the environment sought is either a child of self
+        or a child of the base environment.
+        
+        If none exists, returns None
+        '''
+        # First search in memory
+
+        descendent_env          = self.findSubEnvironmentInMemory(parent_trace, name)
+
+        if descendent_env == None:
+            # If we get here it means the sub-environment does not exist or it is not in memory, as when
+            # it was created by another Python process. If so, we can load it from metadata as long as it is
+            # an immediate child of self or of the base environment
+            descendent_env      = self.find_child_environment_from_metadata(parent_trace, name)
+
+        return descendent_env
+
+    def findSubEnvironmentInMemory(self, parent_trace, name):
         '''
         Searches for a descendent environment with the given name (so a child environment or a 
         child of a child, etc. If none exists, returns None
@@ -376,22 +410,152 @@ class File_KBEnv_Impl(KB_Environment):
 
         PathUtils().create_path_if_needed(my_trace, subenv_postings_rootdir)
         PathUtils().create_path_if_needed(my_trace, subenv_manifests_rootdir)
+        PathUtils().create_path_if_needed(my_trace, subenv_collab_folder)
 
         my_trace                    = parent_trace.doing("Creating sub environment", data = {'sub_env_name': sub_env_name})
         sub_env_impl                = File_KBEnv_Impl(  parent_trace                    = my_trace, 
-                                                            name                            = sub_env_name, 
-                                                            store                           = self._store, 
-                                                            parent_environment              = parent_env,
-                                                            config                          = env_config,
-                                                            postings_rootdir                = subenv_postings_rootdir,
-                                                            manifests_roodir                = subenv_manifests_rootdir,
-                                                            clientURL   = subenv_collab_folder)
+                                                        name                            = sub_env_name, 
+                                                        store                           = self._store, 
+                                                        parent_environment              = parent_env,
+                                                        config                          = env_config,
+                                                        postings_rootdir                = subenv_postings_rootdir,
+                                                        manifests_roodir                = subenv_manifests_rootdir,
+                                                        clientURL   = subenv_collab_folder)
 
         sub_env                     = KB_Environment(   parent_trace                        = my_trace,
                                                         impl                                = sub_env_impl)
 
         self._children[sub_env_name] = sub_env
+        sub_env_impl.save_environment_metadata(my_trace)
         return sub_env
+
+    def save_environment_metadata(self, parent_trace):
+        '''
+        Creates and saves a YAML file called "METATATA.yaml" in the root folder for self.
+        It is sufficient information from which to re-create the environment (for example, if it was
+        created in a different Python process, so this Python process wouldn't have an in-memory object
+        for it unless it loads it, leveraing the "METADATA.yaml" file).
+
+        This can happen when the CLI creates a sandbox that will later be used by subsequent commands.
+        Since each CLI invocation is its own Python process, different invocations can only share the
+        same sandbox environment if there is a way to persist and then load the state of an environment.
+        '''
+        ME                                  = File_KBEnv_Impl
+        METADATA_FILENAME                   = "METADATA.yaml"
+        metadata_dict                       = {}
+        metadata_dict['name']               = self.name(parent_trace)
+        metadata_dict['parent']             = self.parent(parent_trace).name(parent_trace)
+        metadata_dict['postingsURL']        = self.postingsURL(parent_trace)
+        metadata_dict['manifestsURL']       = self.manifestsURL(parent_trace)
+        metadata_dict['clientURL']          = self.clientURL(parent_trace)
+
+        config                              = self.config(parent_trace)
+
+        config_dict                         = {}
+        config_dict['read_misses_policy']   = config.read_misses_policy
+        config_dict['use_timestamps']       = config.use_timestamps
+
+        metadata_dict['config']             = config_dict
+
+        if self == self._store.base_environment(parent_trace):
+            environment_dir                 = _os.path.dirname(self._store.base_environment(parent_trace). \
+                                                    manifestsURL(parent_trace))
+        else:
+            root_dir                        = _os.path.dirname(self._store.base_environment(parent_trace). \
+                                                    manifestsURL(parent_trace))
+            envs_dir                        = root_dir + "/" + ME.ENVS_FOLDER
+            environment_dir                 = envs_dir + "/" + self.name(parent_trace)
+        
+        PathUtils().create_path_if_needed(parent_trace, environment_dir)
+
+        with open(environment_dir + "/" + METADATA_FILENAME, 'w') as file:
+            _yaml.dump(metadata_dict, file)
+
+    def find_child_environment_from_metadata(self, parent_trace, child_env_name):
+        '''
+        Attempts to instantiate an immediate child environment based on its metadata.
+        It must be an immediate child of self.
+
+        This method deliberately only looks for an immediate child.
+        
+        However, before attempting to instantiate such an environment it checks if an environment
+        with that name already exists in memory. If so, it defers to the in-memory object and does
+        not load the metadata, returning the in-memory object instead.
+
+        If no metadata for such an environment exists, or if it does but is not for an immediate
+        child of self, then this method will return None.
+
+        NOTE: It is important to return None (as opposed to raising an ApodeixiError) because this
+        method will likely be called in a recursive search by self.findSubEnvironment, and it is
+        "normal" in such a recursion to attempt calling this method from different "self" in the
+        environment hierarcy. So for most but one of them, the child_env_name is not for a real
+        child, so it is OK to return None. It would be erroneous to raise an ApodeixiError since that
+        would cause the recursion of self.findSubEnvironment to abort before it has a chance to get
+        to the real parent of `child-env_name`
+
+        '''
+        # First, determine if the environment exists in memory
+        child_env                   = self.findSubEnvironmentInMemory(parent_trace, child_env_name)
+        if child_env != None:
+            return child_env
+
+        ME                          = File_KBEnv_Impl
+
+        my_trace                    = parent_trace.doing("Retrieving metadata for child environment", 
+                                                            data = {'child_env_name': child_env_name,})
+        METADATA_FILENAME           = "METADATA.yaml"
+        root_dir                    = _os.path.dirname(self._store.base_environment(parent_trace).manifestsURL(parent_trace))
+        envs_dir                    = root_dir + "/" + ME.ENVS_FOLDER
+        environment_dir             = envs_dir + "/" + child_env_name
+
+        metadata_path               = environment_dir + "/" + METADATA_FILENAME
+
+        if not _os.path.exists(metadata_path):
+            return None
+
+        with open(metadata_path, 'r', encoding="utf8") as file:
+            metadata_dict                = _yaml.load(file, Loader=_yaml.FullLoader)
+
+        if self.name(my_trace) != metadata_dict['parent']:
+            return None 
+
+        my_trace                    = parent_trace.doing("Instantiating child environment from metadata", 
+                                                            data = {'child_env_name': child_env_name,
+                                                                    'metadata':     metadata_dict})
+
+        config_dict                 = metadata_dict["config"]
+        child_env_config            = KB_Environment_Config(    parent_trace            = my_trace,
+                                                                read_misses_policy      = config_dict["read_misses_policy"],
+                                                                use_timestamps          = config_dict["use_timestamps"],
+                                                                path_mask               = None, # This was not persisted
+                                                            )
+
+        # GOTCHA: When constructing the child_env_impl, we must give a parent_environment that is
+        # of type KB_Environment.
+        #
+        # However, here we are an implementation class, so not derived from KB_Environment, so will need
+        # first to find our wrapping KB_Environment object for which self is the impl
+        base_environment            = self._store.base_environment(my_trace)
+        our_name                    = self.name(my_trace)
+        if our_name == base_environment.name(my_trace):
+            our_env                 = base_environment
+        else:
+            our_env                 = base_environment.findSubEnvironment(  parent_trace    = my_trace, 
+                                                                            name            = our_name)
+
+        child_env_impl              = File_KBEnv_Impl(  parent_trace                    = my_trace, 
+                                                        name                            = child_env_name, 
+                                                        store                           = self._store, 
+                                                        parent_environment              = our_env,
+                                                        config                          = child_env_config,
+                                                        postings_rootdir                = metadata_dict["postingsURL"],
+                                                        manifests_roodir                = metadata_dict["manifestsURL"],
+                                                        clientURL                       = metadata_dict["clientURL"])
+
+        child_env                     = KB_Environment(   parent_trace                        = my_trace,
+                                                        impl                                = child_env_impl)
+        self._children[child_env_name] = child_env
+        return child_env
 
     def seedCollaborationArea(self, parent_trace, sourceURL):
         '''
@@ -443,12 +607,13 @@ class File_KBEnv_Impl(KB_Environment):
         if self.name(parent_trace) == self._store.base_environment(parent_trace).name(parent_trace):
             my_dir              = root_dir
             # If we are showing the base environment, exclude the transient envs subfolder that is not part
-            # of the "official data" of the base environment
-            def avoid_envs_folder(subdir):
-                p1              = _os.path.normpath(root_dir + "/" + ME.ENVS_FOLDER)
-                p2              = _os.path.normpath(subdir)
-                return not p2.startswith(p1)
-            filter              = avoid_envs_folder
+            # of the "official data" of the base environment. Ditto for the logs folder
+            def avoid_envs_and_logs_folders(subdir):
+                avoid1          = _os.path.normpath(root_dir + "/" + ME.ENVS_FOLDER)
+                avoid2          = _os.path.normpath(root_dir + "/" + ME.LOGS_FOLDER) 
+                path            = _os.path.normpath(subdir)
+                return (not path.startswith(avoid1)) and (not path.startswith(avoid2))
+            filter              = avoid_envs_and_logs_folders
         else:        
             my_dir              = root_dir + "/" + ME.ENVS_FOLDER + "/" + self._name
             # In this case, include everything under my_dir
