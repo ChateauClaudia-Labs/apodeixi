@@ -34,10 +34,16 @@ class KnowledgeBase():
             'capability-hierarchy.bdd.kernel.a6i':      CapabilityHierarchy_Controller,
 
             'workstream.initiatives.a6i':               Workstream_Controller,
-            'charter.initiatives.a6i':                  None, # TODO
+            #'charter.initiatives.a6i':                  None, # TODO
         }
 
         return
+
+    def get_posting_apis(self):
+        '''
+        Returns a list of strings, corresponding to the Posting APIs supported by this KnowledgeBase
+        '''
+        return list(self.controllers.keys())
 
     def postByFile(self, parent_trace, path_of_file_being_posted, excel_sheet="Posting Label", ctx_range="B2:C1000"):
         '''

@@ -1,4 +1,5 @@
 import os                                                           as _os
+import re                                                           as _re
 from tabulate                                                       import tabulate
 
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
@@ -19,11 +20,16 @@ class CLI_Utils():
     # 
     #               "Using sandbox '210821.142725_sandbox'...\n"
     #
-    PREFIX_EXPECTED             = "Using sandbox '"
-    SANDBOX_NAME_LENGTH         = len("210821.142725_sandbox")    
-    SUFFIX_EXPECTED             = "'..."
+    PREFIX_EXPECTED                 = "Using sandbox '"
+    SANDBOX_NAME_LENGTH             = len("210821.142725_sandbox")    
+    SUFFIX_EXPECTED                 = "'..."
     
-    SANDBOX_SUFFIX              = "_sandbox"
+    SANDBOX_SUFFIX                  = "_sandbox"
+
+    #Statics identifying possible environment filters
+    ONLY_BASE_ENV_FILTER            = "ONLY_BASE_ENV_FILTER"
+    ANY_ENV_FILTER                  = "ANY_ENV_FILTER"
+    SPECIFIC_SANDBOX_ENV_FILTER     = "SPECIFIC_SANDBOX_ENV_FILTER"
 
     def sandox_announcement(self, sandbox_name):
         '''
@@ -77,10 +83,10 @@ class CLI_Utils():
             try:
                 sandbox_name = CLI_Utils().parse_sandbox_announcement(  parent_trace    = parent_trace, 
                                                                         announcement    = dry_run_msg)
-                cleaned_output_lines                    = output_lines.copy()
-                cleaned_output_lines[ANNOUNCEMENT_IDX]  = CLI_Utils().sandox_announcement("<MASKED>") 
+                cleaned_txt                         = _re.sub(          pattern         =sandbox_name, 
+                                                                        repl="<MASKED>"+ CLI_Utils.SANDBOX_SUFFIX, 
+                                                                        string=output_txt)
 
-                cleaned_txt                             = '\n'.join(cleaned_output_lines)
             except ApodeixiError as ex:
                 if ex.msg.startswith("Announcement is not in the expected form"):
                     # This is not really an error - it just means that there was no announcement, possibly because
@@ -174,10 +180,13 @@ class CLI_Utils():
 
         return description
 
-    def get_products(self, parent_trace, kb_session):
+    def get_products(self, parent_trace, kb_session, environment_filter):
         '''
         Returns a nicely formatted string, suitable for CLI output. It displays all valid products of the system.
 
+        @environment_filter A lambda function, that takes a string argument and returns True or False.
+            Its purposes is to filte out which KnowledgeBase store's environments to include when searching
+            for products. If it is None, then all environments are included
         '''
         expected_organization           = kb_session.a6i_config.getOrganization(parent_trace)
         allowed_kb_areas                = kb_session.a6i_config.getKnowledgeBaseAreas(parent_trace)
@@ -192,6 +201,9 @@ class CLI_Utils():
         environments.append(kb_session.store.base_environment(parent_trace).name(parent_trace))
         environments.extend(self._sandboxes_names_list(parent_trace, kb_session))
 
+        if environment_filter != None:
+            environments                = [e for e in environments if environment_filter(e) == True]
+
         original_env_name               = kb_session.store.current_environment(parent_trace).name(parent_trace)
         for env_name in environments:
             kb_session.store.activate(parent_trace, env_name)
@@ -205,6 +217,60 @@ class CLI_Utils():
                     if ex.msg.startswith("Static data of type 'product' is not configured for namespace"):
                         # If so just ignore this error, since perhaps that namespace has no products but maybe other namespaces
                         # do
+                        continue
+                    else:
+                        raise ex
+            
+        kb_session.store.activate(parent_trace, original_env_name)
+
+        description                     = "\n\n"
+        description                     += tabulate(description_table, headers=description_headers)
+        description                     += "\n"
+
+        return description
+
+    def get_scoring_cycles(self, parent_trace, kb_session, environment_filter):
+        '''
+        Returns a nicely formatted string, suitable for CLI output. It displays all valid scoring cycles of the system.
+
+        @environment_filter A lambda function, that takes a string argument and returns True or False.
+            Its purposes is to filte out which KnowledgeBase store's environments to include when searching
+            for scoring cycles. If it is None, then all environments are included.
+        '''
+        JOURNEY_COL                     = 'journey'
+        SCORING_CYCLE_COL               = 'Scoring Cycle'
+        SCENARIO_COL                    = 'Scenario'
+
+        expected_organization           = kb_session.a6i_config.getOrganization(parent_trace)
+        allowed_kb_areas                = kb_session.a6i_config.getKnowledgeBaseAreas(parent_trace)
+
+        FMT                             = StringUtils().format_as_yaml_fieldname
+        namespaces                      = [FMT(expected_organization + "."+ kb_area) for kb_area in allowed_kb_areas]
+
+        description_table               = []
+        description_headers             = ["Journey", "Scoring cycle", "Scenario", "Namespace"]
+
+        environments                    = []
+        environments.append(kb_session.store.base_environment(parent_trace).name(parent_trace))
+        environments.extend(self._sandboxes_names_list(parent_trace, kb_session))
+
+        if environment_filter != None:
+            environments                = [e for e in environments if environment_filter(e) == True]
+
+        original_env_name               = kb_session.store.current_environment(parent_trace).name(parent_trace)
+        for env_name in environments:
+            kb_session.store.activate(parent_trace, env_name)
+            for ns in namespaces:
+                validator                   = StaticDataValidator(parent_trace, kb_session.store, kb_session.a6i_config)
+                try:
+                    sc_df                   = validator.getScoringCycles(parent_trace, ns)
+                    for row in sc_df.iterrows():
+                        description_table.append([row[1][JOURNEY_COL], row[1][SCORING_CYCLE_COL], 
+                                                    row[1][SCENARIO_COL], ns])
+                except ApodeixiError as ex:
+                    if ex.msg.startswith("Static data of type 'scoring-cycle' is not configured for namespace"):
+                        # If so just ignore this error, since perhaps that namespace has no products but maybe 
+                        # other namespaces do
                         continue
                     else:
                         raise ex
@@ -250,7 +316,61 @@ class CLI_Utils():
 
         return description
 
+    def get_posting_apis(self, parent_trace, kb_session):
+        '''
+        Returns a nicely formatted string, suitable for CLI output. It displays all posting APIs that the
+        KnowledgeBase currenly supports.
+        '''
+        sandboxes                       = self._sandboxes_names_list(parent_trace, kb_session)
 
+        description_table               = []
+        description_headers             = ["Posting API"]
+        for api in kb_session.kb.get_posting_apis():
+            description_table.append([api])
 
+        description                     = "\n\n"
+        description                     += tabulate(description_table, headers=description_headers)
+        description                     += "\n"
 
+        return description
+
+    def get_environment_filter(self, parent_trace, kb_session, filter_type, sandbox):
+        '''
+        Returns a lambda that can be used as a filter for environments, whenver searching for objects
+        across the KnowledgeBaseStore.
+
+        @param filter_type A string. Must be one of: 
+            * CLI_Utils.ONLY_BASE_ENV_FILTER
+            * CLI_Utils.ANY_ENV_FILTER
+            * CLI_Utils.SPECIFIC_SANDBOX_ENV_FILTER
+
+        @param sandbox A string, possibly null, corresponding to the name of a sandbox environment.
+            It is only relevant for filter_type=CLI_Utils.SPECIFIC_SANDBOX_ENV_FILTER, to denote
+            the sandbox that is allowed.
+        '''
+
+        # Define the possible environment filters
+        def _only_base_env_filter(env_name):
+            if env_name == kb_session.store.base_environment(parent_trace).name(parent_trace):
+                return True
+            return False
+
+        def _any_env_filter(env_name):
+            return True
+
+        def _specific_sandbox_env_filter(env_name):
+            if env_name == sandbox:
+                return True
+            return False
+        if filter_type == CLI_Utils.ONLY_BASE_ENV_FILTER:
+            return _only_base_env_filter
+        elif filter_type == CLI_Utils.ANY_ENV_FILTER:
+            return _any_env_filter
+        elif filter_type == CLI_Utils.SPECIFIC_SANDBOX_ENV_FILTER:
+            return _specific_sandbox_env_filter
+        else:
+            raise ApodeixiError(parent_trace, "Unknown filter type '" + str(filter_type) + "'",
+                                            data = {"allowed filter types": str([CLI_Utils.ONLY_BASE_ENV_FILTER,
+                                                                            CLI_Utils.ANY_ENV_FILTER,
+                                                                            CLI_Utils.SPECIFIC_SANDBOX_ENV_FILTER])})
 

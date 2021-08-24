@@ -99,6 +99,18 @@ class StaticDataValidator():
                                 + " [journey, scoring cycle, scenario] in Posting Label",
                                 data = {    "in posting label": submitted, 
                                             "error":            str(ex)})
+
+    def getScoringCycles(self, parent_trace, namespace):
+        '''
+        Gets a list of all scoring cycles in the namespace, as a DataFrames
+        '''
+        my_trace                    = parent_trace.doing("Checking scoring cycle referential integrity")
+        contents_df                 = self._loadStaticData( my_trace, 
+                                                            namespace, 
+                                                            kind            = 'scoring-cycle', 
+                                                            entity          = 'journey')
+        return contents_df
+  
     
     def getProductCode(self, parent_trace, namespace, alleged_product):
         '''
@@ -155,10 +167,7 @@ class StaticDataValidator():
         @param entity A string, representing the field in the manifest under 'assertions' that is the root
                         of the content for the manifest.
         '''
-        prod_ctrl           = ProductsController(parent_trace, self.store, self.a6i_config)
         STATIC_DATA_API     = self.a6i_config.get_static_data_api(parent_trace)
-
-        SCORING_CYCLE_COL   = 'scoring-cycles'
 
         manifest_dict, manifest_path  = self.store.findLatestVersionManifest(
                                                                         parent_trace        = parent_trace, 

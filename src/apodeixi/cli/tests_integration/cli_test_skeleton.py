@@ -20,6 +20,8 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
         self.sandbox               = None # Will be set in self.skeleton_test
 
+        self.provisioned_env_name = None # This will be set in self.skeleton_test the first time it is caleld
+
         root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
         self.selectStack(root_trace) 
 
@@ -51,8 +53,12 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
         try:
             my_trace                            = self.trace_environment(parent_trace, "Isolating test case")
-            self.provisionIsolatedEnvironment(my_trace)
-            self.check_environment_contents(my_trace)
+            if self.provisioned_env_name == None:
+                self.provisionIsolatedEnvironment(my_trace)
+                self.check_environment_contents(my_trace)
+                self.provisioned_env_name       = self.stack().store().current_environment(my_trace).name(my_trace)
+            else:
+                self.stack().store().activate(my_trace, self.provisioned_env_name)
 
             my_trace                            = self.trace_environment(parent_trace, "Invoking " 
                                                                                     + str(len(cli_command_list)) 
@@ -80,10 +86,22 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                     result                      = runner.invoke(apo_cli, command_argv)
                     assert result.exit_code == 0
 
-                    self.sandbox                = CLI_Utils().infer_sandbox_name(loop_trace, result.output)
+                    sandbox                     = CLI_Utils().infer_sandbox_name(loop_trace, result.output)
+                    if sandbox != None:
+                        # We only overwrite self.sandbox if this particular command chose a sandbox. Otherwise
+                        # we retain whatever self.sandbox was set by prior commands. This is important since some commands
+                        # don't have a --sandbox option (Example: get namespaces), but that does not mean that
+                        # our intention is to switch out of the sandbox and into the parent environment.
+                        self.sandbox            = sandbox
 
                     command_flags               = [token for token in command_argv if token.startswith("--")]
-                    argv_without_arguments      = command_argv[:1]
+                    if command_argv[0] in ["post"]:
+                        argv_without_arguments      = command_argv[:1]
+                    elif command_argv[0] in ["get"]:
+                        argv_without_arguments      = command_argv[:2]
+                    else:
+                        raise ApodeixiError(my_trace, "Command not recognized: '" + str(command_argv[0]) + "'")
+
                     argv_without_arguments.extend(command_flags) # Like post --dry-run
 
                     # Once we are done building it, command_without_flag_params will be something like 
@@ -97,9 +115,11 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                     # hence it will be suitable for inclusion in deterministic output. For example, we remove
                     # timestamp-sensitive sandbox names (if any) and also the full path for the posted file.
                     command_without_flag_params = " ".join(argv_without_arguments)
-                    path_posted                 = command_argv[-1]
-                    filename_posted             = _os.path.split(path_posted)[1]
-                    command_without_flag_params += " " + filename_posted 
+                    if command_argv[0] in ["post"] or command_argv[:2] in [["get", "form"]]: 
+                        # These are commands with a unique argument. Other commands lack it
+                        path_posted                 = command_argv[-1]
+                        unique_argument             = _os.path.split(path_posted)[1]
+                        command_without_flag_params += " " + unique_argument 
 
                     output_to_display           = "=> " + command_without_flag_params + "\n\n"
                     
@@ -128,7 +148,6 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
             my_trace                = self.trace_environment(parent_trace, "Deactivating environment")
             self.stack().store().deactivate(my_trace)
-            self.check_environment_contents(my_trace) 
 
         except ApodeixiError as ex:
             print(ex.trace_message()) 

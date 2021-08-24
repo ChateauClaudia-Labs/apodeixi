@@ -1,10 +1,9 @@
-from os import PathLike
+import os                                               as _os
 import sys                                              as _sys
+from apodeixi.cli.apo_cli import namespaces
 
-
-from apodeixi.testing_framework.a6i_integration_test    import ApodeixiIntegrationTest, ShutilStoreTestStack
-from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
-
+from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl
+from apodeixi.util.a6i_error                            import FunctionalTrace
 
 from apodeixi.cli.cli_utils                             import CLI_Utils
 from apodeixi.cli.tests_integration.cli_test_skeleton   import CLI_Test_Skeleton
@@ -32,13 +31,38 @@ class Test_CLI_Post(CLI_Test_Skeleton):
                                             PATH_OF("scoring-cycles.static-data.admin.a6i.xlsx")],
                                         ['post', '--sandbox', self.get_sandbox, '--timestamp', "_CLI__3",
                                             PATH_OF("pbf_opus.original.OPUS_big-rocks.journeys.a6i.xlsx")],
-                                        ['get', 'products']
+                                        ['get', 'products', '--sandbox', self.get_sandbox],
+                                        ['get', 'scoring-cycles', '--sandbox', self.get_sandbox],
+                                        ['get', 'namespaces'],
+                                        #['get', 'sandboxes'], # Can't test- output is too undeterministic
+                                        ['get', 'posting-apis'],
                                     ]
 
         self.skeleton_test( parent_trace                = root_trace,
                             cli_command_list            = COMMANDS,
                             output_cleanining_lambda    = MASK_SANDBOX)
+
+        # For the next test, we need to switch the working directory for click
+        my_trace                    = root_trace.doing("Running with working directory in the collaboration area")
+        #_os.chdir(self.stack().store().getClientURL(my_trace) + "journeys/Dec 2020/FusionOpus/Default")
+        store                       = self.stack().store()
+        root_dir                    = _os.path.dirname(store.base_environment(my_trace).manifestsURL(my_trace))
+        envs_dir                    = root_dir + "/" + File_KBEnv_Impl.ENVS_FOLDER
+ 
+        _os.chdir(envs_dir + "/" + self.sandbox + "/external-collaboration/journeys/Dec 2020/FusionOpus/Default")
+        NAMESPACE                   = "my-corp.production"
+        SUB_NAMESPACE               = "modernization"
+
+        COMMANDS_2                    = [
+                                        ['get', 'form', '--sandbox', self.get_sandbox, '--timestamp', 
+                                            "_CLI__4", "big-rocks.journeys.a6i",
+                                            NAMESPACE, SUB_NAMESPACE],
+                                    ]
+        self.skeleton_test( parent_trace                = root_trace,
+                            cli_command_list            = COMMANDS_2,
+                            output_cleanining_lambda    = MASK_SANDBOX)
                                                                        
+        self.assertTrue(1==2) # We are not done implementing the test
 
 if __name__ == "__main__":
     # execute only if run as a script
