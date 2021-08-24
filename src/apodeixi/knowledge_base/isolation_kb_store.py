@@ -1094,7 +1094,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             log_txt                         += "\nCREATED FORM:        " + handle.display(parent_trace) + "\n"
             unmasked_client_URL             = str(controller_response.clientURL(parent_trace))
             masked_client_URL               = controller_response.applyMask(parent_trace, unmasked_client_URL)
-            log_txt                         += "clientURL =          " + masked_client_URL + "\n"
+            log_txt                         += "clientURL =          " + str(masked_client_URL) + "\n"
 
         LOG_FILENAME                        = "FORM_REQUEST_EVENT_LOG.txt"
         try:

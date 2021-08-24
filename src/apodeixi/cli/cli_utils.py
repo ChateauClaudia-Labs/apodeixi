@@ -8,6 +8,7 @@ from apodeixi.knowledge_base.knowledge_base_util                    import Manif
 from apodeixi.knowledge_base.kb_environment                         import File_KBEnv_Impl
 from apodeixi.util.a6i_error                                        import ApodeixiError
 from apodeixi.util.formatting_utils                                 import StringUtils
+from apodeixi.util.path_utils                                       import PathUtils
 
 class CLI_Utils():
     '''
@@ -75,6 +76,9 @@ class CLI_Utils():
             # 
             #       ["Using sandbox '210821.142725_sandbox'", ...] 
             #
+            if output_txt == None:
+                return None
+
             output_lines                            = output_txt.split('\n')
             ANNOUNCEMENT_IDX                        = 0
             # Remove the timestamp before checking that the output lines match our expectations
@@ -99,6 +103,18 @@ class CLI_Utils():
             return cleaned_txt
 
         return _mask_lambda
+
+    def combined_mask(self, parent_trace, a6i_config):
+        MASK_SANDBOX                = self.mask_sandbox_lambda(parent_trace)
+        MASK_PATH                   = PathUtils().get_mask_lambda(parent_trace, a6i_config)
+        def MASK_COMBINED(txt1):
+            if txt1 == None:
+                return None
+            txt2                    = MASK_PATH(txt1)
+            txt3                    = MASK_SANDBOX(txt2)
+            txt4                    = _re.sub(pattern="[0-9]{6}", repl="<MASKED>", string=txt3)
+            return txt4
+        return MASK_COMBINED
 
     def infer_sandbox_name(self, parent_trace, output_txt):
         '''
@@ -127,7 +143,7 @@ class CLI_Utils():
 
         return sandbox_name
 
-    def describe_response(self, parent_trace, post_response, store):
+    def describe_post_response(self, parent_trace, post_response, store):
         '''
         Returns a string suitable for display in the Apodeixi CLI.
 
@@ -162,6 +178,60 @@ class CLI_Utils():
         manifests_description               += "\n"
 
         return manifests_description
+
+    def describe_req_form_response(self, parent_trace, form_request_response, store, representer):
+        '''
+        Returns a string suitable for display in the Apodeixi CLI.
+
+        The string is formatted as a table that provides information on what Apodeixi did in response to a user
+        requesting a form
+
+        The table has a row per manifest that was involved, with a description of what changed, if anything.
+        '''
+        description_table                   = []
+        description_headers                 = ["Property", "Value"]
+
+        # Important: order in list must match the order of the headers in `description_headers`. Required by
+        # the tabulate Python package.
+        clientURL                           = form_request_response.clientURL(parent_trace)
+        filing_coords_txt                   = str(form_request_response.filing_coords(parent_trace))
+        filename                            = form_request_response.filename(parent_trace)
+        manifest_idx_txt                    = ", ".join(form_request_response.manifest_identifiers(parent_trace))
+        posting_api                         = form_request_response.posting_api(parent_trace)
+
+        description_table.append(["Filing Coordinates", filing_coords_txt])
+        description_table.append(["Filename", filename])
+        description_table.append(["Manifests Included", manifest_idx_txt])
+        description_table.append(["Posting API", posting_api])
+
+        for manifest_id in form_request_response.manifest_identifiers(parent_trace):
+            kind, nb            = manifest_id.split(".")
+            excel_range         = representer.label_ctx['data.range.'    + str(nb)]
+            excel_sheet         = representer.label_ctx['data.sheet.'    + str(nb)]
+            READ_ONLY           = 'readOnly.'+ str(nb)
+            if READ_ONLY in representer.label_ctx.keys() and representer.label_ctx[READ_ONLY] == True:
+                description_table.append(["Read-only Excel range for '" + kind + "'", 
+                                        excel_sheet + "!" + excel_range])
+            else:
+                PRIOR_VERSION       = "priorVersion." + str(nb)
+                if PRIOR_VERSION in representer.label_ctx.keys():
+                    last_version    = representer.label_ctx[PRIOR_VERSION]
+                    next_version    = last_version + 1
+                    description_table.append(["Excel range for updating '" + kind + "' to version " + str(next_version), 
+                                            excel_sheet + "!" + excel_range])
+                else:
+                    next_version    = 1
+                    description_table.append(["Excel range for creating first version of '" + kind + "'", 
+                                            excel_sheet + "!" + excel_range])
+
+
+        manifests_description               = "\nGenerated Excel form in this area:\n\n"
+        manifests_description               += clientURL + "\n\n"
+        manifests_description               += tabulate(description_table, headers=description_headers)
+        manifests_description               += "\n"
+
+        return manifests_description
+
 
     def get_namespaces(self, parent_trace, kb_session):
         '''

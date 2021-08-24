@@ -51,6 +51,9 @@ def namespaces(kb_session):
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
         _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
+        _sys.exit()
 
 @get.command()
 @click.option('--all/--no-all', default=False, help="If set, products across both the base environment and all sandboxes will be returned")
@@ -76,6 +79,9 @@ def products(kb_session, all, sandbox):
         #       Use print, not click.echo or click exception because they don't correctly display styling
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
+        _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
         _sys.exit()
 
 def _get_environment_filter(parent_trace, kb_session, all, sandbox):
@@ -120,6 +126,9 @@ def scoring_cycles(kb_session, all, sandbox):
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
         _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
+        _sys.exit()
 
 @get.command()
 @pass_kb_session
@@ -143,6 +152,9 @@ def sandboxes(kb_session):
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
         _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
+        _sys.exit()
 
 @get.command()
 @pass_kb_session
@@ -165,6 +177,9 @@ def posting_apis(kb_session):
         #       Use print, not click.echo or click exception because they don't correctly display styling
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
+        _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
         _sys.exit()
 
 @apo_cli.command()
@@ -203,7 +218,7 @@ def post(kb_session, file, dry_run, sandbox, timestamp):
         response, log_txt                   = kb_session.kb.postByFile( parent_trace                = my_trace, 
                                                                         path_of_file_being_posted   = file, 
                                                                         excel_sheet                 = "Posting Label")
-        manifests_description               = CLI_Utils().describe_response(my_trace, response, kb_session.store)
+        manifests_description               = CLI_Utils().describe_post_response(my_trace, response, kb_session.store)
 
         click.echo(manifests_description)
         output                              = "Success"
@@ -217,7 +232,9 @@ def post(kb_session, file, dry_run, sandbox, timestamp):
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
         _sys.exit()
-
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
+        _sys.exit()
 
 @get.command()
 @click.argument("posting-api", type=click.STRING, required=True)
@@ -254,11 +271,12 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, sandbox, tim
   
         my_trace                            = root_trace.doing("Invoking KnowledgeBase's requestForm service")
 
-        click.echo("cwd = " + _os.getcwd())
+        output_dir                          = _os.getcwd()
         clientURL                           = kb_session.store.getClientURL(my_trace)
         relative_path, void                 = PathUtils().relativize(   parent_trace    = my_trace, 
                                                                         root_dir        = clientURL, 
-                                                                        full_path       = _os.getcwd())
+                                                                        full_path       = output_dir)
+
         form_request                        = kb_session.store.getBlindFormRequest( parent_trace    = my_trace, 
                                                                                     relative_path   = relative_path, 
                                                                                     posting_api     = posting_api, 
@@ -267,7 +285,10 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, sandbox, tim
         
         response, log_txt, rep              = kb_session.kb.requestForm(parent_trace        = my_trace, 
                                                                         form_request        = form_request)
-        manifests_description               = CLI_Utils().describe_response(my_trace, response, kb_session.store)
+        manifests_description               = CLI_Utils().describe_req_form_response(my_trace, 
+                                                                                form_request_response   = response, 
+                                                                                store                   = kb_session.store,
+                                                                                representer             = rep)
 
         click.echo(manifests_description)
         output                              = "Success"
@@ -281,4 +302,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, sandbox, tim
         #       Use print, not click.echo or click exception because they don't correctly display styling
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
+        _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + ex.msg)
         _sys.exit()

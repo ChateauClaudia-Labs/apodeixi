@@ -151,35 +151,56 @@ class PathUtils():
         In our example, that would become:
 
                 '<MASKED>/envs/big_rocks_posting_ENV/excel-postings'
+
+        The mask is separately applied "line-by-line".
         '''
-        KB_ROOT                             = a6i_config.get_KB_RootFolder(parent_trace)
-        COLLAB_ROOT                         = a6i_config.get_ExternalCollaborationFolder(parent_trace)
-        A6I_DB                              = _os.path.dirname(KB_ROOT)
-        def _path_mask(path):
+        KB_ROOT                                                     = a6i_config.get_KB_RootFolder(parent_trace)
+        COLLAB_ROOT                                                 = a6i_config.get_ExternalCollaborationFolder(parent_trace)
+        A6I_DB                                                      = _os.path.dirname(KB_ROOT)
+        def _path_mask(raw_txt):
             '''
             '''
-            if type(path) != str:
-                return path
-            elif self.is_parent(parent_trace, parent_dir=KB_ROOT, path=path):
-                tokens                                          = path.split(KB_ROOT)
-                masked_path                                     = '<KNOWLEDGE BASE ROOT>' + tokens[-1]
-                return masked_path
-            elif self.is_parent(parent_trace, parent_dir=COLLAB_ROOT, path=path):
-                tokens                                          = path.split(COLLAB_ROOT)
-                masked_path                                     = '<EXTERNAL COLLABORATION FOLDER>' + tokens[-1]
-                return masked_path
-            elif self.is_parent(parent_trace, parent_dir=A6I_DB, path=path):
-                tokens                                          = path.split(A6I_DB)
-                masked_path                                     = '<APODEIXI DATABASE>' + tokens[-1]
-                return masked_path
-            elif 'apodeixi' in path:
-                tokens                                          = path.split('apodeixi')
-                masked_path                                     = '<APODEIXI INSTALLATION>/apodeixi' + tokens[-1]
-                return masked_path
-            else:
-                return path
+            if type(raw_txt) != str:
+                return raw_txt
+            lines                                                   = raw_txt.split("\n")
+            cleaned_lines                                           = []
+            for line in lines:
+                linux_line                                          = self.to_linux(line)
+                #if type(line) != str:
+                #    cleaned_lines.append(line)
+                if self.is_parent(parent_trace, parent_dir=KB_ROOT, path=line):
+                    tokens                                          = linux_line.split(KB_ROOT)
+                    masked_path                                     = '<KNOWLEDGE BASE ROOT>' + tokens[-1]
+                    cleaned_lines.append(masked_path)
+                elif self.is_parent(parent_trace, parent_dir=COLLAB_ROOT, path=line):
+                    linux_line                                      = self.to_linux(line)
+                    tokens                                          = linux_line.split(COLLAB_ROOT)
+                    masked_path                                     = '<EXTERNAL COLLABORATION FOLDER>' + tokens[-1]
+                    cleaned_lines.append(masked_path)
+                elif self.is_parent(parent_trace, parent_dir=A6I_DB, path=line):
+                    tokens                                          = linux_line.split(A6I_DB)
+                    masked_path                                     = '<APODEIXI DATABASE>' + tokens[-1]
+                    cleaned_lines.append(masked_path)
+                elif 'apodeixi' in line:
+                    tokens                                          = line.split('apodeixi')
+                    masked_path                                     = '<APODEIXI INSTALLATION>/apodeixi' + tokens[-1]
+                    cleaned_lines.append(masked_path)
+                else:
+                    cleaned_lines.append(line)
+
+            cleaned_txt                     = "\n".join(cleaned_lines)
+            return cleaned_txt
 
         return _path_mask
+
+    def to_linux(self, path):
+        '''
+        Takes a path that might be a Windows or Linux path, and returns a linux path
+        '''
+        abs_path            = _os.path.abspath(path)
+        # The following line does not change the input if we are Linux, but will if we are Windows
+        linux_path          = abs_path.replace("\\", "/")
+        return linux_path
 
 class FileMetadata():
     '''

@@ -559,13 +559,10 @@ class ArchiveFilingCoordinates(FilingCoordinates):
 
 class LogFilingCoordinates(FilingCoordinates):
     '''
-    Helper class to hold the properties that are used to organize archived Excel postings in a KnowledgeBaseStore. 
+    Helper class to hold the properties that are used to organize logs arising from the generation
+    of Excel forms in response to a FormRequest.
 
-    It wraps the original FilingCoordinates object that was used to post the Excel posting, adding additional
-    coordinates. In effect, this means log filing structures are a sub-structure of the original 
-    posting structure. Additionally, the log coordinates are unique to an event. For example,
-    repeately posting the same Excel file would result in different archived coordinates even if the
-    original posting's coordinates are the same.
+    Such an event generates logs that are archived in the KnowledgeBaseStore. 
 
     In "file system" language, the equivalent way to say the above is: the log file resides in a folder
     dedicated to the event as a subfolder of some subfolder of the folder where the original event's posting
@@ -595,10 +592,12 @@ class LogFilingCoordinates(FilingCoordinates):
         # This will look like '210703.102746 Posting' for a posting done on the 3rd of July of 2021 at 10:27 am (and 46 sec)
         # Intention is for this folder name to be unique for this posting event, even if other postings (for the same
         # or different Excel files) happen the same day with the same filing coords
-        if use_timestamps:
-            self.archive_folder         = dt.strftime("%y%m%d.%H%M%S") + " Posting"
-        else:
-            self.archive_folder         = "(Timestamp omitted)" + " Posting"
+        if use_timestamps == True:
+            self.archive_folder         = dt.strftime("%y%m%d.%H%M%S") + " Form Request"
+        elif use_timestamps == False:
+            self.archive_folder         = "(Timestamp omitted)" + " Form Request"
+        else: # Caller provided a tag to use
+            self.archive_folder         = str(use_timestamps) + " Form Request"
         return
 
     ARCHIVED_POSTINGS               = "_ARCHIVE"

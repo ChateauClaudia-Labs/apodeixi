@@ -662,6 +662,9 @@ class FormRequestResponse(Response):
 
     @param clientURL A string corresponding to the root path of the client area (such as a SharePoint folder)
                         under which the form was saved in response to the FormRequest.
+    @param posting_api A string, corresponding to the posting API for which this form was requested.
+    @param filing_coords A FilingCoords object indicating where the form was persisted below the client URL directory.
+    @param filename A string corresponding to the name of the file used to save the Excel form.
     @param path_mask A function that takes as tring argument and returns a string. Normally it is None, but
                 it is used in situations (such as in regression testing) when observability should not
                 report the paths "as is", but with a mask. For example, this can be used in regression
@@ -680,20 +683,35 @@ class FormRequestResponse(Response):
                 Example: 
                             ['big-rock.0', 'big-rock-estimates.1', 'investment.2']
     '''
-    def __init__(self, clientURL, posting_api, filing_coords, path_mask, manifest_identifiers):
+    def __init__(self, clientURL, posting_api, filing_coords, filename, path_mask, manifest_identifiers):
         super().__init__()
         self._clientURL             = clientURL
         self._posting_api           = posting_api 
         self._filing_coords         = filing_coords 
+        self._filename              = filename
         self._path_mask             = path_mask
         self._manifest_identifiers  = manifest_identifiers
 
     def clientURL(self, parent_trace):
         return self._clientURL
 
+    def posting_api(self, parent_trace):
+        return self._posting_api
+
+    def filing_coords(self, parent_trace):
+        return self._filing_coords
+
+    def filename(self, parent_trace):
+        return self._filename
+
+    def manifest_identifiers(self, parent_trace):
+        return self._manifest_identifiers
+
     def applyMask(self, parent_trace, original_txt):
         if self._path_mask != None:
             return self._path_mask(original_txt)
+        else:
+            return original_txt
 
 
     def recordClientURLCreation(self, parent_trace, response_handle):

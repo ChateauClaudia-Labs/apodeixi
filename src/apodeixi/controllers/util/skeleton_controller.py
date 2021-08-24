@@ -152,6 +152,7 @@ class SkeletonController(PostingController):
             response            = FormRequestResponse(  clientURL               = self.store.getClientURL(my_trace),
                                                         posting_api             = form_request.getPostingAPI(my_trace),
                                                         filing_coords           = form_request.getFilingCoords(my_trace),
+                                                        filename                = filename,
                                                         path_mask               = env_config.path_mask,
                                                         manifest_identifiers    = manifest_identifiers)
             response.recordClientURLCreation(parent_trace=my_trace, response_handle=response_handle)

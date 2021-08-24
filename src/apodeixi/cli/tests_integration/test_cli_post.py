@@ -7,6 +7,7 @@ from apodeixi.util.a6i_error                            import FunctionalTrace
 
 from apodeixi.cli.cli_utils                             import CLI_Utils
 from apodeixi.cli.tests_integration.cli_test_skeleton   import CLI_Test_Skeleton
+from apodeixi.util.path_utils import PathUtils
 
 class Test_CLI_Post(CLI_Test_Skeleton):
 
@@ -22,8 +23,18 @@ class Test_CLI_Post(CLI_Test_Skeleton):
         #POSTING_FILENAME               = self.currentTestName() + ".products.static-data.admin.a6i.xlsx" 
 
         PATH_OF                     = self.fullpath_of
-        MASK_SANDBOX                = CLI_Utils().mask_sandbox_lambda(root_trace)
 
+        '''
+        MASK_SANDBOX                = CLI_Utils().mask_sandbox_lambda(root_trace)
+        MASK_PATH                   = PathUtils().get_mask_lambda(root_trace, self.a6i_config)
+        def MASK_COMBINED(txt1):
+            txt2                    = MASK_PATH(txt1)
+            txt3                    = MASK_SANDBOX(txt2)
+            txt4                    = _re.sub(pattern="[0-9]{6}", repl="<MASKED>", string=txt3)
+            return txt4
+        '''
+        MASK_COMBINED               = CLI_Utils().combined_mask(root_trace, self.a6i_config)
+        
         COMMANDS                    = [
                                         ['post', '--dry-run', '--timestamp', "_CLI__1", 
                                             PATH_OF("products.static-data.admin.a6i.xlsx")],
@@ -40,15 +51,14 @@ class Test_CLI_Post(CLI_Test_Skeleton):
 
         self.skeleton_test( parent_trace                = root_trace,
                             cli_command_list            = COMMANDS,
-                            output_cleanining_lambda    = MASK_SANDBOX)
+                            output_cleanining_lambda    = MASK_COMBINED) #MASK_SANDBOX)
 
         # For the next test, we need to switch the working directory for click
         my_trace                    = root_trace.doing("Running with working directory in the collaboration area")
-        #_os.chdir(self.stack().store().getClientURL(my_trace) + "journeys/Dec 2020/FusionOpus/Default")
         store                       = self.stack().store()
         root_dir                    = _os.path.dirname(store.base_environment(my_trace).manifestsURL(my_trace))
         envs_dir                    = root_dir + "/" + File_KBEnv_Impl.ENVS_FOLDER
- 
+
         _os.chdir(envs_dir + "/" + self.sandbox + "/external-collaboration/journeys/Dec 2020/FusionOpus/Default")
         NAMESPACE                   = "my-corp.production"
         SUB_NAMESPACE               = "modernization"
@@ -60,7 +70,7 @@ class Test_CLI_Post(CLI_Test_Skeleton):
                                     ]
         self.skeleton_test( parent_trace                = root_trace,
                             cli_command_list            = COMMANDS_2,
-                            output_cleanining_lambda    = MASK_SANDBOX)
+                            output_cleanining_lambda    = MASK_COMBINED) #MASK_SANDBOX)
                                                                        
         self.assertTrue(1==2) # We are not done implementing the test
 

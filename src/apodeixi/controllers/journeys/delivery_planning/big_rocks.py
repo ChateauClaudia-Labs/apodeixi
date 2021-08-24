@@ -31,7 +31,17 @@ class BigRocksEstimate_Controller(JourneysController):
         super().__init__(parent_trace, store, a6i_config)
 
         self.SUPPORTED_VERSIONS         = ['v1a']
-        self.SUPPORTED_KINDS            = ['big-rock-estimate', 'investment', 'big-rock']
+
+        # GOTCHA: 
+        # These must be listed in the order in which they are later processed in _build_manifestsXLWriteconfig
+        # For example, since _build_manifestsXLWriteconfig assumes a key like 'big-rock.0', we must have
+        # 'big-rock' as the first member of the list. 
+        # Otherwise, self.generateForm(-) might fail for a blind form request because when it searches for manifests,
+        # it doe so by kind in the order they appear here, and imputs a key like "big-rock.0" based on the order
+        # here, and that key is later assumed in the _build_manifestsXLWriteconfig. If instead we put big-rock second end
+        # of the list, the key would be 'big-rock.1' and _build_manifestsXLWriteconfig would error out as an
+        # unrecognized key
+        self.SUPPORTED_KINDS            = ['big-rock', 'big-rock-estimate', 'investment']
 
         self.variant                    = None # When reading the label it will be set to VARIANT_BURNOUT or VARIANT_EXPLAINED
 
