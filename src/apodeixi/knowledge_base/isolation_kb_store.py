@@ -141,7 +141,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                     + " and should instead have been a directory",
                                                     data = {"manifests root": manifests_roodir}) 
 
-        _BASE_ENVIRONMENT           = '_BASE_ENVIRONMENT'
+        BASE_ENVIRONMENT           = 'BASE_ENVIRONMENT'
         my_trace                  = parent_trace.doing("Creating KB's store's base environment")
         env_config                  = KB_Environment_Config(
                                             my_trace, 
@@ -149,7 +149,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                             use_timestamps      = True,
                                             path_mask           = None)
         base_env_impl               = File_KBEnv_Impl(      parent_trace            = my_trace, 
-                                                            name                    = _BASE_ENVIRONMENT, 
+                                                            name                    = BASE_ENVIRONMENT, 
                                                             store                   = self, 
                                                             parent_environment      = None,
                                                             config                  = env_config,

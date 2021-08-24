@@ -318,7 +318,7 @@ class CLI_Utils():
         namespaces                      = [FMT(expected_organization + "."+ kb_area) for kb_area in allowed_kb_areas]
 
         description_table               = []
-        description_headers             = ["Journey", "Scoring cycle", "Scenario", "Namespace"]
+        description_headers             = ["Journey", "Scoring cycle", "Scenario", "Namespace", "Environment"]
 
         environments                    = []
         environments.append(kb_session.store.base_environment(parent_trace).name(parent_trace))
@@ -336,7 +336,7 @@ class CLI_Utils():
                     sc_df                   = validator.getScoringCycles(parent_trace, ns)
                     for row in sc_df.iterrows():
                         description_table.append([row[1][JOURNEY_COL], row[1][SCORING_CYCLE_COL], 
-                                                    row[1][SCENARIO_COL], ns])
+                                                    row[1][SCENARIO_COL], ns, env_name])
                 except ApodeixiError as ex:
                     if ex.msg.startswith("Static data of type 'scoring-cycle' is not configured for namespace"):
                         # If so just ignore this error, since perhaps that namespace has no products but maybe 
@@ -368,7 +368,7 @@ class CLI_Utils():
 
         return sandboxes
 
-    def get_sandboxes(self, parent_trace, kb_session):
+    def get_environments(self, parent_trace, kb_session):
         '''
         Returns a nicely formatted string, suitable for CLI output. It displays all sandboxes that currently
         exist
@@ -376,7 +376,9 @@ class CLI_Utils():
         sandboxes                       = self._sandboxes_names_list(parent_trace, kb_session)
 
         description_table               = []
-        description_headers             = ["Sandbox"]
+        description_headers             = ["Environment"]
+        base_env_name                   = kb_session.store.base_environment(parent_trace).name(parent_trace)
+        description_table.append([base_env_name])
         for sb in sandboxes:
             description_table.append([sb])
 
@@ -386,7 +388,7 @@ class CLI_Utils():
 
         return description
 
-    def get_posting_apis(self, parent_trace, kb_session):
+    def get_apodeixi_apis(self, parent_trace, kb_session):
         '''
         Returns a nicely formatted string, suitable for CLI output. It displays all posting APIs that the
         KnowledgeBase currenly supports.
@@ -394,9 +396,25 @@ class CLI_Utils():
         sandboxes                       = self._sandboxes_names_list(parent_trace, kb_session)
 
         description_table               = []
-        description_headers             = ["Posting API"]
-        for api in kb_session.kb.get_posting_apis():
-            description_table.append([api])
+        description_headers             = ["Posting API", "Postings filing scheme", 
+                                                "Manifest API for posted manifests", 
+                                                "Manifest kinds for posted manifests"]
+        for posting_api in kb_session.kb.get_posting_apis():
+            ctrl                        = kb_session.kb.findController(parent_trace, posting_api)
+            manifest_api                = ctrl.getManifestAPI()
+            supported_versions          = ctrl.getSupportedVersions()
+            supported_kinds             = ctrl.getSupportedKinds()
+            filing_class                = kb_session.store.getFilingClass(parent_trace, posting_api)
+
+            manifest_api_name           = manifest_api.apiName()
+            manifest_api_txt            = manifest_api_name + "/" + ", ".join([v for v in supported_versions])
+            supported_kinds_txt         = ", ".join(supported_kinds)
+            if filing_class == None:
+                filing_class_txt        = "None"
+            else:
+                filing_class_txt        = filing_class.__name__
+
+            description_table.append([posting_api, filing_class_txt, manifest_api_txt, supported_kinds_txt])
 
         description                     = "\n\n"
         description                     += tabulate(description_table, headers=description_headers)

@@ -45,8 +45,8 @@ class Test_CLI_Post(CLI_Test_Skeleton):
                                         ['get', 'products', '--sandbox', self.get_sandbox],
                                         ['get', 'scoring-cycles', '--sandbox', self.get_sandbox],
                                         ['get', 'namespaces'],
-                                        #['get', 'sandboxes'], # Can't test- output is too undeterministic
-                                        ['get', 'posting-apis'],
+                                        #['get', 'environments'], # Can't test- environment count non-deterministic
+                                        ['get', 'apis'],
                                     ]
 
         self.skeleton_test( parent_trace                = root_trace,

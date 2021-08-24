@@ -42,6 +42,8 @@ def namespaces(kb_session):
     try:
         namespaces_description          = CLI_Utils().get_namespaces(root_trace, kb_session)
         click.echo(namespaces_description)
+        output                              = "Success"
+        click.echo(output)
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -71,6 +73,8 @@ def products(kb_session, all, sandbox):
         environment_filter              = _get_environment_filter(root_trace, kb_session, all, sandbox)
         products_description            = CLI_Utils().get_products(root_trace, kb_session, environment_filter)
         click.echo(products_description)
+        output                              = "Success"
+        click.echo(output)
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -117,6 +121,8 @@ def scoring_cycles(kb_session, all, sandbox):
         environment_filter              = _get_environment_filter(root_trace, kb_session, all, sandbox)
         sc_description                  = CLI_Utils().get_scoring_cycles(root_trace, kb_session, environment_filter)
         click.echo(sc_description)
+        output                              = "Success"
+        click.echo(output)
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -132,17 +138,19 @@ def scoring_cycles(kb_session, all, sandbox):
 
 @get.command()
 @pass_kb_session
-def sandboxes(kb_session):
+def environments(kb_session):
     '''
-    Gets the list of existing sandboxes for the system.
+    Gets the list of existing environments (e.g., sandboxes) for the system.
     '''
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get sandboxes",
                                                             origination     = {'signaled_from': __file__})
     try:
-        sandboxes_description           = CLI_Utils().get_sandboxes(root_trace, kb_session)
-        click.echo(sandboxes_description)
+        environments_description           = CLI_Utils().get_environments(root_trace, kb_session)
+        click.echo(environments_description)
+        output                              = "Success"
+        click.echo(output)
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -158,17 +166,19 @@ def sandboxes(kb_session):
 
 @get.command()
 @pass_kb_session
-def posting_apis(kb_session):
+def apis(kb_session):
     '''
-    Gets the list of posting APIs supported by the KnowledgeBase
+    Gets the list of posting and manifest APIs supported by the KnowledgeBase
     '''
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get posting APIs",
                                                             origination     = {'signaled_from': __file__})
     try:
-        posting_apis_description        = CLI_Utils().get_posting_apis(root_trace, kb_session)
+        posting_apis_description        = CLI_Utils().get_apodeixi_apis(root_trace, kb_session)
         click.echo(posting_apis_description)
+        output                              = "Success"
+        click.echo(output)
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
