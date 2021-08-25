@@ -903,6 +903,43 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
         return matches
 
+    def searchManifests(self, parent_trace, kinds_of_interest, manifest_filter):
+        '''
+        Returns a list of dict objects, each representing the content of a manifest in the store for
+        one of the kinds in the `kinds_of_interest` list.
+
+        The returned list comprises all such manifests known to the KnowledgeBaseStore that pass the `manifest_filter`.
+
+        I.e., it rturns a list of objects `manifest_dict` such that 
+        
+            `manifest_filter(parent_trace, manifest_dict) == True` and `manifest_dict["kind"]` is in `kinds_of_interest`
+
+        If `manifest_filter` is None, then no filter is applied and all manifests in the store are returned.
+        
+        @param manifest_filter A function that takes two parameters: a FunctionalTrace and a dict object, and returns
+                a boolean. 
+        '''
+        result                      = []
+        for currentdir, dirs, files in _os.walk(self.current_environment(parent_trace).manifestsURL(parent_trace)):
+            loop_trace              = parent_trace.doing("Scanning directory", data = {'currentdir': currentdir})
+            for a_file in files:
+                tokens = a_file.split(".")
+                # We are only interested in files like "big-rock.2.yaml" with tokens ["big-rock", "2", "yaml"]
+                if len(tokens) != 3 or tokens[2]!= "yaml" or not tokens[0] in kinds_of_interest or not tokens[1].isdigit():
+                    continue
+
+                inner_trace         = loop_trace.doing("Loading manifest", data = {'currentdir': currentdir, 'file': a_file})
+                with open(currentdir + '/' + a_file, 'r') as file:
+                    manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+                if filter == None:
+                    result.append(manifest_dict)
+                elif filter(inner_trace, manifest_dict):
+                    result.append(manifest_dict)
+                else:
+                    continue # Not a match
+                
+        return result
+
     def archivePosting(self, parent_trace, posting_label_handle):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 

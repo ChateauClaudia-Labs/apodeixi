@@ -1,0 +1,22 @@
+
+LabelFilter:
+  (Clause)+
+;
+
+Clause:
+  (Equality | In | NotIn)
+;
+
+Equality:
+  Label '=' Val
+
+
+
+
+Val:
+  ID
+:
+
+Label:
+  ID
+;

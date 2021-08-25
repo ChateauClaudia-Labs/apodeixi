@@ -268,26 +268,23 @@ class KnowledgeBaseStore():
         '''
         return self._impl.findLatestVersionManifest(parent_trace, manifest_api_name, namespace, name, kind)
 
-    def searchManifests(self, parent_trace, manifest_api, labels_filter=None, manifest_version_filter=None):
+    def searchManifests(self, parent_trace, kinds_of_interest, manifest_filter):
         '''
-        Returns a list of ManifestHandle objects, one for each manifest in the Knowledge Base that matches
-        the given criteria:
+        Returns a list of dict objects, each representing the content of a manifest in the store for
+        one of the kinds in the `kinds_of_interest` list.
 
-        * They are all manifests for the `manifest_api`
-        * They pass the given filters
+        The returned list comprises all such manifests known to the KnowledgeBaseStore that pass the `manifest_filter`.
 
-        @param manifest_api A string that identifies the type of manifest supported by the store. For example,
-                            'milestone.modernization.a6i' is a recognized manifest API and store manifest objects
-                            for such an api will be retrieved by this method.
-        @param labels_filter A function that takes aa dict as a parameter and returns a boolean. The dict represents the content
-                            of a manifest.
-                            Any store mmanifest for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.
-        @param manifest_version_filter A function that takes a ManifestVersion instance as a parameter and returns a boolean. 
-                            Any ManifestVersion instance for which this filter returns False will be excluded from the output.
-                            If set to None then no filtering is done.
+        I.e., it rturns a list of objects `manifest_dict` such that 
+        
+            `manifest_filter(parent_trace, manifest_dict) == True` and `manifest_dict["kind"]` is in `kinds_of_interest`
+
+        If `manifest_filter` is None, then no filter is applied and all manifests in the store are returned.
+        
+        @param manifest_filter A function that takes two parameters: a FunctionalTrace and a dict object, and returns
+                a boolean. 
         '''
-        return self._impl.searchManifests(parent_trace, manifest_api, labels_filter, manifest_version_filter)
+        return self._impl.searchManifests(parent_trace, kinds_of_interest, manifest_filter)
 
     def archivePosting(self, parent_trace, posting_label_handle):
         '''

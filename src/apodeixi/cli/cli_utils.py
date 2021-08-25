@@ -1,5 +1,7 @@
+from datetime import datetime
 import os                                                           as _os
 import re                                                           as _re
+from apodeixi.util.dictionary_utils import DictionaryUtils
 from tabulate                                                       import tabulate
 
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
@@ -254,7 +256,7 @@ class CLI_Utils():
         '''
         Returns a nicely formatted string, suitable for CLI output. It displays all valid products of the system.
 
-        @environment_filter A lambda function, that takes a string argument and returns True or False.
+        @param environment_filter A lambda function, that takes a string argument and returns True or False.
             Its purposes is to filte out which KnowledgeBase store's environments to include when searching
             for products. If it is None, then all environments are included
         '''
@@ -303,7 +305,7 @@ class CLI_Utils():
         '''
         Returns a nicely formatted string, suitable for CLI output. It displays all valid scoring cycles of the system.
 
-        @environment_filter A lambda function, that takes a string argument and returns True or False.
+        @param environment_filter A lambda function, that takes a string argument and returns True or False.
             Its purposes is to filte out which KnowledgeBase store's environments to include when searching
             for scoring cycles. If it is None, then all environments are included.
         '''
@@ -393,8 +395,6 @@ class CLI_Utils():
         Returns a nicely formatted string, suitable for CLI output. It displays all posting APIs that the
         KnowledgeBase currenly supports.
         '''
-        sandboxes                       = self._sandboxes_names_list(parent_trace, kb_session)
-
         description_table               = []
         description_headers             = ["Posting API", "Postings filing scheme", 
                                                 "Manifest API for posted manifests", 
@@ -421,6 +421,80 @@ class CLI_Utils():
         description                     += "\n"
 
         return description
+
+    def _get_all_kinds(self, parent_trace, kb_session):
+
+        all_kinds                       = []
+        for posting_api in kb_session.kb.get_posting_apis():
+            ctrl                        = kb_session.kb.findController(parent_trace, posting_api)
+            supported_kinds             = ctrl.getSupportedKinds()
+            all_kinds.extend(supported_kinds)
+        # Remove duplicates
+        all_kinds                       = list(set(all_kinds))
+        return all_kinds
+
+    def manifests_description(self, parent_trace, kb_session, kinds_of_interest, labels_of_interest, environment_filter):
+        '''
+        Returns a nicely formatted string, suitable for CLI output. 
+        
+        It displays summary information for all manifests that the
+        KnowledgeBase currenly supports whose kind is one of the `kinds_of_interest` and
+        which have all the labels of interest.
+
+        @param kinds_of_interest A list of strings, corresponding to manifest kinds we seek. If null, then
+            we will collect all kinds known to the system.
+        @param labels_of_interest A list of strings of the form "<field>=<value>", which constrains
+            while manifests are returned by forcing that each of them has <field> as a label with value <value>.
+            If set to None, then all manifests are included.
+
+        @param environment_filter A lambda function, that takes a string argument and returns True or False.
+            Its purposes is to filte out which KnowledgeBase store's environments to include when searching
+            for products. If it is None, then all environments are included
+        '''
+        FMT                             = StringUtils().format_as_yaml_fieldname
+
+        description_table               = []
+        description_headers             = ["Kind", "Version", "Estimated on", "Namespace", "Name", "Environment"]
+
+        environments                    = []
+        environments.append(kb_session.store.base_environment(parent_trace).name(parent_trace))
+        environments.extend(self._sandboxes_names_list(parent_trace, kb_session))
+
+        if environment_filter != None:
+            environments                = [e for e in environments if environment_filter(e) == True]
+
+        if kinds_of_interest == None:
+            kinds_of_interest           = self._get_all_kinds(parent_trace, kb_session)
+
+        original_env_name               = kb_session.store.current_environment(parent_trace).name(parent_trace)
+        for env_name in environments:
+            kb_session.store.activate(parent_trace, env_name)
+
+            def _manifest_filter(parent_trace, manifest_dict):
+                #TODO For now we just approve everything. Later will need to filter on labels
+                return True
+
+            manifest_dict_list          = kb_session.store.searchManifests(parent_trace, kinds_of_interest, 
+                                                                                manifest_filter = _manifest_filter)
+            # ["Kind", "Version", "Estimated on", "Namespace", "Name", "Environment"]
+            GET                         = DictionaryUtils().get_val
+            for m_dict in manifest_dict_list:
+                kind                = GET(parent_trace, m_dict, "Manifest", ["kind"], [str])
+                version             = GET(parent_trace, m_dict, "Manifest", ["metadata", "version"], [int])
+                estimated_on        = GET(parent_trace, m_dict, "Manifest", ["metadata", "namespace"], [datetime])
+                namespace           = GET(parent_trace, m_dict, "Manifest", ["metadata", "namespace"], [str])
+                name                = GET(parent_trace, m_dict, "Manifest", ["metadata", "name"], [str])
+
+                description_table.append([kind, version, estimated_on, namespace, name, env_name])
+            
+        kb_session.store.activate(parent_trace, original_env_name)
+
+        description                     = "\n\n"
+        description                     += tabulate(description_table, headers=description_headers)
+        description                     += "\n"
+
+        return description
+
 
     def get_environment_filter(self, parent_trace, kb_session, filter_type, sandbox):
         '''
