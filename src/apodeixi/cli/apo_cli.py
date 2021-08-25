@@ -195,13 +195,14 @@ def apis(kb_session):
 @apo_cli.command()
 @click.argument("file", type=click.STRING, required=True)
 @click.option('--dry-run/--no-dry-run', default=False)
-@click.option('--sandbox', type=click.STRING,help="Name of pre-existing sandbox within which to isolate processing")
-@click.option('--timestamp', type=click.STRING,help="String used to tag KnowledgeBase posting logs, instead of the actual time")
+@click.option('--sandbox', type=click.STRING,help="Name of optional pre-existing sandbox within which to isolate processing.")
+@click.option('--timestamp', type=click.STRING,help="Optional string used to tag KnowledgeBase posting logs. "\
+                                                        "If not set then the current time will be used.")
 @pass_kb_session
 def post(kb_session, file, dry_run, sandbox, timestamp):
     '''
     Posts contents of an Excel file to the KnowledgeBase.
-    The filename must be of the form '<some string><posting API>.xlsx' for some supported a6i posting API.
+    The filename must be of the form '<some string><posting API>.xlsx' for some supported KnowledgeBase posting API.
     '''
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 

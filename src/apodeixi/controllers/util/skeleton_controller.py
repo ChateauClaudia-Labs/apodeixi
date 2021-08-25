@@ -287,7 +287,8 @@ class SkeletonController(PostingController):
                 content_dict                    = assertion_dict[entity]
                 rep                             = AsDataframe_Representer()
                 contents_path                   = 'assertion.' + entity
-                contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path, sparse=True)
+                contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path, 
+                                                                    sparse=True, abbreviate_uids=True)
             
             return contents_df
 

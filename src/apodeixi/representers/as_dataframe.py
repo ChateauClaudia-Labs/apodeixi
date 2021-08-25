@@ -11,7 +11,7 @@ class AsDataframe_Representer:
     def __init__(self):
         return
 
-    def yaml_2_df(self, parent_trace, manifests_folder, manifests_file, contents_path, sparse):
+    def yaml_2_df(self, parent_trace, manifests_folder, manifests_file, contents_path, sparse, abbreviate_uids):
         '''
         Loads a YAML file for an Apodeixi manifest, and returns a Pandas Dataframe for the data contents
         and a dictionary for all other fields
@@ -62,6 +62,10 @@ class AsDataframe_Representer:
             }
         
         The return value is the tuple `(df, subtree)`
+
+        @param abbreviate_uids A boolean. If True, UIDs will only keep the top acronym. For example, 
+                    a UID like "BR2.MR2.SM4" in the manifest would be transformed to "BR2.2.4" in the
+                    DataFrame returned by this method
         '''
         manifest_path       = manifests_folder + '/' + manifests_file
         my_trace            = parent_trace.doing('Loading YAML Manifest', data = {'path': manifest_path})
@@ -74,10 +78,10 @@ class AsDataframe_Representer:
         my_trace             = parent_trace.doing('Splitting manifest', data = {'path_tokens': path_tokens})
         content_dict, non_content_dict = self._split_out(my_trace, manifest_dict, path_tokens)
 
-        df                  = self.dict_2_df(parent_trace, content_dict, contents_path, sparse)
+        df                  = self.dict_2_df(parent_trace, content_dict, contents_path, sparse, abbreviate_uids)
         return df, non_content_dict
 
-    def dict_2_df(self, parent_trace, content_dict, contents_path, sparse):
+    def dict_2_df(self, parent_trace, content_dict, contents_path, sparse, abbreviate_uids):
         '''
         Used to represent the contents of a manifest as a Pandas DataFrame. There are two main
         use cases for what such DataFrame would be used for, and the needs of each of them
@@ -114,13 +118,18 @@ class AsDataframe_Representer:
                 BR1 |   New UX              | BR1.2 |   Lending UI
                 BR2 |   Containerization    | BR2.1 |   Pricing service
                 BR2 |   Containerization    | BR2.2 |   Market data svc
+
+        @param abbreviate_uids A boolean. If True, UIDs will only keep the top acronym. For example, 
+                    a UID like "BR2.MR2.SM4" in the manifest would be transformed to "BR2.2.4" in the
+                    DataFrame returned by this method
         '''
         my_trace            = parent_trace.doing('Converting content to DataFrame')
         intervals, rows     = self._build_df_rows(  parent_trace    = my_trace,
                                                     content_dict    = content_dict,
                                                     parent_path     = contents_path,
                                                     parent_uid      = None,
-                                                    sparse          = sparse)
+                                                    sparse          = sparse,
+                                                    abbreviate_uids = abbreviate_uids)
         
         all_columns         = []
         for interval in intervals:
@@ -187,7 +196,8 @@ class AsDataframe_Representer:
                 
         return on_path_dict, off_path_dict
     
-    def _build_df_rows(self, parent_trace, content_dict, parent_path, parent_uid, sparse):
+    def _build_df_rows(self, parent_trace, content_dict, parent_path, parent_uid, sparse,
+                                abbreviate_uids):
         '''
         Recursive method that creates the data from which a Pandas DataFrame can be easily created by the caller,
         based on the dictionary `content_dict`: it returns:
@@ -334,6 +344,9 @@ class AsDataframe_Representer:
                             and "BR1" on a 1st recursion, or "BR1.SR1" on a 2nd nested recursion.
         @param sparse A boolean. If True, it returns a "sparse" representation suitable for Excel rendering,
                     with exactly 1 UID per row (helpful when making joins)
+        @param abbreviate_uids A boolean. If True, UIDs will only keep the top acronym. For example, 
+                    a UID like "BR2.MR2.SM4" in the manifest would be transformed to "BR2.2.4" in the
+                    DataFrame returned by this method
         '''
         my_trace                = parent_trace.doing("Validating parent_path '" + parent_path + "''",
                                                         data = {'signaledFrom': __file__})
@@ -421,9 +434,12 @@ class AsDataframe_Representer:
             # intervals, which are "level 2, 3, ..." in the content_df "tree"
             new_level_1_row                 = {} 
             # Add the entity column to the level_1 row
-            # But first replace by "friendly" UID like 'BR1.2' instead of "BR1.SR2"
-            abbreviated_full_e_uid          = UID_Store(parent_trace).abbreviate_uid(parent_trace, uid=full_e_uid)
-            new_level_1_row[UID_COL]        = abbreviated_full_e_uid 
+            # But first replace by "friendly" UID like 'BR1.2' instead of "BR1.SR2", if we are thus configured
+            if abbreviate_uids == True:
+                abbreviated_full_e_uid      = UID_Store(parent_trace).abbreviate_uid(parent_trace, uid=full_e_uid)
+                new_level_1_row[UID_COL]    = abbreviated_full_e_uid 
+            else:
+                new_level_1_row[UID_COL]    = full_e_uid 
             new_level_1_row[entity_name]    = e_dict[NAME]
             
             # Apodeixi's data model allows "multiple dimensional" branching. An example of branching is having
@@ -466,7 +482,8 @@ class AsDataframe_Representer:
                                                                     content_dict    = e_dict[sub_entity], 
                                                                     parent_path     = e_path + '.' + sub_entity,
                                                                     parent_uid      = full_e_uid,
-                                                                    sparse          = sparse)
+                                                                    sparse          = sparse,
+                                                                    abbreviate_uids = abbreviate_uids)
 
             # Post-processing recursive call: handle the columns
             # 

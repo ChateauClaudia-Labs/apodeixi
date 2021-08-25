@@ -36,14 +36,14 @@ class Test_CLI_Post(CLI_Test_Skeleton):
         MASK_COMBINED               = CLI_Utils().combined_mask(root_trace, self.a6i_config)
         
         COMMANDS                    = [
-                                        ['post', '--dry-run', '--timestamp', "_CLI__1", 
+                                        ['post',                    '--dry-run',                    '--timestamp', "_CLI__1", 
                                             PATH_OF("products.static-data.admin.a6i.xlsx")],
-                                        ['post', '--sandbox', self.get_sandbox, '--timestamp', "_CLI__2",
+                                        ['post',                    '--sandbox',self.get_sandbox,   '--timestamp', "_CLI__2",
                                             PATH_OF("scoring-cycles.static-data.admin.a6i.xlsx")],
-                                        ['post', '--sandbox', self.get_sandbox, '--timestamp', "_CLI__3",
+                                        ['post',                    '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__3",
                                             PATH_OF("pbf_opus.original.OPUS_big-rocks.journeys.a6i.xlsx")],
-                                        ['get', 'products', '--sandbox', self.get_sandbox],
-                                        ['get', 'scoring-cycles', '--sandbox', self.get_sandbox],
+                                        ['get', 'products',         '--sandbox', self.get_sandbox],
+                                        ['get', 'scoring-cycles',   '--sandbox', self.get_sandbox],
                                         ['get', 'namespaces'],
                                         #['get', 'environments'], # Can't test- environment count non-deterministic
                                         ['get', 'apis'],
@@ -64,15 +64,27 @@ class Test_CLI_Post(CLI_Test_Skeleton):
         SUB_NAMESPACE               = "modernization"
 
         COMMANDS_2                    = [
-                                        ['get', 'form', '--sandbox', self.get_sandbox, '--timestamp', 
-                                            "_CLI__4", "big-rocks.journeys.a6i",
-                                            NAMESPACE, SUB_NAMESPACE],
+                                        ['get', 'form',                 '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__4", 
+                                            "big-rocks.journeys.a6i", NAMESPACE, SUB_NAMESPACE],
+                                        ['post',                        '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__5", 
+                                            PATH_OF("pbf_opus.update.big-rocks.journeys.a6i.xlsx")],
+                                        ['get', 'form',                 '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__6", 
+                                            "milestone.journeys.a6i", NAMESPACE, SUB_NAMESPACE],
+                                        ['post',                        '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__7", 
+                                            PATH_OF("pbf_opus.v1.milestone.journeys.a6i.xlsx")],
+                                        ['get', 'form',                 '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__8", 
+                                            "milestone.journeys.a6i", NAMESPACE, SUB_NAMESPACE],
+                                        ['post',                        '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__9", 
+                                            PATH_OF("pbf_opus.v2.milestone.journeys.a6i.xlsx")],
+                                        ['get', 'form',                 '--sandbox', self.get_sandbox,  '--timestamp', "_CLI__10", 
+                                            "milestone.journeys.a6i", NAMESPACE, SUB_NAMESPACE],
                                     ]
+
         self.skeleton_test( parent_trace                = root_trace,
                             cli_command_list            = COMMANDS_2,
                             output_cleanining_lambda    = MASK_COMBINED) #MASK_SANDBOX)
                                                                        
-        self.assertTrue(1==2) # We are not done implementing the test
+
 
 if __name__ == "__main__":
     # execute only if run as a script

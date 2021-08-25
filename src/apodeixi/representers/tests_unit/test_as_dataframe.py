@@ -25,7 +25,7 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
         try:
             rep          = AsDataframe_Representer()
             df, subtree  = rep.yaml_2_df(root_trace, MANIFESTS_FOLDER, MANIFEST_FILE, 'scaffolding.jobs-to-be-done',
-                                                                                        sparse=True)
+                                            sparse=True, abbreviate_uids=True)
             # Save DataFrame in case the assertion below fails, so that we can do a visual comparison of OUTPUT vs EXPECTED csv files
             df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
         except ApodeixiError as ex:
@@ -51,7 +51,7 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
         try:
             rep          = AsDataframe_Representer()
             df, subtree  = rep.yaml_2_df(root_trace, MANIFESTS_FOLDER, MANIFEST_FILE, 'scaffolding.jobs-to-be-done',
-                                                                                        sparse=False)
+                                                sparse=False, abbreviate_uids=True)
             # Save DataFrame in case the assertion below fails, so that we can do a visual comparison of OUTPUT vs EXPECTED csv files
             df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
         except ApodeixiError as ex:
