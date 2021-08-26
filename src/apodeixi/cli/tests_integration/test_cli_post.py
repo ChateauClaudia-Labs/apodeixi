@@ -75,10 +75,16 @@ class Test_CLI_Post(CLI_Test_Skeleton):
         # For the next test, we need to switch the working directory for click
         my_trace                    = parent_trace.doing("Running with working directory in the collaboration area")
         store                       = self.stack().store()
-        root_dir                    = _os.path.dirname(store.base_environment(my_trace).manifestsURL(my_trace))
-        envs_dir                    = root_dir + "/" + File_KBEnv_Impl.ENVS_FOLDER
 
-        _os.chdir(envs_dir + "/" + self.sandbox + "/external-collaboration/journeys/Dec 2020/FusionOpus/Default")
+        if self.sandbox != None:
+            root_dir                    = _os.path.dirname(store.base_environment(my_trace).manifestsURL(my_trace))
+            envs_dir                    = root_dir + "/" + File_KBEnv_Impl.ENVS_FOLDER
+
+            _os.chdir(envs_dir + "/" + self.sandbox + "/external-collaboration/journeys/Dec 2020/FusionOpus/Default")
+        else:
+            clientURL                   = store.base_environment(my_trace).clientURL(my_trace)
+            _os.chdir(clientURL + "/" + "/journeys/Dec 2020/FusionOpus/Default")
+
         NAMESPACE                   = "my-corp.production"
         SUB_NAMESPACE               = "modernization"
 

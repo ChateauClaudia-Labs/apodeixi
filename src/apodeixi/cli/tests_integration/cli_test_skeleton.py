@@ -75,11 +75,6 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         with open(self.input_data + "/" + self.scenario() + '/test_config.yaml', 'r', encoding="utf8") as file:
             self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
 
-        
-
-
-
-
     def selectStack(self, parent_trace):
         '''
         Called as part of setting up each integration test case. It chooses and provisions the stack that should
@@ -215,8 +210,13 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         # Now restore environment to what we are using in the test
                         self.stack().store().activate(loop_trace, provisioned_env_name)
                     else:
-                        # In this case, the CLI is running in this test's provisioned environment, so display that
+                        # In this case, the CLI is running in this store's base environment, so temporarily switch
+                        # to the base environment by deactivating the current "Test Runner" environment
+                        provisioned_env_name    = self.stack().store().current_environment(loop_trace).name(loop_trace)
+                        self.stack().store().deactivate(loop_trace) # This puts us in the base environment
                         self.check_environment_contents(loop_trace)
+                        # Now restore environment to what we are using in the test
+                        self.stack().store().activate(loop_trace, provisioned_env_name)
 
             my_trace                = self.trace_environment(parent_trace, "Deactivating environment")
             self.stack().store().deactivate(my_trace)
