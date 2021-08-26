@@ -154,6 +154,7 @@ class PathUtils():
 
         The mask is separately applied "line-by-line".
         '''
+        TEST_DB_ROOT                                                = a6i_config.test_db_dir                                         
         KB_ROOT                                                     = a6i_config.get_KB_RootFolder(parent_trace)
         COLLAB_ROOT                                                 = a6i_config.get_ExternalCollaborationFolder(parent_trace)
         A6I_DB                                                      = _os.path.dirname(KB_ROOT)
@@ -166,9 +167,11 @@ class PathUtils():
             cleaned_lines                                           = []
             for line in lines:
                 linux_line                                          = self.to_linux(line)
-                #if type(line) != str:
-                #    cleaned_lines.append(line)
-                if self.is_parent(parent_trace, parent_dir=KB_ROOT, path=line):
+                if TEST_DB_ROOT != None and self.is_parent(parent_trace, parent_dir=TEST_DB_ROOT, path=line):
+                    tokens                                          = linux_line.split(KB_ROOT)
+                    masked_path                                     = '<TEST DB ROOT>' + tokens[-1]
+                    cleaned_lines.append(masked_path)
+                elif self.is_parent(parent_trace, parent_dir=KB_ROOT, path=line):
                     tokens                                          = linux_line.split(KB_ROOT)
                     masked_path                                     = '<KNOWLEDGE BASE ROOT>' + tokens[-1]
                     cleaned_lines.append(masked_path)

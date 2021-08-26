@@ -219,6 +219,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         with open(self.test_db_dir + '/test_config.yaml', 'r', encoding="utf8") as file:
             self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
 
+        # Remember location of test_db in ApodeixiConfig.
+        # This flag will be set by test cases to assist with masking non-deterministic information about the
+        # location of the test database. It is used in the masking function that hides parts of paths from regression
+        # output, to avoid non-deterministic test output. When not using the test regression suite, this flag plays no role
+        # in Apodeixi.
+        self.a6i_config.test_db_dir = self.test_db_dir
+
         root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Provisioning stack for integration test",
                                                                     origination = {'signaled_from': __file__})
 
@@ -231,7 +238,16 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         # As a general pattern, we only enforce referential integrity tests in "flow" tests, which is the
         # more "realistic" flavor of integration tests
-        self.a6i_config.enforce_referential_integrity = False
+        self.a6i_config.enforce_referential_integrity   = False
+
+        # Log output files like "POST_EVENT_LOG.txt" are normally masked in test output, so we want
+        # them to match expected output to the byte when showing environment contents.
+        # *HOWEVER*, in the case of CLI tests we don't mask their contents to make them "more realistic" and because 
+        # CLI test output doesn't show the contents of such log files. 
+        # So to ensure CLI tests don't frivolously fail when the test_db is relocated, this setting
+        # (normally set to False) can be enabled by derived classes (such as CLI tests) can set to True
+        # so the test case accepts accept whatever byte size is displayed for log files when displaying environment contents.
+        self.ignore_log_files_byte_size                 = False
 
     def tearDown(self):
         super().tearDown()
@@ -404,6 +420,25 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             description given by a string that includes things like "Size (in bytes):  7677",
             we want to tolerate a small deviation from the number of bytes in the size.
             For example, "Size (in bytes):  7678" would not be considered a test failure
+
+            Also, when an environment's "METADATA.yaml" file is displayed as a key in a folder hierarchy,
+            its contents can't be masked because the test harness itself needs the full paths inside
+            the "METADATA.yaml" when, for example, re-creating a pre-existing environment from disk
+            (as it happens in CLI testing - each CLI command is a initializes a separate KnowledgeBaseStore object
+            in memory, so to share environments across multiple CLI commands each successive command's
+            KnowledgeBaseStore needs to load from disk the information about environments created from prior
+            CLI commands, and that is what "METADATA.yaml" is for.
+            Bottom line: no masking can go inside "METADATA.yaml", so its size in bytes will change if one
+            reloates the test DB, since its location appears inside "METADATA.yaml". So we "accept" whatever
+            byte size it has.
+
+            Lastly, log output files like "POST_EVENT_LOG.txt" are normally masked in test output, so we want
+            them to match expected output to the byte. *HOWEVER*, in the case of CLI tests we don't mask their
+            contents to make them "more realistic" and because CLI test output doesn't show the contents of such
+            log files. So to ensure CLI tests don't frivolously fail when the test_db is relocated, there is
+            a setting (self.ignore_log_files_byte_size), normally set to False but which derived classes
+            (such as CLI tests) can set to True. So if this flag is on, we also accept whatever byte size
+            exists in log files.
             '''
             if type(key) == str and key.endswith(".xlsx"): # This is an Excel file, apply tolerance
                 output_bytes        = _extract_bytes(output_val)
@@ -412,6 +447,13 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                     return output_val == expected_val
                 else:
                     return abs(output_bytes - expected_bytes) <= TOLERANCE
+            elif key == "METADATA.yaml":
+                return True # Just accept whatever number of bytes are shown, as per method documentation above
+            elif self.ignore_log_files_byte_size == True and \
+                        (key == "POST_EVENT_LOG.txt" or key == "FORM_REQUEST_EVENT_LOG.txt"):
+                return True # Just accept whatever number of bytes are shown, as per method documentation above.
+
+
 
             # If we get this far we were unable to detect the conditions for which tolerance applies, so
             # do a straight compare

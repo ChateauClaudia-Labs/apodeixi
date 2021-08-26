@@ -11,7 +11,7 @@ util:
     '
   apodeixi_config.py: '
 
-    Size (in bytes):  15786
+    Size (in bytes):  16195
 
     '
   dataframe_utils.py: '
@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  19687
+    Size (in bytes):  20099
 
     '
   tests_unit:

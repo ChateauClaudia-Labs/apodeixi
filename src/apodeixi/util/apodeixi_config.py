@@ -52,6 +52,11 @@ class ApodeixiConfig():
         # unit tests may choose to turn it off.
         self.enforce_referential_integrity  = True
 
+        # This flag will be set by test cases to assist with masking non-deterministic information about the
+        # location of the test database. It is used in the masking function that hides parts of paths from regression
+        # output, to avoid non-deterministic test output. When not using the test regression suite, this flag plays no role.
+        self.test_db_dir                    = None
+
     def _get_config_folder(self, parent_trace):
         APODEIXI_CONFIG_DIRECTORY                           = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 

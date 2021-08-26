@@ -18,7 +18,16 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         super().setUp()
 
         # CLI scenario tests are "realistic", so for them we want to enforce referential integrity.
-        self.a6i_config.enforce_referential_integrity = True
+        self.a6i_config.enforce_referential_integrity   = True
+
+        # CLI tests differ from other integration tests in that we don't care (or can) deterministically
+        # predict the size of log files.
+        # Reason:
+        # CLI tests don't mask contents of log files, so when we display environments, the number of bytes
+        # appearing in test output for such files becomes dependent on the loation of the test DB.
+        # Upshot:
+        # So to ensure determinism, for CLI tests overwrite the parent's value.
+        self.ignore_log_files_byte_size                 = True
 
         self.sandbox               = None # Will be set in self.skeleton_test
 
@@ -61,19 +70,30 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         self.selectStack(parent_trace)
         self.provisionIsolatedEnvironment(parent_trace)
 
-        # In case it is ever needed, remember this 's suite's value for the environment variable
+        # Remember original config before it is overwritten when we change context
+        original_a6i_config                         = self.a6i_config
+
+        # In case it is ever needed, remember this tests suite's value for the environment variable
         self.config_directory_for_this_test_object  = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
 
+        # OK, we start the context switch here.
         # For this test case, we want the CLI to use a config file that is in the input folder
         _os.environ['APODEIXI_CONFIG_DIRECTORY']    = self.input_data + "/" + self.scenario() 
 
         # Now overwrite parent's notion of self.a6i_config and of the self.test_config_dict
-        self.a6i_config         = ApodeixiConfig(parent_trace)
+        self.a6i_config                             = ApodeixiConfig(parent_trace)
         self.selectStack(parent_trace)          # Re-creates the store for this test with the "fake" base environment
+
+        # Set again the location of the test directory as per the original a6i config. We need it to mask non-deterministic
+        # paths
+        self.a6i_config.test_db_dir                 = original_a6i_config.test_db_dir
+
+
+        # Lastly, we need to 
 
         # Next time an environment is provisioned for this test, use this overwritten config for the name of the folder           
         with open(self.input_data + "/" + self.scenario() + '/test_config.yaml', 'r', encoding="utf8") as file:
-            self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+            self.test_config_dict                   = _yaml.load(file, Loader=_yaml.FullLoader)
 
     def selectStack(self, parent_trace):
         '''
