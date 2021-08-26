@@ -1,4 +1,5 @@
 import os                                               as _os 
+import yaml                                             as _yaml
 
 from apodeixi.cli.cli_utils import CLI_Utils
 from click.testing                                      import CliRunner
@@ -6,6 +7,7 @@ from click.testing                                      import CliRunner
 from apodeixi.cli.apo_cli                               import apo_cli
 from apodeixi.testing_framework.a6i_integration_test    import ShutilStoreTestStack, ApodeixiIntegrationTest
 from apodeixi.util.a6i_error                            import FunctionalTrace, ApodeixiError
+from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
 '''
 Abstract class intended as parent for concrete test cases test the Apodeixi CLI
@@ -23,7 +25,60 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         self.provisioned_env_name = None # This will be set in self.skeleton_test the first time it is caleld
 
         root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
-        self.selectStack(root_trace) 
+        
+        # Commented as now it should happen after overwrite_a6i_config_director  .. self.selectStack(root_trace) 
+
+    def overwrite_test_context(self, parent_trace):
+        '''
+        This is a "trick" method needed so that CLI invocations run in the environment isolated for this test case (or
+        its children), as opposed to on the base environment.
+
+        It accomplishes this by "fooling" the CLI into thinking that "base environment" is actually the environment
+        isolated for this test case.
+
+        It does so by overwriting the value of the APODEIXI_CONFIG_DIRECTORY environment variable
+        but what is tricky is:
+
+        * By the time this method is called, this class no longer needs the APODEIXI_CONFIG_DIRECTORY environment
+          variable, since it was used in super().setUp() to initialize self.a6i_config and other properties, and
+          that is as it should be. 
+
+        * Therefore, the modification in this method to APODEIXI_CONFIG_DIRECTORY is not going to impact this
+          test object. Instead, it will impact other objects use it. There is no such object in Apodeixi itself,
+          but there is one in the CLI: the KB_Session class.
+
+        * The intent is then for the KB_Session class to initialize it's notion of self.a6i_config differently, so
+          that it is "fooled" into thinking that the "base environment" is this test cases's isolated environment.
+
+        * Each time the CLI is invoked, it constructs a KB_Session to initialiase the KnowledgeBaseStore. Thus
+          the CLI will be using a store pointing to this test case's isolated environment. This is different than
+          for non-CLI tests, for whom the store points to the test knowledge base common to the Apodeixi test suite.
+        '''
+        # Before changing context, create the environment for this test, which will later become the 
+        # "fake base environment" when we switch context. But this uses the "original" store, so must be done
+        # before we switch context, so we must select the stack here (and later we re-select it when
+        # switching context)
+        self.selectStack(parent_trace)
+        self.provisionIsolatedEnvironment(parent_trace)
+
+        # In case it is ever needed, remember this 's suite's value for the environment variable
+        self.config_directory_for_this_test_object  = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
+
+        # For this test case, we want the CLI to use a config file that is in the input folder
+        _os.environ['APODEIXI_CONFIG_DIRECTORY']    = self.input_data + "/" + self.scenario() 
+
+        # Now overwrite parent's notion of self.a6i_config and of the self.test_config_dict
+        self.a6i_config         = ApodeixiConfig(parent_trace)
+        self.selectStack(parent_trace)          # Re-creates the store for this test with the "fake" base environment
+
+        # Next time an environment is provisioned for this test, use this overwritten config for the name of the folder           
+        with open(self.input_data + "/" + self.scenario() + '/test_config.yaml', 'r', encoding="utf8") as file:
+            self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+
+        
+
+
+
 
     def selectStack(self, parent_trace):
         '''
@@ -54,6 +109,10 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         try:
             my_trace                            = self.trace_environment(parent_trace, "Isolating test case")
             if self.provisioned_env_name == None:
+                # This is the second time we provision the isolated environment, but now with a different context, i.e.,
+                # different self.a6i_config and different self.test_config_dict than the first time we provisioned
+                # an isolated environment, which was in self.setUp. See comments there. The environment provisioned
+                # here is a child of the one configured in self.setUp, and is fo
                 self.provisionIsolatedEnvironment(my_trace)
                 self.check_environment_contents(my_trace)
                 self.provisioned_env_name       = self.stack().store().current_environment(my_trace).name(my_trace)
@@ -79,7 +138,19 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                             return param()
                         else:
                             return param
-                    command_argv                = [_unraw_param(param) for param in raw_command_argv]
+
+                    # Note: two operations are being done here:
+                    # 
+                    # 1) Replacing a "delayed parameter": a parameter that couldn't be given when the caller's code was
+                    #   written, but can at runtime, so the "delayed parameter" is a callable that, if called, would return
+                    #   the actual parameter to use. Example: the sandbox parameter, which is determined in the first
+                    #   post of the script and must be passed to all subsequent post commands so they continue the work
+                    #   in a common sandbox.
+                    # 2) Filtering out nulls. That is a trick to enable the caller, for example, to use the same script
+                    #   for both dry runs and live runs. All the caller has to do is set the "--sandbox <sandbox>" to a
+                    #   value when using the script with a sandbox, and to None when doing it live.
+                    command_argv                = [_unraw_param(param) for param in raw_command_argv if param != None]
+
 
                     loop_trace                  = self.trace_environment(my_trace, 
                                                                             "Executing '" + " ".join(command_argv) + "'")
@@ -137,6 +208,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         # a subenvironment that the CLI itself created (the sandbox), a child of the base environment.
                         # Since we want to display the contents of the environment in which the CLI ran, 
                         # we need to temporarily switch from our test environment to the sandbox, and then revert
+                        # 
                         provisioned_env_name    = self.stack().store().current_environment(loop_trace).name(loop_trace)
                         self.stack().store().activate(loop_trace, self.sandbox)
                         self.check_environment_contents(loop_trace)

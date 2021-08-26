@@ -251,9 +251,10 @@ def post(kb_session, file, dry_run, environment, timestamp):
         elif dry_run == True:
             sandbox_name                    = kb_session.provisionSandbox(root_trace)
             click.echo(CLI_Utils().sandox_announcement(sandbox_name))
+        '''
         else:
             raise ApodeixiError(root_trace, "Sorry, only sandbox-isolated runs are supported at this time. Aborting.")
-
+        '''
         # Now that we have pinned down the environment (sandbox or not) in which to call the KnowledgeBase's services,
         # set that environment's tag to use for KnoweldgeBase's posting logs, if the user set it.
         if timestamp:
@@ -307,9 +308,10 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
         elif dry_run == True:
             sandbox_name                    = kb_session.provisionSandbox(root_trace)
             click.echo(CLI_Utils().sandox_announcement(sandbox_name))
+        '''
         else:
             raise ApodeixiError(root_trace, "Sorry, only sandbox-isolated runs are supported at this time. Aborting.")
-
+        '''
         # Now that we have pinned down the environment (sandbox or not) in which to call the KnowledgeBase's services,
         # set that environment's tag to use for KnoweldgeBase's posting logs, if the user set it.
         if timestamp:
