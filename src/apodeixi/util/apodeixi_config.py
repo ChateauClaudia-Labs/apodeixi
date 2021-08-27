@@ -1,6 +1,4 @@
-import yaml                                         as _yaml
 import os                                           as _os
-import inspect                                      as _inspect
 import toml                                         as _toml
 
 from apodeixi.util.a6i_error                        import ApodeixiError
@@ -171,92 +169,16 @@ class ApodeixiConfig():
         
         return self.config_dict[SETTINGS][ORGANIZATION]
 
-    def getProducts(self, parent_trace):
-        '''
-        Returns list of ProductInfo objects populated from the Apodeixi Configuration.
-        '''
-        my_trace            = parent_trace.doing("Retrieving product short namesfrom the Apodeixi Configuration ")
-        PRODUCTS            = 'products'
-        NAME                = 'name'
-        SHORT_NAME          = 'short-name'
+    def get_CLI_InitializerClassname(self, parent_trace):
+        my_trace            = parent_trace.doing("Retrieving Knowledge Base's CLI initializer classname from the Apodeixi Configuration ")
+        CLI                 = 'cli'
+        CLASSNAME           = 'initializer-classname'
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
                                                                 root_dict       = self.config_dict, 
                                                                 root_dict_name  = 'apodeixi',
-                                                                path_list       = [PRODUCTS],
-                                                                valid_types     = [dict])
+                                                                path_list       = [CLI, CLASSNAME],
+                                                                valid_types     = [str])
         if not check:
-            raise ApodeixiError(my_trace, "Can't locate products: " + explanation)
-
-        products_dict       = self.config_dict[PRODUCTS]
-        product_list        = []
-
-        for lob in products_dict.keys():
-            loop_trace      = my_trace.doing("Validating configuration for LOB", data = {'LOB': lob})
-            if True:
-                check, explanation = DictionaryUtils().validate_path(   parent_trace    = loop_trace, 
-                                                                        root_dict       = products_dict, 
-                                                                        root_dict_name  = 'config[' + PRODUCTS + ']',
-                                                                        path_list       = [lob],
-                                                                        valid_types     = [dict])        
-                if not check:
-                    raise ApodeixiError(loop_trace, "Invalid LOB product configuration: " + explanation)
-
-                check, explanation = DictionaryUtils().validate_path(   parent_trace    = loop_trace, 
-                                                                        root_dict       = products_dict, 
-                                                                        root_dict_name  = 'config[' + PRODUCTS + ']',
-                                                                        path_list       = [lob, NAME],
-                                                                        valid_types     = [str])        
-                if not check:
-                    raise ApodeixiError(loop_trace, "Invalid LOB product configuration: " + explanation)
-
-            lob_dict        = products_dict[lob]
-            lob_name        = lob_dict[NAME]
-            product_keys    = [key for key in lob_dict.keys() if type(lob_dict[key]) == dict]
-            for pk in product_keys:
-                
-                inner_loop_trace      = my_trace.doing("Getting short-name for product", data = {'product key': pk})
-                check, explanation = DictionaryUtils().validate_path(   parent_trace    = loop_trace, 
-                                                                        root_dict       = lob_dict, 
-                                                                        root_dict_name  = 'config[' + PRODUCTS + '][' + lob + ']',
-                                                                        path_list       = [pk, SHORT_NAME],
-                                                                        valid_types     = [str])  
-                if not check:
-                    raise ApodeixiError(inner_loop_trace, "Can't get product short-name: " + explanation)    
-                product_list.append(    ProductInfo(    lob         = lob_name, 
-                                                        short_name  = lob_dict[pk][SHORT_NAME], 
-                                                        name        = lob_dict[pk][NAME])
-                    
-                    )   
-
-        return product_list   
-
-class ProductInfo():
-    '''
-    Helper class with the properties of a product
-    '''
-    def __init__(self, lob, short_name, name):
-        self.lob            = lob
-        self.short_name     = short_name
-        self.name           = name
-
-    def __eq__(self, obj):
-        if not type(obj) == ProductInfo:
-            return False
-        return  self.lob            == obj.lob      and \
-                self.short_name     == short_name   and \
-                self.name           == obj.name
-
-    def __format__(self, format_spec):
-        msg     = "LOB: " + self.lob + "; Short Name: " + self.short_name + "; Name: " + self.name
-
-        return msg
-
-    def __str__(self):
-        msg     = str(self.lob) + "." + str(self.short_name) + " (" + str(self.name) + ")"
-        return msg
-
-    def to_dict(self, parent_trace):
-        '''
-        Returns a dictionary representation of self built only from scalars. Useful to display in test output files.
-        '''
-        return {'lob': self.lob, 'short_name': self.short_name, 'name': self.name}        
+            raise ApodeixiError(my_trace, "Can't locate Knowledge Base's areas: " + explanation)
+        
+        return self.config_dict[CLI][CLASSNAME]

@@ -454,7 +454,7 @@ class CLI_Utils():
         FMT                             = StringUtils().format_as_yaml_fieldname
 
         description_table               = []
-        description_headers             = ["Kind", "Version", "Estimated on", "Namespace", "Name", "Environment"]
+        description_headers             = ["Kind", "Version", "Estimated on", "Recorded by", "Namespace", "Name", "Environment"]
 
         environments                    = []
         environments.append(kb_session.store.base_environment(parent_trace).name(parent_trace))
@@ -481,11 +481,12 @@ class CLI_Utils():
             for m_dict in manifest_dict_list:
                 kind                = GET(parent_trace, m_dict, "Manifest", ["kind"], [str])
                 version             = GET(parent_trace, m_dict, "Manifest", ["metadata", "version"], [int])
-                estimated_on        = GET(parent_trace, m_dict, "Manifest", ["metadata", "namespace"], [datetime])
+                estimated_on        = GET(parent_trace, m_dict, "Manifest", ["assertion", "estimatedOn"], [datetime])
+                recorded_by         = GET(parent_trace, m_dict, "Manifest", ["assertion", "recordedBy"], [datetime])
                 namespace           = GET(parent_trace, m_dict, "Manifest", ["metadata", "namespace"], [str])
                 name                = GET(parent_trace, m_dict, "Manifest", ["metadata", "name"], [str])
 
-                description_table.append([kind, version, estimated_on, namespace, name, env_name])
+                description_table.append([kind, version, estimated_on, recorded_by,  namespace, name, env_name])
             
         kb_session.store.activate(parent_trace, original_env_name)
 

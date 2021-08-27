@@ -13,7 +13,8 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
         
         root_trace                      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Retrieving product list from config",
                                                                         origination = {'signaled_from': __file__})
-        self.products                   = self.config().getProducts(root_trace)
+        self.products                   = ["LIQ", "CCB", "FCC", "FCM", "TI", "ESS", "GPP", "FCQ", "LPR", "MBTLOS",
+                                            "MBTPOS", "MLZ", "PHX", "KON", "OPI", "RISK", "SUM"]
 
     def selectStack(self, parent_trace):
         '''
@@ -63,10 +64,10 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
             products_in_kb                  = [handle.filing_coords.product for handle in scanned_handles]
 
             # These are legitimate products in the Apodeixi config but with no filing structure in the Knowledge Base
-            missing                         = [format(prod_info) for prod_info in self.products if not prod_info.short_name in products_in_kb]
+            missing                         = [prod for prod in self.products if not prod in products_in_kb]
 
             # This is the dual gap: products with filing structure in the Knowledge Base but not appearing as legitimate in the Apodeixi config
-            illegitimate                    = [prod for prod in products_in_kb if not prod in [prod_info.short_name for prod_info in self.products]]
+            illegitimate                    = [prod for prod in products_in_kb if not prod in self.products]
 
             coords_txt                      += "\n\n--------------------- Products lacking postings in the KnowledgeBase filing structure\n\n"
             coords_txt                      += "\n".join(missing)

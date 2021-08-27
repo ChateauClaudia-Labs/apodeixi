@@ -53,13 +53,13 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
           that is as it should be. 
 
         * Therefore, the modification in this method to APODEIXI_CONFIG_DIRECTORY is not going to impact this
-          test object. Instead, it will impact other objects use it. There is no such object in Apodeixi itself,
+          test object. Instead, it will impact other objects that use it. There is no such object in Apodeixi itself,
           but there is one in the CLI: the KB_Session class.
 
         * The intent is then for the KB_Session class to initialize it's notion of self.a6i_config differently, so
           that it is "fooled" into thinking that the "base environment" is this test cases's isolated environment.
 
-        * Each time the CLI is invoked, it constructs a KB_Session to initialiase the KnowledgeBaseStore. Thus
+        * Each time the CLI is invoked, it constructs a KB_Session to initialiaze the KnowledgeBaseStore. Thus
           the CLI will be using a store pointing to this test case's isolated environment. This is different than
           for non-CLI tests, for whom the store points to the test knowledge base common to the Apodeixi test suite.
         '''

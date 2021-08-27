@@ -3,15 +3,11 @@ import os                                   as _os
 from apodeixi.cli.cli_utils import CLI_Utils
 from apodeixi.util.path_utils import PathUtils
 import click
-from tabulate                               import tabulate
 
 import apodeixi
 from apodeixi.cli.kb_session                import KB_Session
 from apodeixi.cli.error_reporting           import CLI_ErrorReporting
-from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 from apodeixi.util.a6i_error                import FunctionalTrace, ApodeixiError
-from apodeixi.util.dictionary_utils         import DictionaryUtils
-from apodeixi.xli.interval                  import Interval
 
 pass_kb_session                             = click.make_pass_decorator(KB_Session, ensure=True)
 
@@ -54,7 +50,7 @@ def namespaces(kb_session):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 @get.command()
@@ -85,7 +81,7 @@ def products(kb_session, all, environment):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 @get.command()
@@ -119,7 +115,7 @@ def assertions(kb_session, all, environment):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 def _get_environment_filter(parent_trace, kb_session, all, environment):
@@ -167,7 +163,7 @@ def scoring_cycles(kb_session, all, environment):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 @get.command()
@@ -195,7 +191,7 @@ def environments(kb_session):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 @get.command()
@@ -223,7 +219,7 @@ def apis(kb_session):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 
@@ -281,7 +277,7 @@ def post(kb_session, file, dry_run, environment, timestamp):
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
 @get.command()
@@ -353,5 +349,5 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + ex.msg)
+        click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()

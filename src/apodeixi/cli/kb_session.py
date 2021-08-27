@@ -1,5 +1,6 @@
 import sys                                          as _sys
 import datetime                                     as _datetime
+from importlib                                      import import_module
 
 from apodeixi.knowledge_base.knowledge_base         import KnowledgeBase
 from apodeixi.knowledge_base.knowledge_base_store   import KnowledgeBaseStore
@@ -10,6 +11,55 @@ from apodeixi.util.apodeixi_config                  import ApodeixiConfig
 from apodeixi.util.a6i_error                        import FunctionalTrace, ApodeixiError
 
 from apodeixi.cli.error_reporting                   import CLI_ErrorReporting
+
+class KB_Session_Initializer():
+    '''
+    Helper class to suport extensibility.
+
+    Purpose:
+    Apodeixi extensions may want to customize their own classes for the KnowledgeBase, KnowledgeBaseStore, etc.,
+    by deriving the Apodeixi classes and have the CLI make use of them instead of the Apodexi default classes.
+
+    Since the CLI accesses such objects through the KB_Session class, which the CLI has hard-coded knowledge about,
+    the pattern for replacing the type of KnowledgeBase* classes used by the CLI is:
+
+    * These classes are initialized outside the KB_Session, by an initializer class that chooses which concrete
+      classes to use for KnowledgeBase* objects and sets them inside a KB_Session instance
+    * The initializer class is looked up in the ApodeixiConfig object, which each Apodeixi implementation can
+      set at will. For example, Apodeixi extensions could be configured to use a custom initializer class that chooses
+      extension-specific KnowledgeBase* classes
+    '''
+    def __init__(self):
+        return
+    
+    def initialize(self, parent_trace, kb_session):
+        '''
+        Sets these attributes of kb_session:
+        * kb_session.a6i_config
+        * kb_session.kb_rootdir
+        * kb_session.clientURL
+        * kb_session.store
+        * kb_session.kb
+
+        This method is intended to be called from within the KB_Session constructor.
+
+        @param kb_session A KB_Session instance that needs to be initialized
+        '''
+        my_trace                            = parent_trace.doing("Loading Apodeixi configuration",
+                                                                    origination     = {'signaled_from': __file__})
+        kb_session.a6i_config               = ApodeixiConfig(my_trace)
+
+        my_trace                            = parent_trace.doing("Initializing file-based stack",
+                                                                    origination     = {'signaled_from': __file__})
+        kb_session.kb_rootdir               = kb_session.a6i_config.get_KB_RootFolder(my_trace)
+        kb_session.clientURL                = kb_session.a6i_config.get_ExternalCollaborationFolder(my_trace) 
+
+        store_impl                          = Shutil_KBStore_Impl(  parent_trace    = my_trace,
+                                                                    kb_rootdir      = kb_session.kb_rootdir, 
+                                                                    clientURL       = kb_session.clientURL)
+        kb_session.store                    = KnowledgeBaseStore(my_trace, store_impl)
+        my_trace                            = parent_trace.doing("Starting KnowledgeBase")
+        kb_session.kb                       = KnowledgeBase(my_trace, kb_session.store, a6i_config=kb_session.a6i_config)
 
 class KB_Session():
     '''
@@ -30,22 +80,27 @@ class KB_Session():
                                                                         path_mask       = None) 
             root_trace                          = func_trace.doing("Initializing KB_Session for Apodeixi CLI",
                                                                         origination     = {'signaled_from': __file__})
-            my_trace                           = func_trace.doing("Loading Apodeixi configuration",
-                                                                        origination     = {'signaled_from': __file__})
-            self.a6i_config                     = ApodeixiConfig(my_trace)
 
-            my_trace                            = root_trace.doing("Initializing file-based stack",
-                                                                        origination     = {'signaled_from': __file__})
-            self.kb_rootdir                     = self.a6i_config.get_KB_RootFolder(my_trace)
-            self.clientURL                      = self.a6i_config.get_ExternalCollaborationFolder(my_trace) 
+            # The initializer will set self.a6i_config. But in a sort of chicken-and egg situation, we find
+            # ourselves forced to load a "temporary" config object to figure out the class name of the initializer ot use.
+            # This "temporary" config might not be the "right class" if the initializer
+            # is not the default Apodeixi class (for example, if an Apodeixi extension is using a derived initializer
+            # class), but at least the "temporary" config will let us get the initializer class.
+            #
+            temporary_config                    = ApodeixiConfig(root_trace)
 
-            store_impl                          = Shutil_KBStore_Impl(  parent_trace    = my_trace,
-                                                                        kb_rootdir      = self.kb_rootdir, 
-                                                                        clientURL       = self.clientURL)
-            self.store                          = KnowledgeBaseStore(my_trace, store_impl)
-            my_trace                            = root_trace.doing("Starting KnowledgeBase")
-            self.kb                             = KnowledgeBase(my_trace, self.store, a6i_config=self.a6i_config)
+            initializer_class_name              = temporary_config.get_CLI_InitializerClassname(root_trace)
 
+            try:
+                module_path, class_name         = initializer_class_name.rsplit('.', 1)
+                module                          = import_module(module_path)
+                initializer_class               = getattr(module, class_name)
+                initializer                     = initializer_class()
+            except (ImportError, AttributeError) as ex:
+                raise ApodeixiError(root_trace, "Unable to construct class '" + str(initializer_class_name) + "'",
+                                            data = {"error": ex.msg})
+
+            initializer.initialize(root_trace, self)
             
             # This will look like '210703.102746', meaning the 3rd of July of 2021 at 10:27 am (and 46 sec).
             # Intention is this timestamp as an "identifier" of this KnowledgeBase session, by using as prefix
@@ -63,6 +118,9 @@ class KB_Session():
             #       Use print, not click.echo or click exception because they don't correctly display styling
             #       (colors, underlines, etc.). So use vanilla Python print and then exit
             print(error_msg)
+            _sys.exit()
+        except Exception as ex:
+            print("Unrecoverable error: " + str(ex))
             _sys.exit()
 
 
