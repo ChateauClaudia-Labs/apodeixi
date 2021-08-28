@@ -120,9 +120,11 @@ class JourneysFilingCoordinates(FilingCoordinates):
     def build(self, parent_trace, path_tokens):
         ME                          = JourneysFilingCoordinates
         if type(path_tokens)        != list:
-            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list, instead received a " + str(type(path_tokens)))
+            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list like "
+                                            + str(self.expected_tokens(parent_trace)) 
+                                            + ", but instead received a " + str(type(path_tokens)))
         if len(path_tokens)         != 4:
-            raise ApodeixiError(parent_trace, "Expected exactly 4 path tokens",
+            raise ApodeixiError(parent_trace, "Expected exactly 4 path tokens like " + str(self.expected_tokens(parent_trace)),
                                                 data = {'path_tokens': str(path_tokens)})
         if path_tokens[0]           != ME.JOURNEYS:
             raise ApodeixiError(parent_trace, "The first path token is required to be '" + ME.JOURNEYS + "'",
@@ -244,7 +246,8 @@ class InitiativesFilingCoordinates(FilingCoordinates):
     '''
     def build(self, parent_trace, path_tokens):
         if type(path_tokens)        != list:
-            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list, instead received a " 
+            raise ApodeixiError(parent_trace, "Invalid type for path_tokens: expected a list like "
+                                            + str(self.expected_tokens(parent_trace)) + " , instead received a " 
                                                 + str(type(path_tokens)))
         if len(path_tokens)         != 3 and len(path_tokens)         != 4:
             return None

@@ -45,14 +45,14 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         It accomplishes this by "fooling" the CLI into thinking that "base environment" is actually the environment
         isolated for this test case.
 
-        It does so by overwriting the value of the APODEIXI_CONFIG_DIRECTORY environment variable
+        It does so by overwriting the value of the self.CONFIG_DIRECTORY() environment variable
         but what is tricky is:
 
-        * By the time this method is called, this class no longer needs the APODEIXI_CONFIG_DIRECTORY environment
+        * By the time this method is called, this class no longer needs the self.CONFIG_DIRECTORY() environment
           variable, since it was used in super().setUp() to initialize self.a6i_config and other properties, and
           that is as it should be. 
 
-        * Therefore, the modification in this method to APODEIXI_CONFIG_DIRECTORY is not going to impact this
+        * Therefore, the modification in this method to Aself.CONFIG_DIRECTORY() is not going to impact this
           test object. Instead, it will impact other objects that use it. There is no such object in Apodeixi itself,
           but there is one in the CLI: the KB_Session class.
 
@@ -74,11 +74,11 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         original_a6i_config                         = self.a6i_config
 
         # In case it is ever needed, remember this tests suite's value for the environment variable
-        self.config_directory_for_this_test_object  = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
+        self.config_directory_for_this_test_object  = _os.environ.get(self.CONFIG_DIRECTORY())
 
         # OK, we start the context switch here.
         # For this test case, we want the CLI to use a config file that is in the input folder
-        _os.environ['APODEIXI_CONFIG_DIRECTORY']    = self.input_data + "/" + self.scenario() 
+        _os.environ[self.CONFIG_DIRECTORY()]    = self.input_data + "/" + self.scenario() 
 
         # Now overwrite parent's notion of self.a6i_config and of the self.test_config_dict
         self.a6i_config                             = ApodeixiConfig(parent_trace)

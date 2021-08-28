@@ -221,6 +221,11 @@ class SkeletonController(PostingController):
                 raise ApodeixiError(loop_trace, "Can't generate form since manifests disagree on which fields should be"
                                                 + " editable in the PostingLabel of the form being requested") 
 
+        my_trace                            = parent_trace.doing("Checking referential integrity for inferred Posting Label")
+
+        if self.a6i_config.enforce_referential_integrity:
+            label.checkReferentialIntegrity(my_trace)
+
         my_trace                            = parent_trace.doing("Creating Excel layout for Posting Label")
         
         label_xlw_config    = PostingLabelXLWriteConfig(    sheet          = SkeletonController.POSTING_LABEL_SHEET,
@@ -360,9 +365,21 @@ class SkeletonController(PostingController):
                                                                         kind                = kind)
                     manifest_dict               = template_dict
                     DF_KEY                      = SkeletonController._ManifestInfo.TEMPLATE_DF
-                    manifest_dict['assertion'][DF_KEY]   = template_df
+
+                    # At the discretion of the concrete controller class, it can decide that some 'kind' objects
+                    # don't need to be in the template.
+                    # Example: for the big-rocks controller, the 'investment' kind is not needed because the
+                    # controller opted for a variant of "explained", where 'investment' is not needed
+                    # That explains why we only add  data if self.createTemplate gave us non-nulls
+                    if manifest_dict!= None:
+                        manifest_dict['assertion'][DF_KEY]   = template_df
                     
-                manifests_in_scope_dict[manifest_identifier]    = manifest_dict # NB: may be none if it has to be created
+                # As per the comment a few lines above, we allow self.createTemplate to give us null 
+                # for some kinds, so we only add to the manifests in scope when there is something to add
+                if manifest_dict != None:
+                    manifests_in_scope_dict[manifest_identifier]    = manifest_dict 
+                # Regardless of whether we added the kind in this loop to the manifests_in_scope, increase
+                # the count since manifest_nb must match the kind index - lots of code assumes that.
                 manifest_nb                         += 1
         else:
             raise ApodeixiError("Invalid type of scope in FormRequest",

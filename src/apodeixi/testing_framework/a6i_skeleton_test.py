@@ -30,6 +30,13 @@ class ApodeixiSkeletonTest(unittest.TestCase):
 
         self._path_mask             = PathUtils().get_mask_lambda(parent_trace=root_trace, a6i_config=self.a6i_config)
 
+    def CONFIG_DIRECTORY(self):
+        '''
+        Method to return the name of the environment variable that points to the folder that contains the
+        Apodeixi configuration directory.
+        This is offered as a method to allow Apodeixi extensions to brand differently the environment variable they use.
+        '''
+        return 'APODEIXI_CONFIG_DIRECTORY'
 
     def activateTestConfig(self):
         '''
@@ -37,12 +44,12 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         This change endures until the dual method self.deactivateTestConfig() is called.
         '''
         # Remember it before we change it to use a test configuration, and then restore it in the tearDown method
-        self.original_config_directory              = _os.environ.get('APODEIXI_CONFIG_DIRECTORY')
+        self.original_config_directory              = _os.environ.get(self.CONFIG_DIRECTORY())
 
         # Here we want the location of this class, not its concrete derived class,
         # since the location of the Apodexei config to be used for tests is globally unique
         # So we use __file__ 
-        _os.environ['APODEIXI_CONFIG_DIRECTORY']    = _os.path.join(_os.path.dirname(__file__), 'config') 
+        _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), 'config') 
 
         func_trace              = FunctionalTrace(  parent_trace    = None, 
                                                     path_mask       = None) # path_mask has not been set yet as an attribute
@@ -60,7 +67,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Dictionaries abhor null values, so default of empty string if null. 
         if old_dir == None:
             old_dir                                         = ''
-        _os.environ['APODEIXI_CONFIG_DIRECTORY']            = old_dir
+        _os.environ[self.CONFIG_DIRECTORY()]                = old_dir
 
     def tearDown(self):
         super().tearDown()

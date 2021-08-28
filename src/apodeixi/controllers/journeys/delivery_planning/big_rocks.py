@@ -133,17 +133,25 @@ class BigRocksEstimate_Controller(JourneysController):
                 # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
                 # make a join, and pass the mapper that effects this associate
                 def my_mapper(manifest_df, manifest_df_row_number, representer):
-                    big_rock_uid        = manifest_df['bigRock'].iloc[manifest_df_row_number]      
-                    link_table          = representer.link_table # Data structure that has join information
-                    excel_row_nb        = link_table.row_from_uid(  parent_trace        = loop_trace, 
-                                                                    manifest_identifier = 'big-rock.0', 
-                                                                    uid                 = big_rock_uid)
-                    if excel_row_nb == None:
-                        raise ApodeixiError(loop_trace, "Unable to link big-rock-estimate referencing big-rock '"
-                                                + str(big_rock_uid) + "': that big rock was not listed in the links",
-                                            data = {"Known big-rock links": str(link_table.all_uids(loop_trace, 'big-rock.0'))})
-                    final_excel_row     = link_table.last_row_number(   parent_trace        = loop_trace,
-                                                                        manifest_identifier = 'big-rock.0')
+                    big_rock_uid        = manifest_df['bigRock'].iloc[manifest_df_row_number]  
+                    if big_rock_uid == None:
+                        # This can happen when we are creating a new template: there are no UIDs around. In that
+                        # case, since the function self.createTemplate for this controller class is implemented
+                        # with same # of rows for big rocks end its estimates, just set excel_row_nb the
+                        # same way as it is set for when key='big-rock.0" in ManifestXLWriteConfig::df_xy_2_excel_xy
+                        excel_row_nb         = y_offset + 1 + manifest_df_row_number # An extra '1' because of the headers
+                        final_excel_row     = y_offset + len(manifest_df.index) # Don't do len(index)-1 since headers add a row
+                    else:
+                        link_table          = representer.link_table # Data structure that has join information
+                        excel_row_nb        = link_table.row_from_uid(  parent_trace        = loop_trace, 
+                                                                        manifest_identifier = 'big-rock.0', 
+                                                                        uid                 = big_rock_uid)
+                        if excel_row_nb == None:
+                            raise ApodeixiError(loop_trace, "Unable to link big-rock-estimate referencing big-rock '"
+                                                    + str(big_rock_uid) + "': that big rock was not listed in the links",
+                                                data = {"Known big-rock links": str(link_table.all_uids(loop_trace, 'big-rock.0'))})
+                        final_excel_row     = link_table.last_row_number(   parent_trace        = loop_trace,
+                                                                            manifest_identifier = 'big-rock.0')
                     return excel_row_nb, final_excel_row
                 df_xy_2_excel_xy_mapper   = my_mapper  
 
@@ -258,6 +266,58 @@ class BigRocksEstimate_Controller(JourneysController):
         
         return manifest_dict
 
+    def createTemplate(self, parent_trace, form_request, kind):
+        '''
+        Returns a "template" for a manifest, i.e., a dict that has the basic fields (with empty or mocked-up
+        content) to support a ManifestRepresenter to create an Excel spreadsheet with that information.
+
+        It is intended to support the processing of blind form requests.
+
+        For reasons of convenience (to avoid going back and forth between DataFrames and YAML), it returns
+        the template as a tuple of two data structures:
+
+        * template_dict This is a dictionary of the non-assertion part of the "fake" manifest
+        * template_df   This is a DataFrame for the assertion part of the "fake" manifest
+        '''
+        template_dict, template_df  = super().createTemplate(parent_trace, form_request, kind)
+
+        ME                              = BigRocksEstimate_Controller
+        PL                              = BigRocksEstimate_Controller._MyPostingLabel
+
+        labels_dict                     = template_dict['metadata']['labels']
+        assertion_dict                  = template_dict['assertion']
+
+        labels_dict[PL._VARIANT]        = ME.VARIANT_EXPLAINED
+        labels_dict[PL._PLAN_TYPE]      = ""
+
+        assertion_dict[PL._VARIANT]     = ME.VARIANT_EXPLAINED
+        assertion_dict[PL._PLAN_TYPE]   = ""
+
+        if kind == 'big-rock':
+            br_list                     = ["Containerization", "New UX", "", "", "Stack simplification", "", ""]
+            mr_list                     = ["", "Front UI", "", "Admin UI", "", "Oracle replacement", "MQ Replacement"]
+            sr_list                     = ["", "MM UI", "FX UI", "", "", "", ""]
+            template_df                 = _pd.DataFrame({"Big Rock": br_list, "Mid Rock": mr_list, 'Small Rock': sr_list})
+
+        elif kind == 'big-rock-estimate':
+            fy19_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
+            fy20_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
+            fy21_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
+            big_rock_reference_list     = [None, None, None, None, None, None, None]
+            template_df                 = _pd.DataFrame({"bigRock": big_rock_reference_list,
+                                                        "FY 19": fy19_effort, "FY 20": fy20_effort, 'FY 21': fy21_effort})
+        elif kind == 'investment':
+            # We chose variant to be "explained" (ME.VARIANT_EXPLAINED), and in this case the 'investment' manifest
+            # is not needed since that information is built into th e'big-rock-estimate' already
+            template_dict               = None
+            template_df                 = None
+        else:
+            raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
+                                                + ", ".join(self.SUPPORTED_KINDS),
+                                                origination = {'signaled_from': __file__})
+
+        return template_dict, template_df
+
 
     class _BigRocksConfig(PostingConfig):
         '''
@@ -316,6 +376,8 @@ class BigRocksEstimate_Controller(JourneysController):
         def entity_name(self):
             ME                      = BigRocksEstimate_Controller._BigRocksConfig
             return ME._ENTITY_NAME
+
+
 
     class _BigRocksEstimatesConfig(PostingConfig):
         '''
