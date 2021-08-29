@@ -63,7 +63,8 @@ class Test_CapabilityHierarchy(ApodeixiUnitTest):
                 file            .write(explanations_nice)
 
         except ApodeixiError as ex:
-            print(ex.trace_message())  
+            print(ex.trace_message())
+            self.assertTrue(1==2) 
 
         with open(MANIFESTS_EXPECTED_DIR + '/'  + EXPLANATIONS_EXPECTED, 'r') as file:
                 expected_explain        = file.read()

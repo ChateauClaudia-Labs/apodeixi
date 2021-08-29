@@ -71,7 +71,8 @@ class Test_PostingLayout(ApodeixiUnitTest):
             with open(self.expected_data + '/'  'test_validate_layout_EXPECTED.txt', 'r') as file:
                 expected     = file.read()
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                       
+            print(ex.trace_message()) 
+            self.assertTrue(1==2)                                                                                      
 
         self.assertEqual(output_as_str, expected)
 

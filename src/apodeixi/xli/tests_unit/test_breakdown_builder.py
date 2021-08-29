@@ -47,7 +47,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
-
+            self.assertTrue(1==2)
         
         self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'read_df_fragment', save_output_dict=True)
 
@@ -62,6 +62,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             entity_instance         = tree.find (UID_TO_FIND, my_trace)
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
 
         self.assertEqual(entity_instance.name, NAME_OF_ENTITY_TO_FIND)
 
@@ -90,6 +91,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
+
         self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'docking_1', save_output_dict=True)
 
     def test_docking_2(self):
@@ -117,6 +120,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
+
         self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'docking_2', save_output_dict=True)
 
     def test_acronyms(self):   
@@ -131,6 +136,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
 
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
+
         self.assertEqual(result, EXPECTED)
 
     def test_attach_subtree(self):  
@@ -150,6 +157,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             result_dict             = tree1.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
 
         self._compare_to_expected_yaml(root_trace, result_dict, test_output_name = 'attach_subtree', save_output_dict=True)
 

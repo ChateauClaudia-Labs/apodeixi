@@ -129,7 +129,8 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
                                         save_output_txt     = True)
 
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            print(ex.trace_message())
+            self.assertTrue(1==2)                                                                                        
 
     def _nice_ws_info(self, parent_trace, worksheet_info):
         nice_format                     = ''

@@ -71,7 +71,8 @@ class Test_KnowledgeBase_Unit(ApodeixiUnitTest):
 
             return
         except ApodeixiError as ex:
-            print(ex.trace_message())                  
+            print(ex.trace_message()) 
+            self.assertTrue(1==2)                 
 
         # If we get this far, the tests failed since we should have returned within the try statement. 
         # So hardcode an informative failure.

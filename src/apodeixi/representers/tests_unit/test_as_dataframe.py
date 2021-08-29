@@ -29,7 +29,8 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
             # Save DataFrame in case the assertion below fails, so that we can do a visual comparison of OUTPUT vs EXPECTED csv files
             df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            print(ex.trace_message())
+            self.assertTrue(1==2)                                                                                        
 
         self.assertEqual(subtree,       self._expected_subtree())
 
@@ -55,7 +56,8 @@ class Test_AsDataframe_Representer(ApodeixiUnitTest):
             # Save DataFrame in case the assertion below fails, so that we can do a visual comparison of OUTPUT vs EXPECTED csv files
             df.to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            print(ex.trace_message())
+            self.assertTrue(1==2)                                                                                        
 
         self.assertEqual(subtree,       self._expected_subtree())
 

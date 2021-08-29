@@ -130,12 +130,12 @@ util:
       '
     test_apodeixi_config.py: '
 
-      Size (in bytes):  2522
+      Size (in bytes):  2555
 
       '
     test_dataframe_utils.py: '
 
-      Size (in bytes):  4213
+      Size (in bytes):  4248
 
       '
     test_folder_hierarchy.py: '
@@ -150,7 +150,7 @@ util:
       '
     test_list_utils.py: '
 
-      Size (in bytes):  3570
+      Size (in bytes):  3605
 
       '
     test_path_utils.py: '

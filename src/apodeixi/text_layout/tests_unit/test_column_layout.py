@@ -88,7 +88,8 @@ class Test_ColumnWidthCalculator(ApodeixiUnitTest):
                 expected_result     = file.read()
 
         except ApodeixiError as ex:
-            print(ex.trace_message()) 
+            print(ex.trace_message())
+            self.assertTrue(1==2) 
 
         self.assertEqual(df_comparison_nice,       expected_df_comparison)
         self.assertTrue(check)

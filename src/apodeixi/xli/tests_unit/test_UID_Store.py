@@ -33,6 +33,7 @@ class Test_UIDStore(ApodeixiUnitTest):
                 self.assertEqual(result, expected)
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
                 
     def attempt_generateUID(self, parent_trace, parent_uid, acronym):
         my_trace      = parent_trace.doing("Attempting to generateUID",
@@ -60,7 +61,7 @@ class Test_UIDStore(ApodeixiUnitTest):
                 self.assertEqual(result, expected)
         except ApodeixiError as ex:
             print(ex.trace_message())
-            
+            self.assertTrue(1==2)
 
 
 if __name__ == "__main__":

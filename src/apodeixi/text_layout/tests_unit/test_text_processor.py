@@ -35,7 +35,8 @@ class Test_TextProcessor(ApodeixiUnitTest):
                 with open(self.expected_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'r') as file:
                     expected[w]     = file.read()
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            print(ex.trace_message())
+            self.assertTrue(1==2)                                                                                        
 
         self.assertEqual(outputs, expected)
 

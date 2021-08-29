@@ -71,7 +71,8 @@ class Test_BigRocksEstimate(ApodeixiUnitTest):
                 file            .write(explanations_nice)
 
         except ApodeixiError as ex:
-            print(ex.trace_message())                                                                                        
+            print(ex.trace_message())
+            self.assertTrue(1==2)                                                                                        
 
         self.assertTrue(len(all_manifests_dict) == NB_MANIFESTS_EXPECTED)
         for manifest_nb in all_manifests_dict.keys():

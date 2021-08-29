@@ -67,6 +67,7 @@ class Test_DataFrameComparator(ApodeixiUnitTest):
 
         except ApodeixiError as ex:
             print(ex.trace_message())
+            self.assertTrue(1==2)
 
 if __name__ == "__main__":
     # execute only if run as a script
