@@ -358,7 +358,11 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         the giving posting api
         '''
         if not posting_api in self.supported_apis(parent_trace):
-            raise ApodeixiError(parent_trace, "Posting API '" + str(posting_api) + "' is not supported.")
+            if posting_api.endswith(".xlsx"):
+                extra_msg = " Probably you forgot to remove the '.xlsx' at the end, to get the proper API domain?"
+            else:
+                extra_msg = ""
+            raise ApodeixiError(parent_trace, "Posting API '" + str(posting_api) + "' is not supported." + extra_msg)
         klass                           = self.filing_rules[posting_api]
         return klass
 

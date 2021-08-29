@@ -119,8 +119,21 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         '''
         return self.input_data + "/" + self.scenario() + "/" + posting_filename
 
-    def skeleton_test(self, parent_trace, cli_command_list, output_cleanining_lambda):
+    # Used to determine how frequently to check the contents of the environment
+    PER_COMMAND                                 = "PER_COMMAND"
+    ONLY_AT_END                                 = "ONLY_AT_END"
+    NEVER                                       = "NEVER"
+    def skeleton_test(self, parent_trace, cli_command_list, output_cleanining_lambda,
+                                    when_to_check_environment=PER_COMMAND):
+        '''
+        @param when_to_check_environment A string enum, that determines how frequently to check the contents
+                    of the environment as the CLI commands execulte. Possible values:
 
+                    * CLI_Test_Skeleton.PER_COMMAND
+                    * CLI_Test_Skeleton.ONLY_AT_END
+                    * CLI_Test_Skeleton.NEVER
+        '''
+        ME                                      = CLI_Test_Skeleton
         try:
             my_trace                            = self.trace_environment(parent_trace, "Isolating test case")
             if self.provisioned_env_name == None:
@@ -129,7 +142,8 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                 # an isolated environment, which was in self.setUp. See comments there. The environment provisioned
                 # here is a child of the one configured in self.setUp, and is fo
                 self.provisionIsolatedEnvironment(my_trace)
-                self.check_environment_contents(my_trace)
+                if when_to_check_environment == ME.PER_COMMAND:
+                    self.check_environment_contents(my_trace)
                 self.provisioned_env_name       = self.stack().store().current_environment(my_trace).name(my_trace)
             else:
                 self.stack().store().activate(my_trace, self.provisioned_env_name)
@@ -218,25 +232,12 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                                             cli_output          = output_to_display, 
                                             cli_command         = " ".join(argv_without_arguments) # Like post --dry-run
                                             )
-                    if self.sandbox != None:
-                        # In this case, the CLI is not running in this test's provisioned environment, but in
-                        # a subenvironment that the CLI itself created (the sandbox), a child of the base environment.
-                        # Since we want to display the contents of the environment in which the CLI ran, 
-                        # we need to temporarily switch from our test environment to the sandbox, and then revert
-                        # 
-                        provisioned_env_name    = self.stack().store().current_environment(loop_trace).name(loop_trace)
-                        self.stack().store().activate(loop_trace, self.sandbox)
-                        self.check_environment_contents(loop_trace)
-                        # Now restore environment to what we are using in the test
-                        self.stack().store().activate(loop_trace, provisioned_env_name)
-                    else:
-                        # In this case, the CLI is running in this store's base environment, so temporarily switch
-                        # to the base environment by deactivating the current "Test Runner" environment
-                        provisioned_env_name    = self.stack().store().current_environment(loop_trace).name(loop_trace)
-                        self.stack().store().deactivate(loop_trace) # This puts us in the base environment
-                        self.check_environment_contents(loop_trace)
-                        # Now restore environment to what we are using in the test
-                        self.stack().store().activate(loop_trace, provisioned_env_name)
+                    if when_to_check_environment == ME.PER_COMMAND:
+                        self._check_CLI_environment(loop_trace)
+
+            if when_to_check_environment == ME.ONLY_AT_END:
+                # We display the consolidated effect of all commands in the script onto the KnowledgeBase used by the CLI
+                self._check_CLI_environment(my_trace)
 
             my_trace                = self.trace_environment(parent_trace, "Deactivating environment")
             self.stack().store().deactivate(my_trace)
@@ -244,6 +245,31 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         except ApodeixiError as ex:
             print(ex.trace_message()) 
             self.assertTrue(1==2)
+
+    def _check_CLI_environment(self, parent_trace):
+        '''
+        Creates regression test output for the contents of the KnowledgeBase environment to which the CLI is writing
+        '''
+        if self.sandbox != None:
+            # In this case, the CLI is not running in this test's provisioned environment, but in
+            # a subenvironment that the CLI itself created (the sandbox), a child of the base environment.
+            # Since we want to display the contents of the environment in which the CLI ran, 
+            # we need to temporarily switch from our test environment to the sandbox, and then revert
+            # 
+            provisioned_env_name    = self.stack().store().current_environment(parent_trace).name(parent_trace)
+            self.stack().store().activate(parent_trace, self.sandbox)
+            self.check_environment_contents(parent_trace)
+            # Now restore environment to what we are using in the test
+            self.stack().store().activate(parent_trace, provisioned_env_name)
+        else:
+            # In this case, the CLI is running in this store's base environment, so temporarily switch
+            # to the base environment by deactivating the current "Test Runner" environment
+            provisioned_env_name    = self.stack().store().current_environment(parent_trace).name(parent_trace)
+            self.stack().store().deactivate(parent_trace) # This puts us in the base environment
+            self.check_environment_contents(parent_trace)
+            # Now restore environment to what we are using in the test
+            self.stack().store().activate(parent_trace, provisioned_env_name)
+
 
     def check_cli_output(self, parent_trace, cli_output, cli_command):
         self._compare_to_expected_txt(  parent_trace        = parent_trace,

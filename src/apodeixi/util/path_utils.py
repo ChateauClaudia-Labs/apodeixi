@@ -168,7 +168,7 @@ class PathUtils():
             for line in lines:
                 linux_line                                          = self.to_linux(line)
                 if TEST_DB_ROOT != None and self.is_parent(parent_trace, parent_dir=TEST_DB_ROOT, path=line):
-                    tokens                                          = linux_line.split(KB_ROOT)
+                    tokens                                          = linux_line.split(TEST_DB_ROOT)
                     masked_path                                     = '<TEST DB ROOT>' + tokens[-1]
                     cleaned_lines.append(masked_path)
                 elif self.is_parent(parent_trace, parent_dir=KB_ROOT, path=line):

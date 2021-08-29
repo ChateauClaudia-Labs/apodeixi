@@ -141,7 +141,8 @@ class ColumnWidthCalculator:
         analysis_df[NEXT_WIDTH]    = analysis_df.apply(_new_val(column_to_resize, PRIOR_WIDTH, width_val), 
                                                               axis=1)
         HEIGHT_ESTIMATOR = ColumnWidthCalculator._estimate_nb_lines
-        analysis_df[NEXT_NB_LINES] = analysis_df.apply(HEIGHT_ESTIMATOR(column_with_widths= NEXT_WIDTH), 
+        analysis_df[NEXT_NB_LINES] = analysis_df.apply(HEIGHT_ESTIMATOR(parent_trace=parent_trace,
+                                                                        column_with_widths= NEXT_WIDTH), 
                                                               axis=1)       
        
     def _scenarioWidthColumn(scenario):
@@ -149,7 +150,7 @@ class ColumnWidthCalculator:
     def _scenarioNbLinesColumn(scenario):
         return scenario + ' Nb of lines'
 
-    def _estimate_nb_lines(column_with_widths):
+    def _estimate_nb_lines(parent_trace, column_with_widths):
         '''
         Helper method that returns an anonymous function that can be used to estimate
         how many lines it takes to express the text for a column in self.data_df.
@@ -178,11 +179,13 @@ class ColumnWidthCalculator:
             # A list, one per row in data_df, for this column of data_df
             list_of_word_lists = row_in_working_df["Words per row"] 
             
-            return ColumnWidthCalculator._whatif_nb_lines(list_of_word_lists, proposed_width)
+            return ColumnWidthCalculator._whatif_nb_lines(  parent_trace            = parent_trace, 
+                                                            list_of_word_lists      = list_of_word_lists, 
+                                                            proposed_width          = proposed_width)
 
         return estimate_row
         
-    def _whatif_nb_lines(list_of_word_lists, proposed_width):
+    def _whatif_nb_lines(parent_trace, list_of_word_lists, proposed_width):
         '''
         Helper method that returns an integer, corresponding to the maximum number of lines needed to
         represent each of the word lists in list_of_word_lists within the proposed_width
@@ -192,7 +195,7 @@ class ColumnWidthCalculator:
             #word_list = row_in_analysis_df['']
             processor = TextProcessor(proposed_width)
             text      = ' '.join(word_list)
-            processor.processText(text)
+            processor.processText(parent_trace=parent_trace, text=text)
             nb_lines_list.append(len(processor.lines))
 
         # So in the event that column is set to a width of `width`, the maximal number of lines in
@@ -411,7 +414,7 @@ class _ScenarioGenerator():
                 text                             = ' '.join(word_list)
                 # Find how many lines this used to take
                 processor                        = TextProcessor(prior_width)
-                processor.processText(text)
+                processor.processText(parent_trace=self.parent_trace, text=text)
                 prior_nb_lines                   = len(processor.lines)
                 
                 if prior_nb_lines >= self.row_height_limit:
@@ -448,7 +451,9 @@ class _ScenarioGenerator():
                     w_df               = self.working_df
                     list_of_word_lists = w_df[w_df['Column'] ==column].iloc[0]['Words per row']
                     
-                    max_height = HEIGHT_ESTIMATOR(list_of_word_lists, best_found)
+                    max_height = HEIGHT_ESTIMATOR(  parent_trace            = self.parent_trace, 
+                                                    list_of_word_lists      = list_of_word_lists, 
+                                                    proposed_width          = best_found)
 
                     if max_height <= self.row_height_limit:
                         candidates.append(column)
@@ -489,7 +494,7 @@ class _ScenarioGenerator():
         while what_if_width > longest_word_length: # Keep shrinking width until it is optimal
             next_what_if_width    = what_if_width - 1
             processor             = TextProcessor(next_what_if_width)
-            processor.processText(text)
+            processor.processText(parent_trace=self.parent_trace, text=text)
             next_what_if_nb_lines = len(processor.lines)
             if next_what_if_nb_lines > prior_nb_lines + 1: 
                 # Reached an invalid option - grew line nb too much, so exit loop and use last what if

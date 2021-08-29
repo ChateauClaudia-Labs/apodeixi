@@ -48,7 +48,8 @@ class StaticDataValidator():
         in the label are for static data that is known to exist in the 
         KnowledgeBase store for the given namespace.
 
-        @param label    An object inheriting from PostingLabel with property called "product"
+        @param label    An object inheriting from PostingLabel with properties called 'journey',
+                        'Scoring Cycle', and 'Scenario'
 
         '''
         JOURNEY_COL                     = 'journey'
@@ -136,8 +137,8 @@ class StaticDataValidator():
         my_trace                    = parent_trace.doing("Checking if '" + str(alleged_product) 
                                                             + "' appears in product static data")
         for row in contents_df.iterrows():
-            prod_code               = row[1][PRODUCT_COL]
-            alias_list              = row[1][ALIAS_COL].split(",")
+            prod_code               = row[1][PRODUCT_COL].strip()
+            alias_list              = [alias.strip() for alias in row[1][ALIAS_COL].split(",")]
             if alleged_product == prod_code or alleged_product in alias_list:
                 return prod_code
 

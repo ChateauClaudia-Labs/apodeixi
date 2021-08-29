@@ -23,10 +23,12 @@ class Test_TextProcessor(ApodeixiUnitTest):
         widths      = [20, 40, 80] # Units of width is: 1 character is 1 unit of width
         outputs     = {} # Key is a width, and output is an array of strings corresponding to laying out TEXT within that width
         expected    = {}
+        root_trace          = FunctionalTrace(None, path_mask=None).doing("Testing text processing with a small amount of text")
         try:
             for w in widths:
-                processor           = TextProcessor(w)
-                processor           .processText(TEXT)
+                my_trace            = root_trace.doing("Invoking text processonr for width=" + str(w))
+                processor           = TextProcessor(line_width=w)
+                processor           .processText(parent_trace=my_trace, text=TEXT)
                 outputs[w]          = '\n'.join(processor.lines)
                 with open(self.output_data + '/'  'test_small_text_' + str(w) + '_OUTPUT.txt', 'w') as file:
                     file            .write(outputs[w])

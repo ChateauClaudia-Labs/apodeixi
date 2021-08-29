@@ -1,5 +1,7 @@
 import re                                   as _re
 
+from apodeixi.util.a6i_error                import ApodeixiError
+
 class TextProcessor(): # Represents a list of text lines being written to, tracking how much remains in current line
     def __init__(self, line_width):
         self.line_width       = line_width
@@ -8,16 +10,22 @@ class TextProcessor(): # Represents a list of text lines being written to, track
         self.lines            = ['']
         self.current_line_idx = 0
     
-    def processText(self, text):
+    def processText(self, parent_trace, text):
         '''
         Processes the `text` appending into the lines of this object (self.lines)
         '''
-        tokens        = _re.split(r"\s", str(text).strip())
-        gen           = TextProcessor._WorkGenerator(word_list   = tokens, 
-                                                line_width  = self.line_width, 
-                                                text_lines  = self)
-        for task in gen:
-            gen.lines._consume(task) # Equivalent to self._consume(task)
+        try:
+            tokens        = _re.split(r"\s", str(text).strip())
+            gen           = TextProcessor._WorkGenerator(word_list   = tokens, 
+                                                    line_width  = self.line_width, 
+                                                    text_lines  = self)
+            for task in gen:
+                gen.lines._consume(task) # Equivalent to self._consume(task)
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Problem with justification algorithm for given text",
+                                        data = {"text":     str(text),
+                                                "error":    str(ex)})
+
     
     def _consume(self, fit_word): # A 'fit_word' is one not exceeding the line_width. TODO: raise Exception if not fit
         available = self.line_width - self.consumed
@@ -44,7 +52,13 @@ class TextProcessor(): # Represents a list of text lines being written to, track
         if len(word) <= self.line_width:
             return [word, '']
         else:
-            return [word[0:self.line_width], word[self.line_width:len(word)]]
+            #GOTCHA
+            #   Code below will crash if we use self.line_width as an index, since it sometimes is a float,
+            # and float are not allowed as indices.
+            # For example, it would crash with self.line_width=23.0 and word="Operations-Optimizations"
+            # So convert to an int
+            LW_as_int           = int(self.line_width)
+            return [word[0:LW_as_int], word[LW_as_int:len(word)]]
         
     class _WorkGenerator(): # A word may lead to "multiple works" if we have to split it
         '''
