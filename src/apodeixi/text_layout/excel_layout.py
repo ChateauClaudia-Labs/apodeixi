@@ -161,20 +161,56 @@ class NumFormats():
         This is important since rendered values (such as "4,500" may require more characters than the value
         itself "4500")
         '''
+        def _format_as_int(parent_trace, x):
+            try:
+                # Avoid casting problems to float if x is blank, so make it a 0 if needed
+                if len(str(x).strip())==0:
+                    x = 0
+                return "{:,.0f}".format(float(x)) # Render 4500 as 4,500
+            except Exception as ex:
+                raise ApodeixiError(parent_trace, "Formatter failed when converting '" + str(x) + "' to float",
+                                    data = {"error": str(ex)})
+        def _format_as_double(parent_trace, x):
+            try:
+                # Avoid casting problems to float if x is blank, so make it a 0 if needed
+                if len(str(x).strip())==0:
+                    x = 0
+                return "{:,.2f}".format(float(x)) # Render 4500 as 4,500.00
+            except Exception as ex:
+                raise ApodeixiError(parent_trace, "Formatter failed when converting '" + str(x) + "' to float",
+                                    data = {"error": str(ex)})
+        def _format_as_date(parent_trace, x):
+            try:
+                # Render dates like "August 21, 20220"
+                return _datetime.datetime.strftime(x, "%B %d, %Y")
+            except Exception as ex:
+                raise ApodeixiError(parent_trace, "Formatter failed when converting '" + str(x) + "' to a date",
+                                    data = {"error": str(ex)})
+        def _format_as_text(parent_trace, x):
+            try:
+                return str(x)
+            except Exception as ex:
+                raise ApodeixiError(parent_trace, "Formatter failed when converting input to a string",
+                                    data = {"error": str(ex)})
+
         output_dict                 = {}
         for col in xl_formatters_dict:
             xl_fmt                  = xl_formatters_dict[col]
             if xl_fmt == NumFormats.INT: 
-                formatter           = lambda x: "{:,.0f}".format(float(x)) # Render 4500 as 4,500
+                #formatter           = lambda x: "{:,.0f}".format(float(x)) # Render 4500 as 4,500
+                formatter           = _format_as_int
                 output_dict[col]    = formatter
             elif xl_fmt == NumFormats.DOUBLE:
-                formatter           = lambda x: "{:,.2f}".format(float(x)) # Render 4500 as 4,500.00
+                #formatter           = lambda x: "{:,.2f}".format(float(x)) # Render 4500 as 4,500.00
+                formatter           = _format_as_double
                 output_dict[col]    = formatter
             elif xl_fmt == NumFormats.DATE: # Render dates like "August 21, 20220"
-                formatter           = lambda x: _datetime.datetime.strftime(x, "%B %d, %Y")
+                #formatter           = lambda x: _datetime.datetime.strftime(x, "%B %d, %Y")
+                formatter           = _format_as_date
                 output_dict[col]    = formatter
             elif xl_fmt == NumFormats.TXT:
-                formatter           = str
+                #formatter           = str
+                formatter           = _format_as_text
                 output_dict[col]    = formatter
 
         return output_dict
@@ -597,6 +633,10 @@ class ManifestXLWriteConfig(AsExcel_Config):
         '''
         displayable_cols    = [col for col in content_df.columns if not col in self.hidden_cols]
         displayable_df      = content_df[displayable_cols]
+        
+        # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
+        # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
+        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
 
         self._buildLayout(parent_trace, content_df)
 
@@ -792,6 +832,10 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         if col_to_use != None and col_to_use in displayable_df.columns:
             displayable_df = displayable_df.drop(col_to_use, axis =1)
 
+        # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
+        # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
+        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
+
         return displayable_df
 
 
@@ -965,6 +1009,10 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
         '''
         displayable_cols    = [col for col in content_df.columns if not col in self.hidden_cols]
         displayable_df      = content_df[displayable_cols]
+
+        # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
+        # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
+        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
 
         self._buildLayout(parent_trace, content_df)
 

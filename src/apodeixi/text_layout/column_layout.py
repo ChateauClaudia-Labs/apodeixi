@@ -212,15 +212,13 @@ class ColumnWidthCalculator:
          
         if column in self.column_formatters.keys():
             formatter       = self.column_formatters[column]
-            try:
-                rendered_tokens   = self.data_df[column].apply(lambda x: [formatter(x)]) # A list of 1 formatter string per row
-                #rendered_tokens = [formatter(token) for token in tokens_per_column]
-            except Exception as ex:
-                raise ApodeixiError(my_trace, "Encountered problem applying formatter in column '" + str(column) + "'",
-                                    data = {"error": str(ex)})
+            #try:
+            rendered_tokens   = self.data_df[column].apply(lambda x: [formatter(my_trace, x)]) # A list of 1 formatter string per row
+            #except Exception as ex:
+            #    raise ApodeixiError(my_trace, "Encountered problem applying formatter in column '" + str(column) + "'",
+            #                        data = {"error": str(ex)})
         else:
             rendered_tokens   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
-            #rendered_tokens = tokens_per_column
 
         return rendered_tokens
     
@@ -250,33 +248,58 @@ class ColumnWidthCalculator:
         else:
             return default_answer
     
-    def _1l_widths_per_row(self, column):
+    def _1l_widths_per_row(self, parent_trace, column):
         '''
-        Helper method that returns a Series of the widths for each row in a column, if a row has only 1 line
+        Helper method that returns a list of floats, corresponding to the widths for each row in a column, 
+        if a row has only 1 line
         '''
         if column in self.column_formatters.keys():
             formatter       = self.column_formatters[column]
         else:
-            formatter       = str  # Just cast to a string, if no formatter was configured
-        return self.data_df[column].apply(lambda x: len(formatter(x)))
+            def _cast_to_str(parent_trace, x):
+                return str(x)
+            formatter       = _cast_to_str  # Just cast to a string, if no formatter was configured
+
+        # The following code is more verbose than doing something like
+        #
+        #   return self.data_df[column].apply(lambda x: len(formatter(parent_trace, x)))
+        #
+        # but we do it this way so that we can add tracing information row-by-row, so that when errors
+        # occur we can tell the caller what row was the problem
+        result              = []
+        for row in self.data_df.iterrows():
+            loop_trace = parent_trace.doing("Computing the width for a row",
+                                            data = {"column":   str(column),
+                                                    "row number in dataset": str(row[0]),
+                                                    "row data": str(row[1])})
+            # We format the row data so that we measure its length the way it would be displayed in Excel
+            # to the user. That way our width computations match the width the user would experience
+            width       = len(formatter(loop_trace, row[1][column]))
+            result.append(width)
+        return result
+                                            
 
     def _max_1l_width(self, parent_trace, column):
         '''
         Helper function that returns the width of the widest row for a column if the row has only 1 line
         '''
+        my_trace            = parent_trace.doing("Computing width of largest single-line row for column",
+                                            data = {"column": str(column)})
         header_width      = len(str(column))
-        return max(header_width, max(self._1l_widths_per_row(column)))
+        return max(header_width, max(self._1l_widths_per_row(my_trace, column)))
         
     def _analyze_widths(self, parent_trace):
+
+        my_trace                = parent_trace.doing("Computing width stats for all DataFrame columns")
         
-        columns       = self.data_df.columns
+        columns                 = self.data_df.columns
         
-        max_1l_widths         = [self._max_1l_width       (parent_trace, col) for col in columns]  
-        words_per_row         = [self._words_per_row      (parent_trace, col) for col in columns]
-        all_words             = [self._all_words          (parent_trace, col) for col in columns]
-        longest_words         = [self._longest_word       (parent_trace, col) for col in columns]
-        longest_word_lengths  = [len(w) for w in longest_words]
-        widths_df             = _pd.DataFrame({'Column':                columns, 
+        max_1l_widths           = [self._max_1l_width       (my_trace, col) for col in columns]  
+        words_per_row           = [self._words_per_row      (my_trace, col) for col in columns]
+        all_words               = [self._all_words          (my_trace, col) for col in columns]
+        longest_words           = [self._longest_word       (my_trace, col) for col in columns]
+        longest_word_lengths    = [len(w) for w in longest_words]
+        widths_df               = _pd.DataFrame({'Column':                columns, 
                                               'Max 1-line width':      max_1l_widths,
                                               'Longest word':          longest_words,
                                               'Longest word length':   longest_word_lengths,

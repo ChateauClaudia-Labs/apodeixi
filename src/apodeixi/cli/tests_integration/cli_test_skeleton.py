@@ -1,5 +1,6 @@
 import os                                               as _os 
 import yaml                                             as _yaml
+import click
 
 from apodeixi.cli.cli_utils import CLI_Utils
 from click.testing                                      import CliRunner
@@ -184,7 +185,13 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                     loop_trace                  = self.trace_environment(my_trace, 
                                                                             "Executing '" + " ".join(command_argv) + "'")
                     result                      = runner.invoke(apo_cli, command_argv)
-                    assert result.exit_code == 0
+                    if result.exit_code != 0:
+                        raise ApodeixiError(loop_trace, "CLI command failed",
+                                            data = {"CLI exit code":    str(result.exit_code),
+                                                    "CLI exception":    str(result.exc_info),
+                                                    "CLI output":       str(result.output),
+                                                    "CLI traceback":    str(result.exc_info)})
+                    #assert result.exit_code == 0
 
                     sandbox                     = CLI_Utils().infer_sandbox_name(loop_trace, result.output)
                     if sandbox != None:
@@ -243,7 +250,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
             self.stack().store().deactivate(my_trace)
 
         except ApodeixiError as ex:
-            print(ex.trace_message()) 
+            click.echo(ex.trace_message())
             self.assertTrue(1==2)
 
     def _check_CLI_environment(self, parent_trace):

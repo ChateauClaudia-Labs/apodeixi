@@ -685,8 +685,20 @@ class SkeletonController(PostingController):
                                                         many_to_one             = many_to_one)
             if ref_uid == None:
                 row_nb                  = self.link_table.row_from_uid(loop_trace, kind, e_uid)
+
+                # Try to get a more user-friendly message to the user, if possible
+                try:
+                    manifest_nb             = self.manifest_nb_from_kind(loop_trace, refKind)
+                    excel_range             = self.show_your_work.get_excel_range(loop_trace, manifest_nb)
+                    excel_row_nb            = ExcelTableReader.df_2_xl_row( parent_trace    = loop_trace, 
+                                                                            df_row_nb       = row_nb, 
+                                                                            excel_range     = excel_range) 
+                    row_msg                 = " for Excel row #" + str(excel_row_nb)
+                except ApodeixiError as ex:
+                    row_msg                 = " for data item #" + str(row_nb + 1) + " (counting from the header)"
+
                 msg                     = "Problem linking " + str(kind) + " to " + str(refKind) \
-                                            + " for row #" + str(row_nb) + " in the " + str(kind) + " content." \
+                                            + row_msg + " in the " + str(kind) + " content." \
                                             + "\nSeems like you didn't populate the corresponding " + str(refKind) \
                                             + " content? At least none could be found in that row"
                 raise ApodeixiError(loop_trace, msg)

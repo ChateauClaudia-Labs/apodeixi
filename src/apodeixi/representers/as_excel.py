@@ -313,6 +313,7 @@ class ManifestRepresenter:
                             cases as described above.
         @param excel_col An int. Normally this should be the same as layout_x, except in cases special
                             cases as described above.
+        @param num_format A string for an Excel formatter that is supported by the Apodeixi NumFormats class.
         '''
         '''
         if layout.is_transposed:
@@ -323,6 +324,7 @@ class ManifestRepresenter:
             xl_y            = excel_row
         '''
         clean_val   = DataFrameUtils().clean(val)
+
         if excel_row == None:
             raise ApodeixiError(parent_trace, "Can't write value to a null Excel row",
                                             data = {"val":              str(clean_val),
@@ -341,6 +343,14 @@ class ManifestRepresenter:
             fmt_dict['num_format'] = num_format
 
         fmt             = workbook.add_format(fmt_dict)
+
+        # clean_val might be an empty string if it was NaN or something like that. However, even an empty string
+        # can cause problems later in the processing if the column in question is supposed to be a number,
+        # especially if the column is associated to a formula that sums all the values of the column. In that
+        # situation  we will get errors like "can't add an 'int' and a 'str'".
+        # So if the column is for numbers, and if clean_val is the empty string, make the clean value a 0
+        if type(clean_val) == str and len(clean_val.strip()) == 0 and (num_format == NumFormats.INT or num_format == NumFormats.DOUBLE):
+            clean_val   = 0
         
         try:
             worksheet.write(excel_row, excel_col, clean_val, fmt)
@@ -381,6 +391,22 @@ class ManifestRepresenter:
         if True:
 
             displayable_df      = xlw_config.build_displayable_df(parent_trace, content_df, representer=self)
+
+            inner_trace                = parent_trace.doing("Cleaning up numerical columns")
+            # If we find blanks in a numerical column, make them 0. This prevents errors when doing formulas,
+            # such as a sum over the column, because the formula logic might involve DataFrame sums, and that
+            # will error out if Pandas is asked to add a blank (i.e., an empty string) to a number. So turn
+            # blanks into 0 for numerical columns
+            for row in displayable_df.iterrows():
+                for col in displayable_df.columns:
+                    if col in xlw_config.num_formats.keys():
+                        num_format      = xlw_config.num_formats[col]
+                        if num_format == NumFormats.INT or num_format == NumFormats.DOUBLE:
+
+                            val             = row[1][col]
+                            if type(val) == str and len(val.strip()) == 0:
+                                displayable_df.loc[row[0],col] = 0
+
 
             layout.validate(my_trace)
             span                = layout.getSpan(my_trace) # Useful to carry around for debugging
@@ -577,9 +603,10 @@ class ManifestRepresenter:
                 column_formatters       = NumFormats.xl_to_txt_formatters(config.num_formats)
                 if column in column_formatters.keys():
                     formatter           = column_formatters[column]
+                    total_txt           = formatter(my_trace, total)
                 else:
-                    formatter           = str
-                total_txt               = formatter(total)
+                    total_txt           = str(total)
+                
                 new_width               = max(len(total_txt), column_width)
                 self._set_column_width(my_trace, worksheet, last_x, new_width, config.layout)
 
@@ -609,7 +636,13 @@ class ManifestRepresenter:
                 # To correctly set the width of the column where we display cumulative sums, we
                 # will need to use the ColumnWidthCalculator on a "transient dataframe" where we place the cumulative
                 # sum and try to format it the same way as the column we are summing
-                cumsum_df               = data_df[column].cumsum().to_frame()
+                try:
+                    cumsum_df               = data_df[column].cumsum().to_frame()
+                except Exception as ex:
+                    raise ApodeixiError(my_trace, "Encountered problem summing the values in a DataFrame column while "
+                                                + "adding a cumulative sum formula in Excel",
+                                                    data = {"column": str(column),
+                                                            "error":    str(ex)})
 
                 # NB: cumsum_df will have a single column, also called `column`, as in data_df. So the same
                 # column formatters used for data_df will work for cumsum_df
