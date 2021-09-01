@@ -452,9 +452,31 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
         sub_env_name                = name.strip()
         dir_to_remove               = envs_dir + "/" + sub_env_name
+        my_trace                    = parent_trace.doing("Attempting to remove an environment",
+                                                    data = {"environment name": str(name),
+                                                            "environment fullpath": str(dir_to_remove)})
         try:
             if _os.path.isdir(dir_to_remove):
-                _shutil.rmtree(dir_to_remove)
+
+                # shutil.rmtree can behave oddly. It appears that in some computers it might refuse to remove
+                # an empty directory ~10% of the time. While it has a flag called 'ignore_errors', setting it 
+                # would not help us because we absolutely need to delete the directory - if we can't, we must
+                # allow the exception to be propagated.
+                # So as a workaround, we implement a limited number of re-tries, to reduce the probability 
+                # of the spurious issue
+                NUMBER_OF_RETRIES       = 10
+                nb_attempts_left        = NUMBER_OF_RETRIES
+                while nb_attempts_left > 0:
+                    try:
+                        _shutil.rmtree(dir_to_remove) #, ignore_errors=True)
+                    except Exception as ex:
+                        if "The directory is not empty" in str(ex) or "Access is denied" in str(ex):
+                            nb_attempts_left    -= 1
+                            continue
+                        else:
+                            raise ex
+                    break # If there was no exception, then delete was successful, so don't re-try (that would error out!)
+
                 # Also remove it as a child in the parent, lest later on when the parent is removed
                 # it will think this child is still around and will try to remove a non-existent environment, and error out
                 # As per earlier comment, we also don't error out if env_to_remove is None, since it might have been
@@ -467,8 +489,15 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                     x=1 # DUMMY statement, just to stop debugger here
             else:
                 return -1
+        except PermissionError as ex:
+            raise ApodeixiError(my_trace, "Was not allowed to remove a directory because of a permission error. "
+                                            + " Perhaps you have opened a file in that directory?",
+                                        data = {"dir_to_remove": str(dir_to_remove),
+                                                "error":         str(ex)},
+                                        origination = {'concrete class': str(self.__class__.__name__), 
+                                                                        'signaled_from': __file__})
         except Exception as ex:
-            raise ApodeixiError(parent_trace, "Encountered a problem deleting environment",
+            raise ApodeixiError(my_trace, "Encountered a problem deleting environment",
                                 data = {"environment name": name, "exception": ex})
         
     def _validate_environment_name(self, parent_trace, name):
