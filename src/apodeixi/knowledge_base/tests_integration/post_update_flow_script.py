@@ -133,7 +133,8 @@ class Post_and_Update_Script():
                 collab_area_folder          = clientURL + "/" + excel_relative_path
                 collab_area_path            = collab_area_folder + "/" + excel_file
                 PathUtils().create_path_if_needed(my_trace, collab_area_folder)
-                _shutil.copy2(src = input_path, dst = collab_area_path)
+                PathUtils().copy_file(parent_trace, input_path, collab_area_path)
+                
                 self.myTest.check_environment_contents(my_trace)
 
             my_trace                        = self.myTest.trace_environment(script_trace, "Calling 'postByFile' API")

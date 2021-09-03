@@ -83,7 +83,8 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
             to_path                 = dst_postings_root + "/" + relative_path
             to_dir                  = _os.path.dirname(to_path)
             PathUtils().create_path_if_needed(parent_trace, to_dir)
-            _shutil.copy2(src = from_path, dst = to_dir)
+            PathUtils().copy_file(parent_trace, from_path, to_dir)
+
             if parent_events != None:
                 parent_events.remember_posting_write(relative_path)
 
@@ -92,7 +93,8 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
             to_path                 = dst_manifests_root + "/" + relative_path
             to_dir                  = _os.path.dirname(to_path)
             PathUtils().create_path_if_needed(parent_trace, to_dir)
-            _shutil.copy2(src = from_path, dst = to_dir)
+            PathUtils().copy_file(parent_trace, from_path, to_dir)
+
             if parent_events != None:
                 parent_events.remember_manifest_write(relative_path)
 
@@ -106,28 +108,26 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
             #if from_path != to_path: 
                 to_dir                  = _os.path.dirname(to_path)
                 PathUtils().create_path_if_needed(parent_trace, to_dir)
-                _shutil.copy2(src = from_path, dst = to_dir)
+                PathUtils().copy_file(parent_trace, from_path, to_dir)
+
                 if parent_events != None:
                     parent_events.remember_clientURL_write(relative_path)
 
         for relative_path in events.posting_deletes():
             to_path                 = dst_postings_root + "/" + relative_path
-            if _os.path.isfile(to_path):
-                _os.remove(to_path)
+            if 0 == PathUtils().remove_file_if_exists(parent_trace, to_path):
                 if parent_events != None:
                     parent_events.remember_posting_delete(relative_path)
 
         for relative_path in events.manifest_deletes():
             to_path                 = dst_manifests_root + "/" + relative_path
-            if _os.path.isfile(to_path):
-                _os.remove(to_path)
+            if 0 == PathUtils().remove_file_if_exists(parent_trace, to_path):
                 if parent_events != None:
                     parent_events.remember_manifest_deletes(relative_path)
 
         for relative_path in events.clientURL_deletes():
             to_path                 = dst_clientURL_root + "/" + relative_path
-            if _os.path.isfile(to_path):
-                _os.remove(to_path)
+            if 0 == PathUtils().remove_file_if_exists(parent_trace, to_path):
                 if parent_events != None:
                     parent_events.remember_clientURL_deletes(relative_path)
 
@@ -181,7 +181,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                                                 "to_dir":       to_dir})
         if not _os.path.exists(to_dir):
             PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
-        _shutil.copy2(src = from_path, dst = to_dir)
+        PathUtils().copy_file(parent_trace, from_path, to_dir)
 
     def _file_not_found_error(self, ex):
         '''
@@ -414,7 +414,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                                                         data = {"src_path":     from_path,
                                                                 "to_dir":       to_dir})
                         PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
-                    _shutil.copy2(src = from_path, dst = to_dir)
+                    PathUtils().copy_file(parent_trace, from_path, to_dir)
 
         return manifest, manifest_path
 
@@ -510,7 +510,7 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                                                         data = {"src_path":     from_path,
                                                                 "to_dir":       to_dir})
                         PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
-                    _shutil.copy2(src = from_path, dst = to_dir)
+                    PathUtils().copy_file(parent_trace, from_path, to_dir)
 
 
         return manifest, manifest_path

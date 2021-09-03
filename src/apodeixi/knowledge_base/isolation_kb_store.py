@@ -126,10 +126,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             manifests_roodir                        =  kb_rootdir + "/manifests"      
 
             # If missing, create the postings and manifest folders 
-            if not _os.path.exists(postings_rootdir):                                                                                               
-                _os.mkdir(postings_rootdir)
-            if not _os.path.exists(manifests_roodir):
-                _os.mkdir(manifests_roodir)
+            PathUtils().create_path_if_needed(parent_trace, postings_rootdir)
+            PathUtils().create_path_if_needed(parent_trace, manifests_roodir)
 
             # Check nobody previously created these things as files instead of folders by mistake
             if  _os.path.isfile(postings_rootdir):
@@ -404,6 +402,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             IGNORE_LIST         = ["Thumbs.db"]
             dont_copy_list      = [f for f in file_list if f in IGNORE_LIST]
             return dont_copy_list
+
         try:
             _shutil.copytree(   src                 = src_area, 
                                 dst                 = dst_area,
@@ -1006,17 +1005,17 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             relative_path     = relative_path + "/" + filename
             return True, root_path, relative_path
 
-        def _copy(src, dst_root, dst_coords, dst_filename):
+        def _copy(parent_trace, src, dst_root, dst_coords, dst_filename):
             path_tokens                     = dst_coords.path_tokens(parent_trace)
             folder                          = dst_root              + "/" + "/".join(path_tokens)
             relative_path                   = '/'.join(path_tokens) + "/" + dst_filename
             dst                             = folder                + "/" + dst_filename
             PathUtils().create_path_if_needed(parent_trace, folder)
-            _shutil.copy2(  src     = src,
-                            dst     = dst)
+            PathUtils().copy_file(parent_trace, src, dst)
+
             self._remember_posting_write(parent_trace, relative_path)            
 
-        def _conditional_move(src_root, src_relative_path, remove_src, dst_root, dst_coords, dst_filename):
+        def _conditional_move(parent_trace, src_root, src_relative_path, remove_src, dst_root, dst_coords, dst_filename):
             path_tokens                     = dst_coords.path_tokens(parent_trace)
             folder                          = dst_root              + "/" + "/".join(path_tokens)
             relative_path                   = '/'.join(path_tokens) + "/" + dst_filename
@@ -1027,16 +1026,21 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 # Do nothing - just return
                 return
             elif remove_src:
-                _os.rename( src         = src, 
-                            dst         = dst)
+                try:
+                    _os.rename( src         = src, 
+                                dst         = dst)
+                except Exception as ex:
+                    if "The process cannot access the file because it is being used by another process" in str(ex):
+                        raise ApodeixiError(parent_trace, "Couldn't archive posting. Looks like you have the Excel file open?",
+                                                data = {"error": str(ex)})
                 self._remember_posting_write(parent_trace, relative_path)  
                 if self.getPostingsURL(parent_trace) == src_root:
                     self._remember_posting_delete(parent_trace, src_relative_path)
                 elif self.getClientURL(parent_trace) == src_root:
                     self._remember_clientURL_delete(parent_trace, src_relative_path)
             else:
-                _shutil.copy2(  src     = src,
-                                dst     = dst)
+                PathUtils().copy_file(parent_trace, src, dst)
+
                 self._remember_posting_write(parent_trace, relative_path)
 
         check, submitted_root_path, submitted_relative_path         = _relativize_if_possible(
@@ -1053,14 +1057,20 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             )
             
         # Archive
-        _copy(  src                         = submitted_posting_path,
+        my_trace                            = parent_trace.doing("Archiving posted Excel file",
+                                                        data = {"destination": str(filename)})
+        _copy(  parent_trace                = my_trace,
+                src                         = submitted_posting_path,
                 dst_root                    = self.getPostingsURL(parent_trace), 
                 dst_coords                  = archival_folder_coords, 
                 dst_filename                = filename)
 
         # Save posting in official area with official name, possibly removing it from the source
         dst_filename                        = posting_label_handle.createTaggedFilename(parent_trace)
-        _conditional_move(  src_root                    = submitted_root_path,
+        my_trace                            = parent_trace.doing("Saving posted Excel file to KnowledgeBase's excel postings area",
+                                                        data = {"destination": str(dst_filename)})
+        _conditional_move(  parent_trace                = my_trace,
+                            src_root                    = submitted_root_path,
                             src_relative_path           = submitted_relative_path,
                             remove_src                  = check,
                             dst_root                    = self.getPostingsURL(parent_trace), 

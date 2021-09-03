@@ -8,6 +8,7 @@ from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonT
 
 from apodeixi.util.a6i_error                            import FunctionalTrace , ApodeixiError
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
+from apodeixi.util.path_utils                           import PathUtils
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
@@ -516,7 +517,8 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         filename        = _os.path.split(form_path)[1]
         snapshot_name   = self.next_form(filename)
         dst_dir         = self._regression_output_dir(parent_trace)
-        _shutil.copy2(src = form_path, dst = dst_dir + "/" + snapshot_name)
+        PathUtils().copy_file(parent_trace, form_path, dst_dir + "/" + snapshot_name)
+        
 
     def modify_form(self, parent_trace, form_request_response):     
         '''
@@ -537,7 +539,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         form_filename = _os.path.split(form_path)[1]
 
         simulation_filename = self.getInputDataFolder(parent_trace) + "/" + self.scenario() + "/" + self.currentTestName() + "." + form_filename
-        _shutil.copy2(src = simulation_filename, dst = form_path)
+        PathUtils().copy_file(parent_trace, simulation_filename, form_path)
 
     def next_form(self, description=None):
         '''

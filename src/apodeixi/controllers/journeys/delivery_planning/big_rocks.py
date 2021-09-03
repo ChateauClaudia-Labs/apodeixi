@@ -710,6 +710,8 @@ class BigRocksEstimate_Controller(JourneysController):
             _infer(ME._VARIANT,             ["assertion",                   ME._VARIANT             ])
 
             self.controller.variant     = self.variant(parent_trace)
+
+            editable_fields.extend([ME._PLAN_TYPE, ME._VARIANT])
             return editable_fields
 
         def plan_type(self, parent_trace):

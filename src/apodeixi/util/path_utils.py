@@ -1,4 +1,5 @@
 import os                                           as _os
+import shutil                                       as _shutil
 from pathlib                                        import Path
 import time                                         as _time
 import re                                           as _re
@@ -129,7 +130,12 @@ class PathUtils():
         '''
         Helper method to create a directory if it does not alreay exist
         '''
-        Path(path).mkdir(parents=True, exist_ok=True)
+        try:
+            Path(path).mkdir(parents=True, exist_ok=True)
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Problem with creating directory",
+                                                data = {"path":     str(path),
+                                                        "error":    str(ex)})
 
     def get_mask_lambda(self, parent_trace, a6i_config):
         '''
@@ -204,6 +210,36 @@ class PathUtils():
         # The following line does not change the input if we are Linux, but will if we are Windows
         linux_path          = abs_path.replace("\\", "/")
         return linux_path
+
+    def copy_file(self, parent_trace, from_path, to_dir):
+        try:
+            _shutil.copy2(src = from_path, dst = to_dir)
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Got a problem copying a folder structure",
+                                        data = {"source folder":        str(from_path),
+                                                "destination folder":   str(to_dir),
+                                                "error":                str(ex)})
+
+    def remove_file_if_exists(self, parent_trace, path):
+        '''
+        Removes the file at the location `path`, and returns an integer status:
+
+        * Returns 0 if the file was found and it was successfully removed
+        * Returns -1 if there was not file at that path. For example, if it is a path to a directory
+        '''
+        try:
+            if not _os.path.isfile(path):
+                return -1
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Error checking if path provided is a file. Is it really a path?",
+                                            data = {"path": str(path), "error": str(ex)})
+
+        try:
+            _os.remove(path)
+            return 0
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Error attempting to remove file",
+                                            data = {"path": str(path), "error": str(ex)})
 
 class FileMetadata():
     '''

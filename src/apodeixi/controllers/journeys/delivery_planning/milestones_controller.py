@@ -7,7 +7,7 @@ from apodeixi.controllers.util.skeleton_controller                          impo
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label import JourneysPostingLabel
 from apodeixi.controllers.journeys.delivery_planning.journeys_controller    import JourneysController
 
-from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
+from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest, ManifestUtils
 
 from apodeixi.text_layout.excel_layout                                      import AsExcel_Config_Table, \
                                                                                 ManifestXLWriteConfig, \
@@ -345,6 +345,49 @@ class MilestonesController(JourneysController):
             and why the design choice was made to have the calling code invoke this check right after calling label.read()
             '''
             super().checkReferentialIntegrity(parent_trace)
+
+            # In addition to checks made by the parent class, we want to check that references to read-only manifests
+            # are correct. Specifically, we want to make sure that milestones manifest references the most recent version
+            # of the big-rocks manifest, before we accept the submitted Excel for the milestones manifest.
+            #
+            # So we check that the version of the big-rocks in the Posting Label is indeed the most recent version of the
+            # big-rocks.
+            my_trace                        = parent_trace.doing("Checking milestones reference most recent big-rocks")
+            ME                              = MilestonesController
+            manifest_api_name               = self.controller.getManifestAPI().apiName()
+            organization                    = self.organization(my_trace)
+            kb_area                         = self.knowledgeBaseArea(my_trace)
+            FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+            namespace                       = FMT(organization + '.' + kb_area)
+            manifest_name                   = self.controller.manifestNameFromLabel(my_trace, label=self)
+
+            manifest_dict, manifest_path    = self.controller.store.findLatestVersionManifest( 
+                                                                        parent_trace        = my_trace, 
+                                                                        manifest_api_name   = manifest_api_name,
+                                                                        namespace           = namespace, 
+                                                                        name                = manifest_name, 
+                                                                        kind                = ME.REFERENCED_KIND)
+
+            BIG_ROCKS_MANIFEST_NB           = 0
+            referenced_manifest_nb          = BIG_ROCKS_MANIFEST_NB
+            last_version_nb                 = ManifestUtils().get_manifest_version(my_trace, manifest_dict)
+
+            submitted_version_nb            = self.priorVersion(my_trace, referenced_manifest_nb)
+
+            if submitted_version_nb < last_version_nb:
+                raise ApodeixiError(my_trace, "Excel form needs to be refreshed and re-submitted because it does not reference "
+                                    + "the most recent version of the '" + ME.REFERENCED_KIND + "'. Request a new form "
+                                    + "for '" + ME.MY_KIND + "' to reflect the correct version for '" 
+                                    + ME.REFERENCED_KIND + "' and re-apply your changes to that form, and re-submit",
+                                    data = {"version submitted": str(submitted_version_nb),
+                                            "latest version":   str(last_version_nb)})
+            if submitted_version_nb > last_version_nb:
+                raise ApodeixiError(my_trace, "Excel form needs to be refreshed and re-submitted because it references "
+                                    + "a non-existent version of the '" + ME.REFERENCED_KIND + "'. Request a new form "
+                                    + "for '" + ME.MY_KIND + "' to reflect the correct version for '" 
+                                    + ME.REFERENCED_KIND + "' and re-apply your changes to that form, and re-submit",
+                                    data = {"version submitted": str(submitted_version_nb),
+                                            "latest version":   str(last_version_nb)})
 
         def infer(self, parent_trace, manifest_dict, manifest_key):
             '''

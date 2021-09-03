@@ -540,7 +540,7 @@ class SkeletonController(PostingController):
         kind                        = posting_data_handle.kind
 
         organization                = label.organization        (parent_trace)
-        kb_area                     = label.knowledgeBaseArea         (parent_trace)  
+        kb_area                     = label.knowledgeBaseArea   (parent_trace)  
                     
         recorded_by                 = label.recordedBy          (parent_trace)
         estimated_by                = label.estimatedBy         (parent_trace)
@@ -901,6 +901,18 @@ class SkeletonController(PostingController):
         namespace                   = scope.namespace
         subnamespace                = scope.subnamespace
         manifest_name               = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+
+        if namespace == None:
+            raise ApodeixiError(parent_trace, "Can't create Excel template because namespace was not set")
+        if type(namespace) != str:
+            raise ApodeixiError(parent_trace, "Can't create Excel template because namespace is a '"
+                                                + str(type(namespace)) + "'; a string was expected instead")
+
+        tokens                      = namespace.split(".")
+        if len(tokens) != 2:
+            raise ApodeixiError(parent_trace, "Can't create Excel template because namespace is in the wrong format",
+                                        data = {"expected": "<organization>.<Knowledge Base area>",
+                                                "received": str(namespace)})
 
         organization, environment   = namespace.split(".")
         recorded_by                 = "yourname.lastname@your_company.com"
