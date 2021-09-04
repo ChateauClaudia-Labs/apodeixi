@@ -26,23 +26,56 @@ class ManifestAPIVersion():
     
     def apiVersion(self):
         '''
-        Returns a string such as 'capability-hierarchy.kernel.a6i.xlsx', assembled from the attributes of this class.
+        Returns a string such as 'capability-hierarchy.kernel.a6i.io/v1', assembled from the attributes of this class.
         '''
         return self.api.apiName() + '/' + self.version
+
+    def parse(parent_trace, apiVersion):
+        '''
+        Parses an apiVersion string like 'capability-hierarchy.kernel.a6i.io/v1' and strips off the version,
+        returning a ManifestAPIVersion object
+        '''
+        if type(apiVersion) != str:
+            raise ApodeixiError(parent_trace, "Can't build a ManifestAPIVersion object through parsing because `apiVersion` "
+                                                + " was not provided as a string",
+                                                data = {"type(apiVersion":  str(type(apiVersion)),
+                                                        "apiVersion":       str(apiVersion)})
+
+        tokens              = apiVersion.split("/")
+        if len(tokens) != 2:
+            raise ApodeixiError(parent_trace, "Can't build a ManifestAPIVersion object through parsing because `apiVersion` "
+                                                + " is not in the expected format '<api name>/<version>",
+                                                data = {"apiVersion":       str(apiVersion)})
+        apitokens           = tokens[0].split(".")
+        if len(apitokens) != 4:
+            raise ApodeixiError(parent_trace, "Can't build a ManifestAPIVersion object through parsing because `apiVersion` "
+                                                + " is not in the expected format '"
+                                                + "<subdomain>.<domain>.<api_publisher>.<extension>/<version>\n"
+                                                + "For example, something like 'delivery-planning.journeys.a6i.io/v1",
+                                                data = {"apiVersion":       str(apiVersion)})
+
+        api                 = ManifestAPI(  parent_trace    = parent_trace, 
+                                            subdomain       = apitokens[0], 
+                                            domain          = apitokens[1], 
+                                            api_publisher   = apitokens[2],
+                                            extension       = apitokens[3])
+
+        api_version         = ManifestAPIVersion(parent_trace=parent_trace, api=api, version=tokens[1])
+        return api_version
 
 class ManifestAPI():
     '''
     Utility class encapsulating the unique strings name that identify a manifest API. It does not include versioning,
     which is handled by the class `ManifestAPIVersion`
 
-    By an "api name" we mean a string such as 'capability-hierarchy.kernel.a6i.xlsx'.
+    By an "api name" we mean a string such as 'capability-hierarchy.kernel.a6i.io'.
 
     @param parent_trace     A FunctionalTrace object to support Apodeixi's error messages. Recommended usage is for it
                             to express the caller's functional moment.
-    @param domain:          'kernel'                in the example 'capability-hierarchy.kernel.a6i.xlsx/v1a'. 
-    @param subdomain:       'capability-hierarchy'  in the example 'capability-hierarchy.kernel.a6i.xlsx/v1a'
-    @param api_publisher:   'a6i'                   in the example 'capability-hierarchy.kernel.a6i.xlsx/v1a'. 
-    @param extension:       'xlsx'                  in the example 'capability-hierarchy.kernel.a6i.xlsx/v1a'.  
+    @param domain:          'kernel'                in the example 'capability-hierarchy.kernel.a6i.io/v1a'. 
+    @param subdomain:       'capability-hierarchy'  in the example 'capability-hierarchy.kernel.a6i.io/v1a'
+    @param api_publisher:   'a6i'                   in the example 'capability-hierarchy.kernel.a6i.io/v1a'. 
+    @param extension:       'xlsx'                  in the example 'capability-hierarchy.kernel.a6i.io/v1a'.  
                                     Only 'xlsx' and 'io' are supported.
     
     All objects in Apodeixi's core domain model use 'a6i' as the API publisher, but extensions of Apodeixi should use

@@ -919,7 +919,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             
             inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
             #if inferred_handle == manifest_handle: # This looks wrong as it will fail if later we change API version
-            if inferred_handle.equals_up_to_api_version(manifest_handle):
+            if inferred_handle == manifest_handle:
                 matching_filenames.append(filename)
                 matching_manifests.append(manifest_dict)
 

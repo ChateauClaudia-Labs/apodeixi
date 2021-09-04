@@ -13,7 +13,7 @@ from apodeixi.xli.uid_store                                     import UID_Store
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
 from apodeixi.util.formatting_utils                             import StringUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError
-
+from apodeixi.util.dataframe_utils                              import DataFrameUtils
 
 
 class PostingLabelHandle():
@@ -220,12 +220,13 @@ class ManifestUtils():
             raise ApodeixiError(parent_trace, "Can't infer manifest handle because these mandatory fields were absent in the "
                                                 "manifest's metadata: " + str(missed_metadata_subkeys),
                                                 origination = {'signaled_from': __file__})
-
-        handle                  = ManifestHandle(   apiVersion  = manifest_dict[ManifestAPIVersion.API_VERSION],
-                                                    namespace   = metadata_dict[NAMESPACE], 
-                                                    name        = metadata_dict[NAME], 
-                                                    kind        = manifest_dict[KIND],
-                                                    version     = metadata_dict[VERSION])
+        api_version                 = ManifestAPIVersion.parse(parent_trace, manifest_dict[ManifestAPIVersion.API_VERSION])
+        manifest_api                = api_version.api.apiName()
+        handle                      = ManifestHandle(   manifest_api    = manifest_api,
+                                                        namespace       = metadata_dict[NAMESPACE], 
+                                                        name            = metadata_dict[NAME], 
+                                                        kind            = manifest_dict[KIND],
+                                                        version         = metadata_dict[VERSION])
         return handle
 
     def get_manifest_apiversion(self, parent_trace, manifest_dict):
@@ -277,6 +278,158 @@ class ManifestUtils():
         entity                              = entities[0]
         return entity
 
+    def diff_manifest(self, parent_trace, manifest_api_name, namespace, name, kind, version1, version2, store):
+        '''
+        Creates and returns a ManifestDiffResult object that explains what changed with a manifest
+        between `version1` and `version2`.
+
+        The diff is expressed using `version1` as the baseline. For example, the entities listed in the
+        result as "added" are entities that are in `version2` but not `version1`
+
+        @param manifest_api_name  A string, representing the manifest API for the manifest to diff.
+        @param namespace  A string, representing the KnowledgeBase store's namespace containing the manifest to diff.
+        @param name       A string, representing name (within the namespace) under which is filed the manifest to diff
+        @param kind      A string, representing the "object type" in the Apodeixi domain model for the manifest to diff.
+        @param version1         An int, representing the version of the manifest used as a baseline for the comparison
+        @param version2         An int, representing the version of the manifest whose differences to the baseline are returned
+        @param store            The KnowledgeBaseStore instance where the manifest in question is persisted
+
+        '''
+        if type(version1) != int or type(version2) != int:
+            raise ApodeixiError(parent_trace, "Can't compute manifest diff because was provided a non-integer version",
+                                                data = {"type(version1)":   str(type(version1)),
+                                                        "type(version2)":   str(type(version2))})
+
+        manifest_handle1                = ManifestHandle(manifest_api = manifest_api_name, kind=kind, namespace=namespace,
+        name=name, version=version1)
+
+        my_trace                        = parent_trace.doing("Retrieving manifest from KnowledgeBaseStore",
+                                                    data = {"manifest handle": manifest_handle1.display(parent_trace)})
+        manifest_dict, manifest_path    = store.retrieveManifest(my_trace, manifest_handle1)
+
+
+
+        manifest_file                   = _os.path.split(manifest_path)[1]
+
+        my_trace                        = parent_trace.doing("Extracting manifest's content as a DataFrame",
+                                                    data = {"manifest": str(manifest_file)})
+        contents_df, entity_name        = self.extract_manifest_content_as_df(my_trace, manifest_dict, manifest_file,
+                                                                                        abbreviate_uids=False)
+        
+        my_trace                        = parent_trace.doing("Determining the manifest lifecycle event",
+                                                    data = {"manifest": str(manifest_file)})
+
+        entities_added_desc         = ""
+        entities_removed_desc       = ""
+        entities_changed_desc       = ""
+        entities_unchanged_desc     = ""
+
+        my_trace                        = parent_trace.doing("Determining if there's an earlier version for manifest",
+                                                    data = {"manifest": str(manifest_file)})
+        version                         = self.get_manifest_version(my_trace, manifest_dict)
+        if True:
+            # We need to load the prior version of the manifest, but check version is indeed bigger than 1
+            if version <= 1:
+                raise ApodeixiError("Inconsistent post response: claims to have updated manifest, but its version is low",
+                                        data = {"version": str(version), "manifest kind": str(manifest_handle1.kind)})
+
+            inner_trace                 = my_trace.doing("Retrieving prior version of manifest to describe an update lifecycle event")
+            prior_handle                = copy.copy(manifest_handle1)
+            prior_handle.version        = version - 1
+            prior_manifest_dict, prior_manifest_path    = store.retrieveManifest(inner_trace, prior_handle)
+            prior_contents_df, prior_e  = self.extract_manifest_content_as_df(inner_trace, prior_manifest_dict, 
+                                                                                manifest_file, abbreviate_uids=False)
+
+            inner_trace                 = my_trace.doing("Validating updated manifest is consistent with prior version")
+            if prior_e != entity_name:
+                raise ApodeixiError(inner_trace, "Manifest's entity name changed between versions. That is not allowed",
+                                            data = {"new entity":       str(entity_name),
+                                                    "new version":      str(version),
+                                                    "prior entity":     str(prior_e),
+                                                    "prior_version":    str(version-1)})
+            interval_list               = self._infer_intervals(inner_trace, contents_df)
+            prior_interval_list         = self._infer_intervals(inner_trace, prior_contents_df)
+            
+            # Verify that the new version is an extension of the prior one, since Apodeixi only allows adding
+            # new entites *after* previously created entities.
+            if len(prior_interval_list) > len(interval_list):
+                raise ApodeixiError(inner_trace, "Invalid manifest update: can't delete UID columns present in prior manifest")
+            for idx in range(len(prior_interval_list)):
+                prior_interval          = prior_interval_list[idx]
+                interval                = interval_list[idx]
+                #Ensure intervals align by comparing the acronyms, which our helper method put into the entity_name field
+                if prior_interval.entity_name != interval.entity_name:
+                    raise ApodeixiError(inner_trace, "Invalid manifest update: the leaf acronyms don't match in UID columns "
+                                                        + " where a match was expected",
+                                                        data = {"UID column (prior)":     str(prior_interval.columns[0]),
+                                                                "prior acronym":    str(prior_interval.entity_name),
+                                                                "UID column (new)":     str(interval.columns[0]),
+                                                                "new acronym":    str(interval.entity_name)})
+
+            inner_trace                     = my_trace.doing("Computing lifecycle stats",
+                                                        data = {"manifest": str(manifest_file)})
+            added_acronym_counts            = []
+            removed_acronym_counts          = []
+            changed_acronym_counts          = []
+            unchanged_acronym_counts        = []
+
+            # First section: process the intervals that were there before
+            for idx in range(len(prior_interval_list)):
+                prior_interval              = prior_interval_list[idx]
+                interval                    = interval_list[idx]
+                acronym                     = prior_interval.entity_name # We already check it matches interval's
+                loop_trace                  = inner_trace.doing("Counting differences for interval",
+                                                                data = {"prior interval": str(prior_interval.columns),
+                                                                        "new inteval": str(interval.columns)})
+                UID_COLUMN                  = prior_interval.columns[0]
+
+                prior_entities              = DataFrameUtils().safe_unique(loop_trace, prior_contents_df,   UID_COLUMN)
+                entities                    = DataFrameUtils().safe_unique(loop_trace, contents_df,         UID_COLUMN)          
+        
+                entities_added              = [e for e in entities if not e in prior_entities]
+                entities_removed            = [e for e in prior_entities if not e in entities]
+                common_entities             = [e for e in entities if e in prior_entities]
+                entities_changed            = [e for e in common_entities if not self.interval_values_match(
+                                                                                        parent_trace  = loop_trace, 
+                                                                                        entity_uid      = e, 
+                                                                                        interval1       = interval, 
+                                                                                        interval2       = prior_interval,
+                                                                                        contents_df1    = contents_df, 
+                                                                                        contents_df2    = prior_contents_df)]
+                entities_unchanged          = [e for e in common_entities if self.interval_values_match(
+                                                                                        parent_trace  = loop_trace, 
+                                                                                        entity_uid      = e, 
+                                                                                        interval1       = interval, 
+                                                                                        interval2       = prior_interval, 
+                                                                                        contents_df1    = contents_df, 
+                                                                                        contents_df2    = prior_contents_df)]
+                added_acronym_counts.       append(acronym + "(" + str(len(entities_added)) + ")")
+                removed_acronym_counts.     append(acronym + "(" + str(len(entities_removed)) + ")")
+                changed_acronym_counts.     append(acronym + "(" + str(len(entities_changed)) + ")")
+                unchanged_acronym_counts.   append(acronym + "(" + str(len(entities_unchanged)) + ")")
+
+
+            # Now process the rest of the differences: arising from new intervals that were not there before
+            for idx in range(len(prior_interval_list), len(interval_list)):
+                interval                    = interval_list[idx]
+                acronym                     = interval.entity_name 
+                loop_trace                  = inner_trace.doing("Count acronyms for newly added interval",
+                                                                data = {"new inteval": str(interval.columns)})
+                uid_col                     = interval.columns[0]
+                uid_vals                    = [u for u in DataFrameUtils().safe_unique(loop_trace, contents_df, uid_col) 
+                                                        if not StringUtils().is_blank(u)]
+                uid_nb                      = len(uid_vals)
+                added_acronym_counts.       append(acronym + "(" + str(uid_nb) + ")")
+                # Nothing to apped to the other lists for removed, changed, unchanged, since this interval didn't
+                # exist in prior_contents_df
+
+            entities_added_desc         = ", ".join(added_acronym_counts)
+            entities_removed_desc       = ", ".join(removed_acronym_counts)
+            entities_changed_desc       = ", ".join(changed_acronym_counts)
+            entities_unchanged_desc     = ", ".join(unchanged_acronym_counts)    
+
+    
+
     def describe_manifest(self, parent_trace, manifest_handle, store, post_response):
         '''
         Creates and returns a ManifestEventDescription object that succintly describes what happened
@@ -325,7 +478,7 @@ class ManifestUtils():
                 raise ApodeixiError("Inconsistent post response: claims to have updated manifest, but its version is low",
                                         data = {"version": str(version), "manifest kind": str(manifest_handle.kind)})
 
-            inner_trace                 = my_trace.doing("Retrieving prior version of manifest")
+            inner_trace                 = my_trace.doing("Retrieving prior version of manifest to describe an update lifecycle event")
             prior_handle                = copy.copy(manifest_handle)
             prior_handle.version        = version - 1
             prior_manifest_dict, prior_manifest_path    = store.retrieveManifest(inner_trace, prior_handle)
@@ -375,8 +528,8 @@ class ManifestUtils():
                                                                         "new inteval": str(interval.columns)})
                 UID_COLUMN                  = prior_interval.columns[0]
 
-                prior_entities              = list(prior_contents_df[UID_COLUMN].unique())
-                entities                    = list(contents_df[UID_COLUMN].unique())
+                prior_entities              = DataFrameUtils().safe_unique(loop_trace, prior_contents_df, UID_COLUMN)
+                entities                    = DataFrameUtils().safe_unique(loop_trace, contents_df, UID_COLUMN)
             
         
                 entities_added              = [e for e in entities if not e in prior_entities]
@@ -409,7 +562,8 @@ class ManifestUtils():
                 loop_trace                  = inner_trace.doing("Count acronyms for newly added interval",
                                                                 data = {"new inteval": str(interval.columns)})
                 uid_col                     = interval.columns[0]
-                uid_vals                    = [u for u in contents_df[uid_col].unique() if not StringUtils().is_blank(u)]
+                uid_vals                    = [u for u in DataFrameUtils().safe_unique(loop_trace, contents_df, uid_col) 
+                                                        if not StringUtils().is_blank(u)]
                 uid_nb                      = len(uid_vals)
                 added_acronym_counts.       append(acronym + "(" + str(uid_nb) + ")")
                 # Nothing to apped to the other lists for removed, changed, unchanged, since this interval didn't
@@ -420,63 +574,59 @@ class ManifestUtils():
             entities_changed_desc       = ", ".join(changed_acronym_counts)
             entities_unchanged_desc     = ", ".join(unchanged_acronym_counts)
 
-        elif manifest_event == PostResponse.CREATED: 
-            # No prior version exists, so we are creating a manifest for the first time
-            interval_list               = self._infer_intervals(my_trace, contents_df)
-            acronym_counts              = []
-            for interval in interval_list:
-                acronym                 = interval.entity_name
-                uid_col                 = interval.columns[0]
-                uid_vals                = [u for u in contents_df[uid_col].unique() if not StringUtils().is_blank(u)]
-                uid_nb                  = len(uid_vals)
-                acronym_counts.append(acronym + "(" + str(uid_nb) + ")")
-
-            entities_added_desc         = ", ".join(acronym_counts)
-            entities_removed_desc       = ""
-            entities_changed_desc       = ""
-            entities_unchanged_desc     = ""
-
-        elif manifest_event == PostResponse.UNCHANGED: 
-            # Flag that nothing changed
-            interval_list               = self._infer_intervals(my_trace, contents_df)
-            acronym_counts              = []
-            for interval in interval_list:
-                acronym                 = interval.entity_name
-                uid_col                 = interval.columns[0]
-                uid_vals                = [u for u in contents_df[uid_col].unique() if not StringUtils().is_blank(u)]
-                uid_nb                  = len(uid_vals)
-                acronym_counts.append(acronym + "(" + str(uid_nb) + ")")
+        else: # Easy case, all UIDs go to exactly one bucket, depending on the type of event
+            acronym_counts              = self._acronym_counts(my_trace, contents_df)
 
             entities_added_desc         = ""
             entities_removed_desc       = ""
             entities_changed_desc       = ""
-            entities_unchanged_desc     = ", ".join(acronym_counts)
-
-        elif manifest_event == PostResponse.DELETED: 
-            interval_list               = self._infer_intervals(my_trace, contents_df)
-            acronym_counts              = []
-            for interval in interval_list:
-                acronym                 = interval.entity_name
-                uid_col                 = interval.columns[0]
-                uid_vals                = [u for u in contents_df[uid_col].unique() if not StringUtils().is_blank(u)]
-                uid_nb                  = len(uid_vals)
-                acronym_counts.append(acronym + "(" + str(uid_nb) + ")")
-
-            entities_added_desc         = ""
-            entities_removed_desc       = ", ".join(acronym_counts)
-            entities_changed_desc       = ""
             entities_unchanged_desc     = ""
+
+            if manifest_event == PostResponse.CREATED: 
+                entities_added_desc         = ", ".join(acronym_counts)
+
+            elif manifest_event == PostResponse.UNCHANGED: 
+                entities_unchanged_desc     = ", ".join(acronym_counts)
+
+            elif manifest_event == PostResponse.DELETED: 
+                entities_removed_desc       = ", ".join(acronym_counts)
+
 
         description                     = ManifestEventDescription( manifest_filename           = manifest_file, 
                                                                     event                       = manifest_event, 
-                                                                    entities_added              = entities_added_desc, 
-                                                                    entities_removed            = entities_removed_desc, 
-                                                                    entities_changed            = entities_changed_desc, 
-                                                                    entities_unchanged          = entities_unchanged_desc, 
+                                                                    entities_added_desc         = entities_added_desc, 
+                                                                    entities_removed_desc       = entities_removed_desc, 
+                                                                    entities_changed_desc       = entities_changed_desc, 
+                                                                    entities_unchanged_desc     = entities_unchanged_desc, 
                                                                     namespace                   = manifest_handle.namespace, 
                                                                     name                        = manifest_handle.name)
 
         return description
+
+    def _acronym_counts(self, parent_trace, contents_df):
+        '''
+        Helper method that returns a list consisting of acronym counts for all UIDs in a manifest.
+
+        For example, it might return something like 
+        
+                    [BR(3), MR(2), SR(2)]
+
+        @param contents_df A DataFrame, corresponding to the contents of a manifest. For example, if a manifest's
+                            DataFrame representation is manifest_dict, content_df is a DataFrame representation
+                            of manifest_dict["assertions"][<entity name>]
+        '''
+        interval_list               = self._infer_intervals(parent_trace, contents_df)
+        acronym_counts              = []
+        for interval in interval_list:
+            acronym                 = interval.entity_name
+            loop_trace              = parent_trace.doing("Processing acronym '" + str(acronym) + "'")
+            uid_col                 = interval.columns[0]
+            uid_vals                = [u for u in DataFrameUtils().safe_unique(loop_trace, contents_df, uid_col) 
+                                                if not StringUtils().is_blank(u)]
+            uid_nb                  = len(uid_vals)
+            acronym_counts.append(acronym + "(" + str(uid_nb) + ")")
+
+        return acronym_counts
 
     def extract_manifest_content_as_df(self, parent_trace, manifest_dict, manifest_nickname, abbreviate_uids):
         '''
@@ -561,8 +711,8 @@ class ManifestUtils():
         rows_df1                        = contents_df1[contents_df1[UID_COL] == entity_uid]
         rows_df2                        = contents_df2[contents_df2[UID_COL] == entity_uid]
 
-        vals1                           = rows_df1[interval1.columns].drop_duplicates()
-        vals2                           = rows_df2[interval2.columns].drop_duplicates()
+        vals1                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df1[interval1.columns])
+        vals2                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df2[interval2.columns])
 
         if len(vals1) != 1 or len(vals2) != 1:
             raise ApodeixiError(parent_trace, "Can't assess if two manifests' entity values match because "
@@ -616,7 +766,8 @@ class ManifestUtils():
         for next_start_idx in uid_idxs[1:]: # next_start_idx is not for the interval processed in the loop, but the one after
             loop_trace                    = my_trace.doing("Building interval starting at " + str(columns[start_idx]))
             # First, get the acronym for the entity whose UIDs are at column start_idx
-            full_uid_list           = list(contents_df[columns[start_idx]].unique())
+            full_uid_list           = DataFrameUtils().safe_unique(loop_trace, contents_df, columns[start_idx])
+
             # If some rows had blanks for this column, we want to ignore then since they are not valid UIDs
             # and would cause the UID parser below to error out
             full_uid_list           = [u for u in full_uid_list if not StringUtils().is_blank(u)]
@@ -637,28 +788,75 @@ class ManifestUtils():
 
         return result
 
+class ManifestDiffResult():
+    '''
+    Class used as a data structure to hold the differences between two versions of the same manifest.
+
+    Differences are expressed as lists of UIDs, such as:
+
+        [BR8, BR8.MR1, BR8.MR2]
+
+    Several such UID lists are kept, depending on whether the UID in questions are for entities added, removed,
+    changed, or unchanged.
+
+    An entity is considered "changed" by looking at its properties, and if any property either changed value, or
+        if some properties were added or removed, then the entity is regarded as having changed.
+
+    @param entities_added A list of the UIDs for entities that were added.
+    @param entities_removed A list of the UIDs for entities that were removed.
+    @param entities_changed A list of the UIDs for entities that were changed.
+    @param entities_unchanged A list of the UIDs for entities that were unchanged
+
+    '''
+    def __init__(self, entities_added, entities_removed, entities_changed, entities_unchanged):
+        self.entities_added        = entities_added
+        self.entities_removed      = entities_removed
+        self.entities_changed      = entities_changed
+        self.entities_unchanged    = entities_unchanged
+
+
 class ManifestEventDescription():
     '''
     Class used as a data structure for a few key properties around manifest lifecycle events, short enough
     to be presentable to the user in the CLI by way of response of a CLI post command from the user
+
+    @param event A string. One of PostResponse.CREATED, PostResponse.UPDATED, PostResponse.DELETED, or
+                        PostResponse.UNCHANGED
+    @param entities_added_desc A comma-separated string that describes the acronyms of entities that were added, with a count
+                        in parenthesis. Example: "BR(2), MR(2)"
+    @param entities_removed_desc A comma-separated string that describes the acronyms of entities that were removed, with a count
+                        in parenthesis. Example: "BR(2), MR(2)"
+    @param entities_changed_desc A comma-separated string that describes the acronyms of entities that were changed, with a count
+                        in parenthesis. Example: "BR(2), MR(2)"
+    @param entities_unchanged_desc A comma-separated string that describes the acronyms of entities that were not changed, with a count
+                        in parenthesis. Example: "BR(2), MR(2)"
+    @namespace A string. The namespace containing the manifest whose lifecycle event is described by this object.
+    @name A string. The name within the namespace under which is filed the manifest whose lifecycle event is described by 
+                    this object.
     '''
-    def __init__(self, manifest_filename, event, entities_added, entities_removed, entities_changed, entities_unchanged, 
+    def __init__(self, manifest_filename, event, 
+                                entities_added_desc, entities_removed_desc, entities_changed_desc, entities_unchanged_desc, 
                                 namespace, name):
-        self.manifest_filename      = manifest_filename
-        self.event                  = event
-        self.entities_added         = entities_added
-        self.entities_removed       = entities_removed
-        self.entities_changed       = entities_changed
-        self.entities_unchanged     = entities_unchanged
-        self.namespace              = namespace
-        self.name                   = name
+        self.manifest_filename          = manifest_filename
+        self.event                      = event
+        self.entities_added_desc        = entities_added_desc
+        self.entities_removed_desc      = entities_removed_desc
+        self.entities_changed_desc      = entities_changed_desc
+        self.entities_unchanged_desc    = entities_unchanged_desc
+        self.namespace                  = namespace
+        self.name                       = name
 
 class ManifestHandle():
     '''
     Object that uniquely identifies a manifest in an Apodeixi knowledge base
+
+    @param manifest_api_name    A string. Example: "delivery-planning.journeys.a6i.io"
+    @param namespace            A string. Example: "my-corp.production"
+    @param name                 A string. Example: "modernization.default.dec-2020.opus"
+    @param kind                 A string. Example: "big-rock"
     '''
-    def __init__(self, apiVersion, kind, namespace, name, version):
-        self.apiVersion     = apiVersion
+    def __init__(self, manifest_api, kind, namespace, name, version):
+        self.manifest_api     = manifest_api
         self.kind           = kind
         self.namespace      = namespace
         self.name           = name
@@ -671,34 +869,15 @@ class ManifestHandle():
             return False
 
     def __copy__(self):
-            return ManifestHandle(apiVersion = self.apiVersion, kind = self.kind, namespace = self.namespace, 
+            return ManifestHandle(manifest_api = self.manifest_api, kind = self.kind, namespace = self.namespace, 
                                     name = self.name, version = self.version)
-
-    def equals_up_to_api_version(self, other_manifest_handle):
-        '''
-        Returns the `other_manifest_handle` is a ManifestHandle object all of whose attributes (except possibly
-        for the apiVersion) are equal.
-        '''
-        if not isinstance(other_manifest_handle, self.__class__):
-            return False
-
-        if  self.kind           == other_manifest_handle.kind       and \
-            self.namespace      == other_manifest_handle.namespace  and \
-            self.name           == other_manifest_handle.name       and \
-            self.version        == other_manifest_handle.version:
-
-            return True
-        else:
-            return False
-
-
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def display(self, parent_trace, indentation=""):
         msg = "" \
-            + "\n\t\t" + indentation + " apiVersion     = '" + str(self.apiVersion) + "'" \
+            + "\n\t\t" + indentation + " manifest_api   = '" + str(self.manifest_api) + "'" \
             + "\n\t\t" + indentation + " namespace      = '" + str(self.namespace) + "'" \
             + "\n\t\t" + indentation + " kind           = '" + str(self.kind) + "'" \
             + "\n\t\t" + indentation + " name           = '" + str(self.name) + "'" \

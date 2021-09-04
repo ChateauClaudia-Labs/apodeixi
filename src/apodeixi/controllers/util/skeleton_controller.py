@@ -976,11 +976,11 @@ class SkeletonController(PostingController):
             
             # Load the prior manifest, to determine which UIDs are already in use so that we don't
             # re-generate them for different data items
-            prior_handle    = ManifestHandle(   apiVersion  = self.api_version(my_trace),
-                                                namespace   = namespace, 
-                                                name        = manifest_name, 
-                                                kind        = kind,
-                                                version     = prior_version)
+            prior_handle    = ManifestHandle(   manifest_api    = self.getManifestAPI().apiName(),
+                                                namespace       = namespace, 
+                                                name            = manifest_name, 
+                                                kind            = kind,
+                                                version         = prior_version)
             prior_manifest, prior_manifest_path     = self.store.retrieveManifest(my_trace, prior_handle) 
 
             if prior_manifest == None:

@@ -168,10 +168,10 @@ class CLI_Utils():
             # the tabulate Python package.
             description_table.append([      description.manifest_filename, 
                                             description.event, 
-                                            description.entities_added, 
-                                            description.entities_removed, 
-                                            description.entities_changed, 
-                                            description.entities_unchanged,
+                                            description.entities_added_desc, 
+                                            description.entities_removed_desc, 
+                                            description.entities_changed_desc, 
+                                            description.entities_unchanged_desc,
                                             description.namespace,
                                             description.name])
 

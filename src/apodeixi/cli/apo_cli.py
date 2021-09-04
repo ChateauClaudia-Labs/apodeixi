@@ -240,6 +240,8 @@ def post(kb_session, file, dry_run, environment, timestamp):
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to post",
                                                             origination     = {'signaled_from': __file__})
+
+    kb_operation_succeeded              = False
     try:
         if environment != None:
             kb_session.store.activate(parent_trace = root_trace, environment_name = environment)
@@ -262,6 +264,7 @@ def post(kb_session, file, dry_run, environment, timestamp):
         response, log_txt                   = kb_session.kb.postByFile( parent_trace                = my_trace, 
                                                                         path_of_file_being_posted   = file, 
                                                                         excel_sheet                 = "Posting Label")
+        kb_operation_succeeded              = True
         manifests_description               = CLI_Utils().describe_post_response(my_trace, response, kb_session.store)
 
         click.echo(manifests_description)
@@ -271,13 +274,32 @@ def post(kb_session, file, dry_run, environment, timestamp):
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
                                                                         a6i_error                   = ex)
+        if kb_operation_succeeded:
+            error_msg                       = "KnowledgeBase operation completed, but run into a problem when preparing "\
+                                                + "a description of the response:\n"\
+                                                + error_msg
         # GOTCHA
         #       Use print, not click.echo or click exception because they don't correctly display styling
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + str(ex))
+        try:
+            error_msg                       = CLI_ErrorReporting(kb_session).report_generic_error( 
+                                                                        parent_trace                = root_trace, 
+                                                                        generic_error               = ex)
+            if kb_operation_succeeded:
+                error_msg                   = "KnowledgeBase operation completed, but run into a problem when preparing "\
+                                                + "a description of the response:\n"\
+                                                + error_msg
+        except Exception as ex2:
+            error_msg                       = "CLI run into trouble: found error:\n\n\t" + str(ex) + "\n\n" \
+                                                + "To make things worse, when trying to produce an error log file with a "\
+                                                + "stack trace, run into an additional error:\n\n\t" + str(ex2)
+        # GOTCHA
+        #       Use print, not click.echo or click exception because they don't correctly display styling
+        #       (colors, underlines, etc.). So use vanilla Python print and then exit
+        print(error_msg)
         _sys.exit()
 
 @get.command()
@@ -297,6 +319,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to post",
                                                             origination     = {'signaled_from': __file__})
+    kb_operation_succeeded              = False
     try:
         if environment != None:
             kb_session.store.activate(parent_trace = root_trace, environment_name = environment)
@@ -330,6 +353,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
         
         response, log_txt, rep              = kb_session.kb.requestForm(parent_trace        = my_trace, 
                                                                         form_request        = form_request)
+        kb_operation_succeeded              = True
         manifests_description               = CLI_Utils().describe_req_form_response(my_trace, 
                                                                                 form_request_response   = response, 
                                                                                 store                   = kb_session.store,
@@ -343,11 +367,30 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
                                                                         a6i_error                   = ex)
+        if kb_operation_succeeded:
+            error_msg                       = "KnowledgeBase operation completed, but run into a problem when preparing "\
+                                                + "a description of the response:\n"\
+                                                + error_msg
         # GOTCHA
         #       Use print, not click.echo or click exception because they don't correctly display styling
         #       (colors, underlines, etc.). So use vanilla Python print and then exit
         print(error_msg)
         _sys.exit()
     except Exception as ex:
-        click.echo("Unrecoverable error: " + str(ex))
+        try:
+            error_msg                       = CLI_ErrorReporting(kb_session).report_generic_error( 
+                                                                        parent_trace                = root_trace, 
+                                                                        generic_error               = ex)
+            if kb_operation_succeeded:
+                error_msg                   = "KnowledgeBase operation completed, but run into a problem when preparing "\
+                                                + "a description of the response:\n"\
+                                                + error_msg
+        except Exception as ex2:
+            error_msg                       = "CLI run into trouble: found error:\n\n\t" + str(ex) + "\n\n" \
+                                                + "To make things worse, when trying to produce an error log file with a "\
+                                                + "stack trace, run into an additional error:\n\n\t" + str(ex2)
+        # GOTCHA
+        #       Use print, not click.echo or click exception because they don't correctly display styling
+        #       (colors, underlines, etc.). So use vanilla Python print and then exit
+        print(error_msg)
         _sys.exit()
