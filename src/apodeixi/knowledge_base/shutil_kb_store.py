@@ -1,9 +1,7 @@
 import os                                               as _os
-import shutil                                           as _shutil
-import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KBStore_Impl
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils
+from apodeixi.knowledge_base.manifest_utils             import ManifestUtils
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils
 

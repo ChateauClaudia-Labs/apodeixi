@@ -1,11 +1,9 @@
-import sys                                              as _sys
 
 from apodeixi.testing_framework.a6i_unit_test           import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store           import UnitTest_KnowledgeBaseStore
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 
 from apodeixi.util.formatting_utils                     import DictionaryFormatter
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 import time

@@ -46,7 +46,7 @@ class UID_Store:
             '''
             Given a string `token` such as P4, it adds it to this tree
             '''
-            acronym, nb     = self.parseToken(parent_trace, token) #TODO Finish this up
+            acronym, nb     = UID_Utils().parseToken(parent_trace, token) 
             if not acronym in self.vals.keys():
                 self.vals[acronym] = []
             nb_list         = self.vals[acronym]
@@ -145,7 +145,7 @@ class UID_Store:
             @param head A string like 'PR56'. If it exists in this _TokenTree as a top node return it.
                         Else raises an error.
             '''
-            acronym, val  = self.parseToken(parent_trace, head)
+            acronym, val  = UID_Utils().parseToken(parent_trace, head)
 
             # Some of these checks are theoretically duplicate if the inner state of this object
             # is consistent as in theory it should be. But being paranoid, we do duplicate
@@ -174,27 +174,13 @@ class UID_Store:
                 child   = self.children[uid]
                 result_dict[uid] = child.display()
             return result_dict
-        
-        def parseToken(self, parent_trace, token):
-            '''
-            Given a token like 'PR34', it returns the acronym 'PR' and the value 34
-            '''
-            REGEX         = '^([a-zA-Z]+)([0-9]+)$'
-            m             = _re.match(REGEX, token)
-            if m == None or len(m.groups())!= 2:
-                raise ApodeixiError(parent_trace, "Invalid token='" + token + "': expected something like 'P3' or 'AV45'.  "
-                                + "Level=" + str(self.level))
-            acronym       = m.group(1)
-            val           = int(m.group(2))
-            return acronym, val
-        
-    
+           
     def __init__(self, parent_trace):
         self.tree     = UID_Store._TokenTree(parent_trace, level=0)
         return
     
     def generateUID(self, parent_trace, parent_UID, acronym):
-        branch        = self._tokenize(parent_trace, parent_UID)
+        branch        = UID_Utils()._tokenize(parent_trace, parent_UID)
         return self.tree.generateNextUID(parent_trace, branch, acronym)
     
     def initializeFromManifest(self, parent_trace, manifest_dict):
@@ -249,7 +235,7 @@ class UID_Store:
         '''
         Recursive implementation of `add_known_uid`
         '''
-        tokens              = self._tokenize(parent_trace, uid, acronym_list)
+        tokens              = UID_Utils()._tokenize(parent_trace, uid, acronym_list)
         if len(tokens) == 0:
             return # Nothing to do
 
@@ -260,6 +246,75 @@ class UID_Store:
             subtree         = token_tree.children[head]
             sub_uid         = '.'.join(tail)
             self._mark_uid_as_used(parent_trace, sub_uid, acronym_list[1:], subtree)
+
+    def unabbreviate_uid(self, parent_trace, uid, last_acronym):
+        '''
+        Returns a possibly modified UID. For example, a UID like "4.3" might be replaced by "P4.C3".
+        In other words, if the uid is one of those "abbreviated UIDs" that lacks acronyms (they arise
+        for usability reasons in user-provided UIDs), attempt to infer the acronyms that are missing and
+        return the full UID ("P4.C3" in the example)
+
+        @last_acronym Used in cases when the caller wants this store to remember one more acronym
+                    at the end of its list of known acronyms. If set to None, it is ignored. 
+        '''
+        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
+        # are adding a uid for that entity for the first time
+        known_acronym_list  = self.tree.genAcronymList(parent_trace) 
+
+        if last_acronym != None and not last_acronym in known_acronym_list:
+            known_acronym_list.append(last_acronym)
+
+        # Calling self._tokenize produces "unabbreviated" tokens
+        tokens              = UID_Utils()._tokenize(parent_trace, uid, known_acronym_list)
+        if len(tokens) == 0:
+            raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
+            
+        full_uid = ".".join(tokens)
+        return full_uid
+
+
+class UID_Utils():
+    '''
+    '''
+    def __init__(self):
+        return
+
+    def parseToken(self, parent_trace, token):
+        '''
+        Given a token like 'PR34', it returns the acronym 'PR' and the value 34
+        '''
+        REGEX         = '^([a-zA-Z]+)([0-9]+)$'
+        m             = _re.match(REGEX, token)
+        if m == None or len(m.groups())!= 2:
+            raise ApodeixiError(parent_trace, "Invalid token='" + token + "': expected something like 'P3' or 'AV45'.  ")
+        acronym       = m.group(1)
+        val           = int(m.group(2))
+        return acronym, val
+
+    def abbreviate_uid(self, parent_trace, uid):
+        '''
+        Abbreviates the uid by stripping all acronyms except the first, and returns it.
+
+        For example, a uid like "P4.C3.AC2" is abbreviated to "P4.3.2"
+        '''
+        tokens                      = self._tokenize(parent_trace, uid=uid, acronym_list=None)
+        if len(tokens)<= 1:
+            return uid
+
+        #token_tree                  = self._TokenTree(parent_trace, level=len(tokens))
+
+        # GOTCHA: 
+        # We very deliberately keep the first acronym, and only abbreviate the rest. For example, we
+        # don't want to abbreviate BR7.B10 as 7.10. Instead the correct abbreviation should be BR7.10
+        # This is to avoid bugs, because if we abbreviated to 7.10 then the various conversions across Excel and
+        # Pandas will treat it as a number, equal to 7.1. This will cause two UIDs to collide (BR7.B1 and BR7.B10)
+        # and one will overwrite the contents of the other, losing data from a manifest.
+        abbreviated_uid             = tokens[0]
+        for token in tokens[1:]:
+            acronym, val = self.parseToken(parent_trace, token)
+            abbreviated_uid     = abbreviated_uid + "." + str(val)
+        
+        return abbreviated_uid
 
     def _tokenize(self, parent_trace, uid, acronym_list=None):
         '''
@@ -308,52 +363,3 @@ class UID_Store:
 
         return result
 
-    def unabbreviate_uid(self, parent_trace, uid, last_acronym):
-        '''
-        Returns a possibly modified UID. For example, a UID like "4.3" might be replaced by "P4.C3".
-        In other words, if the uid is one of those "abbreviated UIDs" that lacks acronyms (they arise
-        for usability reasons in user-provided UIDs), attempt to infer the acronyms that are missing and
-        return the full UID ("P4.C3" in the example)
-
-        @last_acronym Used in cases when the caller wants this store to remember one more acronym
-                    at the end of its list of known acronyms. If set to None, it is ignored. 
-        '''
-        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
-        # are adding a uid for that entity for the first time
-        known_acronym_list  = self.tree.genAcronymList(parent_trace) 
-
-        if last_acronym != None and not last_acronym in known_acronym_list:
-            known_acronym_list.append(last_acronym)
-
-        # Calling self._tokenize produces "unabbreviated" tokens
-        tokens              = self._tokenize(parent_trace, uid, known_acronym_list)
-        if len(tokens) == 0:
-            raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
-            
-        full_uid = ".".join(tokens)
-        return full_uid
-
-    def abbreviate_uid(self, parent_trace, uid):
-        '''
-        Abbreviates the uid by stripping all acronyms except the first, and returns it.
-
-        For example, a uid like "P4.C3.AC2" is abbreviated to "P4.3.2"
-        '''
-        tokens                      = self._tokenize(parent_trace, uid=uid, acronym_list=None)
-        if len(tokens)<= 1:
-            return uid
-
-        token_tree                  = UID_Store._TokenTree(parent_trace, level=len(tokens))
-
-        # GOTCHA: 
-        # We very deliberately keep the first acronym, and only abbreviate the rest. For example, we
-        # don't want to abbreviate BR7.B10 as 7.10. Instead the correct abbreviation should be BR7.10
-        # This is to avoid bugs, because if we abbreviated to 7.10 then the various conversions across Excel and
-        # Pandas will treat it as a number, equal to 7.1. This will cause two UIDs to collide (BR7.B1 and BR7.B10)
-        # and one will overwrite the contents of the other, losing data from a manifest.
-        abbreviated_uid             = tokens[0]
-        for token in tokens[1:]:
-            acronym, val = token_tree.parseToken(parent_trace, token)
-            abbreviated_uid     = abbreviated_uid + "." + str(val)
-        
-        return abbreviated_uid

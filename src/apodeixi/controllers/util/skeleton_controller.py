@@ -11,9 +11,10 @@ from apodeixi.xli.xlimporter                            import ExcelTableReader,
 from apodeixi.xli.interval                              import Interval
 
 from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
-from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, ManifestUtils, PostingDataHandle, \
+from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, \
                                                                 PostingLabelHandle, FormRequestResponse, ManifestHandle, \
                                                                 FormRequest
+from apodeixi.knowledge_base.manifest_utils             import ManifestUtils
 from apodeixi.knowledge_base.filing_coordinates         import TBD_FilingCoordinates
 from apodeixi.representers.as_dataframe                 import AsDataframe_Representer
 from apodeixi.representers.as_excel                     import ManifestRepresenter

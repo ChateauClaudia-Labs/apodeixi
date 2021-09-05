@@ -6,7 +6,7 @@ from tabulate                                                       import tabul
 
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
 
-from apodeixi.knowledge_base.knowledge_base_util                    import ManifestUtils
+from apodeixi.knowledge_base.manifest_utils                         import ManifestUtils
 from apodeixi.knowledge_base.kb_environment                         import File_KBEnv_Impl
 from apodeixi.util.a6i_error                                        import ApodeixiError
 from apodeixi.util.formatting_utils                                 import StringUtils

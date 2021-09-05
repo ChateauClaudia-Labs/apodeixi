@@ -6,7 +6,7 @@ from apodeixi.util.path_utils                       import PathUtils
 
 from apodeixi.knowledge_base.file_kb_store          import File_KBStore_Impl
 from apodeixi.knowledge_base.filing_coordinates     import FilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, ManifestUtils
+from apodeixi.knowledge_base.manifest_utils         import ManifestUtils
 
 class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
     '''

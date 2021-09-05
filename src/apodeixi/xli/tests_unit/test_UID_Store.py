@@ -3,7 +3,7 @@ import sys                                      as _sys
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.xli.breakdown_builder import UID_Store
+from apodeixi.xli.uid_store         import UID_Store, UID_Utils
 
 class Test_UIDStore(ApodeixiUnitTest):
 
@@ -15,7 +15,7 @@ class Test_UIDStore(ApodeixiUnitTest):
     def attempt_tokenize(self, parent_trace, uid):
         my_trace      = parent_trace.doing("Attempting to tokenize '" + uid + "'")
         try:
-            x = self.store._tokenize(parent_trace, uid)
+            x = UID_Utils()._tokenize(parent_trace, uid)
         except ApodeixiError as ex:
             x = 'error'
         return x

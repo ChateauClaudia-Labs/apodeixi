@@ -7,7 +7,8 @@ from apodeixi.controllers.util.skeleton_controller                          impo
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label import JourneysPostingLabel
 from apodeixi.controllers.journeys.delivery_planning.journeys_controller    import JourneysController
 
-from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest, ManifestUtils
+from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
+from apodeixi.knowledge_base.manifest_utils                                 import ManifestUtils
 
 from apodeixi.text_layout.excel_layout                                      import AsExcel_Config_Table, \
                                                                                 ManifestXLWriteConfig, \

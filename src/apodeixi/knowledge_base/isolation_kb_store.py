@@ -10,11 +10,12 @@ from apodeixi.knowledge_base.filing_coordinates         import JourneysFilingCoo
                                                                 InitiativesFilingCoordinates, \
                                                                 ArchiveFilingCoordinates, LogFilingCoordinates   
 from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util        import ManifestUtils, PostingLabelHandle
+from apodeixi.knowledge_base.knowledge_base_util        import PostingLabelHandle
+from apodeixi.knowledge_base.manifest_utils             import ManifestUtils
 from apodeixi.representers.as_excel                     import ManifestRepresenter
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
-from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
+from apodeixi.util.a6i_error                            import ApodeixiError
 
 class TransactionEvents():
     '''

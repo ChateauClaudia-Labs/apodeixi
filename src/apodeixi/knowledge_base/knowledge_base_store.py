@@ -239,9 +239,13 @@ class KnowledgeBaseStore():
         However, there might be multiple versions of a logical manifest (versions are integers starting
         at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
 
-        This method returns the most recent version of the manifest that is logically identified
+        This method returns a manifest and a string.
+        
+        The manifest is the most recent version of the manifest that is logically identified
         by the parameters.
-        Returns None if no such manifest exists in the KnowledgeBase store.
+        The 2nd returned value is the path to that manifest.
+
+        If no such manifest exists in the KnowledgeBase store then the first returned object is None
 
         Example: for file-based stores, a manifest may be stored in a filename like:
 
