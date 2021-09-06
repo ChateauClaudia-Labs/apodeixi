@@ -212,7 +212,7 @@ class AsDataframe_Representer:
                                 abbreviate_uids):
         '''
         Recursive method that creates the data from which a Pandas DataFrame can be easily created by the caller,
-        based on the dictionary `content_dict`: it returns:
+        based on the dictionary `content_dict`. It returns:
         
         * The list of intervals whose concatenation would yield the columns for such a DataFrame-to-be (see 
             example below for an explanation)
@@ -522,9 +522,33 @@ class AsDataframe_Representer:
                 else:
                     all_rows.append(new_level_1_row)
 
+        # Before returning, we need to sort the intervals to be order-consistent with the acronym_schema.
+        # This is needed because due to the possibility of some rows having skipped an entity, it is possible
+        # that in `all_intervals` we have the interval for UID-3 before the interval for UID-2.
+        my_trace                            = parent_trace.doing("Sorting intervals as per Acronym Schema",
+                                                            data = {"parent_uid":       str(parent_uid),
+                                                                    "acronym schema":   str(acronym_schema)})
+        sorted_intervals                    = []
+        for acronyminfo in acronym_schema.acronym_infos():
+            # Find the interval for this acronym, if there is one in our list so far
+            entity_name                     = acronyminfo.entity_name
+            matches                         = [interval for interval in all_intervals if entity_name in interval.columns]
+            if len(matches) > 1:
+                raise ApodeixiError(my_trace, "Found multiple intervals for the same entity, and there shoud be at most 1")
+            elif len(matches) == 1:
+                sorted_intervals.append(matches[0])
+
+        # Check we sorted everything
+        if len(sorted_intervals) != len(all_intervals):
+
+            raise ApodeixiError(my_trace, "Was not able to sort all intervals based on the Acronym Schema. Some intervals "
+                                            + " did not seem to correspond to anything recognized in the Acronym Schema, "
+                                            + "The sorted intervals should have been equally long as all_intervals",
+                                            data = {"len(all_intervals)":       str(len(all_intervals)),
+                                                    "len(sorted_intervals)":    str(len(sorted_intervals))})
         
         # Return value to caller (which for recursive call was this method itself, processing left interval to ours)
-        return all_intervals, all_rows
+        return sorted_intervals, all_rows
         
 
     

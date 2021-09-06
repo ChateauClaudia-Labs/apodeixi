@@ -430,7 +430,7 @@ class UID_Utils():
                     raise ApodeixiError(parent_trace, "Invalid uid='" + uid 
                             + "': expected something like P3 or AV45.P1.E12, or abbreviations like AV45.1.12")
                 else: # t is something like 12
-                    if t == 0:
+                    if t == "0":
                         # We don't add a token for 0's in the abbreviation. See documentation of
                         # self.unabbreviate_uid
                         continue 
