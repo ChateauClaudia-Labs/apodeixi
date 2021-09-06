@@ -28,7 +28,7 @@ Here are the functional activities that led to the problem:
 
 ---->	activity	Processing DataFrame
 
-            tree.entity_type    : Asset Class
+            parser.entity_type  : Asset Class
             columns             : ['Asset KLASS', 'Institution', 'Account']
 
 ---->	activity	Processing fragment

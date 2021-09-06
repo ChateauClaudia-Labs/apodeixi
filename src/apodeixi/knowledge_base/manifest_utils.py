@@ -1,5 +1,4 @@
 import os                                                       as _os
-import copy
 import pandas                                                   as _pd
 
 from apodeixi.controllers.util.manifest_api                     import ManifestAPIVersion

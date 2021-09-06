@@ -87,7 +87,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                     data_to_attach      = DATA_TO_ATTACH, 
                                     parent_trace        = my_trace,
                                     uid_to_overwrite    = None,
-                                    xlr_config          = xlr_config)
+                                    xlr_config          = xlr_config,
+                                    acronym_schema      = None)
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -116,7 +117,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                     data_to_attach      = DATA_TO_ATTACH,
                                     uid_to_overwrite    = None, 
                                     parent_trace        = my_trace,
-                                    xlr_config          = xlr_config)
+                                    xlr_config          = xlr_config,
+                                    acronym_schema      = None)
             result_dict             = tree.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -193,7 +195,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                             row                 = rows[idx], 
                                             parent_trace        = loop_trace, 
                                             all_rows            = rows, 
-                                            xlr_config          = xlr_config)
+                                            xlr_config          = xlr_config,
+                                            acronym_schema      = None)
 
         return tree
 
@@ -241,7 +244,8 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                                 row                 = rows[idx],    
                                                 parent_trace        = my_trace, 
                                                 all_rows            = rows, 
-                                                xlr_config          = xlr_config)
+                                                xlr_config          = xlr_config,
+                                                acronym_schema      = None)
 
         root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Attaching subtree", data = {"docking UID"   : "'" + subtree.parent_UID + "'",
                                                                                     "entity_type"  : "'" + entity_type + "'"})

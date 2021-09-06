@@ -1,6 +1,9 @@
 
 from apodeixi.knowledge_base.filing_coordinates                 import TBD_FilingCoordinates
-from apodeixi.knowledge_base.manifest_utils                     import ManifestUtils
+
+# To avoid circular dependencies, we had to move this import to the very few functions in this module that need
+# ManifestUtils
+#from apodeixi.knowledge_base.manifest_utils                     import ManifestUtils
 
 from apodeixi.util.a6i_error                                    import ApodeixiError
 
@@ -300,7 +303,10 @@ class PostResponse(Response):
     '''
     def __init__(self):
         super().__init__()
-
+        # To avoid circular dependencies, we had to move this import to the very few functions in this module that need
+        # ManifestUtils
+        from apodeixi.knowledge_base.manifest_utils  import ManifestUtils
+        self.MU                 = ManifestUtils()
     def recordCreation(self, parent_trace, manifest_dict, manifest_nb):
         '''
         Used to enrich the content of this PostResponse by recording that a manifest was created
@@ -308,7 +314,8 @@ class PostResponse(Response):
         @param manifest_dict A dictionary representation of a manifest. It must have 'metadata.name', 'metadata.namespace' and 'kind'
                                 since those are mandatory fields for all manifests.
         '''
-        handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+
+        handle                  = self.MU.inferHandle(parent_trace, manifest_dict)
         self.manifest_handles_dict[Response.CREATED][manifest_nb] = handle
 
     def recordUpdate(self, parent_trace, manifest_dict, manifest_nb):
@@ -319,7 +326,7 @@ class PostResponse(Response):
                                 'metadata.namespace' and 'kind'
                                 since those are mandatory fields for all manifests.
         '''
-        handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+        handle                  = self.MU.inferHandle(parent_trace, manifest_dict)
         self.manifest_handles_dict[Response.UPDATED][manifest_nb] = handle
 
     def recordUnchanged(self, parent_trace, manifest_dict, manifest_nb):
@@ -330,7 +337,7 @@ class PostResponse(Response):
                                 'metadata.namespace' and 'kind'
                                 since those are mandatory fields for all manifests.
         '''
-        handle                  = ManifestUtils().inferHandle(parent_trace, manifest_dict)
+        handle                  = self.MU.inferHandle(parent_trace, manifest_dict)
         self.manifest_handles_dict[Response.UNCHANGED][manifest_nb] = handle
 
     def recordArchival(self, parent_trace, original_handle, archival_handle):

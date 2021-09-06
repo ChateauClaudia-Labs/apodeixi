@@ -23,7 +23,7 @@ Here are the functional activities that led to the problem:
 
 ---->	activity	Processing DataFrame
 
-            tree.entity_type    : Account
+            parser.entity_type  : Account
             columns             : ['Account', 'Currency', 'Account.1', 'Balance']
 
 ---->	activity	Processing fragment

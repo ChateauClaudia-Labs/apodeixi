@@ -1,3 +1,4 @@
+from apodeixi.xli.uid_acronym_schema import UID_Acronym_Schema
 import xlsxwriter
 import pandas                               as _pd
 from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
@@ -11,7 +12,7 @@ from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFor
                                                     JoinedManifestXLWriteConfig
 from apodeixi.representers.as_dataframe     import AsDataframe_Representer
 from apodeixi.xli.interval                  import IntervalUtils
-from apodeixi.xli.uid_store                 import UID_Store
+from apodeixi.xli.uid_store                 import UID_Store, UID_Utils
 
 from apodeixi.tree_math.link_table          import LinkTable
 
@@ -555,9 +556,12 @@ class ManifestRepresenter:
                         uid_store.initializeFromManifest(my_trace, manifest_dict)
                         raw_uid         = row_content[col]
 
-                        good_uid        = uid_store.unabbreviate_uid(   parent_trace        = loop_trace, 
-                                                                        uid                 = str(raw_uid),
-                                                                        last_acronym        = None)
+                        acronym_schema  = UID_Acronym_Schema()
+                        acronym_schema.build_schema_from_manifest(loop_trace, manifest_dict)
+
+                        good_uid        = UID_Utils().unabbreviate_uid( parent_trace        = loop_trace, 
+                                                                        uid                 = str(raw_uid), 
+                                                                        acronym_schema      = acronym_schema)
                         self.link_table.keep_row_last_UID(parent_trace, 
                                                             manifest_identifier     = name, 
                                                             row_nb                  = excel_row, 

@@ -2,6 +2,7 @@ import re                                       as _re
 import math                                     as _math
 from collections                                import Counter
 import datetime                                 as _datetime
+from apodeixi.xli.uid_acronym_schema            import UID_Acronym_Schema
 
 from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader, ManifestXLReadConfig
 from apodeixi.xli.breakdown_builder             import UID_Store, BreakdownTree
@@ -99,7 +100,7 @@ class PostingController():
 
     def _xl_2_tree(self, parent_trace, data_handle, xlr_config):
         '''
-        Processes an Excel posting and creates a BreakoutTree out of it, and returns that BreakoutTree.
+        Processes an Excel posting and creates a BreakoutTree out of it, and returns that parser (a BreakoutTree).
 
         It records some intermediate computations in self.link_table. In particular, it records the UID of
         the last node in each of the tree's branches (and a branch corresponds to a row in Excel, so basically it is
@@ -122,25 +123,27 @@ class PostingController():
 
         
         store                   = self.initialize_UID_Store(parent_trace, data_handle, xlr_config=xlr_config)
-        tree                    = BreakdownTree(uid_store = store, entity_type=xlr_config.entity_name(), parent_UID=None)
-        
+        parser                  = BreakdownTree(uid_store = store, entity_type=xlr_config.entity_name(), parent_UID=None)
+        acronym_schema          = UID_Acronym_Schema()
+        interval_list           = list(xlr_config.buildIntervals(my_trace, list(df.columns)))
+        acronym_schema.build_schema_from_intervals(my_trace, parser=parser, interval_list=interval_list)
+
         # If we are supposed to use user-generated UIDs (when available) instead of generating them,
         # tell the tree's UID store to keep them. 
         #
         # At most one UID column per interval, hence the loop so that uniqueness of UID column per interval can be enforced
-        for interval in xlr_config.buildIntervals(my_trace, list(df.columns)):
-            tree.reserve_user_provided_uids(parent_trace, xlr_config, df[interval.columns], interval.entity_name)  
+        for interval in interval_list:
+            parser.reserve_user_provided_uids(parent_trace, xlr_config, df[interval.columns], interval.entity_name)  
 
         rows                    = list(df.iterrows())
-        my_trace                = parent_trace.doing("Processing DataFrame", data={ 'tree.entity_type'  : tree.entity_type,
+        my_trace                = parent_trace.doing("Processing DataFrame", data={ 'parser.entity_type': parser.entity_type,
                                                                                     'columns'           : list(df.columns)},
                                                             origination = {                   
                                                                                     'signaled_from': __file__,
                                                                                     })
-        
         for idx in range(len(rows)):
             last_uid            = None # Will represent the 
-            for interval in xlr_config.buildIntervals(my_trace, list(df.columns)):
+            for interval in interval_list:
                 loop_trace      = my_trace.doing(   activity="Processing fragment", 
                                                     data={  'excel row': ExcelTableReader.df_2_xl_row(  
                                                                             parent_trace    = my_trace, 
@@ -150,8 +153,8 @@ class PostingController():
                                                     origination = {
                                                             'signaled_from': __file__,
                                                              })
-                a_uid           = tree.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, 
-                                                                xlr_config=xlr_config, all_rows=rows)
+                a_uid           = parser.readDataframeFragment(interval=interval, row=rows[idx], parent_trace=loop_trace, 
+                                                                xlr_config=xlr_config, all_rows=rows, acronym_schema=acronym_schema)
                 if a_uid != None: # Improve our working hypothesis of last_uid
                     last_uid = a_uid
             # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
@@ -161,7 +164,7 @@ class PostingController():
                                                     row_nb                  = idx, 
                                                     uid                     = last_uid)
 
-        return tree
+        return parser
 
     def getManifestAPI(self):
         '''

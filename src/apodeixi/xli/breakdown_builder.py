@@ -4,7 +4,7 @@ import pandas
 from apodeixi.util.a6i_error                    import ApodeixiError
 from apodeixi.util.formatting_utils             import StringUtils
 from apodeixi.xli.interval                      import IntervalUtils, Interval
-from apodeixi.xli.uid_store                     import UID_Store
+from apodeixi.xli.uid_store                     import UID_Store, UID_Utils
 from apodeixi.util.dataframe_utils              import DataFrameUtils
 
 class BreakdownTree():
@@ -75,7 +75,7 @@ class BreakdownTree():
 
         return result
         
-    def readDataframeFragment(self, interval, row, parent_trace, xlr_config, all_rows): 
+    def readDataframeFragment(self, interval, row, parent_trace, xlr_config, all_rows, acronym_schema): 
         '''
         Used to attach or enrich an immediate child to the root of this BreakdownTree based on information in a row
         in a Pandas DataFrame.
@@ -222,9 +222,11 @@ class BreakdownTree():
                 # The uid_to_overwrite might be abbreviated, e.g., "4.2". Need to unabbreviate it to the 
                 # full uid, e.g., "BR4.T2"
                 last_acronym            = self.getAcronym(parent_trace, interval.entity_name)
-                uid_to_overwrite        = self.uid_store.unabbreviate_uid(  parent_trace        = parent_trace, 
-                                                                            uid                 = uid_to_overwrite,
-                                                                            last_acronym        = last_acronym)
+                self.uid_store.remember_acronym(parent_trace, last_acronym)
+
+                uid_to_overwrite        = UID_Utils().unabbreviate_uid(     parent_trace        = parent_trace, 
+                                                                            uid                 = uid_to_overwrite, 
+                                                                            acronym_schema      = acronym_schema)
                 
             else:
                 uid_to_overwrite        = None # This will be used later when looking for a docking UID
@@ -301,8 +303,9 @@ class BreakdownTree():
                                                                     full_docking_uid    = docking_uid, 
                                                                     entity_type         = entity_type, 
                                                                     data_to_attach      = row[1][interval.columns],
-                                                                    uid_to_overwrite     = uid_to_overwrite,
-                                                                    xlr_config           = xlr_config)
+                                                                    uid_to_overwrite    = uid_to_overwrite,
+                                                                    xlr_config          = xlr_config,
+                                                                    acronym_schema      = acronym_schema)
             return subtree_full_uid
             
         else: # Didn't encounter a new entity - so nothing to do for this interval
@@ -504,7 +507,8 @@ class BreakdownTree():
             docking_uid                 = parent_entity_instance.UID
             return docking_uid
 
-    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, uid_to_overwrite, xlr_config):
+    def dockEntityData(self, parent_trace, full_docking_uid, entity_type, data_to_attach, uid_to_overwrite, xlr_config,
+                            acronym_schema):
         '''
         Method to attach a descendent to the tree. When an entity A links 1:n with an entity B,
         this method can be used to "attach" an instance 'bi' of B to an instance 'a' of A.
@@ -519,9 +523,10 @@ class BreakdownTree():
                                 If null we assume we are docking at the top of this tree
         @param entity_type      A string for the kind of entity to be added under the full_docking_uid
         @param data_to_attach A Pandas Series   
-        @uid_to_overwrite    A string. If set to None (normal when creating), a new UID will be generated
+        @param uid_to_overwrite    A string. If set to None (normal when creating), a new UID will be generated
             for the data_to_attach. Otherwise whatever exists at `uid_to_overwrite` will be replaced by 
             `data_to_attach`
+        @param acronym_schema   The AcronymSchema object that is a constant for this processing
         @return the full UID of the _EntityInstance node that was created and attached to this BreakdownTree
         '''
         my_trace                = parent_trace.doing("Looking for an acronym for '" + entity_type + "'",
@@ -589,9 +594,11 @@ class BreakdownTree():
                     # The user might have entered an abbreviated uid value, like "4.3". So unabbreviate before
                     # saving it to the tree
                     last_acronym    = self.getAcronym(loop_trace, entity_type)
-                    val             = self.uid_store.unabbreviate_uid(  parent_trace        = loop_trace, 
-                                                                        uid                 = str(val),
-                                                                        last_acronym        = last_acronym)
+                    self.uid_store.remember_acronym(parent_trace, last_acronym)
+
+                    val             = UID_Utils().unabbreviate_uid(     parent_trace        = loop_trace, 
+                                                                        uid                 = str(val), 
+                                                                        acronym_schema      = acronym_schema)
 
             if property_name != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
                 

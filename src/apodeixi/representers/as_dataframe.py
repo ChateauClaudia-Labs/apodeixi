@@ -5,6 +5,7 @@ import pandas                           as _pd
 from apodeixi.util.a6i_error            import ApodeixiError
 from apodeixi.xli                       import Interval
 from apodeixi.xli.uid_store             import UID_Utils
+from apodeixi.xli.uid_acronym_schema    import UID_Acronym_Schema
 
 class AsDataframe_Representer:
     '''
@@ -129,14 +130,14 @@ class AsDataframe_Representer:
 
         # For reasons explained in the documentation of the method _find_acronyminfo_list, we need to do a first
         # pass to get the correct, holistic set of acronyms before we call the _build_df_rows method
-        all_acronyminfos    = self._find_acronyminfo_list(  parent_trace        = my_trace, 
+        acronym_schema      = UID_Acronym_Schema()
+        acronym_schema.build_schema_from_manifest_content(  parent_trace        = my_trace, 
                                                             content_dict        = content_dict, 
-                                                            parent_path         = contents_path, 
-                                                            parent_uid          = None)
+                                                            parent_path         = contents_path)
 
         intervals, rows     = self._build_df_rows(          parent_trace        = my_trace,
                                                             content_dict        = content_dict,
-                                                            all_acronyminfos    = all_acronyminfos,
+                                                            acronym_schema      = acronym_schema,
                                                             parent_path         = contents_path,
                                                             parent_uid          = None,
                                                             sparse              = sparse,
@@ -207,7 +208,7 @@ class AsDataframe_Representer:
                 
         return on_path_dict, off_path_dict
     
-    def _build_df_rows(self, parent_trace, content_dict, all_acronyminfos, parent_path, parent_uid, sparse,
+    def _build_df_rows(self, parent_trace, content_dict, acronym_schema, parent_path, parent_uid, sparse,
                                 abbreviate_uids):
         '''
         Recursive method that creates the data from which a Pandas DataFrame can be easily created by the caller,
@@ -345,12 +346,15 @@ class AsDataframe_Representer:
                             entire manifest. 
                             In the first example above, if manifest_dict represents a full manifest, 
                             then content_df = manifest_dict['assertion']['big-rock']
-        @param all_acronyminfos A list of _AcronymInfo objects, containing all the acronyms for `content_dict`
+        @param acronym_schema An AcronymSchema object that captures all the acronyms for `content_dict`
                             as well as their corresponding entity names. This should be
-                            "global", i.e., is not for a "sub tree" but for the full manifest.
-                            Example: [("BR", "big-rock"), ("MR", "medium_rock"), ("SR", "small rock")] 
-                            where for clearer notation we use notation like("BR", "big-rock") to denote
-                            _AcronyInfo("BR", "big-rock")
+                            "global", i.e., is not for a "sub tree" but for the full manifest. 
+                            Logically speaking the schema contains information that specifice the order
+                            of the acronyms and their entities. While an object and not a list, logically
+                            it is as in this example:
+
+                                [("BR", "big-rock"), ("MR", "medium_rock"), ("SR", "small rock")] 
+                            
         @param parent_path A string using 'dot notation' for the path in the original YAML file that led
                           to the `content_dict`. 
                           In the first example above, that would be "assertion.big-rock" when this method is
@@ -373,9 +377,6 @@ class AsDataframe_Representer:
         
         # parent_path is something like "assertion.big-rock" when this method is first called, and 
         # like  "assertion.big-rock.BR1.Sub rock" when this method is calls recursively on itself
-        path_tokens             = parent_path.split('.') 
-
-        #entity_name             = path_tokens[-1] # like "big-rock" on 1st call, and "Sub rock" on recursive call
         
         entity_uids             = [key for key in content_dict.keys() if not key.endswith('-name')]
 
@@ -408,20 +409,8 @@ class AsDataframe_Representer:
 
             inner_trace         = loop_trace.doing("Determining name to give to UID column in DataFrame for a UID",
                                                     data = {"entity UID": str(full_e_uid)})            
-                
-            e_acronym           = UID_Utils().parseToken(my_trace, e_uid)[0]
-            e_acronyminfo_guesses   = [info for info in all_acronyminfos if info.acronym == e_acronym]
-            if len(e_acronyminfo_guesses) != 1:
-                raise ApodeixiError(my_trace, "Algorithm to infer acronyms seems to be making incorrect inferences: "
-                                            " it does not recognize a unique acronym for entity's UID",
-                                                data = {"entity_UID": str(e_uid),
-                                                        "inferred acronyms": str(all_acronyminfos)})
-            e_acronyminfo       = e_acronyminfo_guesses[0]
-            level               = all_acronyminfos.index(e_acronyminfo)
-            if level==0:
-                UID_COL         = UID
-            else:
-                UID_COL         = UID + '-' + str(level) # We start at "UID-1", "UID-2", etc. "UID" is on  
+
+            e_acronyminfo, UID_COL     = acronym_schema.schema_info_for_UID(parent_trace, e_uid)
 
             # Check if we already have an interval for this acronym info, and if not, create one
             my_prior_interval   = [interval for interval in all_intervals if e_acronyminfo.entity_name in interval.columns]
@@ -457,36 +446,28 @@ class AsDataframe_Representer:
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected a child called '" + NAME
                                                     + "' under '" + e_path + "'") 
                     
+            inner_trace         = loop_trace.doing("Building DataFrame row",
+                                                    data = {"entity path": str(e_path)})
             # We call it "level 1" because it is for my_interval. Recursive calls would be the subsequent
             # intervals, which are "level 2, 3, ..." in the content_df "tree"
             new_level_1_row                 = {} 
             # Add the entity column to the level_1 row
             # But first replace by "friendly" UID like 'BR1.2' instead of "BR1.SR2", if we are thus configured
             if abbreviate_uids == True:
-                abbreviated_full_e_uid      = UID_Utils().abbreviate_uid(parent_trace, uid=full_e_uid)
+                abbreviated_full_e_uid      = UID_Utils().abbreviate_uid(   parent_trace    = inner_trace, 
+                                                                            uid             = full_e_uid,
+                                                                            acronym_schema  = acronym_schema)
                 new_level_1_row[UID_COL]    = abbreviated_full_e_uid 
             else:
                 new_level_1_row[UID_COL]    = full_e_uid 
             new_level_1_row[e_acronyminfo.entity_name]    = e_dict[NAME]
             
-            # Apodeixi's data model allows "multiple dimensional" branching. An example of branching is having
-            # a "big-rock" entity "BR1" branch into multiple "Sub rock" entities "BR1.SR1", "BR1.SR2", "BR1.SR3", ...
-            # "Multi-dimensional" branching happens if the "big-rock" entity can also branch into another
-            # entity like "Epic", leading to children like "BR1.E1", "BR1.E2", "BR1.E3", ...
-            # While that is allowed in the data model, it is not possible to represent such multi-dimensional
-            # branching neatly in a tabular representation like a DataFrame.
-            # So since this method is about creating such tabular representation, we will error out if we find that
-            # "multi-dimensional" branching occurs in the manifest.
-            sub_entities                    = self._find_sub_entities(e_dict) # should find at most 1
-            if len(sub_entities) > 1:
-                raise ApodeixiError(loop_trace, "At most one sub entity is allowed when representing a manifest as as "
-                                                + " DataFrame, but found several: " 
-                                    + sub_entities)
-
+            sub_entity                      = acronym_schema.find_entity(inner_trace, e_dict) # Something like "Sub rock"
             # Now add the "scalar" attributes to the row and if needed also to the interval. A reason they may
             # not be in the interval already arises if we are creating the "first row" (i.e., entity e_uid) 
             # or if that attribute was not present in "previous rows"
-            for attrib in [a for a in e_dict.keys() if not a in sub_entities and a not in SYNTHETIC_COLUMNS]:
+            #for attrib in [a for a in e_dict.keys() if not a in sub_entities and a not in SYNTHETIC_COLUMNS]:
+            for attrib in [a for a in e_dict.keys() if a != sub_entity and a not in SYNTHETIC_COLUMNS]:
                 if not attrib in my_interval.columns:
                     my_interval.columns.append(attrib)
                 new_level_1_row[attrib]     = e_dict[attrib]
@@ -500,14 +481,13 @@ class AsDataframe_Representer:
             # we set "ourselves" ("BR1") as the parent_uid in the recursive call
             sub_rows                        = []
             sub_intervals                   = []
-            if len(sub_entities) > 0: # By now we know this is at most 1
-                sub_entity                  = sub_entities[0] # Something like "Sub rock"
+            if sub_entity != None:
                 inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
                                                                 data = {'signaledFrom': __file__})
                 
                 sub_intervals, sub_rows     = self._build_df_rows(  parent_trace        = inner_trace, 
                                                                     content_dict        = e_dict[sub_entity], 
-                                                                    all_acronyminfos    = all_acronyminfos,
+                                                                    acronym_schema      = acronym_schema,
                                                                     parent_path         = e_path + '.' + sub_entity,
                                                                     parent_uid          = full_e_uid,
                                                                     sparse              = sparse,
@@ -546,19 +526,7 @@ class AsDataframe_Representer:
         # Return value to caller (which for recursive call was this method itself, processing left interval to ours)
         return all_intervals, all_rows
         
-    def _find_sub_entities(self, content_dict):
-        '''
-        Finds the sub-entities in `content_dict`, defined as any child that is a dictionary and not
-        a scalar.
-        
-        Returns a list of strings for the keys of all such children
-        '''
-        sub_entities                    = []
-        for k in content_dict.keys():
-            child                       = content_dict[k]
-            if type(child) == dict:
-                sub_entities.append(k)
-        return sub_entities
+
     
     def _merge_2_intervals(self, parent_trace, growing, contributing):
         '''
@@ -631,275 +599,3 @@ class AsDataframe_Representer:
         for interval in contributing_list:
             self._merge_interval(parent_trace, growing_list, interval)
 
-    def _find_acronyminfo_list(self, parent_trace, content_dict, parent_path, parent_uid):
-        '''
-        This method is used as a pre-amble to determine the ordered set of acronyms to be used by other methods
-        of this class when attempting to build a Pandas DataFrame
-        representing the information in `content_dict`.
-
-        The reason for doing a first pass just to get the acronyms is it is not possible to correctly infer
-        UIDs at different levels (i.e., UID-1, UID-2, UID-3, ...) just based on full UIDs because some acronyms
-        might be missing in some of the tree paths of `content_dict`.
-
-        NOTE: because of needs by the caller, this method does not return a simple list of acronyms. I.e., instead
-        of returning a list of strings, it returns a list of _AcronymInfo objects, which is more informative (it includes
-        the entity name)
-
-        Example:
-        
-        Consider a path in `content_dict` involving these UIDs: A1, A1.I1, A1.II.AS1.
-
-        If we inferred level-based UID column names from these, we might think that A1 corresponds to "UID", that
-        A1.I1 corresponds to "UID-1", and that A1.I1.AS1 corresponds to "UID-2".
-
-        However, such an algorithm was found to be buggy in real life, in an example like this, where
-        this table represents the Excel posting where every column is an entity:
-
-
-               Area |  Indicator        |  Sub Indicator    | Applicable Space
-            ====================================================================
-             Adopt  |  %containeraized  |                   | Components
-                    |  %testing         | Functional Tests  | Scenarios.functional
-                    |                   | Performance Tests | 
- 
-
-        In this example there are 4 acronyms: A (for Area), I (for Indicator), SI (for Sub Indicator), and
-        AS (for Applicable Area)
-
-        The first row has no SubIndicator, so the leaf entity would get a full UID of A1.I1.AS1, whereas the other
-        two paths (i.e., rows) would get full UIDs of A1.I2.SI1.AS1 and A1.I2.SI2
-
-        If we assigned level-based UID column names, we would incorrectly use UID-2 for the interval
-        [Applicable Space] in row1, and use UID-2 for a different interval [Sub Indicator] for the other two rows.
-
-        This would be a bug, that would corrupt the DataFrame constructed by this class. When this bug was found, the
-        effect was that the DataFrame and "UID-2" appearing as two separate columns, causing errors downstream in code
-        that assumed that each column name was unique.
-
-        So to fix this problem, this method does a pass through the entire `content_dict` to get a list of acronyms, which
-        in this example would be:
-
-            ["A", "I", SI", "AS"]
-
-        That way other methods of this class can use that list when finding out the leveled-UID column name to use 
-        for an full UID. 
-
-        For example, other methods in this class that encounter "A1.I1.AS1" would look up acronym "AS" and found it is 
-        index 3 in the acronym list, and impute a UID column name of "UID-3", which would be correct.
-
-        The implementation of this methods is in two passes (sort of a map-reduce)
-
-        * First pass is recursive, going through the `content_dict` and getting a list of lists, one for each path.
-          In our example that would produce (notice not all acronyms appear in all lists, and in some cases may
-          not all appear in even 1 list)
-
-            [ ["A", "I", "AS"], ["A", "I", SI", "AS"], ["A", "I", SI"]]
-
-        * Second pass then reduces this to a single list that has the property that it includes all acronyms listed
-          in any of the lists in the first pass, in the same order. In the example, that is ["A", "I", SI", "AS"]
-
-
-        '''
-        # all_acronyms_list is a list of lists of _AcronymInfo objects
-        all_acronym_info_lists          = self._map_acronyminfo_lists(parent_trace, content_dict, parent_path, parent_uid)
-
-        # Now the "reduce" phase
-        result                          = []
-        working_acronyminfo_lists       = all_acronym_info_lists.copy()
-        MAX_LOOPS                       = 1000 # To avoid inadvertent infinite loops if there is a bug in the logic in the loop
-        loop_nb                         = 0
-        while loop_nb < MAX_LOOPS and len(working_acronyminfo_lists) > 0:
-            loop_trace                  = parent_trace.doing("Determining next acronym to append to the acronyms list",
-                                            data = {"result so far":        str(result), 
-                                                    "pending to explore":   str(working_acronyminfo_lists)})
-            first_acronyminfo           = self._find_first_acronyminfo(loop_trace, working_acronyminfo_lists)
-            if not first_acronyminfo in result:
-                result.append(first_acronyminfo)
-            next_working_lists          = []
-            for a_list in working_acronyminfo_lists:
-                if first_acronyminfo in a_list:
-                    modified_list       = a_list.copy()
-                    modified_list.remove(first_acronyminfo)
-                    if len(modified_list) > 0:
-                        next_working_lists.append(modified_list)
-                else:
-                    next_working_lists.append(a_list)
-            # Initialize state for next cycle in loop
-            loop_nb                     += 1
-            working_acronyminfo_lists   = next_working_lists
-
-        return result
-
-    def _find_first_acronyminfo(self, parent_trace, all_acronyminfo_lists):
-        '''
-        This is a helper method to the "reduce" phase of the algorithm used by method _find_acronym_list.
-        Refer to the documenation of that method for an explanation of the context for the algorithm.
-
-        The particular contribution of this method is to identify the first acronym that should be used.
-        This algorithm requires that there one unique such, meeting these conditions:
-        
-        * It appears in at least on list
-        * If it appears in a list at all, it appears first
-        * It is the unique such
-
-        It returns the result as an _AcronymInfo object
-
-        @param all_acronyminfo_list A list of lists, where inner lists contains _AcronymInfo objects
-        '''
-        candidates              = [a_list[0] for a_list in all_acronyminfo_lists if len(a_list) > 0]
-        # Remove duplicates, if any
-        candidates              = list(set(candidates))
-
-        # Disqualify any candidate if it is not first in at least one of the lists
-        disqualified            = [acronyminfo for acronyminfo in candidates 
-                                        if max([a_list.index(acronyminfo) for a_list 
-                                                in all_acronyminfo_lists if acronyminfo in a_list]) > 0]
-        qualified               = [acronyminfo for acronyminfo in candidates if acronyminfo not in disqualified]
-        if len(qualified) == 0:
-            raise ApodeixiError(parent_trace, "Badly formed acronyms list: there is no acronym that occurs only first in the "
-                                                + "lists where it appears",        
-                                    data = {"all_acronyms_list": str(all_acronyminfo_lists)})
-        if len(qualified) > 1:
-            raise ApodeixiError(parent_trace, "Badly formed acronyms list: there are multiple acronyms competing to be "
-                                                + "the first acrony",        
-                                    data = {"all_acronyms_list": str(all_acronyminfo_lists),
-                                            "competing acronyms": str(qualified)})
-        # If we get this far we are in good shape. There is a unique qualified candidate, so return it
-        return qualified[0]
-
-    def _map_acronyminfo_lists(self, parent_trace, content_dict, parent_path, parent_uid):
-        '''
-        This is a recursive helper method to the "map-reduce" algorithm used by method _find_acronym_list. 
-        Refer to the documentation of that method for an explanation of the context for the algorithm.
-
-        This method returns a list of lists, where the inner list consist of _AcronymInfo objects.
-        '''
-        my_trace                = parent_trace.doing("Mapping acronym lists for '" + parent_path + "''",
-                                                        data = {'signaledFrom': __file__})
-        if True:
-            if parent_path == None or len(parent_path.strip()) == 0:
-                raise ApodeixiError(my_trace, "Can't process a parent_path that is null or blank")
-
-        # parent_path is something like "assertion.big-rock" when this method is first called, and 
-        # like  "assertion.big-rock.BR1.Sub rock" when this method is calls recursively on itself
-        path_tokens             = parent_path.split('.') 
-        entity_name             = path_tokens[-1] # like "big-rock" on 1st call, and "Sub rock" on recursive call 
-
-        entity_uids             = [key for key in content_dict.keys() if not key.endswith('-name')]
-
-        # Will be one per "path" within the "tree" represented by `content_dict`, consisting of the acronyms
-        # encountered along that path, in order.
-        all_acronyms_result     = [] 
-                    
-        my_trace                = parent_trace.doing("Mapping acronyms under of '" + str(parent_uid) + "'",
-                                                        data = {'signaledFrom': __file__})
-
-        
-        # On a first call we loop through something like e_uid = "BR1", "BR2", "BR3", .... For that call
-        #       parent_uid = None and parent_path = "assertion.big-rock"
-        # On a recursive call with parent_uid = "BR1" we loop through e_uid = "SR1", "SR2", "SR3", .... In this case
-        #       parent_path = "assertion.big-rock.BR1.Sub rock"
-        for e_uid in entity_uids:
-            loop_trace          = parent_trace.doing("Looping on entity with UID '" + str(e_uid) + "'",
-                                                    data = {'signaledFrom': __file__})
-            if parent_uid == None:
-                full_e_uid      = e_uid
-            else:
-                full_e_uid      = parent_uid + '.' + e_uid
-                
-            e_acronym           = UID_Utils().parseToken(loop_trace, e_uid)[0]
-
-            e_path              = parent_path  + '.' + e_uid
-
-            e_dict              = content_dict[e_uid]
-
-            inner_trace         = loop_trace.doing("Checking tree under '" + e_path + "' is well formed",
-                                            data = {'signaledFrom': __file__})
-            if True:
-                # Check e.g. if content_dict = manifest_dict["assertion"]["big-rock"]["BR1"]["SubRock"]
-                # and e_uid = "SR2", that content_dict["SR2"] exists and is a dictionary
-                if e_dict == None:
-                    raise ApodeixiError(inner_trace, "Badly formatted tree: found nothing under '" + e_path + "'")
-                if type(e_dict) != dict:
-                    raise ApodeixiError(inner_trace, "Badly formatted tree: expected dictionary at '" + e_path
-                                                       + "' but instead found a " + str(type(e_dict)))
-                    
-                # Apodeixi's data model allows "multiple dimensional" branching. An example of branching is having
-                # a "big-rock" entity "BR1" branch into multiple "Sub rock" entities "BR1.SR1", "BR1.SR2", "BR1.SR3", ...
-                # "Multi-dimensional" branching happens if the "big-rock" entity can also branch into another
-                # entity like "Epic", leading to children like "BR1.E1", "BR1.E2", "BR1.E3", ...
-                # While that is allowed in the data model, it is not possible to represent such multi-dimensional
-                # branching neatly in a tabular representation like a DataFrame.
-                # So since this method is about creating such tabular representation, we will error out if we find that
-                # "multi-dimensional" branching occurs in the manifest.
-                sub_entities                    = self._find_sub_entities(e_dict) # should find at most 1
-                if len(sub_entities) > 1:
-                    raise ApodeixiError(inner_trace, "At most one sub entity is allowed when representing a manifest as as "
-                                                    + " DataFrame, but found several: " 
-                                        + sub_entities)
-
-            inner_trace         = loop_trace.doing("Getting acronym lists under '" + e_path + "'",
-                                            data = {'signaledFrom': __file__})
-            # Now we gear up to make a recursive call. For example, if we have been processing the interval
-            # ["UID", "big-rock"] and e_dict = content_df["BR1"], we are now going to take the plunge into
-            # the unique sub-entity "Sub rock" and make a recursive call to process interval
-            # ["UID-1", "Sub rock"] passing content_df["BR1"]["Sub rock"] as the content to process.
-            #
-            # For our e_path = "assertion"."big-rock"."BR1" we pass a path of "assertion"."big-rock"."BR1"."Sub rock"
-            # we set "ourselves" ("BR1") as the parent_uid in the recursive call
-            ME                              = AsDataframe_Representer
-            if len(sub_entities) == 0: # We hit bottom in the recursion
-                acronyms_list               = [ME._AcronymInfo(e_acronym, entity_name)]
-                all_acronyms_result.append(acronyms_list)
-            elif len(sub_entities) > 0: # Here we use recursion. By now we know this is at most 1
-                sub_entity                  = sub_entities[0] # Something like "Sub rock"
-                inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
-                                                                data = {'signaledFrom': __file__})
-
-                acronyms_subresult          = self._map_acronyminfo_lists   (parent_trace    = inner_trace, 
-                                                                        content_dict    = e_dict[sub_entity], 
-                                                                        parent_path     = e_path + '.' + sub_entity,
-                                                                        parent_uid      = full_e_uid)
-                for acronyms_sublist in acronyms_subresult:
-                    # Check we are not about to put duplicate acronyms - if so, that is an error with the `content_df`
-                    if e_acronym in acronyms_sublist:
-                        raise ApodeixiError(inner_trace, "Looks like manifest is corrupted because the same acronym is "
-                                                    + " used at different levels. An acronym should be used in only 1 level",
-                                                    data = {"Problem at UID": str(full_e_uid),
-                                                            "Acronyms below UID": str(acronyms_sublist)})
-                    acronyms_list           = [ME._AcronymInfo(e_acronym, entity_name)]
-                    acronyms_list.extend(acronyms_sublist)
-                    all_acronyms_result.append(acronyms_list)
-
-        return all_acronyms_result
-                
-
-    class _AcronymInfo():
-        '''
-        Helper data structure class. It packages information about an acronym that is needed by the algorithms
-        of this module.
-        '''
-        def __init__(self, acronym, entity_name):
-            self.acronym            = acronym
-            self.entity_name        = entity_name
-
-        def copy(self):
-            ME              = AsDataframe_Representer
-            new_info        = ME._AcronymInfo(  acronym         = self.acronym,
-                                                entity_name     = self.entity_name)
-            return new_info 
-
-        def __key(self):
-            return (self.acronym, self.entity_name)
-
-        def __hash__(self):
-            return hash(self.__key())
-
-        def __eq__(self, other):
-            ME              = AsDataframe_Representer
-            if isinstance(other, ME._AcronymInfo):
-                return self.__key() == other.__key()
-            return NotImplemented
-
-        def __str__(self):
-            return "acronym=" + str(self.acronym) + "; entity_name=" + str(self.entity_name)

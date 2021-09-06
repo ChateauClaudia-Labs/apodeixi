@@ -246,16 +246,13 @@ class UID_Store:
             subtree         = token_tree.children[head]
             sub_uid         = '.'.join(tail)
             self._mark_uid_as_used(parent_trace, sub_uid, acronym_list[1:], subtree)
-
-    def unabbreviate_uid(self, parent_trace, uid, last_acronym):
+       
+    def remember_acronym(self, parent_trace, last_acronym):
         '''
-        Returns a possibly modified UID. For example, a UID like "4.3" might be replaced by "P4.C3".
-        In other words, if the uid is one of those "abbreviated UIDs" that lacks acronyms (they arise
-        for usability reasons in user-provided UIDs), attempt to infer the acronyms that are missing and
-        return the full UID ("P4.C3" in the example)
+        Used in cases when the caller wants this store to remember one more acronym
+                    at the end of its list of known acronyms
 
-        @last_acronym Used in cases when the caller wants this store to remember one more acronym
-                    at the end of its list of known acronyms. If set to None, it is ignored. 
+        @last_acronym Acronym to remember. If set to None, it is ignored. 
         '''
         # Path of the acronyms the store knows about so far. May not yet include the entity, if we
         # are adding a uid for that entity for the first time
@@ -264,13 +261,6 @@ class UID_Store:
         if last_acronym != None and not last_acronym in known_acronym_list:
             known_acronym_list.append(last_acronym)
 
-        # Calling self._tokenize produces "unabbreviated" tokens
-        tokens              = UID_Utils()._tokenize(parent_trace, uid, known_acronym_list)
-        if len(tokens) == 0:
-            raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
-            
-        full_uid = ".".join(tokens)
-        return full_uid
 
 
 class UID_Utils():
@@ -291,17 +281,28 @@ class UID_Utils():
         val           = int(m.group(2))
         return acronym, val
 
-    def abbreviate_uid(self, parent_trace, uid):
+    def abbreviate_uid(self, parent_trace, uid, acronym_schema):
         '''
         Abbreviates the uid by stripping all acronyms except the first, and returns it.
 
-        For example, a uid like "P4.C3.AC2" is abbreviated to "P4.3.2"
+        For example, a uid like "P4.C3.AC2" is abbreviated to "P4.3.2".
+
+        It handles cases where an entity is skipped. For example, if the acronym schema is logically
+        like 
+                [A, I, SI, AS]
+
+        but the 3rd entity is "skipped" so that the caller submits a `uid` with just 3 tokens like
+
+                A4.I2.AS1
+
+        this method will detect that and return an abbreviated UID with 4 tokens, not 3, putting a 0
+        for the gap:
+
+                A4.2.0.1,   as oppose to A4.2.1, which would be "buggy" since the last token is for the wrong entity.
         '''
         tokens                      = self._tokenize(parent_trace, uid=uid, acronym_list=None)
         if len(tokens)<= 1:
             return uid
-
-        #token_tree                  = self._TokenTree(parent_trace, level=len(tokens))
 
         # GOTCHA: 
         # We very deliberately keep the first acronym, and only abbreviate the rest. For example, we
@@ -309,12 +310,88 @@ class UID_Utils():
         # This is to avoid bugs, because if we abbreviated to 7.10 then the various conversions across Excel and
         # Pandas will treat it as a number, equal to 7.1. This will cause two UIDs to collide (BR7.B1 and BR7.B10)
         # and one will overwrite the contents of the other, losing data from a manifest.
-        abbreviated_uid             = tokens[0]
-        for token in tokens[1:]:
-            acronym, val = self.parseToken(parent_trace, token)
-            abbreviated_uid     = abbreviated_uid + "." + str(val)
+        abbreviated_uid_tokens          = []                 
+        abbreviated_uid_tokens.append(tokens[0])
+
+        prior_acronym                   = self.parseToken(parent_trace, tokens[0])[0]
+        acronym_list                    = [acronyminfo.acronym for acronyminfo in acronym_schema.acronym_infos()]
+        for idx in range(1, len(tokens)):
+            token                       = tokens[idx]
+            acronym, val                = self.parseToken(parent_trace, token)
+            if not acronym in acronym_list:
+                raise ApodeixiError(parent_trace, "Can't abbreviate an invalid UID that has an acronym not in the schema",
+                                                data = {"uid":                  str(uid),
+                                                        "invalid acronym":      str(acronym),
+                                                        "schema":               str(acronym_schema)})
+            acronym_schema_idx          = acronym_list.index(acronym)
+            prior_acronym_schema_idx    = acronym_list.index(prior_acronym) 
+            if prior_acronym_schema_idx != len(abbreviated_uid_tokens) -1:
+                raise ApodeixiError(parent_trace, "Algorithm for abbreviating UID is flawed - please report a bug",
+                                                    data = {"uid":              str(uid),
+                                                            "schema":           str(acronym_schema),
+                                                            "problem":          "Length of abbreviated uid does not match expectation",
+                                                            "abbreviated UID tokens":  str(abbreviated_uid_tokens),
+                                                            "acronym":          str(acronym),
+                                                            "prior acronym":    str(prior_acronym),
+                                                            "prior_acronym_schema_idx": str(prior_acronym_schema_idx)})
+            if acronym_schema_idx <= prior_acronym_schema_idx:
+                raise ApodeixiError(parent_trace, "Can't abbreviate an invalid UID because two acronyms are in the wrong "
+                                                    + "order: '" + str(acronym) + "' appears after '" + str(prior_acronym) + "' "
+                                                    + "but in the schema that order is reversed",
+                                                    data = {"uid":                      str(uid),
+                                                            "schema":                   str(acronym_schema)})
+            if idx > acronym_schema_idx:
+                raise ApodeixiError(parent_trace, "Can't abbreviate an invalid UID because its acronym '" + str(acronym) + "' "
+                                                    + "is not at a legal position in the schema",
+                                                    data = {"uid":                      str(uid),
+                                                            "max position allowed":     str(acronym_schema_idx),
+                                                            "acronym position":         str(idx),
+                                                            "schema":                   str(acronym_schema)})
+            
+            # Pad with 0's for any acronyms that might have been skipped
+            for gap_idx in range(prior_acronym_schema_idx+1, acronym_schema_idx):
+                abbreviated_uid_tokens.append("0")
+
+            # Now add this acronym's value
+            abbreviated_uid_tokens.append(str(val))
+
+            # Initialize for next cycle of loop
+            prior_acronym        = acronym
         
+        abbreviated_uid         = ".".join(abbreviated_uid_tokens)
         return abbreviated_uid
+
+    def unabbreviate_uid(self, parent_trace, uid, acronym_schema):
+        '''
+        Returns a possibly modified UID. For example, a UID like "P4.3" might be replaced by "P4.C3".
+        In other words, if the uid is one of those "abbreviated UIDs" that lacks acronyms (they arise
+        for usability reasons in user-provided UIDs), attempt to infer the acronyms that are missing and
+        return the full UID ("P4.C3" in the example)
+
+        Potentially, if a UID skipped an entity, it relies on 0 digit to determine that. For example, if the
+        entity schema is logically like  [A, I, SI, AS], if a full UID is A4.I3.AS2, then the SI entity
+        was skipped.
+        In that case, the correct abbreviated UID should be A4.3.0.2, instead of A4.3.2.
+
+        That makes it possible for this method to line up 1-1 the tokens of the abbreviated UID to the
+        acronym schema, to infer the correct unabbreviated UID. In the example, that would be inferring that
+        A4.3.0.2 corresponds to A4.I3.AS2. Without the "0" digit, if we had A4.3.2, we would have 
+        incorrectly inferred A4.I3.I2
+
+        @acronym_schema Used to determine what acronyms to use in the full UID that is returned.
+        '''
+        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
+        # are adding a uid for that entity for the first time
+
+        acronym_list        = [acronyminfo.acronym for acronyminfo in acronym_schema.acronym_infos()]
+
+        # Calling self._tokenize produces "unabbreviated" tokens
+        tokens              = UID_Utils()._tokenize(parent_trace, uid, acronym_list)
+        if len(tokens) == 0:
+            raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
+            
+        full_uid = ".".join(tokens)
+        return full_uid
 
     def _tokenize(self, parent_trace, uid, acronym_list=None):
         '''
@@ -353,6 +430,10 @@ class UID_Utils():
                     raise ApodeixiError(parent_trace, "Invalid uid='" + uid 
                             + "': expected something like P3 or AV45.P1.E12, or abbreviations like AV45.1.12")
                 else: # t is something like 12
+                    if t == 0:
+                        # We don't add a token for 0's in the abbreviation. See documentation of
+                        # self.unabbreviate_uid
+                        continue 
                     if acronym_list != None and len(acronym_list) <= idx:
                         raise ApodeixiError(parent_trace, "Too few known acronyms to infer them for uid='" + uid  + "'",
                                                     data = {"known acronyms": str(acronym_list)})
