@@ -55,10 +55,14 @@ class CapabilityHierarchy_Controller(SkeletonController):
         ME                              = CapabilityHierarchy_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
-    def manifestNameFromLabel(self, parent_trace, label):
+    def manifestNameFromLabel(self, parent_trace, label, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         label
+        @param kind The kind of manifest for which the name is sought. This parameter can be ignored for controller
+                    classes that use the same name for all supported kinds; it is meant to support controllers that
+                    process multiple manifest kinds and do not use the same name for all of them. For example, controllers
+                    that point to reference data in a different domain/sub-domain.
         '''
         scaffolding_purpose             = label.scaffoldingPurpose  (parent_trace)
         project                         = label.project             (parent_trace) 

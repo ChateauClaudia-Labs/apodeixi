@@ -553,11 +553,13 @@ class ManifestRepresenter:
                         manifest_info   = self.manifestInfo_dict[xlw_config.manifest_name]
 
                         manifest_dict   = manifest_info.getManifestDict(parent_trace)
+      
+                        acronym_schema  = UID_Acronym_Schema()
+                        acronym_schema.build_schema_from_manifest(parent_trace, manifest_dict) 
+                        uid_store.set_acronym_schema(parent_trace, acronym_schema) 
+
                         uid_store.initializeFromManifest(my_trace, manifest_dict)
                         raw_uid         = row_content[col]
-
-                        acronym_schema  = UID_Acronym_Schema()
-                        acronym_schema.build_schema_from_manifest(loop_trace, manifest_dict)
 
                         good_uid        = UID_Utils().unabbreviate_uid( parent_trace        = loop_trace, 
                                                                         uid                 = str(raw_uid), 

@@ -5,10 +5,11 @@ import pandas                                           as _pd
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 
-from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel, PostingConfig
+from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel
 from apodeixi.xli.uid_store                             import UID_Store
 from apodeixi.xli.xlimporter                            import ExcelTableReader, SchemaUtils
 from apodeixi.xli.interval                              import Interval
+from apodeixi.xli.uid_acronym_schema                    import UID_Acronym_Schema
 
 from apodeixi.controllers.util.manifest_api             import ManifestAPIVersion
 from apodeixi.knowledge_base.knowledge_base_util        import PostResponse, \
@@ -218,9 +219,17 @@ class SkeletonController(PostingController):
             proposed_editable_fields        = label.infer(loop_trace, manifest_dict, key)
             if label_editable_fields == None: # Initialize them
                 label_editable_fields             = proposed_editable_fields
+            # We allow each manifest to contribute what it thinks should be editable, and we take the union.
+            # A reason manfifests may differ on what is editable is because they might belong to different domains,
+            # as when one manifests references another manifest from a different domain. Each domain may imply 
+            # certain editable fields in the label.
+            new_editable_fields             = [x for x in proposed_editable_fields if not x in label_editable_fields]
+            label_editable_fields.extend(new_editable_fields)
+            '''
             elif proposed_editable_fields != label_editable_fields: 
                 raise ApodeixiError(loop_trace, "Can't generate form since manifests disagree on which fields should be"
                                                 + " editable in the PostingLabel of the form being requested") 
+            '''
 
         my_trace                            = parent_trace.doing("Checking referential integrity for inferred Posting Label")
 
@@ -331,15 +340,15 @@ class SkeletonController(PostingController):
             coords                              = form_request.getFilingCoords(parent_trace)
             namespace                           = scope.namespace
             subnamespace                        = scope.subnamespace
-            name                                = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+            
             manifest_nb                         = 0
             for kind in self.getSupportedKinds():
                 loop_trace                      = parent_trace.doing("Searching for latest version of manifest",
                                                         data = {"kind":     str(kind),
-                                                                "namespace":    str(namespace),
-                                                                "name":         str(name)})
+                                                                "namespace":    str(namespace)})
+                name                            = self.manifestNameFromCoords(parent_trace, subnamespace, coords, kind)
                 manifest_identifier             = kind + "." + str(manifest_nb)
-                manifest_api_name                = self.getManifestAPI().apiName()
+                manifest_api_name               = self.getManifestAPI().apiName()
                 manifest_dict, manifest_path    = self.store.findLatestVersionManifest( 
                                                                             parent_trace        = loop_trace, 
                                                                             manifest_api_name   = manifest_api_name,
@@ -476,16 +485,20 @@ class SkeletonController(PostingController):
             result.append(data_handle)
         return result
 
-    def manifestNameFromLabel(self, parent_trace, label):
+    def manifestNameFromLabel(self, parent_trace, label, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         label
+        @param kind The kind of manifest for which the name is sought. This parameter can be ignored for controller
+                    classes that use the same name for all supported kinds; it is meant to support controllers that
+                    process multiple manifest kinds and do not use the same name for all of them. For example, controllers
+                    that point to reference data in a different domain/sub-domain.
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifestNameFromLabel' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})  
 
-    def manifestNameFromCoords(self, parent_trace, subnamespace, coords):
+    def manifestNameFromCoords(self, parent_trace, subnamespace, coords, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         filing coords, possibly complemented by the subnamespace.
@@ -504,6 +517,10 @@ class SkeletonController(PostingController):
 
         @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
                         `subnamespace` parameter, to build a manifest name.
+        @param kind The kind of manifest for which the name is sought. This parameter can be ignored for controller
+                    classes that use the same name for all supported kinds; it is meant to support controllers that
+                    process multiple manifest kinds and do not use the same name for all of them. For example, controllers
+                    that point to reference data in a different domain/sub-domain.
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifestNameFromCoords' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
@@ -549,7 +566,7 @@ class SkeletonController(PostingController):
 
         FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
         namespace                   = FMT(organization + '.' + kb_area)
-        manifest_name               = self.manifestNameFromLabel(parent_trace, label)
+        manifest_name               = self.manifestNameFromLabel(parent_trace, label, kind)
 
         my_trace                    = parent_trace.doing("Checking if this is an update")
         if True:
@@ -901,7 +918,7 @@ class SkeletonController(PostingController):
         coords                      = form_request.getFilingCoords(parent_trace)
         namespace                   = scope.namespace
         subnamespace                = scope.subnamespace
-        manifest_name               = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
+        manifest_name               = self.manifestNameFromCoords(parent_trace, subnamespace, coords, kind)
 
         if namespace == None:
             raise ApodeixiError(parent_trace, "Can't create Excel template because namespace was not set")
@@ -973,7 +990,7 @@ class SkeletonController(PostingController):
                         
             FMT                     = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
             namespace               = FMT(organization + '.' + kb_area)
-            manifest_name           = self.manifestNameFromLabel(parent_trace, label)
+            manifest_name           = self.manifestNameFromLabel(parent_trace, label, kind)
             
             # Load the prior manifest, to determine which UIDs are already in use so that we don't
             # re-generate them for different data items
@@ -989,6 +1006,10 @@ class SkeletonController(PostingController):
                                             data = {"prior version":            prior_version,
                                                     "prior manifest handle":    prior_handle.display(my_trace)})                                                       
             
+            acronym_schema  = UID_Acronym_Schema()
+            acronym_schema.build_schema_from_manifest(parent_trace, prior_manifest) 
+            store.set_acronym_schema(parent_trace, acronym_schema) 
+
             store.initializeFromManifest(my_trace, prior_manifest)
 
         return store

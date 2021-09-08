@@ -55,47 +55,6 @@ class UID_Store:
             if not token in self.children.keys():
                 self.children[token] = UID_Store._TokenTree(parent_trace, self.level + 1)           
         
-        def genAcronymList(self, parent_trace):
-            '''
-            Many _TokenTree objects have a unique acronym at each level of the tree.
-            If so, this returns that list, as a list of strings ordered from the top of the tree
-            to the leaves.
-
-            In situations where there are multiple acronyms at a given level, it returns the a random
-            "longest" path of acronyms through the tree
-            '''
-            result                          = []
-            if len(self.vals.keys()) > 1:
-                raise ApodeixiError(parent_trace, "Can't figure out acronyms for a UID Token Tree because there "
-                                                     + "is not a unique acronyms at the top of this tree",
-                                                     data = {"acronyms": str(list(self.vals.keys()))})
-            elif len(self.vals.keys()) == 0:
-                return []
-
-            top_level_acronym               = next(iter(self.vals))
-            result.append(top_level_acronym)
-
-            # idx_list is something like [10, 11, 2, 3, 4] if top_level_acronym is BR and UIDs are
-            # BR10, BR11, BR2, BR3, and BR4
-            idx_list                        = self.vals[top_level_acronym]
-
-            # We will loop through the children and select the child for which its sublist of acronyms is the longest
-            # That way we don't inadvertently miss out on some acronyms, as we used to in a prior buggy implementation
-            # that chose the "first" path, not the "longest" path
-            longest_sub_result              = []
-            for idx in idx_list:
-                child_uid                   = top_level_acronym + str(idx)
-                loop_trace                  = parent_trace.doing("Getting acronym list below uid '" + child_uid + "'")
-                child                       = self.children[child_uid]
-                candidate_sub_result        = child.genAcronymList(loop_trace)
-                if len(candidate_sub_result) > len(longest_sub_result):
-                    longest_sub_result      = candidate_sub_result
-
-            result.extend(longest_sub_result)
-
-            return result
-
-
         def _generateHere(self, parent_trace, acronym):
             if acronym not in self.vals.keys():
                 self.vals[acronym] = []
@@ -176,8 +135,20 @@ class UID_Store:
             return result_dict
            
     def __init__(self, parent_trace):
-        self.tree     = UID_Store._TokenTree(parent_trace, level=0)
+        self.tree                   = UID_Store._TokenTree(parent_trace, level=0)
+
+        self.acronym_schema         = None # Will be set by set_acronym_schema
         return
+
+    def set_acronym_schema(self, parent_trace, acronym_schema):
+        '''
+        Sets the acronym_schema attribute. This is not done in the constructor because of a chicken-and-egg
+        situation with the UID_Store and AcronymSchema classes: each needs to other to totally initialize itself
+
+        So this is meant to be called shortly after this UID_Store is constructed, but after the AcronymSchema
+        is built using a BreakdownTree in turn constructed with this UID_Store
+        '''
+        self.acronym_schema         = acronym_schema
     
     def generateUID(self, parent_trace, parent_UID, acronym):
         branch        = UID_Utils()._tokenize(parent_trace, parent_UID)
@@ -190,7 +161,7 @@ class UID_Store:
         and adds it as a branch of this token tree.
 
         @param manifest_dict A dict object representing a manifest
-        '''
+        '''      
         for key in manifest_dict.keys():
             val             = manifest_dict[key]
             if key == Interval.UID:
@@ -222,13 +193,13 @@ class UID_Store:
                     by the caller (the caller typically is the BreakdownTree class that would know
                     how to get such "last acronym")
         '''
-        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
-        # are adding a uid for that entity for the first time
-        known_acronym_list  = self.tree.genAcronymList(parent_trace) 
+        if self.acronym_schema == None:
+            raise ApodeixiError(parent_trace, "Detected incorrectly built UID_Store while adding a known uid: this "
+                                                + "UID_Store's acronym schema is not initialized",
+                                            {"uid": str(uid)})
 
-        if last_acronym != None and not last_acronym in known_acronym_list:
-            known_acronym_list.append(last_acronym)
-        
+        known_acronym_list          = [info.acronym for info in self.acronym_schema.acronym_infos()]
+
         self._mark_uid_as_used(parent_trace, uid, known_acronym_list, self.tree)
 
     def _mark_uid_as_used(self, parent_trace, uid, acronym_list, token_tree):
@@ -247,21 +218,6 @@ class UID_Store:
             sub_uid         = '.'.join(tail)
             self._mark_uid_as_used(parent_trace, sub_uid, acronym_list[1:], subtree)
        
-    def remember_acronym(self, parent_trace, last_acronym):
-        '''
-        Used in cases when the caller wants this store to remember one more acronym
-                    at the end of its list of known acronyms
-
-        @last_acronym Acronym to remember. If set to None, it is ignored. 
-        '''
-        # Path of the acronyms the store knows about so far. May not yet include the entity, if we
-        # are adding a uid for that entity for the first time
-        known_acronym_list  = self.tree.genAcronymList(parent_trace) 
-
-        if last_acronym != None and not last_acronym in known_acronym_list:
-            known_acronym_list.append(last_acronym)
-
-
 
 class UID_Utils():
     '''

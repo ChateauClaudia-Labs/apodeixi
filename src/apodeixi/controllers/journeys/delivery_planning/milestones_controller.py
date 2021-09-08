@@ -222,12 +222,12 @@ class MilestonesController(JourneysController):
         coords                          = form_request.getFilingCoords(parent_trace)
         namespace                       = scope.namespace
         subnamespace                    = scope.subnamespace
-        name                            = self.manifestNameFromCoords(parent_trace, subnamespace, coords)
 
         manifest_api                    = self.getManifestAPI()
 
         if kind == ME.REFERENCED_KIND:
             posting_api                 = form_request.getPostingAPI(parent_trace)
+            name                        = self.manifestNameFromCoords(parent_trace, subnamespace, coords, kind)
             raise ApodeixiError(parent_trace, "Can't create template for posting API '" + str(posting_api) + "' "
                                         + "because this API requires pre-existence of a '" + str(kind) + "' manifest, and "
                                         + "no '" + str(kind) + "' manifest was not found at the expected location:"
@@ -236,6 +236,7 @@ class MilestonesController(JourneysController):
                                         + "\n\tname                 = " + str(name)
                                         + "\n\tkind                 = " + str(kind))
         elif kind == ME.MY_KIND:
+            name                        = self.manifestNameFromCoords(parent_trace, subnamespace, coords, kind)
             m_list                      = ["SME market", "SME market", "New UX", "Cloud"]
             t_list                      = ["CAM expansion", "Margin improvement", "New UX", "Cloud Native"]
             d_list                      = ["Q3 FY20", "Q1 FY21", "Q4 FY21", "Q4 FY22"]
@@ -360,7 +361,7 @@ class MilestonesController(JourneysController):
             kb_area                         = self.knowledgeBaseArea(my_trace)
             FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
             namespace                       = FMT(organization + '.' + kb_area)
-            manifest_name                   = self.controller.manifestNameFromLabel(my_trace, label=self)
+            manifest_name                   = self.controller.manifestNameFromLabel(my_trace, label=self, kind=ME.REFERENCED_KIND)
 
             manifest_dict, manifest_path    = self.controller.store.findLatestVersionManifest( 
                                                                         parent_trace        = my_trace, 

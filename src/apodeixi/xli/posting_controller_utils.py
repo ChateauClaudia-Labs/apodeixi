@@ -127,6 +127,7 @@ class PostingController():
         acronym_schema          = UID_Acronym_Schema()
         interval_list           = list(xlr_config.buildIntervals(my_trace, list(df.columns)))
         acronym_schema.build_schema_from_intervals(my_trace, parser=parser, interval_list=interval_list)
+        store.set_acronym_schema(my_trace, acronym_schema)
 
         # If we are supposed to use user-generated UIDs (when available) instead of generating them,
         # tell the tree's UID store to keep them. 

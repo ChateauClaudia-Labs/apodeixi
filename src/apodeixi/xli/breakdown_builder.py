@@ -219,10 +219,6 @@ class BreakdownTree():
                 uid_column              = self._identify_uid_column(parent_trace, interval.columns)
                 uid_raw                 = row[1][uid_column]
                 uid_to_overwrite        = str(uid_raw)
-                # The uid_to_overwrite might be abbreviated, e.g., "4.2". Need to unabbreviate it to the 
-                # full uid, e.g., "BR4.T2"
-                last_acronym            = self.getAcronym(parent_trace, interval.entity_name)
-                self.uid_store.remember_acronym(parent_trace, last_acronym)
 
                 uid_to_overwrite        = UID_Utils().unabbreviate_uid(     parent_trace        = parent_trace, 
                                                                             uid                 = uid_to_overwrite, 
@@ -591,10 +587,6 @@ class BreakdownTree():
                     # and named them things like "UID.1", "UID.2", etc., since in the YAML manifest only "UID"
                     # makes sense
                     property_name   = Interval.UID
-                    # The user might have entered an abbreviated uid value, like "4.3". So unabbreviate before
-                    # saving it to the tree
-                    last_acronym    = self.getAcronym(loop_trace, entity_type)
-                    self.uid_store.remember_acronym(parent_trace, last_acronym)
 
                     val             = UID_Utils().unabbreviate_uid(     parent_trace        = loop_trace, 
                                                                         uid                 = str(val), 

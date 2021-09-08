@@ -36,10 +36,14 @@ class JourneysController(SkeletonController):
     def getManifestAPI(self):
         return self.MANIFEST_API
 
-    def manifestNameFromLabel(self, parent_trace, label):
+    def manifestNameFromLabel(self, parent_trace, label, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         label
+        @param kind The kind of manifest for which the name is sought. This parameter can be ignored for controller
+                    classes that use the same name for all supported kinds; it is meant to support controllers that
+                    process multiple manifest kinds and do not use the same name for all of them. For example, controllers
+                    that point to reference data in a different domain/sub-domain.
         '''
         product                         = label.product             (parent_trace)
         journey                         = label.journey             (parent_trace) 
@@ -50,7 +54,7 @@ class JourneysController(SkeletonController):
         name                            = FMT(journey + '.' + scoring_cycle + '.' + product + '.' + scenario)
         return name
 
-    def manifestNameFromCoords(self, parent_trace, subnamespace, coords):
+    def manifestNameFromCoords(self, parent_trace, subnamespace, coords, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
         filing coords, possibly complemented by the subnamespace.
@@ -69,6 +73,10 @@ class JourneysController(SkeletonController):
 
         @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
                         `subnamespace` parameter, to build a manifest name.
+        @param kind The kind of manifest for which the name is sought. This parameter can be ignored for controller
+                    classes that use the same name for all supported kinds; it is meant to support controllers that
+                    process multiple manifest kinds and do not use the same name for all of them. For example, controllers
+                    that point to reference data in a different domain/sub-domain.
         '''
         if not type(coords) == self.getFilingClass():
             raise ApodeixiError(parent_trace, "Can't build manifest name because received wrong type of filing coordinates",
