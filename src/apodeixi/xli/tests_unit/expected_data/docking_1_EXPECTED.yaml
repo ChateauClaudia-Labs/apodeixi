@@ -42,7 +42,7 @@ A2:
       Costs:
         CO1:
           Purpose: Customer Visit
-          UID: A2.B1.CO1
+          UID: A2.B1.C0.CO1
           name: Charlie's per diem
         CO1-name: Charlie's per diem
       UID: A2.B1

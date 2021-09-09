@@ -11,6 +11,7 @@ from apodeixi.util.a6i_error                                import ApodeixiError
 from apodeixi.xli.breakdown_builder                         import BreakdownTree, UID_Store, Interval
 from apodeixi.xli.posting_controller_utils                  import PostingConfig
 from apodeixi.xli                                           import UpdatePolicy
+from apodeixi.xli.uid_acronym_schema                        import UID_Acronym_Schema, AcronymInfo
 
 class Test_BreakoutTree(ApodeixiUnitTest):
 
@@ -151,11 +152,18 @@ class Test_BreakoutTree(ApodeixiUnitTest):
             xlr_config              = self._create_posting_config(root_trace, 'attach_subtree')
             subtree_intervals = [   Interval(None, ['Expectation', 'Description']), 
                                     Interval(None, [ 'Acceptance Criteria', 'Artifact'])]
+
+            acronym_schema                      = UID_Acronym_Schema()
+            acronym_schema.acronyminfo_list     = [AcronymInfo("A", "A"), AcronymInfo("B", "B"), AcronymInfo("C", "C"),
+                                                    AcronymInfo("E", "Expectation"), 
+                                                    AcronymInfo("AC", "Acceptance Criteria")]
+
             self._attach_subtree(   df_to_attach            = subtree_df, 
                                     intervals               = subtree_intervals, 
                                     tree_to_attach_to       = tree1, 
                                     docking_uid             = 'A2.B1.C1', 
-                                    xlr_config              = xlr_config)
+                                    xlr_config              = xlr_config,
+                                    acronym_schema          = acronym_schema)
             result_dict             = tree1.as_dicts()
         except ApodeixiError as ex:
             print(ex.trace_message())
@@ -185,6 +193,10 @@ class Test_BreakoutTree(ApodeixiUnitTest):
         my_trace        = parent_trace.doing("Processing DataFrame", data={'tree.entity_type'  : tree.entity_type,
                                                                                     'columns'           : list(df.columns)})
 
+        acronym_schema                      = UID_Acronym_Schema()
+        acronym_schema.acronyminfo_list     = [AcronymInfo("A", "A"), AcronymInfo("B", "B"), AcronymInfo("C", "C"),
+                                                AcronymInfo("CO", "Costs")] # CO acronym is for test_docking_1
+        store.set_acronym_schema(my_trace, acronym_schema)
         for idx in range(len(rows)):
             for interval in intervals:
                 loop_trace        = my_trace.doing(activity="Processing fragment", data={'row': idx, 
@@ -226,8 +238,9 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                                 controller      = controller)
         return xlr_config
 
-    def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid, xlr_config):
+    def _attach_subtree(self, df_to_attach, intervals, tree_to_attach_to, docking_uid, xlr_config, acronym_schema):
         store           = tree_to_attach_to.uid_store
+        
         entity_type     = intervals[0].entity_name
         subtree         = BreakdownTree(uid_store = store, entity_type=entity_type, parent_UID=docking_uid)
          
@@ -236,7 +249,7 @@ class Test_BreakoutTree(ApodeixiUnitTest):
                                                                                     'columns'           : list(df_to_attach.columns)},
                                                                             origination = {
                                                                                     'signaled_from': __file__})
-
+        store.set_acronym_schema(root_trace, acronym_schema)
         for idx in range(len(rows)):
             for interval in intervals:
                 my_trace        = root_trace.doing(activity="Processing fragment", data={'row': idx, 'interval': interval})

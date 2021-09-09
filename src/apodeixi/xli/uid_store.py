@@ -93,8 +93,18 @@ class UID_Store:
             else:
                 head               = branch[0]
                 tail               = branch[1:]
-                child              = self._findChild(parent_trace, head)
-                tail_uid, leaf_uid = child.generateNextUID(parent_trace, tail, acronym)
+
+                #       See GOTCHA comment in self.generateNextUID. It might be that we have received UIDs like
+                # "BR1.SR0.TR1", and the "SR0" token is there only to enforce that TR is a level below SR, so that
+                # the two are never in competition (which creates bugs). So if we have received an head like 
+                # "SR0", we shouldn't error out - just ignore it for purposes of walking down the tree, but
+                # include it in the full_uid we return
+                head_acronym, head_val  = UID_Utils().parseToken(parent_trace, token = head)
+                if head_val == 0:
+                    next_tree       = self      
+                else:    
+                    next_tree      = self._findChild(parent_trace, head)
+                tail_uid, leaf_uid = next_tree.generateNextUID(parent_trace, tail, acronym)
                 full_uid           = head + '.' + tail_uid
                 
             return full_uid, leaf_uid
@@ -152,6 +162,47 @@ class UID_Store:
     
     def generateUID(self, parent_trace, parent_UID, acronym):
         branch        = UID_Utils()._tokenize(parent_trace, parent_UID)
+        # GOTCHA: 
+        #           it is possible that the user "skipped" an entity. For example, maybe the acronym schema
+        # is along the lines of [BR(big rock), SR(sub rock), TR(tiny rock)], and the user skipped the sub-rock,
+        # and we are seeing our first tiny-rock.
+        # In that example, then we have a parent_UID of "BR1" and unless we do something different, we will
+        # generate "BR1.TR1"
+        # We found that this is problematic and creates bugs elsewhere in the processing. For example, in some cases
+        # the code to generate Excel forms will error out when it sees a YAML manifest with UIDs like
+        # "BR1.TR1" in the same YAML as UID "BR2.SR2" - the algorithm will think there are two competing
+        # acronyms (SR and TR) and can't decide which one to use.
+        # So to disambiguate that and pre-empt such bugs, we don't generate a UID like "BR1.TR1". Instead,
+        # we leverage the Acronym Schema to realize that the SR entity was skipped, and while there is no SR
+        # parent, we adopt the convention of using number 0 for SR.
+        #
+        # Thus, in that example we generate a UID like "BR1.SR0.TR1" instead of "BR1.TR1". This convention of
+        # using a "0" whenever an entity is skipped can then be relied elsewhere in the code to always have
+        # a unique acronym at each level of the tree
+        # The algorithm basically finds the indices `prior_acronym_idx` and `acronym_idx`, and for any acronyms
+        # X, Y, Z, .. in the range, it increases branch by [X0, Y0, Z0, ...]
+        all_acronyms                = [info.acronym for info in self.acronym_schema.acronym_infos()]
+        if not acronym in all_acronyms:
+            raise ApodeixiError(parent_trace, "Corrupted parser tree: acronym not found in the acronym schema",
+                                            data = {"acronym":          str(acronym),
+                                                    "acronym schema":   str(self.acronym_schema)})
+        acronym_idx                 = all_acronyms.index(acronym)
+        if len(branch)==0:
+            prior_acronym_idx       = -1
+        else:
+            prior_acronym, prior_nb = UID_Utils().parseToken(parent_trace, token = branch[-1])
+            
+            if not prior_acronym in all_acronyms:
+                raise ApodeixiError(parent_trace, "Corrupted parser tree: parent UID's leaf acronym not found in the acronym schema",
+                                            data = {"parent_UID":       str(parent_UID),
+                                                    "acronym schema":   str(self.acronym_schema)})
+            prior_acronym_idx       = all_acronyms.index(prior_acronym)
+
+        # Put the padding, as per the GOTCHA comment above
+        for idx in range(prior_acronym_idx+1, acronym_idx):
+            skipped_acronym_0       = all_acronyms[idx] + "0"
+            branch.append(skipped_acronym_0)
+
         return self.tree.generateNextUID(parent_trace, branch, acronym)
     
     def initializeFromManifest(self, parent_trace, manifest_dict):

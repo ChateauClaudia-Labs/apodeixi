@@ -113,8 +113,9 @@ class GreedyIntervalSpec(IntervalSpec):
     def buildIntervals(self, parent_trace, linear_space):
         '''
         '''
-        if self.entity_name == None:
-            self.entity_name            = IntervalUtils().infer_first_entity(parent_trace, linear_space)
+        #if self.entity_name == None:
+        # Overwrite self.entity_name to be consistent with the linear space given
+        self.entity_name                = IntervalUtils().infer_first_entity(parent_trace, linear_space)
 
         my_trace                        = parent_trace.doing("Validating mandatory columns are present")
 

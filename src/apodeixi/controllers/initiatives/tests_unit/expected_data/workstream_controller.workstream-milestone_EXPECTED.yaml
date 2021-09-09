@@ -45,7 +45,7 @@ assertion:
           Dependency:
             D1:
               Dependent on: W0
-              UID: T2.M1.D1
+              UID: T2.M1.TA0.D1
               name: Completion of W0 initial analysis (expected by end of August)
             D1-name: Completion of W0 initial analysis (expected by end of August)
           UID: T2.M1
@@ -61,7 +61,7 @@ assertion:
           Dependency:
             D1:
               Dependent on: W5, W6, W8
-              UID: T3.M1.D1
+              UID: T3.M1.TA0.D1
               name: Receipt of requirements from sales, pricing and support (expected
                 by end of August)
             D1-name: Receipt of requirements from sales, pricing and support (expected
@@ -110,7 +110,7 @@ assertion:
           Dependency:
             D1:
               Dependent on: W2
-              UID: T4.M2.D1
+              UID: T4.M2.TA0.D1
               name: Availability of FusionOperate for pertinent stacks by 11/30/21
             D1-name: Availability of FusionOperate for pertinent stacks by 11/30/21
           UID: T4.M2
@@ -123,7 +123,7 @@ assertion:
           Dependency:
             D1:
               Dependent on: W2
-              UID: T4.M3.D1
+              UID: T4.M3.TA0.D1
               name: Availability of FusionOperate for pertinent stacks by 8/31/22
             D1-name: Availability of FusionOperate for pertinent stacks by 8/31/22
           UID: T4.M3
@@ -136,7 +136,7 @@ assertion:
           Dependency:
             D1:
               Dependent on: W2
-              UID: T4.M4.D1
+              UID: T4.M4.TA0.D1
               name: Availability of FusionOperate for pertinent stacks by 8/31/23
             D1-name: Availability of FusionOperate for pertinent stacks by 8/31/23
           UID: T4.M4

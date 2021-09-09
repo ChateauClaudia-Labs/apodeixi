@@ -1,5 +1,23 @@
 from apodeixi.util.a6i_error                        import ApodeixiError
 
+class ListUtils():
+    '''
+
+    '''
+    def __init__(self):
+        return
+    
+    def print(self, parent_trace, a_list):
+        '''
+        Utility to produce as string out of possibly nested set of lists, by calling str(x) for the atomic element x of
+        the list (or the sub-lists of the list, etc)
+        '''
+        if a_list == None or type(a_list) != list:
+            return str(a_list)
+        
+        return str([self.print(parent_trace, elt) for elt in a_list])
+        
+
 class ListMerger():
     '''
     Utility class to do an order-preserving merge two lists of indices, i.e., lists whose entries can be compared with '==' and 

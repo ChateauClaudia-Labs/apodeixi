@@ -403,6 +403,21 @@ class BigRocksEstimate_Controller(JourneysController):
             ME                          = BigRocksEstimate_Controller._BigRocksEstimatesConfig
             return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
 
+        def buildAcronymSchema(self, parent_trace, linear_space, parser):
+            '''
+            Overwrites parent class by making sure that the "Effort" column appears in the linear space. It might
+            not appear if e.g. we are using the EXPLAINED variant. That is correct for interval generation, but not
+            for acronym schema generation. So this method addresses that by injecting an extra "Effort" column if
+            needed before calling super()
+            '''
+            ME                              = BigRocksEstimate_Controller._BigRocksEstimatesConfig
+            if not StringUtils().is_in_as_yaml(ME._ENTITY_NAME, linear_space):
+                enriched_space              = [ME._ENTITY_NAME]
+                enriched_space.extend(linear_space)
+                return super().buildAcronymSchema(parent_trace, enriched_space, parser)
+            else:
+                return super().buildAcronymSchema(parent_trace, linear_space, parser)
+
         def preflightPostingValidation(self, parent_trace, posted_content_df):
             '''
             Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the

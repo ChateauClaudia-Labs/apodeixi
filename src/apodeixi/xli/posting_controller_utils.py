@@ -124,9 +124,10 @@ class PostingController():
         
         store                   = self.initialize_UID_Store(parent_trace, data_handle, xlr_config=xlr_config)
         parser                  = BreakdownTree(uid_store = store, entity_type=xlr_config.entity_name(), parent_UID=None)
-        acronym_schema          = UID_Acronym_Schema()
+        #acronym_schema          = UID_Acronym_Schema()
         interval_list           = list(xlr_config.buildIntervals(my_trace, list(df.columns)))
-        acronym_schema.build_schema_from_intervals(my_trace, parser=parser, interval_list=interval_list)
+        acronym_schema          = xlr_config.buildAcronymSchema(parent_trace, list(df.columns), parser)
+        #acronym_schema.build_schema_from_intervals(my_trace, parser=parser, interval_list=interval_list)
         store.set_acronym_schema(my_trace, acronym_schema)
 
         # If we are supposed to use user-generated UIDs (when available) instead of generating them,
@@ -160,6 +161,9 @@ class PostingController():
                     last_uid = a_uid
             # By now full_uid would be set to the UID of the last node added (i.e., the one added for the last interval)
             if last_uid != None: # last_uid will be None if we just processed an empty row, so this check is needed
+                # Due to the possibility that the end user skipped some entities, need to pad
+                # the UID before using it as a link.
+                padded_uid      = acronym_schema.pad_uid(parent_trace, last_uid)
                 self.link_table.keep_row_last_UID(  parent_trace            = my_trace, 
                                                     manifest_identifier     = xlr_config.kind, 
                                                     row_nb                  = idx, 
@@ -786,6 +790,21 @@ class PostingConfig(ManifestXLReadConfig):
         * [F, G, W]
         '''
         return self.interval_spec.buildIntervals(parent_trace, linear_space)
+
+    def buildAcronymSchema(self, parent_trace, linear_space, parser):
+        '''
+        Builds and returns an AcronymSchema object based on the linear space and on the settings for this class.
+
+        It is offered as a hook for derived classes to be able to overwrite it. For example, sometimes the linear
+        space that is visible to the end-user does not include the entity for the linear space (Example: big-rocks-estimate
+        when using the EXPLAINED variant).
+        In those cases, the acronym schema needs to get an additional "virtual column" beyond what is in the linear space.
+        Concrete derived classes can accomplish that by overwriting this method.
+        '''
+        acronym_schema          = UID_Acronym_Schema()
+        interval_list           = list(self.buildIntervals(parent_trace, linear_space))
+        acronym_schema.build_schema_from_intervals(parent_trace, parser=parser, interval_list=interval_list)
+        return acronym_schema
 
 class UpdatePolicy():
     '''

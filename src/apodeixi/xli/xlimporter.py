@@ -404,8 +404,23 @@ class ExcelTableReader:
         # Also, to avoid Excel errors, capitalize columns
         # CATCHA: must capitalize before sorting, not the other way around, since a > C so would
         # get wrong result (no columns read). Capitalizing first gives A < C and then you get columns.
-        first_column = min(res.group(1).upper(), res.group(3).upper())
-        last_column  = max(res.group(1).upper(), res.group(3).upper())
+
+        # Also, the columns must be sorted "lexicographycally", not purely alphabetically. For example,
+        # it should be the case that AB > Q, whereas if we did a min("AB", "Q") we would get "AB" as the min,
+        # which is wrong and will cause a bug downstream because Pandas would think there are "0 columns" between AB and Q
+        colA                = res.group(1).upper()
+        colB                = res.group(3).upper()
+        if len(colA) < len(colB):
+            first_column    = colA
+            last_column     = colB
+        elif len(colA) > len(colB):
+            first_column    = colB
+            last_column     = colA
+        else: # only in this case it is safe to sort alphabetically
+            first_column = min(res.group(1).upper(), res.group(3).upper())
+            last_column  = max(res.group(1).upper(), res.group(3).upper())
+
+        # Unlike columns, sorting rows is straightforward (as they are ints)
         first_row    = min(int(res.group(2)), int(res.group(4)))
         last_row     = max(int(res.group(2)), int(res.group(4)))
                            

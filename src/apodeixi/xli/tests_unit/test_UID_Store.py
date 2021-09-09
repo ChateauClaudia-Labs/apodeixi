@@ -3,7 +3,8 @@ import sys                                      as _sys
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 
-from apodeixi.xli.uid_store         import UID_Store, UID_Utils
+from apodeixi.xli.uid_store                     import UID_Store, UID_Utils
+from apodeixi.xli.uid_acronym_schema            import UID_Acronym_Schema, AcronymInfo
 
 class Test_UIDStore(ApodeixiUnitTest):
 
@@ -46,18 +47,21 @@ class Test_UIDStore(ApodeixiUnitTest):
     def test_generateUID(self):
         # Each scenario is a triple of [parent uid input, acronym input, expected output]
         root_trace      = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing generateUID")
-        scenarios = [[None, 'FRA', ('FRA1', 'FRA1')],
-                     [None, 'W', ('W1', 'W1')],
-                     ['W1', 'PO', ('W1.PO1', 'PO1')],
-                     ['FRA1', 'USD', ('FRA1.USD1', 'USD1')],
-                     [None, 'FRA', ('FRA2', 'FRA2')],
-                     ['FRA1', 'USD',  ('FRA1.USD2', 'USD2')],
-                     ['FRA1.USD2', 'NY', ('FRA1.USD2.NY1', 'NY1')],
-                     ['FRA1.USD3', 'NY', 'error']
+        scenarios = [[['FRA'],                  None, 'FRA',            ('FRA1', 'FRA1')],
+                     [['W'],                    None, 'W',              ('W1', 'W1')],
+                     [['W', 'PO'],              'W1', 'PO',             ('W1.PO1', 'PO1')],
+                     [['FRA', 'USD'],           'FRA1', 'USD',          ('FRA1.USD1', 'USD1')],
+                     [['FRA'],                  None, 'FRA',            ('FRA2', 'FRA2')],
+                     [['FRA', 'USD'],           'FRA1', 'USD',          ('FRA1.USD2', 'USD2')],
+                     [['FRA', 'USD', 'NY'],     'FRA1.USD2', 'NY',      ('FRA1.USD2.NY1', 'NY1')],
+                     [['FRA', 'USD', 'NY'],     'FRA1.USD3', 'NY',      'error']
                     ] 
         try:
-            for (parent_uid, acronym, expected) in scenarios:
-                result = self.attempt_generateUID(root_trace, parent_uid, acronym)
+            for (acronym_space, parent_uid, acronym, expected) in scenarios:
+                acronym_schema                      = UID_Acronym_Schema()
+                acronym_schema.acronyminfo_list     = [AcronymInfo(acronym=x, entity_name=x) for x in acronym_space]
+                self.store.set_acronym_schema(root_trace, acronym_schema)
+                result                              = self.attempt_generateUID(root_trace, parent_uid, acronym)
                 self.assertEqual(result, expected)
         except ApodeixiError as ex:
             print(ex.trace_message())

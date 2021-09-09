@@ -6,6 +6,7 @@
 from apodeixi.xli.uid_store                         import UID_Utils
 from apodeixi.xli.interval                          import Interval
 from apodeixi.util.a6i_error                        import ApodeixiError
+from apodeixi.util.list_utils                       import ListUtils
 
 class AcronymInfo():
     '''
@@ -191,28 +192,72 @@ class UID_Acronym_Schema():
         result                          = []
         working_acronyminfo_lists       = all_acronym_info_lists.copy()
         MAX_LOOPS                       = 1000 # To avoid inadvertent infinite loops if there is a bug in the logic in the loop
-        loop_nb                         = 0
-        while loop_nb < MAX_LOOPS and len(working_acronyminfo_lists) > 0:
+        level                           = 1 # The level in the the tree we are looking at
+        while level < MAX_LOOPS and len(working_acronyminfo_lists) > 0:
             loop_trace                  = parent_trace.doing("Determining next acronym to append to the acronyms list",
-                                            data = {"result so far":        str(result), 
-                                                    "pending to explore":   str(working_acronyminfo_lists)})
-            first_acronyminfo           = self._find_first_acronyminfo(loop_trace, working_acronyminfo_lists)
+                                            data = {"result so far":        ListUtils().print(parent_trace, result), 
+                                                    "pending to explore":   ListUtils().print(parent_trace, working_acronyminfo_lists)})
+            first_acronyminfo           = self._find_first_acronyminfo(loop_trace, working_acronyminfo_lists, content_dict, level)
             if not first_acronyminfo in result:
                 result.append(first_acronyminfo)
             next_working_lists          = []
             for a_list in working_acronyminfo_lists:
-                if first_acronyminfo in a_list:
-                    modified_list       = a_list.copy()
-                    modified_list.remove(first_acronyminfo)
-                    if len(modified_list) > 0:
-                        next_working_lists.append(modified_list)
-                else:
-                    next_working_lists.append(a_list)
+                # Remove the first member of the lists, since we already processed them and we know they were all
+                # consistent (same acronym and, padding aside, same entity_name) because self._find_first_acronyminfo checked
+                modified_list       = a_list[1:len(a_list)]
+
+                if len(modified_list) > 0:
+                    next_working_lists.append(modified_list)
             # Initialize state for next cycle in loop
-            loop_nb                     += 1
+            level                       += 1
             working_acronyminfo_lists   = next_working_lists
 
         self.acronyminfo_list           = result
+
+    def pad_uid(self, parent_trace, a_full_uid):
+        '''
+        Utility method that can be used by callers that need to compare the padded and unpadded full UIDs.
+        Some explanation:
+
+        Unpadded UIDs are used in the paths through the manifest trees. For an acronym schema like
+        [BR(big-rock), SR(Sub rock), and TR(Tiny rock)], unpadded UIDs are things like BR2.SR3 and BR1.TR1
+
+        However, the UID fields themselves inside the manifests must be "padded" if the user skips an entity, so that
+        that knowledge of having skipped an entity is available later when the manifest is represented as a DataFrame or in 
+        Excel
+
+        In our example, padding BR1.TR1 results in BR1.SR0.TR1, since the end-user skipped the sub-rock entity on that path.
+
+        Padding BR2.SR3 yields no change (still BR2.SR3), since in that case the user skipped no entity.
+        '''
+        tokens                          = a_full_uid.split(".")
+        padded_tokens                   = []
+        all_acronyms                    = [info.acronym for info in self.acronym_infos()]
+        for idx in range(len(tokens)):
+
+            acronym, nb                 = UID_Utils().parseToken(parent_trace, tokens[idx])
+            if not acronym in all_acronyms:
+                raise ApodeixiError(parent_trace, "Can't pad UID because it uses an acronym not in the schema",
+                                                data = {"bad acronym":      str(acronym),
+                                                        "uid":              str(a_full_uid),
+                                                        "schema":           str(self)})
+            schema_idx                  = all_acronyms.index(acronym)
+            if schema_idx < len(padded_tokens):
+                raise ApodeixiError(parent_trace, "Can't pad UID because it has an acronym out of order with regards to the "
+                                                + "acronym schema. It must appear at index " + str(schema_idx) + " but "
+                                                + "that is already taken by the partially constructed padded tokens so far",
+                                                data = {"bad acronym":              str(acronym),
+                                                        "uid":                      str(a_full_uid),
+                                                        "schema":                   str(self),
+                                                        "padded tokens so far":     str(padded_tokens)})
+            # Now pad, if required
+            for pad_idx in range(len(padded_tokens), schema_idx):
+                pad_acronym             = all_acronyms[pad_idx]
+                padded_tokens.append(pad_acronym + "0")
+
+            # Now add our payload
+            padded_tokens.append(tokens[idx])
+        return ".".join(padded_tokens)
 
     def find_entity(self, parent_trace, content_dict):
         '''
@@ -248,53 +293,73 @@ class UID_Acronym_Schema():
         elif len(sub_entities) > 1:
             raise ApodeixiError(parent_trace, "At most one sub entity is allowed when representing a manifest as as "
                                             + " DataFrame, but found several: " 
-                                + sub_entities)
+                                + str(sub_entities))
         else:
             return sub_entities[0]
 
-    def _find_first_acronyminfo(self, parent_trace, all_acronyminfo_lists):
+    def _find_first_acronyminfo(self, parent_trace, all_acronyminfo_lists, content_dict, level):
         '''
         This is a helper method to the "reduce" phase of the algorithm used by method _find_acronym_list.
-        Refer to the documenation of that method for an explanation of the context for the algorithm.
+        Refer to the documentation of that method for an explanation of the context for the algorithm.
 
-        The particular contribution of this method is to identify the first acronym that should be used.
-        This algorithm requires that there one unique such, meeting these conditions:
-        
-        * It appears in at least on list
-        * If it appears in a list at all, it appears first
-        * It is the unique such
+        This algorithm checks the consistency of `all_acronyminfo_lists`'s first members: they should
+        all be for the same acronym and, except where padding occurs, the same entity_name (when there is padding
+        the entity_name is None).
 
-        It returns the result as an _AcronymInfo object
+        Raises an ApodeixiError if the consistency check fails.
+
+        Otherwise it returns an AcronymInfo object assembled from the unique acronym and unique entity_name just found.
 
         @param all_acronyminfo_list A list of lists, where inner lists contains _AcronymInfo objects
+        @param level An int, starting at 1, that tells us the level in the manifest tree we are looking at, assuming
+                    padding (i.e., should match the number of tokens in any full UID field (hence padded, being a field)
+                    for the acronyminfo we'll return)
         '''
         candidates              = [a_list[0] for a_list in all_acronyminfo_lists if len(a_list) > 0]
         # Remove duplicates, if any
         candidates              = list(set(candidates))
 
-        # Disqualify any candidate if it is not first in at least one of the lists
-        disqualified            = [acronyminfo for acronyminfo in candidates 
-                                        if max([a_list.index(acronyminfo) for a_list 
-                                                in all_acronyminfo_lists if acronyminfo in a_list]) > 0]
-        qualified               = [acronyminfo for acronyminfo in candidates if acronyminfo not in disqualified]
-        if len(qualified) == 0:
-            raise ApodeixiError(parent_trace, "Badly formed acronyms list: there is no acronym that occurs only first in the "
-                                                + "lists where it appears",        
-                                    data = {"all_acronyms_list": str(all_acronyminfo_lists)})
-        if len(qualified) > 1:
-            raise ApodeixiError(parent_trace, "Badly formed acronyms list: there are multiple acronyms competing to be "
-                                                + "the first acrony",        
-                                    data = {"all_acronyms_list": str(all_acronyminfo_lists),
-                                            "competing acronyms": str(qualified)})
-        # If we get this far we are in good shape. There is a unique qualified candidate, so return it
-        return qualified[0]
+        my_trace                = parent_trace.doing("Checking that all paths give us the same acronyms and entities at this level",
+                                                        data = {"level":    str(level)})
+        candidate_acronyms      = list(set([info.acronym for info in candidates])) # Reduce duplicates using a set
+        if len(candidate_acronyms) > 1:
+            raise ApodeixiError(my_trace, "Manifest seems corrupted: found multiple acronyms at the same level, "
+                                    + "should have exactly 1",
+                                    data = {"competing acronyms":       ListUtils().print(my_trace, candidate_acronyms)})
+        if len(candidate_acronyms) ==0:
+            raise ApodeixiError(my_trace, "Manifest seems corrupted: found no acronym for a given level, "
+                                    + "should have exactly 1")       
+        acronym                 = candidate_acronyms[0]
+        # Exclude candidates with a null entity_name - that is legal and happens when there is padding due to end user skipping
+        # some entities
+        candidate_entities      = list(set([info.entity_name for info in candidates if info.entity_name != None]))
+        if len(candidate_entities) > 1:
+            raise ApodeixiError(my_trace, "Manifest seems corrupted: found multiple entities at the same level "
+                                    + "and for the same acronym. Should have exactly 1",
+                                    data = {"acronym":                  str(acronym),
+                                            "competing entities":       ListUtils().print(my_trace, candidate_entities)})
+        if len(candidate_entities) ==0:
+            raise ApodeixiError(my_trace, "Manifest seems corrupted: found no entity for an acronym, "
+                                    + "should have exactly 1",
+                                        data = {"acronym":              str(acronym)}) 
 
-    def _map_acronyminfo_lists(self, parent_trace, content_dict, parent_path, parent_uid):
+        entity_name             = candidate_entities[0]
+        result                  = AcronymInfo(acronym, entity_name)
+
+        return result
+
+    def _map_acronyminfo_lists(self, parent_trace, content_dict, parent_path, parent_uid, level=0):
         '''
         This is a recursive helper method to the "map-reduce" algorithm used by method _find_acronym_list. 
         Refer to the documentation of that method for an explanation of the context for the algorithm.
 
         This method returns a list of lists, where the inner list consist of _AcronymInfo objects.
+
+        @level An integer, to tells us where we are in the recursion. Starts at 0, so it must equal
+                the number of tokens in parent_uid.
+                Helpful to disambiguate the index to use
+                for an AcronymInfo object in the returned value, particularly when the user skipped some 
+                intermediate entities so can't rely on the length of parent_path for such a determination.
         '''
         my_trace                = parent_trace.doing("Mapping acronym lists for '" + parent_path + "''",
                                                         data = {'signaledFrom': __file__})
@@ -329,8 +394,6 @@ class UID_Acronym_Schema():
             else:
                 full_e_uid      = parent_uid + '.' + e_uid
                 
-            e_acronym           = UID_Utils().parseToken(loop_trace, e_uid)[0]
-
             e_path              = parent_path  + '.' + e_uid
 
             e_dict              = content_dict[e_uid]
@@ -356,28 +419,113 @@ class UID_Acronym_Schema():
             #
             # For our e_path = "assertion"."big-rock"."BR1" we pass a path of "assertion"."big-rock"."BR1"."Sub rock"
             # we set "ourselves" ("BR1") as the parent_uid in the recursive call
+            next_level_infos                = self._next_level_acronym_info(    parent_trace    = inner_trace, 
+                                                                                e_uid           = e_uid, 
+                                                                                content_dict    = content_dict, 
+                                                                                entity_name     = entity_name, 
+                                                                                level           = level)
             if sub_entity == None:
-                acronyms_list               = [AcronymInfo(e_acronym, entity_name)]
-                all_acronyms_result.append(acronyms_list)
+                #acronyms_list               = [AcronymInfo(e_acronym, entity_name)]
+                all_acronyms_result.append(next_level_infos)
             else:
                 inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
                                                                 data = {'signaledFrom': __file__})
 
-                acronyms_subresult          = self._map_acronyminfo_lists   (parent_trace    = inner_trace, 
+                acronyminfos_subresult      = self._map_acronyminfo_lists   (parent_trace    = inner_trace, 
                                                                         content_dict    = e_dict[sub_entity], 
                                                                         parent_path     = e_path + '.' + sub_entity,
-                                                                        parent_uid      = full_e_uid)
-                for acronyms_sublist in acronyms_subresult:
+                                                                        parent_uid      = full_e_uid,
+                                                                        level           = level + len(next_level_infos))
+                e_acronym           = UID_Utils().parseToken(loop_trace, e_uid)[0]
+                for acronyminfos_sublist in acronyminfos_subresult:
                     # Check we are not about to put duplicate acronyms - if so, that is an error with the `content_df`
-                    if e_acronym in acronyms_sublist:
+                    if e_acronym in [info.acronym for info in acronyminfos_sublist]:
                         raise ApodeixiError(inner_trace, "Looks like manifest is corrupted because the same acronym is "
                                                     + " used at different levels. An acronym should be used in only 1 level",
                                                     data = {"Problem at UID": str(full_e_uid),
-                                                            "Acronyms below UID": str(acronyms_sublist)})
-                    acronyms_list           = [AcronymInfo(e_acronym, entity_name)]
-                    acronyms_list.extend(acronyms_sublist)
+                                                            "Acronyms below UID": ListUtils().print(inner_trace, 
+                                                                                                    acronyminfos_sublist)})
+                    #acronyms_list           = [AcronymInfo(e_acronym, entity_name)]
+                    acronyms_list           = next_level_infos.copy()
+                    acronyms_list.extend(acronyminfos_sublist)
                     all_acronyms_result.append(acronyms_list)
 
         return all_acronyms_result
                 
+    def _next_level_acronym_info(self, parent_trace, e_uid, content_dict, entity_name, level):
+        '''
+        Helper method for self._map_acronyminfo_lists. The latter is a recursive method, and this method is
+        used when the recursion "hits bottom", or when aggregating results from a recursive call.
 
+        It returns a list of AcronymInfo objects, which normally would be a singleton: the AcronymInfo for the
+        very next level in the tree:
+
+                        [AcronymInfo(e_acronym, entity_name)] where e_acronym is e_uid's acronym.
+
+        *HOWEVER*, there is a boundary case that could lead to a but unless we return a list with more than one 
+        element: when the user skipped some intermediate entity.
+
+        Consider this example: the acronym schema should be [BR(big rock), SR(sub rock), TR(tiny rock)]
+        but the user skipped sub-rock sometimes.
+
+        Anticipating this might happen, full UIDs were generated in the UID Store that put a "0" whenever
+        an entity is skipped. For example, BR1.SR0.TR1 instead of BR1.TR1
+
+        Assume further that we are a point in the recursion where 
+        
+            content_dict = manifest_dict["assertion"][big-rocks][BR1][Tiny rocks], and content_dict[TR1][UID] = BR1.SR0.TR1
+
+        Now, another path of the recursion would be perhaps
+
+            content_dict2 = manifest_dict["assertion"][big-rocks][BR2][Sub rocks], and content_dict2[SR3][UID] = BR2.SR3
+        
+        In this situation, it would be wrong for us to return
+
+            [AcronymInfo(TR, Tiny rocks)]
+
+        because the other path, which is at the same level in the manifest_dict tree, would return
+
+            [AcronymInfo(SR, Sub rocks)]
+        
+        which will trigger an error in our subsequent processing, since we would think that at this level there are two valid
+        acronyms for the next level down: TR and SR, and only one acronym is allowed per level.
+
+        Therefore, the *correct* behaviour is to *pad* that list returned from this method to ensure that TR is never
+        at the same level as SR.
+
+        That means returning [AcronymInfo(SR, None), AcronymInfo(TR), "Tiny rocks")]
+        
+        The level of padding can be determined by looking at content_dict[UID]
+        '''
+        padded_uid                      = content_dict[e_uid][Interval.UID]
+
+        padded_tokens                   = padded_uid.split(".")
+
+        # Check consistency of UID field with the path UID
+        my_trace                        = parent_trace.doing("Checking that the UID field is for a UID that extends the prior level",
+                                                                data = {"path incremental UID": str(e_uid),
+                                                                        "level":                str(level),
+                                                                        "dict['UID']":          str(padded_uid)})
+        if len(padded_tokens) < level +1:
+            raise ApodeixiError(my_trace, "UID field lacks the required tokens: expected at least " + str(level+1) + " tokens, "
+                                            " but found only " + len(padded_tokens) + " in the UID field")
+        # Check any extra tokens is only padding as we add that padding                          
+        my_trace                        = parent_trace.doing("Padding a list of AcronymInfos below a node in the manifest tree "
+                                                                + " due to user skipping entities",
+                                                                data = {"path incremental UID": str(e_uid),
+                                                                        "level":                str(level),
+                                                                        "dict['UID']":          str(padded_uid)})
+        result                          = []
+        for idx in range(level, len(padded_tokens)-1):
+            some_acronym, some_val  = UID_Utils().parseToken(my_trace, padded_tokens[idx])
+            if some_val != 0:
+                raise ApodeixiError(my_trace, "Corrupted manifest: token '" + str(padded_tokens[idx]) + "' in UID field '"
+                                                + str(padded_uid) + "' should have only been padding, i.e. a value of 0")
+            # Add the padding
+            result.append(AcronymInfo(some_acronym, None)) # We put None for the entity because we don't know it, but that's OK
+
+        # Any required padding is in, so now we can safely add the e_uid's acronym info
+        e_acronym           = UID_Utils().parseToken(my_trace, e_uid)[0]
+        result.append(AcronymInfo(e_acronym, entity_name))
+
+        return result

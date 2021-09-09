@@ -87,7 +87,17 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
                                                                     controller              = dummy_controller)
             # A bit of a hack, since content_df should be generated from the ManifestInfo's manifest_dict, but
             # for our unit test this is the DataFrame we want to use.
-            dummy_manifest_info._contents_df      = data_df 
+            dummy_manifest_info._contents_df                    = data_df 
+            dummy_content_dict                                  = {"JTBD1": 
+                                                                    {"UID":                     "JTBD1",
+                                                                    "Capabilities": {"C1": 
+                                                                        {"UID":                 "JTBD1.C1",
+                                                                        "Feature": {"F1": 
+                                                                            {"UID":             "JTBD1.C1.F1",
+                                                                            "Story": {"S1": 
+                                                                                {"UID":         "JTBD1.C1.F1.S1"}}}}}}}}
+            
+            dummy_manifest_dict['assertion']['asset-class']     = dummy_content_dict
 
             my_trace            = root_trace.doing("Displaying the content in Excel")
             rep                 = ManifestRepresenter(  parent_trace        = my_trace,

@@ -436,8 +436,9 @@ class AsDataframe_Representer:
                 if not UID in e_dict.keys():
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected a child called '" + UID
                                                     + "' under '" + e_path + "'") 
-                # Check e.g. content_dict["SR2"]["UID"] == "SR2"
-                if e_dict[UID] != full_e_uid:
+                # Check e.g. content_dict["SR2"]["UID"] == "SR2", except possibly for padding (this occurs
+                # when the end user skips an entity). Thus, content_dict["SR2"]["UID"] = "MR0.SR2" would be OK
+                if e_dict[UID] != acronym_schema.pad_uid(parent_trace, full_e_uid):
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected '" + e_path
                                                    + "[" + UID + "] = " + full_e_uid + "'", 
                                                    data = {"expected": full_e_uid, "actual": str(e_dict[UID])})
