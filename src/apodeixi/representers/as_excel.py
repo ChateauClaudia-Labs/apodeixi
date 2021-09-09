@@ -566,11 +566,13 @@ class ManifestRepresenter:
                                                                         acronym_schema      = acronym_schema)
                         # Due to the possibility that the end user skipped some entities, need to pad
                         # the UID before using it as a link.
+                        '''
                         padded_uid      = acronym_schema.pad_uid(parent_trace, good_uid)
+                        '''
                         self.link_table.keep_row_last_UID(parent_trace, 
                                                             manifest_identifier     = name, 
                                                             row_nb                  = excel_row, 
-                                                            uid                     = padded_uid)#good_uid)
+                                                            uid                     = good_uid) #padded_uid)#good_uid)
 
                     last_x              = layout_x
                     last_y              = excel_row

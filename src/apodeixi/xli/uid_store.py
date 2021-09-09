@@ -398,7 +398,13 @@ class UID_Utils():
             raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
             
         full_uid = ".".join(tokens)
-        return full_uid
+
+        # Due to the possibility that the end user skipped some entities, need to pad
+        # the UID before returning it. That is because in the current implementation our call to
+        # self._tokenize wiped out the padding that might have existed in the abbreviated uid
+        padded_uid      = acronym_schema.pad_uid(parent_trace, full_uid)
+
+        return padded_uid
 
     def _tokenize(self, parent_trace, uid, acronym_list=None):
         '''
