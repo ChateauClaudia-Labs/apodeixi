@@ -369,7 +369,7 @@ class AsDataframe_Representer:
                     a UID like "BR2.MR2.SM4" in the manifest would be transformed to "BR2.2.4" in the
                     DataFrame returned by this method
         '''
-        my_trace                = parent_trace.doing("Validating parent_path '" + parent_path + "''",
+        my_trace                            = parent_trace.doing("Validating parent_path '" + parent_path + "''",
                                                         data = {'signaledFrom': __file__})
         if True:
             if parent_path == None or len(parent_path.strip()) == 0:
@@ -378,19 +378,19 @@ class AsDataframe_Representer:
         # parent_path is something like "assertion.big-rock" when this method is first called, and 
         # like  "assertion.big-rock.BR1.Sub rock" when this method is calls recursively on itself
         
-        entity_uids             = [key for key in content_dict.keys() if not key.endswith('-name')]
+        entity_uids                         = [key for key in content_dict.keys() if not key.endswith('-name')]
 
         # Will be one per entity_value, a dictionary of level_1_columns -> scalar value. By "level 1 columns"
         # we mean columns for the interval being processed here (subsequent intervals would be processed
         # in recursive invocations of this method). See method documentation for explanation of algorithm.
-        all_rows                = [] 
+        all_rows                            = [] 
         
         # Some manifest field names that have fixed, hard-coded values in Apodeixi
-        UID                     = Interval.UID
-        NAME                    = 'name'
-        SYNTHETIC_COLUMNS       = [UID, NAME] # These are added when parsing Excel, so not "real" content
+        UID                                 = Interval.UID
+        NAME                                = 'name'
+        SYNTHETIC_COLUMNS                   = [UID, NAME] # These are added when parsing Excel, so not "real" content
         
-        all_intervals           = []
+        all_intervals                       = []
 
         # On a first call we loop through something like e_uid = "BR1", "BR2", "BR3", .... For that call
         #       parent_uid = None and parent_path = "assertion.big-rock"
@@ -398,31 +398,32 @@ class AsDataframe_Representer:
         #       parent_path = "assertion.big-rock.BR1.Sub rock"
         for e_uid in entity_uids:
             if parent_uid == None:
-                full_e_uid      = e_uid
+                full_e_uid                  = e_uid
             else:
-                full_e_uid      = parent_uid + '.' + e_uid
+                full_e_uid                  = parent_uid + '.' + e_uid
                 
-            e_path              = parent_path  + '.' + e_uid
-            e_dict              = content_dict[e_uid]
-            loop_trace          = parent_trace.doing("Looping on entity with path '" + e_path + "'",
+            e_path                          = parent_path  + '.' + e_uid
+            e_dict                          = content_dict[e_uid]
+            loop_trace                      = parent_trace.doing("Looping on entity with path '" + e_path + "'",
                                                     data = {'signaledFrom': __file__})
 
-            inner_trace         = loop_trace.doing("Determining name to give to UID column in DataFrame for a UID",
+            inner_trace                     = loop_trace.doing("Determining name to give to UID column in DataFrame for a UID",
                                                     data = {"entity UID": str(full_e_uid)})            
 
-            e_acronyminfo, UID_COL     = acronym_schema.schema_info_for_UID(parent_trace, e_uid)
+            e_acronyminfo, UID_COL          = acronym_schema.schema_info_for_UID(parent_trace, e_uid)
 
             # Check if we already have an interval for this acronym info, and if not, create one
-            my_prior_interval   = [interval for interval in all_intervals if e_acronyminfo.entity_name in interval.columns]
+            my_prior_interval               = [interval for interval in all_intervals 
+                                                        if e_acronyminfo.entity_name in interval.columns]
             if len(my_prior_interval) == 0:          
-                my_interval     = Interval( parent_trace    = my_trace, 
-                                            columns         = [UID_COL, e_acronyminfo.entity_name],
-                                            entity_name     = e_acronyminfo.entity_name)
+                my_interval                 = Interval( parent_trace    = my_trace, 
+                                                        columns         = [UID_COL, e_acronyminfo.entity_name],
+                                                        entity_name     = e_acronyminfo.entity_name)
                 all_intervals.append(my_interval)
 
 
-            inner_trace         = loop_trace.doing("Checking tree under '" + e_path + "' is well formed",
-                                            data = {'signaledFrom': __file__})
+            inner_trace                     = loop_trace.doing("Checking tree under '" + e_path + "' is well formed",
+                                                    data = {'signaledFrom': __file__})
             if True:
                 # Check e.g. if content_dict = manifest_dict["assertion"]["big-rock"]["BR1"]["SubRock"]
                 # that content_dict["SR2"] exists
@@ -447,7 +448,7 @@ class AsDataframe_Representer:
                     raise ApodeixiError(inner_trace, "Badly formatted tree: expected a child called '" + NAME
                                                     + "' under '" + e_path + "'") 
                     
-            inner_trace         = loop_trace.doing("Building DataFrame row",
+            inner_trace                     = loop_trace.doing("Building DataFrame row",
                                                     data = {"entity path": str(e_path)})
             # We call it "level 1" because it is for my_interval. Recursive calls would be the subsequent
             # intervals, which are "level 2, 3, ..." in the content_df "tree"
@@ -463,12 +464,12 @@ class AsDataframe_Representer:
                 new_level_1_row[UID_COL]    = full_e_uid 
             new_level_1_row[e_acronyminfo.entity_name]    = e_dict[NAME]
             
-            sub_entity                      = acronym_schema.find_entity(inner_trace, e_dict) # Something like "Sub rock"
+            sub_entities                      = acronym_schema.find_entities(inner_trace, e_dict) # Something like "Sub rock"
             # Now add the "scalar" attributes to the row and if needed also to the interval. A reason they may
             # not be in the interval already arises if we are creating the "first row" (i.e., entity e_uid) 
             # or if that attribute was not present in "previous rows"
             #for attrib in [a for a in e_dict.keys() if not a in sub_entities and a not in SYNTHETIC_COLUMNS]:
-            for attrib in [a for a in e_dict.keys() if a != sub_entity and a not in SYNTHETIC_COLUMNS]:
+            for attrib in [a for a in e_dict.keys() if not a in sub_entities and a not in SYNTHETIC_COLUMNS]:
                 if not attrib in my_interval.columns:
                     my_interval.columns.append(attrib)
                 new_level_1_row[attrib]     = e_dict[attrib]
@@ -480,9 +481,10 @@ class AsDataframe_Representer:
             #
             # For our e_path = "assertion"."big-rock"."BR1" we pass a path of "assertion"."big-rock"."BR1"."Sub rock"
             # we set "ourselves" ("BR1") as the parent_uid in the recursive call
-            sub_rows                        = []
-            sub_intervals                   = []
-            if sub_entity != None:
+            sub_rows_across_subentities     = []
+            for sub_entity in sub_entities:
+                sub_rows                    = []
+                sub_intervals               = []
                 inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
                                                                 data = {'signaledFrom': __file__})
                 
@@ -494,16 +496,18 @@ class AsDataframe_Representer:
                                                                     sparse              = sparse,
                                                                     abbreviate_uids     = abbreviate_uids)
 
-            # Post-processing recursive call: handle the columns
-            # 
-            # The recursive call discovered what other columns pertain to the sub-entity. We need to merge this
-            # from two perspectives:
-            # -If this was the first time we created an interval for the sub-entity (e.g., for "Sub rock"),
-            #  then add it to the list of intervals.
-            # -However, if we already had an interval for "Sub rock" from having processed "previous rows",
-            #  then it may be that the recursive call we just made uncovered additional columns to be added to
-            #  that pre-existing row. See documentation for self._merge_interval
-            self._merge_interval_lists(loop_trace, all_intervals, sub_intervals)
+                # Post-processing recursive call: handle the columns
+                # 
+                # The recursive call discovered what other columns pertain to the sub-entity. We need to merge this
+                # from two perspectives:
+                # -If this was the first time we created an interval for the sub-entity (e.g., for "Sub rock"),
+                #  then add it to the list of intervals.
+                # -However, if we already had an interval for "Sub rock" from having processed "previous rows",
+                #  then it may be that the recursive call we just made uncovered additional columns to be added to
+                #  that pre-existing row. See documentation for self._merge_interval
+                self._merge_interval_lists(loop_trace, all_intervals, sub_intervals)
+
+                sub_rows_across_subentities.extend(sub_rows)
 
             # Post-processing recursive call: handle the rows
             #
@@ -511,12 +515,12 @@ class AsDataframe_Representer:
             # that algorithm
             if sparse == True:                              # Add (1 + N) rows, here N = len(sub_rows)
                 all_rows.append(new_level_1_row)
-                for idx in range(len(sub_rows)):
-                    all_rows.append(sub_rows[idx])
+                for idx in range(len(sub_rows_across_subentities)):
+                    all_rows.append(sub_rows_across_subentities[idx])
 
             else:                                           # Add N rows, where N = max(len(sub_rows), 1)
-                if len(sub_rows) > 0:
-                    for r in sub_rows: # Copy the "level 1" data to all sub-rows and add them
+                if len(sub_rows_across_subentities) > 0:
+                    for r in sub_rows_across_subentities: # Copy the "level 1" data to all sub-rows and add them
                         for k in new_level_1_row.keys():
                             r[k]                    = new_level_1_row[k]
                         all_rows.append(r)

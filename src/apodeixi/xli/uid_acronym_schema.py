@@ -259,35 +259,42 @@ class UID_Acronym_Schema():
             padded_tokens.append(tokens[idx])
         return ".".join(padded_tokens)
 
-    def find_entity(self, parent_trace, content_dict):
+    def find_entities(self, parent_trace, content_dict):
         '''
-        Finds the a unique entity for `content_dict`, defined as unique child that is a dictionary and not
+        Finds and returns a list of entities for `content_dict`, defined as children that are a dictionary and not
         a scalar.
 
-        If it is found, returns a string with that entity name.
-        If none is found it returns None.
+        Normally there is a unique such - after all, the acronym schema prescribes that there be a unique acronym
+        at each level of the schema. However, there might be several because of the boundary case when the user
+        skips entities.
+
+        For example, suppose a manifest has an acronym schema of [BR(big-rock), MR(medium-rocks), TR(tiny-rocks)]
+        A user can create an Excel posting leading to UIDs BR1.MR0.TR1 and BR1.MR1.TR1
+
+        In that case, if content_dict = manifest_dict["assertion"]["big-rock"]["BR1"], then it has two sub-entities,
+        since both of these exist:
+
+                manifest_dict["assertion"]["big-rock"]["BR1"]["medium-rocks"]["MR1"][UID] = BR1.MR1
+
+                manifest_dict["assertion"]["big-rock"]["BR1"]["tiny-rocks"]["TR1"][UID] = BR1.MR0.TR1
+
+        That means that content_dict has two sub-entities: "medium-rocks" and "tiny-rocks"
+
+        For that reason this method returns a list. It may be empty if the content_dict is a leaf node of
+        a manifest and has not dict-valued children.
 
         In the eventuality that there are multipe children of the dictionary that are also dictionaries, it
         raises an ApodeixiError.
         
         '''
-        # Apodeixi's data model allows "multiple dimensional" branching. An example of branching is having
-        # a "big-rock" entity "BR1" branch into multiple "Sub rock" entities "BR1.SR1", "BR1.SR2", "BR1.SR3", ...
-        # "Multi-dimensional" branching happens if the "big-rock" entity can also branch into another
-        # entity like "Epic", leading to children like "BR1.E1", "BR1.E2", "BR1.E3", ...
-
-        # While that is allowed in the data model, it is not possible to represent such multi-dimensional
-        # branching neatly in a tabular representation like a DataFrame, which is what this schema class
-        # is representing.
-        #
-        # So since this method is about creating such tabular representation, we will error out if we find that
-        # "multi-dimensional" branching occurs in the manifest.
         sub_entities                    = []
         for k in content_dict.keys():
             child                       = content_dict[k]
             if type(child) == dict:
                 sub_entities.append(k)
 
+        return sub_entities
+        '''
         if len(sub_entities) == 0:
             return None
         elif len(sub_entities) > 1:
@@ -296,6 +303,7 @@ class UID_Acronym_Schema():
                                 + str(sub_entities))
         else:
             return sub_entities[0]
+        '''
 
     def _find_first_acronyminfo(self, parent_trace, all_acronyminfo_lists, content_dict, level):
         '''
@@ -411,7 +419,7 @@ class UID_Acronym_Schema():
 
             inner_trace         = loop_trace.doing("Getting acronym lists under '" + e_path + "'",
                                             data = {'signaledFrom': __file__})
-            sub_entity          = self.find_entity(inner_trace, e_dict) # Something like "Sub rock"
+            sub_entities          = self.find_entities(inner_trace, e_dict) # Something like "Sub rock"
             # Now we gear up to make a recursive call. For example, if we have been processing the interval
             # ["UID", "big-rock"] and e_dict = content_df["BR1"], we are now going to take the plunge into
             # the unique sub-entity "Sub rock" and make a recursive call to process interval
@@ -424,31 +432,30 @@ class UID_Acronym_Schema():
                                                                                 content_dict    = content_dict, 
                                                                                 entity_name     = entity_name, 
                                                                                 level           = level)
-            if sub_entity == None:
-                #acronyms_list               = [AcronymInfo(e_acronym, entity_name)]
+            if len(sub_entities) == 0:
                 all_acronyms_result.append(next_level_infos)
             else:
-                inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
-                                                                data = {'signaledFrom': __file__})
+                for sub_entity in sub_entities:
+                    inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
+                                                                    data = {'signaledFrom': __file__})
 
-                acronyminfos_subresult      = self._map_acronyminfo_lists   (parent_trace    = inner_trace, 
-                                                                        content_dict    = e_dict[sub_entity], 
-                                                                        parent_path     = e_path + '.' + sub_entity,
-                                                                        parent_uid      = full_e_uid,
-                                                                        level           = level + len(next_level_infos))
-                e_acronym           = UID_Utils().parseToken(loop_trace, e_uid)[0]
-                for acronyminfos_sublist in acronyminfos_subresult:
-                    # Check we are not about to put duplicate acronyms - if so, that is an error with the `content_df`
-                    if e_acronym in [info.acronym for info in acronyminfos_sublist]:
-                        raise ApodeixiError(inner_trace, "Looks like manifest is corrupted because the same acronym is "
-                                                    + " used at different levels. An acronym should be used in only 1 level",
-                                                    data = {"Problem at UID": str(full_e_uid),
-                                                            "Acronyms below UID": ListUtils().print(inner_trace, 
-                                                                                                    acronyminfos_sublist)})
-                    #acronyms_list           = [AcronymInfo(e_acronym, entity_name)]
-                    acronyms_list           = next_level_infos.copy()
-                    acronyms_list.extend(acronyminfos_sublist)
-                    all_acronyms_result.append(acronyms_list)
+                    acronyminfos_subresult      = self._map_acronyminfo_lists   (parent_trace    = inner_trace, 
+                                                                            content_dict    = e_dict[sub_entity], 
+                                                                            parent_path     = e_path + '.' + sub_entity,
+                                                                            parent_uid      = full_e_uid,
+                                                                            level           = level + len(next_level_infos))
+                    e_acronym           = UID_Utils().parseToken(loop_trace, e_uid)[0]
+                    for acronyminfos_sublist in acronyminfos_subresult:
+                        # Check we are not about to put duplicate acronyms - if so, that is an error with the `content_df`
+                        if e_acronym in [info.acronym for info in acronyminfos_sublist]:
+                            raise ApodeixiError(inner_trace, "Looks like manifest is corrupted because the same acronym is "
+                                                        + " used at different levels. An acronym should be used in only 1 level",
+                                                        data = {"Problem at UID": str(full_e_uid),
+                                                                "Acronyms below UID": ListUtils().print(inner_trace, 
+                                                                                                        acronyminfos_sublist)})
+                        acronyms_list           = next_level_infos.copy()
+                        acronyms_list.extend(acronyminfos_sublist)
+                        all_acronyms_result.append(acronyms_list)
 
         return all_acronyms_result
                 
