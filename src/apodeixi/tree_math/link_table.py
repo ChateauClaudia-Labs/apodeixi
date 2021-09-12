@@ -147,14 +147,34 @@ class LinkTable():
 
         return foreign_uid
 
+    def knows_manifest(self, parent_trace, manifest_identifier):
+        '''
+        Returns a boolean: True if `manifest_identifier` is known to this links object, and False otherwise
+        '''
+        if manifest_identifier in self.links_dict.keys():
+            return True
+        else:
+            return False
+
     def all_uids(self, parent_trace, manifest_identifier):
         '''
         Returns a list consisting of all the UIDs known to this class for the given manifest_identifier.
+        If none exists, returns an empty list.
         '''
         if not manifest_identifier in self.links_dict.keys():
+            '''
+            Don't error out because there are situations where we are displaying a template involving a
+            referencing manifest and a reference manifest. The template would not have caused any links
+            to be put in for the referenced manifest, so if we call this method with the `manifest_identifier`
+            set to the referenced attribute, we'll probably find that it is not a key in the links_dict (yet).
+            So just return an empty list in that case
+            '''
+            return []
+            '''
             raise ApodeixiError(parent_trace, "Can't retrieve all UIDs because manifest has no links "
                                                 + "associated with it",
                                                 data = {    "manifest_identifier":      str(manifest_identifier)})
+            '''
         links                                       = self.links_dict[manifest_identifier]
         return list(links.uid_2_row.keys())
 

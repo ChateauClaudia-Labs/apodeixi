@@ -294,16 +294,6 @@ class UID_Acronym_Schema():
                 sub_entities.append(k)
 
         return sub_entities
-        '''
-        if len(sub_entities) == 0:
-            return None
-        elif len(sub_entities) > 1:
-            raise ApodeixiError(parent_trace, "At most one sub entity is allowed when representing a manifest as as "
-                                            + " DataFrame, but found several: " 
-                                + str(sub_entities))
-        else:
-            return sub_entities[0]
-        '''
 
     def _find_first_acronyminfo(self, parent_trace, all_acronyminfo_lists, content_dict, level):
         '''
