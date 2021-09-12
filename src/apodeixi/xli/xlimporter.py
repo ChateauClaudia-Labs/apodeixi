@@ -217,7 +217,7 @@ class ManifestXLReadConfig(XLReadConfig):
         self.is_a_mapping           = False # Default. Derived classes my overwrite
          
         # If this is mapping, must be set to the `kind` of the manifest we are mapped from
-        self.kind_mapped_from       = None
+        self.kind_mapped_from_list  = None
 
         # If this is a mapping, must be set in calling path before self.toManifestDF is called
         self.posting_label          = None
@@ -286,12 +286,12 @@ class ManifestXLReadConfig(XLReadConfig):
             if self.posting_label == None:
                 raise ApodeixiError(parent_trace, "Can't read mapping manifest information because the posting label "
                                                     + "was not set in the PostingConfig ahead of time")
-            if self.kind_mapped_from == None:
+            if self.kind_mapped_from_list == None:
                 raise ApodeixiError(parent_trace, "Can't read mapping manifest information because the `kind` "
                                                     + "of the manifest we map from was not set in the PostingConfig "
                                                     + "ahead of time")
             manifest_df     = self.controller.linkMappedManifest(   parent_trace, 
-                                                                    refKind         = self.kind_mapped_from, 
+                                                                    refKind_list    = self.kind_mapped_from_list, 
                                                                     my_entity       = self.entity_name(),
                                                                     raw_df          = raw_df, 
                                                                     first_row       = first_row, 

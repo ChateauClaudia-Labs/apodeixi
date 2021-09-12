@@ -661,21 +661,31 @@ class BreakdownTree():
         uid_path                            = relative_uid.split('.')
 
         #previous_entity_instance            = None
-        entity_instance                     = None # At start of loop, the entity instance for parth of uid_path already processed
+        entity_instance                     = None # At start of loop, the entity instance for part of uid_path already processed
         for idx in range(len(uid_path)):
             leaf_uid                        = uid_path[idx]
             loop_trace                      = my_trace.doing("Doing loop cycle for leaf_uid '" + leaf_uid + "'",
                                                                 origination = {'signaled_from': __file__})
-
+            uid_acronym, uid_nb             = self._parse_leaf_uid(leaf_uid, loop_trace)
+            if uid_nb == 0: 
+                # this leaf_uid is just padding, so not really part of "real path" through the tree. Skip it - otherwise
+                # we will get an exception because there won't be a subtree for uid_acronym.
+                # Example: consider a relative_uid of DT1.M2.C1.SC0.LF1. Then the root breakdown tree has a path
+                # like [DT1, M2, C1, LF1]. If after 3 recursive calls we are at the subtree for [DT1, M2, C1] and attempt
+                # to find a subtree for SC0, none will be found, since the subtree at that level is for LF1 - SC0 is
+                # "just padding". See documentation of UID_Acronym_Schema::pad_uid for more explanation about padding UIDs
+                continue
             if entity_instance == None: # First cycle in loop, so search in root tree
                 next_tree                   = self
             else:
-                uid_acronym, uid_nb         = self._parse_leaf_uid(leaf_uid, loop_trace)
+                
                 sub_trace                   = loop_trace.doing("Looking for a subtree for the '" + uid_acronym + "' acronym",
                                                                 origination = {'signaled_from': __file__})
                 next_tree                   = entity_instance.find_subtree(uid_acronym, self, sub_trace) 
                 if next_tree == None:
-                    raise ApodeixiError(sub_trace, "Can't a subtree for acronym '" + uid_acronym + "'")
+                    raise ApodeixiError(sub_trace, "Can't find a subtree for acronym '" + uid_acronym + "'",
+                                                    data = {"uid_path":         str(uid_path),
+                                                            "Problem token":    str(leaf_uid)})
 
             # Set for next cycle of loop, or final value if we are in the last cycle
             try:

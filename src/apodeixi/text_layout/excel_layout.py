@@ -725,7 +725,8 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
     at 90 degrees relative to this referencing manifest, so that the mapping can be expressed by a tabular map
     where an "x" indicates a mapping between UIDs from the two manifests.
     '''
-    def __init__(self, manifest_name,  read_only, referenced_manifest_name, my_entity, mapped_entity, is_transposed, sheet,  
+    def __init__(self, manifest_name,  read_only, referenced_manifest_name_list, my_entity, mapped_entities_list, 
+                                is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
                                 excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
@@ -736,9 +737,9 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                                 excel_formulas,  df_xy_2_excel_xy_mapper,
                                 x_offset,    y_offset)
 
-        self.my_entity                  = my_entity
-        self.referenced_manifest_name   = referenced_manifest_name
-        self.mapped_entities            = mapped_entity
+        self.my_entity                          = my_entity
+        self.referenced_manifest_name_list      = referenced_manifest_name_list
+        self.mapped_entities_list               = mapped_entities_list
 
         self.original_content_df        = None # Will be the original manifest content, as it is in the YAML manifest
 
@@ -775,22 +776,87 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         @param representer A ManifestRepresenter instance that has the context for the process that is
                         displaying possibly multiple manifests onto the same Excel workbook.
         '''
+        # Before adding new columns to an enriched df. And we remember the original content df for 
+        # future reference
+        self.original_content_df        = content_df
+
+        enriched_df                     = content_df.copy()
+        foreign_key_col_list            = []
+        for idx in range(len(self.mapped_entities_list)):
+            
+            other_entity_col            = self.mapped_entities_list[idx]
+            other_manifest_name         = self.referenced_manifest_name_list[idx]
+            loop_trace                  = parent_trace.doing("Enriching content with other manifest's UIDs",
+                                                                data = {    "my entity":                str(self.my_entity),
+                                                                            "other_manifest_name":      str(other_manifest_name),
+                                                                            "other_entity_col":         str(other_entity_col)})
+            enriched_df, foreign_key_col    = self._enrich_with_other_manifest_uids(    
+                                                                            parent_trace            = loop_trace, 
+                                                                            input_df                = enriched_df, 
+                                                                            other_entity_col        = other_entity_col, 
+                                                                            other_manifest_name     = other_manifest_name, 
+                                                                            representer             = representer)
+            foreign_key_col_list.append(foreign_key_col)
+        
+        self._buildLayout(parent_trace, content_df = enriched_df)
+
+        # Finally, drop the non-displayable columns. We didnt do it before because we needed to make the call
+        # to self._buildLayout with all the original columns, including the hidden ones
+        displayable_cols                = [col for col in enriched_df.columns if not col in self.hidden_cols]
+
+        displayable_df                  = enriched_df[displayable_cols]
+        for foreign_col in foreign_key_col_list:
+            if foreign_col != None and foreign_col in displayable_df.columns:
+                displayable_df = displayable_df.drop(foreign_col, axis =1)
+
+        # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
+        # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
+        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
+
+        return displayable_df
+
+    def _enrich_with_other_manifest_uids(self, parent_trace, input_df, other_entity_col, other_manifest_name, representer):
+        '''
+        Helper method used in creating a displayable DataFrame that unpacks many-to-many relationships between manifests.
+        These relationships are presumed to be held in a list-valued property of `input_df` in column named
+        `other_entity_col`. The enrichment consists of adding columns to (a copy of) `input_df`, and return it, with
+        one extra column per UIDs in that mapping list.
+
+        An "x" is added as the value for such columns for rows where the mapping applies. This becomes the visual
+        represetation of the mapping: an "x" for each link in the many-to-many relationship between two manifests,
+        even if the internal representation is for oe of those two manifests to have a list-valued property for each of
+        its entities, under the property given by `other_entity_col`, as a way to represent the many-to-many mapping.
+
+        If there is not yet a mapping list (for example, if this is called as part of template generation, before
+        manifests really exist in the KnowledgeBase), then the appropriate number of "fake UIDs" will be used to enrich
+        (a copy of) `input_df`, so that the visual experience for the user is to see the right color coding and formatting
+        for the cells where the user is expected to input the mapping.
+
+        Returns a DataFrame and a (possibly empty) list:
+
+        * The DataFrame is an enrichment of `input_df`, with additional UID columns (possibly provisional, i.e., fake)
+          for the UIDs in the manifest identified by the string `other_manifest_name`.
+
+        * The column in `input_df` that correspond to `other_entity_col`. It might differ from `other_entity_col`
+          because of YAML formatting, but would be YAML-equivalent to it. It could also be None in cases where manifests
+          have not yet been saved.
+        '''
         all_mapped_UIDs                 = []
         # Check if content_df has any mappings before bothering to extract them, but columns in content_df
         # may differ from self.mapped_entities up to a YAML field formatting, so before comparing figure out the
         # column it maps to, if any
-        #   => We define "col_to_use" as a column in content_df that "is" self.mapped_entities, up to YAML equivalence
+        #   => We define "foreign_key_col" as a column in input_df that "is" self.mapped_entities, up to YAML equivalence
         FMT                             = StringUtils().format_as_yaml_fieldname
-        nice_cols                       = [FMT(col) for col in content_df.columns]
-        mapping_col                     = FMT(self.mapped_entities)
+        nice_cols                       = [FMT(col) for col in input_df.columns]
+        mapping_col                     = FMT(other_entity_col)
         if mapping_col in nice_cols:
-            col_to_use                  = [c for c in content_df.columns if FMT(c) == mapping_col][0]
+            foreign_key_col                  = [c for c in input_df.columns if FMT(c) == mapping_col][0]
         else:
-            col_to_use                  = None 
+            foreign_key_col                  = None 
 
-        if col_to_use != None:
-            for row in content_df.iterrows():
-                row_mapped_UIDs         = row[1][col_to_use]
+        if foreign_key_col != None:
+            for row in input_df.iterrows():
+                row_mapped_UIDs         = row[1][foreign_key_col]
                 if row_mapped_UIDs != None: 
                     if type(row_mapped_UIDs) != list:
                         raise ApodeixiError(parent_trace, "Expected a list for mapped UIDs, and instead found a'"
@@ -800,7 +866,7 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
 
         link_table                      = representer.link_table
         other_manifest_UIDs             = link_table.all_uids(  parent_trace        = parent_trace, 
-                                                                manifest_identifier = self.referenced_manifest_name)
+                                                                manifest_identifier = other_manifest_name)
 
         if len(other_manifest_UIDs) == 0:
             # This happens when we are creating an empty template, and the other manifest does not yet exist
@@ -809,13 +875,13 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
             # We use the referenced_df as a hint to infer how many such rows tehre are
             # We put "fake UIDs" so that the code below will be fooled into populating such content for the
             # referencing manifest (by ensuring uids columns are added to the `enriched_df` below, even if it is fake UIDs)
-            referenced_manifest_info    = representer.manifestInfo_dict[self.referenced_manifest_name]
+            referenced_manifest_info    = representer.manifestInfo_dict[other_manifest_name]
             referenced_content_df       = referenced_manifest_info.getManifestContents(parent_trace)
             for idx in range(len(referenced_content_df.index)):
                 # These are "fake UIDs". After the user posts the Excel and the manifests get really created, then next
                 # time this method is invoked to generate a form the real UIDs will exist, and we would not enter
                 # this conditional statement and instead use real UIDs.
-                other_manifest_UIDs.append(self._GEN_FAKE_UID(idx))
+                other_manifest_UIDs.append(self._GEN_FAKE_UID())
 
 
         all_mapped_UIDs.extend(other_manifest_UIDs) 
@@ -823,40 +889,25 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         def put_an_x_on_mappings(uid):
             def do_it(row):
                 uid_list                = None
-                if col_to_use != None:
-                    uid_list            = row[col_to_use]
+                if foreign_key_col != None:
+                    uid_list            = row[foreign_key_col]
                 if type(uid_list) == list and uid in uid_list:
                     return "x"
                 else:
                     return ""
             return do_it
 
-        # Now add the new columns to an enriched df. And we remember the original content df for 
-        # future reference
-        self.original_content_df        = content_df
-        enriched_df                     = content_df.copy()
+        enriched_df                     = input_df.copy()
         for uid in all_mapped_UIDs:
             enriched_df[uid]         = enriched_df.apply(lambda row: put_an_x_on_mappings(uid)(row), axis = 1) 
             self.editable_cols.append(uid)  
 
-        self._buildLayout(parent_trace, content_df = enriched_df)
+        return enriched_df, foreign_key_col
 
-        # Finally, drop the non-displayable columns. We didnt do it before because we needed to make the call
-        # to self._buildLayout with all the original columns, including the hidden ones
-        displayable_cols                = [col for col in enriched_df.columns if not col in self.hidden_cols]
-
-        displayable_df                  = enriched_df[displayable_cols]
-        if col_to_use != None and col_to_use in displayable_df.columns:
-            displayable_df = displayable_df.drop(col_to_use, axis =1)
-
-        # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
-        # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
-        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
-
-        return displayable_df
 
     _FAKE_UID_PREFIX        = "UID TBD #"
-    def _GEN_FAKE_UID(self, idx):
+    _CURRENT_FAKE_UID_NB    = 1
+    def _GEN_FAKE_UID(self):
         '''
         The notion of a "Fake UID" is a trick of this class to handle the situation when having to display
         the contents of a manifest A that references another manifest B which has not yet been posted, and which
@@ -869,8 +920,10 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         To get around that (and this is purely for usability reasons), we artifically put some "fake UIDs" so that
         the algorithm that paints the content of A will be fooled into painting rows that correspond to B content as well.
         '''
-        ME                  = MappedManifestXLWriteConfig
-        return ME._FAKE_UID_PREFIX + str(idx)
+        ME                          = MappedManifestXLWriteConfig
+        result                      = ME._FAKE_UID_PREFIX + str(ME._CURRENT_FAKE_UID_NB)
+        ME._CURRENT_FAKE_UID_NB     += 1
+        return result
 
     def _IS_FAKE_UID(self, uid):
         '''
@@ -937,28 +990,29 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
             #           EXAMPLE: column 'big-rock' is hidden for big-rock-estimate manifests, but is needed
             #                   by the mapper to aligh the estimate numbers on the same row as the big rock
             #                   that they are for.
-            excel_row, final_excel_row      = self.df_xy_2_excel_xy_mapper(     manifest_df             = self.data_df, 
+            excel_row, final_excel_row          = self.df_xy_2_excel_xy_mapper( manifest_df             = self.data_df, 
                                                                                 manifest_df_row_number  = df_row_number, 
                                                                                 representer             = representer)
-            excel_col                       = self.x_offset + df_col_number
-            final_excel_col                 = self.x_offset + len(displayable_df.columns) - 1
+            excel_col                           = self.x_offset + df_col_number
+            final_excel_col                     = self.x_offset + len(displayable_df.columns) - 1
             return excel_row, excel_col, final_excel_row, final_excel_col
         else:
             if not self.layout.is_transposed:
                 raise ApodeixiError(parent_trace, "Sorry, mapping between manifests is only suppored when referening "
                                                     + "manifest is transposed")
 
-            link_table                      = representer.link_table
-            column                          = displayable_df.columns[df_col_number]
+            link_table                          = representer.link_table
+            column                              = displayable_df.columns[df_col_number]
 
             if column in self.original_content_df.columns or self._IS_FAKE_UID(column): 
                 # This was not an enriched column, or if it was, it has a fake UID, so either way we have
                 # to determine the final_excel_row just by looking at how many rows are in the
                 # referenced manifest, and the excel_row is taken just from the content's column number (as we are transposed)
-                excel_row                   = self.x_offset + df_col_number
-                referenced_manifest_info    = representer.manifestInfo_dict[self.referenced_manifest_name]
-                referenced_df               = referenced_manifest_info.getManifestContents(parent_trace)
-                final_excel_row             = self.x_offset + len(displayable_df.columns) + 1 + len(referenced_df.index)
+                excel_row                       = self.x_offset + df_col_number
+                #final_excel_row                 = self.x_offset + len(displayable_df.columns) + 1
+                original_displayable_cols       = [c for c in displayable_df.columns if c in self.original_content_df.columns]
+                final_excel_row                 = self.x_offset + len(original_displayable_cols) - 1 # - because rows start at 0, not 1
+
                 if self._IS_FAKE_UID(column): 
                     # Add some spacing to leave blank the row where the headers of the referenced manifest's content lies.
                     # This creates a nice separator (a blank row) between the "real, original content" of the referencing manifest
@@ -966,20 +1020,43 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                     # the referenced and the referencing manifests
                     excel_row               += 1
                     final_excel_row         += 1
+
+                for referenced_manifest_name in self.referenced_manifest_name_list:
+                    referenced_manifest_info    = representer.manifestInfo_dict[referenced_manifest_name]
+                    referenced_df               = referenced_manifest_info.getManifestContents(parent_trace)
+                    final_excel_row             += len(referenced_df.index)
+
+                    # There are normally 3 rows from one referenced manifest's visual area to the next. So if we know that
+                    # this df_col_number is for something larger than what would fit, then increment it by 3 to leave room for those "blank" rows.
+                    # Makes the resut look "more pretty" and less confusing to the user (by ensuring Excel rows in the referencing manifest are aligned to
+                    # Excel rows in the referenced manifeset)
+                    if excel_row > final_excel_row:
+                        excel_row               += 3
+                        final_excel_row         += 3
+
+
+
             else : # this is an enriched column correponding to a UID in another reference manifest
                 referenced_uid              = column
-                excel_row                   = link_table.row_from_uid(  parent_trace        = parent_trace, 
-                                                                        manifest_identifier = self.referenced_manifest_name, 
+                # Search for the first referenced manifest that recognizes this referenced_uid
+                for referenced_manifest_name in self.referenced_manifest_name_list:
+                    excel_row                   = link_table.row_from_uid(  
+                                                                        parent_trace        = parent_trace, 
+                                                                        manifest_identifier = referenced_manifest_name, 
                                                                         uid                 = referenced_uid)
+                    if excel_row != None: # Found it!
+                        refererenced_to_use     = referenced_manifest_name
+                        break
+                # If we didnt' find it in any of the referenced manifests, error out
                 if excel_row == None:
                     raise ApodeixiError(parent_trace, "Manifest seems corrupted: it references " + str(referenced_uid)
-                                            + " in another manifest called '" + str(self.referenced_manifest_name)
-                                            + "' but this other manifest lacks such UID")
+                                            + " in another manifest allegedly in this list: " 
+                                            + str(self.referenced_manifest_name_list)
+                                            + "; yet none of them has such UID")
 
-            #if link_table.knows_manifest(parent_trace, self.referenced_manifest_name):
                 final_excel_row             = link_table.last_row_number(   
                                                                     parent_trace        = parent_trace,
-                                                                    manifest_identifier = self.referenced_manifest_name)
+                                                                    manifest_identifier = refererenced_to_use)
 
             excel_col                       = self.y_offset + 1 + df_row_number # An extra '1' because of the headers
             final_excel_col                 = self.y_offset + len(displayable_df.index) # Don't do len(index)-1 since headers add a row

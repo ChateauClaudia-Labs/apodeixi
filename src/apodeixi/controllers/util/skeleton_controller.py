@@ -723,8 +723,98 @@ class SkeletonController(PostingController):
             
             entity_dict[e_uid][linkField]   = ref_uid
 
-    def linkMappedManifest(self, parent_trace, refKind, my_entity, raw_df, first_row, last_row):
+    def linkMappedManifest(self, parent_trace, refKind_list, my_entity, raw_df, first_row, last_row):
         '''
+        Used while processing a posting for a manifest that has many-to-many mappings.
+        In the Excel posting, the mapping is visually rendered by having the two mapped manifests laid out at
+        90 degrees from each other, forming a shape like the letter "L", making them surround a 2-dimensional rectangle
+        where the many-to-many mapping is unbundled into binary cells, one for each pair 
+        <entity in referencing manifest, entity in referenced manifest>. In Excel, such cells have an "x" if there is
+        a mapping between the two manifests' entities corresponding to that cell, and blank otherwise.
+
+        @param refKind The `kind` attribute of the referenced manifest. For example, in the many-to-many mapping
+                between milestones and big-rocks, this represents the kind `big-rock`
+        @param my_entity The referencing entity. For example, "milestone" in the case of the many-to-many mapping
+                between milestones and big rocks.
+        @param raw_df A DataFrame, corresponding to DataFrame created by Pandas when reading the layout area corresponding
+                to the referencing manifest. Thus, some rows in raw_df correspond to the columns of the referencing
+                manifest, and other rows are for the unbundled many-to-many mappings.
+        @param first_row An int, corresponding to the row number in Excel where the `raw_df` dataset starts
+        @param last_row An int, corresponding to the last row number in Excel where the `raw_df` dataset appears
+        '''
+        referenced_boundary_dict                = {}
+        for refKind in refKind_list:
+            first_refRow, last_refRow           = self._get_referenced_manifest_boundaries(parent_trace, refKind)
+            referenced_boundary_dict[refKind]   = [first_refRow, last_refRow]  
+
+        non_mapping_df, mapping_df_dict         = self._split_referencing_manifest_raw_data(    
+                                                                        parent_trace                = parent_trace, 
+                                                                        referenced_boundary_dict    = referenced_boundary_dict, 
+                                                                        my_entity                   = my_entity, 
+                                                                        raw_df                      = raw_df, 
+                                                                        first_row                   = first_row, 
+                                                                        last_row                    = last_row)
+
+        manifest_df, linkage_column             = self._rotate_referencing_manifest_properties(
+                                                                        parent_trace                = parent_trace, 
+                                                                        my_entity                   = my_entity, 
+                                                                        non_mapping_raw_df          = non_mapping_df)
+        referencing_entities_list               = list(manifest_df[linkage_column])
+        for refKind in refKind_list:
+            my_trace                            = parent_trace.doing("Adding a column of mappings to manifest_df for "
+                                                                        + "the mappings for '" + str(refKind))
+            refMapping_df                       = mapping_df_dict[refKind]
+            first_refRow, last_refRow           = referenced_boundary_dict[refKind]
+            referencing_mappings                = self._collect_referenced_uid_list(
+                                                                        parent_trace                = parent_trace, 
+                                                                        referencing_entities_list   = referencing_entities_list, 
+                                                                        referencing_entity          = my_entity,
+                                                                        refKind                     = refKind, 
+                                                                        first_refRow                = first_refRow,
+                                                                        refMapping_df               = refMapping_df)
+            def assign_ref_uids(row):
+                referencing_entity      = row[linkage_column]
+                uid_list                = referencing_mappings[referencing_entity]
+                return uid_list
+
+            manifest_df[refKind]        = manifest_df.apply(lambda row: assign_ref_uids(row), axis=1)
+
+        # If we are doing an update, we need to clear out spuriously named "UIDs" like "Unnamed: 8". This happens
+        # if the user added additional milestones as part of the update. Since there is a "UID" already (being
+        # an update), these new milestones will have a blank UID in Excel, and Pandas will convert into something
+        # like "Unnamed: 8" (if it is column 8+1 in Excel), since Pandas DataFrame's require non-null columns.
+        # But after the transpose that created manifest_df, in manifest_df these are values in the "UID" column, 
+        # and we need to blank them so that the Apodeixi parser will not error out when it encounters strings like
+        # "Unnamed: 8" that are not valid UIDs. Instead, we want them to be blank so that the Apodeixi parser
+        # will generate a new valid UID for them.
+        #
+        # We had to wait until the end to do this cleanup since columns like "Unnamed: 8" are needed in prior-processing
+        # to have a unique string identifier for raw columns and corresponding referencing (even if fake) entities
+        if linkage_column == Interval.UID:
+            def _clean_UIDs(row):
+                raw_uid                 = row[Interval.UID]
+                if raw_uid.startswith("Unnamed:"):
+                    cleaned_uid         = ""
+                else:
+                    cleaned_uid         = raw_uid
+                return cleaned_uid
+            manifest_df[Interval.UID]   = manifest_df.apply(lambda row: _clean_UIDs(row), axis=1)
+
+        return manifest_df
+
+    def _get_referenced_manifest_boundaries(self, parent_trace, refKind):
+        '''
+        Helper method used by self.linkMappedManifest. Please refer to the documentation for that method.
+
+        This method returns a pair of integers, corresponding to the Excel first and last row numbers for the referenced
+        manifest `refKind`.
+
+        For example, in the many-to-many relationship between milestones and big-rocks, this method returns the
+        Excel row numbers for `big-rocks` content. This allows the coller to determine which are the rows where
+        mapping information lies within the bigger set of rows in the `milestones` layout.
+
+        @param refKind The `kind` attribute of the referenced manifest. For example, in the many-to-many mapping
+                between milestones and big-rocks, this represents the kind `big-rock`
         '''
         if refKind == None:
             raise ApodeixiError(parent_trace, "Can't read mapping manifest information because the `kind` "
@@ -757,31 +847,166 @@ class SkeletonController(PostingController):
 
             first_refColumn, last_refColumn, first_refRow, last_refRow  \
                                             = ExcelTableReader.parse_range(my_trace, refRange)
+        return first_refRow, last_refRow
 
-        my_trace                        = parent_trace.doing("Split raw_df into dataset_df and mapping_df, "
+    def _split_referencing_manifest_raw_data(self, parent_trace, referenced_boundary_dict, my_entity, raw_df, 
+                                            first_row, last_row):
+        '''
+        Helper method used by self.linkMappedManifest. Please refer to the documentation for that method
+
+        This method does a subset of all the processing needed when parsing Excel content's for a referencing
+        manifest in a many-to-many relationship to another manifest.
+        
+        This method splits the `raw_df` into multiple DataFrames, and returns that split in two data structures:
+
+        * A DataFrame consisting of the rows in `raw_df` that are not mappings
+        * A dictionary of DataFrames, where the keys are the referenced manifests and each value is a DataFrame
+          consisting for the rows in `raw_df` for the mappings to that referenced manifest.
+
+        For example, in the case of the many-to-many mapping between milestones and big-rocks, imagine a situation
+        where the milestones are displayed in rows 2-32 in Excel, and the big rocks in rows 8-32.
+        Then this method would return (approximately, see note below on re-indexing, and remembering that Excel
+        row 2 correspond to index 0 in raw_df):
+
+        * raw_df[0:5]                       (Excel rows 2-7     : the milestone's Excel area not used for mappings) 
+        * {"big-rock": raw_df[6:26]}        (Excel rows 8-28    : the milestone's Excel area for mappings)
+
+        This example is "approximate" in that the computation is against a copy of `raw_df` that is re-indexed so that 
+        indices are exactly the same as Excel row number. The example "ignores" that by assuming that `raw_df` is already
+        thus indexed, though normally that isn't the case when this method is called.
+
+        *IMPORTANT* The referenced_boundary_dict must be *SORTED*.
+            This means: if key1 appears before key2 in referenced_boundary_dict.keys(), then:
+                    val1[0] <= val1[1] < val2[0] <= val2[1], where valx = referenced_boundary_dict[keyx]
+            Otherwise it will raise an ApodeixiError
+        
+        @param referenced_boundary_dict A dctionary of lists, where the keys are the `kind` properties of each of
+                the referenced manifests. For each key, its value is a list of 2 
+                integers denoting the "row boundaries" of the referenced manifest in question, where the "row
+                boundary" is expressed as the first and last Excel row numbers for the content of the referenced manifest.
+                For example, in the many-to-many mapping between milestones and big-rocks, maybe the big-rocks
+                is the only referenced manifest and it is displayed between Excel row 8 and 32, while the milestone
+                mananifest uses more rows, from Excel row 2 to 28, say. 
+                In that case, the parameter `referenced_boundary_list` should be {"big-rock": [8, 32]}
+        @param my_entity The referencing entity. For example, "milestone" in the case of the many-to-many mapping
+                between milestones and big rocks.
+        @param raw_df A DataFrame, corresponding to DataFrame created by Pandas when reading the layout area corresponding
+                to the referencing manifest. Thus, some rows in raw_df correspond to the columns of the referencing
+                manifest, and other rows are for the unbundled many-to-many mappings.
+        @param first_row An int, corresponding to the row number in Excel where the `raw_df` dataset starts
+        @param last_row An int, corresponding to the last row number in Excel where the `raw_df` dataset appears
+        '''
+        my_trace                                    = parent_trace.doing("Checking that referenced boundaries are sorted")
+        if True:
+            last_boundary_row_nb                    = -1
+            for refKind in referenced_boundary_dict.keys():
+                loop_trace                              = my_trace.doing("Checking boundaries for mapping rows referencing '"
+                                                                    + str(refKind) + "'")
+                first_refRow, last_refRow           = referenced_boundary_dict[refKind]
+                if first_refRow <= last_boundary_row_nb:
+                    raise ApodeixiError(loop_trace, "Mapping boundaries are not properly sorted: expected first_refRow > " 
+                                                        + str(last_boundary_row_nb),
+                                                    data = {"first_refRow":     str(first_refRow)})
+                if last_refRow < first_refRow:
+                    raise ApodeixiError(loop_trace, "Mapping boundaries are not properly sorted: "
+                                                        + "expected first_refRow <= last_refRow ",
+                                                    data = {"first_refRow":     str(first_refRow),
+                                                            "last_refRow":     str(last_refRow)})
+            last_boundary_row_nb                    = last_refRow
+
+        my_trace                                    = parent_trace.doing("Split raw_df into dataset_df and mapping_df, "
                                                                 + "indexed by Excel row numbers")
         if True:
             # Re-index raw_df so that its row indices are exactly the same as Excel row numbers.
             # We start at first_row+1 since first_row is the headers of raw_df
-            working_df                  = raw_df.copy()         
+            working_df                              = raw_df.copy()       
             
-            working_df.index            = range(first_row + 1, first_row + 1 + len(working_df.index))
+            working_df.index                        = range(first_row + 1, first_row + 1 + len(working_df.index))
 
-            # NB: loc is inclusive, so loc[3:5] includes rows 3, 4, and 5 (not just 3,4)
-            mapping_df                  = working_df.loc[first_refRow + 1: last_refRow] 
+            non_mapping_df_list                     = []
+            mapping_df_dict                         = {}
+            next_non_mapping_row_candidate          = first_row + 1
+            for refKind in referenced_boundary_dict.keys():
+                loop_trace                          = my_trace.doing("Splitting out mapping rows referencing '" 
+                                                                            + str(refKind) + "'")
+                first_refRow, last_refRow           = referenced_boundary_dict[refKind]
 
+                # It should be the case that next_non_mapping_row_candidate <= first_refRow <= last_refRow
+                # and that all of them are a valid index in working_df
+                if not (next_non_mapping_row_candidate <= first_refRow and first_refRow <= last_refRow):
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                                                    + str(refKind) + "': expected Excel rows to adhere to "
+                                                    + "next_non_mapping_row_candidate <= first_refRow <= last_refRow",
+                                                    data = {"next_non_mapping_row":     str(next_non_mapping_row_candidate),
+                                                            "first_refRow":             str(first_refRow),
+                                                            "last_refRow":              str(last_refRow)})
+                if not next_non_mapping_row_candidate in working_df.index:
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                                                    + str(refKind) + "': " + str(my_entity) + " should include row "
+                                                    + str(next_non_mapping_row_candidate),
+                                                    data = {"next_non_mapping_row":     str(next_non_mapping_row_candidate)})
+                if not first_refRow in working_df.index:
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                                                    + str(refKind) + "': " + str(my_entity) + " should include row "
+                                                    + str(first_refRow)
+                                                    + " Are your ranges for both datasets aligned in the Posting Label?",
+                                                    data = {"first_refRow":             str(first_refRow)})
+                if not last_refRow in working_df.index:
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                                                    + str(refKind) + "': " + str(my_entity) + " should include row "
+                                                    + str(last_refRow) 
+                                                    + " Are your ranges for both datasets aligned in the Posting Label?",
+                                                    data = {"last_refRow":              str(last_refRow)})
 
+                # NB: loc is inclusive, so loc[3:5] includes rows 3, 4, and 5 (not just 3,4)
+                mapping_df                          = working_df.loc[first_refRow + 1: last_refRow] 
+                mapping_df_dict[refKind]            = mapping_df
 
+                non_mapping_section_df              = working_df.loc[next_non_mapping_row_candidate:first_refRow]
+                non_mapping_df_list.append(non_mapping_section_df)
+                next_non_mapping_row_candidate      = last_refRow + 1
+            # Consider a potential last section of non-mapping rows, if there is data in raw_df after the mappings
+            # for the last referenced manifest. Take all remaining rows, if any
+            non_mapping_section_df                  = working_df.loc[next_non_mapping_row_candidate:]
+            non_mapping_df_list.append(non_mapping_section_df)
 
+            non_mapping_df                          = _pd.concat(non_mapping_df_list)
 
-            ds1_df                      = working_df.loc[:first_refRow] 
-            ds2_df                      = working_df.loc[last_refRow + 1:]
-            dataset_df                  = _pd.concat([ds1_df, ds2_df])
+            return non_mapping_df, mapping_df_dict
 
+    def _rotate_referencing_manifest_properties(self, parent_trace, my_entity, non_mapping_raw_df):
+        '''
+        Helper method used by self.linkMappedManifest. Please refer to the documentation for that method
+
+        This method does a subset of all the processing needed when parsing Excel content's for a referencing
+        manifest in a many-to-many relationship to another manifest.
+        
+        This method focuses on creating the referencing manifest intrinsic properties, i.e., excludes the join
+        information. A big part of that is doing a "rotation" of the raw information, since the referencing
+        manifest is displayed in Excel at 90 degrees
+
+        The intention is that the caller (method self.linkMappedManifest) will call this to build the "first draft"
+        of the referencing manifest, and then other logic would enrich it with the list of UIDs for the referenced
+        manifest (or manifests, if there are multiple many-to-many relatonships at play.)
+
+        Returns two things:
+
+        * A DataFrame, corresponding to the "first pass" manifest dataframe, properly rotated and cleaned up
+
+        * The name of the column in the returned DataFrame containing the referenced manifest's entities.
+
+        @param my_entity The referencing entity. For example, "milestone" in the case of the many-to-many mapping
+                between milestones and big rocks.
+        @param raw_df A DataFrame, corresponding to DataFrame created by Pandas when reading the layout area corresponding
+                to the referencing manifest. Thus, some rows in raw_df correspond to the columns of the referencing
+                manifest, and other rows are for the unbundled many-to-many mappings.
+        @param first_row An int, corresponding to the row number in Excel where the `raw_df` dataset starts
+        @param last_row An int, corresponding to the last row number in Excel where the `raw_df` dataset appears
+        '''
         my_trace                        = parent_trace.doing("Creating manifest DataFrame")
         if True:
-            manifest_columns            = list(dataset_df.columns)[0] # These will be the manifest columns
-            df2                         = SchemaUtils.drop_blanks(dataset_df, manifest_columns)
+            manifest_columns            = list(non_mapping_raw_df.columns)[0] # These will be the manifest columns
+            df2                         = SchemaUtils.drop_blanks(non_mapping_raw_df, manifest_columns)
             df2                         = df2.set_index(manifest_columns) # That way when we transpose these become the columns
             df2.index.name              = None
             df2                         = df2.transpose()
@@ -832,30 +1057,59 @@ class SkeletonController(PostingController):
 
             manifest_df                 = df2
 
-            # Test we correctly chose linkage_column
-            list1                       = list(mapping_df.columns)[1:]
-            list2                       = list(manifest_df[linkage_column])
-            if list1 != list2:
-                raise ApodeixiError(my_trace, "Problem establishing linkage when processing mapping of manifests: lists "
-                                                "should match",
-                                            data = {"list1": str(list1), "list2": str(list2), "referenced Kind": str(refKind),
-                                                        "referencing entity": my_entity})
+        return manifest_df, linkage_column
+
+    def _collect_referenced_uid_list(self, parent_trace, referencing_entities_list, referencing_entity,
+                                                    refKind, first_refRow, refMapping_df):
+        '''
+        Helper method used by self.linkMappedManifest. Please refer to the documentation for that method
+
+        Returns a dictionary whose keys are the possible entity values for the referencing manifest, and each value
+        is a list of UIDs of the referenced manifest that are pointed to by the referencing manifest's entity in the key.
+
+        @param referencing_entities_list A list of strings, corresponding to the entities of the referencing manifest.
+            For example: for the many-to-many mapping between Milestones and Big Rocks, this would be something like
+            ["M1", "M2", "M3", ...]
+
+        @referencing entity A string, corresponding to the top entity of the referencing manifest. For example, in the
+                many-to-many mapping between Milestones and Big Rocks, that would be "Milestone"
+        @refKind The kind of the referenced manifest. For example, in the many-to-many mapping between Milestones and
+                Big Rocks, that would be "big-rock" 
+        @param first_refRow An int, corresponding to the first Excel row number for the `refKind` manifest. For example, in 
+                the many-to-many mapping between Milestones and Big Rocks, if Milestones occupy rows 2-32 in Excel and
+                Big Rock occupies rows 8-32, then first_refRow = 8
+        @param refMapping_df A DataFrame, which is a subset of the raw DataFrame rows after the Pandas reads the
+                referencing manifest range. The subset correspond to the rows that are for mappings. For example, in 
+                the many-to-many mapping between Milestones and Big Rocks, if Milestones occupy rows 2-32 in Excel and
+                Big Rock occupies rows 8-32, then refMapping_df is raw_df[8:28], where raw_df is the DataFrame loaded
+                by Pandas for the Milestones area (ie., "raw" in that it has not be rotated or cleaned up yet)               
+        '''
+        # Test we correctly chose linkage_column
+        list1                       = list(refMapping_df.columns)[1:]
+
+        if list1 != referencing_entities_list:
+            raise ApodeixiError(parent_trace, "Problem establishing linkage when processing mapping of manifests: lists "
+                                            "should match",
+                                        data = {"list1": str(list1), "list2": str(referencing_entities_list), 
+                                                    "referenced Kind": str(refKind),
+                                                    "referencing entity": referencing_entity})
             
         my_trace                        = parent_trace.doing("Create mapped vectors per referencing entity")
         if True:
-            # mapping_df is "only mappings" - we filtered out the rows that were properties or our entity ("Milestones"
-            # in the example), so mappping_df'w rows have "x"s expressing a mapping (e.g., big rocks linked to milestone)
+            # refMapping_df is "only mappings" - we filtered out the rows that were properties or our entity ("Milestones"
+            # in the example), so refMapping_df'w rows have "x"s expressing a mapping (e.g., big rocks linked to milestone)
             referencing_mappings          = {}
 
-            for referencing_entity in list(mapping_df.columns)[1:]: # This list is the same as manifest_df[linkage_column]
+            for referencing_entity in list(refMapping_df.columns)[1:]: # This list is the same as manifest_df[linkage_column]
                 uid_list                = []
                 
-                for row_nb in mapping_df.index:
-                    val                 = mapping_df[referencing_entity].loc[row_nb]
+                for row_nb in refMapping_df.index:
+                    val                 = refMapping_df[referencing_entity].loc[row_nb]
                     # The link_table has *dataframe* row numbers for the reference manifest, so convert
                     # from the Excel row_nb to the dataframe row number ref_df_row_nb before the lookup
                     ref_df_row_nb       = row_nb - (first_refRow + 1)
                     cleaned_val         = StringUtils().strip(val)
+
                     if cleaned_val.strip().lower() == 'x': # There is a mapping
                         refUID          = self.link_table.uid_from_row( parent_trace            = my_trace,
                                                                         manifest_identifier     = refKind,
@@ -864,34 +1118,7 @@ class SkeletonController(PostingController):
                             uid_list.append(refUID)
                 referencing_mappings[referencing_entity] = uid_list
 
-        my_trace                        = parent_trace.doing("Adding a column of mappings to manifest_df")
-        if True:
-            def assign_ref_uids(row):
-                referencing_entity      = row[linkage_column]
-                uid_list                = referencing_mappings[referencing_entity]
-                return uid_list
-
-            manifest_df[refKind]        = manifest_df.apply(lambda row: assign_ref_uids(row), axis=1)
-
-            # If we are doing an update, we need to clear out spuriously named "UIDs" like "Unnamed: 8". This happens
-            # if the user added additional milestones as part of the update. Since there is a "UID" already (being
-            # an update), these new milestones will have a blank UID in Excel, and Pandas will convert into something
-            # like "Unnamed: 8" (if it is column 8+1 in Excel), since Pandas DataFrame's require non-null columns.
-            # But after the transpose that created manifest_df, in manifest_df these are values in the "UID" column, 
-            # and we need to blank them so that the Apodeixi parser will not error out when it encounters strings like
-            # "Unnamed: 8" that are not valid UIDs. Instead, we want them to be blank so that the Apodeixi parser
-            # will generate a new valid UID for them.
-            if linkage_column == Interval.UID:
-                def _clean_UIDs(row):
-                    raw_uid                 = row[Interval.UID]
-                    if raw_uid.startswith("Unnamed:"):
-                        cleaned_uid         = ""
-                    else:
-                        cleaned_uid         = raw_uid
-                    return cleaned_uid
-                manifest_df[Interval.UID]   = manifest_df.apply(lambda row: _clean_UIDs(row), axis=1)
-
-        return manifest_df
+        return referencing_mappings
 
     def createTemplate(self, parent_trace, form_request, kind):
         '''

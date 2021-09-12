@@ -152,24 +152,24 @@ class MilestonesController(JourneysController):
 
                 # We use a specialized XL Write Config class, one that understands mappings
                 xlw_config  = MappedManifestXLWriteConfig( 
-                                            sheet                       = SkeletonController.GENERATED_FORM_WORKSHEET,
-                                            manifest_name               = key, 
-                                            read_only                   = False,
-                                            referenced_manifest_name    = 'big-rock.0',
-                                            my_entity                   = "milestone", 
-                                            mapped_entity               = "big-rock",
-                                            is_transposed               = is_transposed,    
-                                            viewport_width              = 100,  
-                                            viewport_height             = 40,   
-                                            max_word_length             = 20, 
-                                            editable_cols               = editable_cols,
-                                            hidden_cols                 = hidden_cols,  
-                                            num_formats                 = num_formats, 
-                                            excel_formulas              = excel_formulas,
-                                            df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
-                                            editable_headers            = [],   
-                                            x_offset                    = x_offset,    
-                                            y_offset                    = y_offset)
+                                            sheet                           = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                            manifest_name                   = key, 
+                                            read_only                       = False,
+                                            referenced_manifest_name_list   = ['big-rock.0'],
+                                            my_entity                       = "milestone", 
+                                            mapped_entities_list            = ["big-rock"],
+                                            is_transposed                   = is_transposed,    
+                                            viewport_width                  = 100,  
+                                            viewport_height                 = 40,   
+                                            max_word_length                 = 20, 
+                                            editable_cols                   = editable_cols,
+                                            hidden_cols                     = hidden_cols,  
+                                            num_formats                     = num_formats, 
+                                            excel_formulas                  = excel_formulas,
+                                            df_xy_2_excel_xy_mapper         = df_xy_2_excel_xy_mapper,
+                                            editable_headers                = [],   
+                                            x_offset                        = x_offset,    
+                                            y_offset                        = y_offset)
 
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
@@ -269,7 +269,7 @@ class MilestonesController(JourneysController):
             # manifest entities' properties.
             self.horizontally                   = False 
             self.is_a_mapping                   = True
-            self.kind_mapped_from               = 'big-rock'
+            self.kind_mapped_from_list          = ['big-rock']
 
             interval_spec_milestones   = GreedyIntervalSpec( parent_trace = None, entity_name = ME._ENTITY_NAME) 
 

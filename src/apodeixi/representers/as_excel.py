@@ -124,30 +124,31 @@ class ManifestRepresenter:
             # If we are a mapping, we are at 90 degrees relative to the referenced manifest,
             # so need to add more *columns* by an amount equal to the referenced manifest's rows.
             if issubclass(type(xlw_config), MappedManifestXLWriteConfig):
-                referenced_manifest_info        = self.manifestInfo_dict[xlw_config.referenced_manifest_name]
-                referenced_df                   = referenced_manifest_info.getManifestContents(parent_trace)
-                # TODO The arithmetic here only works if the referenced manifest is not displayed with
-                # extra padding, i.e., it is displayed "on the first row it can be displayed",
-                # meaning its headers are displayed in the first Excel row after the content of
-                # our manifest. Otherwise the arithmetic below will "fall short" and we will miss out
-                # some mapping rows from the range, and unless the user manually corrects the range in the
-                # Excel spreadsheet before submitting a posting, the mapping of those rows will not be
-                # captured.
-                #   That would be not exactly a bug (since the user "certified" the incorrect range
-                # by submitting the posting), but is certainly a usability problem; something easy for users
-                # to get wrong and not even know about it.
-                # To minimize this bug from happening, we add a buffer
-                #
-                BUG_WORKAROUND_BUFFER   = 10
+                for referenced_manifest_name in xlw_config.referenced_manifest_name_list:
+                    referenced_manifest_info        = self.manifestInfo_dict[referenced_manifest_name]
+                    referenced_df                   = referenced_manifest_info.getManifestContents(parent_trace)
+                    # TODO The arithmetic here only works if the referenced manifest is not displayed with
+                    # extra padding, i.e., it is displayed "on the first row it can be displayed",
+                    # meaning its headers are displayed in the first Excel row after the content of
+                    # our manifest. Otherwise the arithmetic below will "fall short" and we will miss out
+                    # some mapping rows from the range, and unless the user manually corrects the range in the
+                    # Excel spreadsheet before submitting a posting, the mapping of those rows will not be
+                    # captured.
+                    #   That would be not exactly a bug (since the user "certified" the incorrect range
+                    # by submitting the posting), but is certainly a usability problem; something easy for users
+                    # to get wrong and not even know about it.
+                    # To minimize this bug from happening, we add a buffer
+                    #
+                    BUG_WORKAROUND_BUFFER   = 10
 
-                # 1) extra +1 because of the headers of the referenced manifest, 
-                # 2) another +1 because when doing an update, there will be a "hidden row" for the column
-                #   in our manifest that references the other one. For example, in the Journey domain the
-                #   milestones manifest will have a "big-rock" column. It is not displayed but it will 
-                #   cause the referenced manifest to appear one row further down.
-                # 3) An additional + BUG_WORKAROUND_BUFFER for the reasons in the comment above.
-                #
-                x_1             += len(referenced_df.index) + 1 + 1 + BUG_WORKAROUND_BUFFER
+                    # 1) extra +1 because of the headers of the referenced manifest, 
+                    # 2) another +1 because when doing an update, there will be a "hidden row" for the column
+                    #   in our manifest that references the other one. For example, in the Journey domain the
+                    #   milestones manifest will have a "big-rock" column. It is not displayed but it will 
+                    #   cause the referenced manifest to appear one row further down.
+                    # 3) An additional + BUG_WORKAROUND_BUFFER for the reasons in the comment above.
+                    #
+                    x_1             += len(referenced_df.index) + 1 + 1 + BUG_WORKAROUND_BUFFER
             
             elif issubclass(type(xlw_config), JoinedManifestXLWriteConfig):
                 # In this case, there is an injection between our manifest's rows and those of the 
@@ -564,15 +565,11 @@ class ManifestRepresenter:
                         good_uid        = UID_Utils().unabbreviate_uid( parent_trace        = loop_trace, 
                                                                         uid                 = str(raw_uid), 
                                                                         acronym_schema      = acronym_schema)
-                        # Due to the possibility that the end user skipped some entities, need to pad
-                        # the UID before using it as a link.
-                        '''
-                        padded_uid      = acronym_schema.pad_uid(parent_trace, good_uid)
-                        '''
+
                         self.link_table.keep_row_last_UID(parent_trace, 
                                                             manifest_identifier     = name, 
                                                             row_nb                  = excel_row, 
-                                                            uid                     = good_uid) #padded_uid)#good_uid)
+                                                            uid                     = good_uid) 
 
                     last_x              = layout_x
                     last_y              = excel_row
