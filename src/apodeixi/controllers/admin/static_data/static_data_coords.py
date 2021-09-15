@@ -21,8 +21,9 @@ class StaticDataFilingCoordinates(FilingCoordinates):
     In this case the implemenation is straight forward, because there is nothing to build for the filing
     coords of static data. So this method just returns self.
 
-    @path_tokens: List of strings in a path from the root for a KnowledgeBase. Expected to be the list of string tokens 
-                    ["static_data"]. 
+    @path_tokens: An empty list. The parent class requires this parameter, so it is mandatory in the method's
+                signature, but since it is not used by this concrete class the caller may just pass an empty list.
+                That would be semantically aligned with the caller's intention for this parameter. 
     '''
     def build(self, parent_trace, path_tokens):
         return self

@@ -3,7 +3,7 @@ import os                                               as _os
 import datetime                                         as _datetime
 import pandas                                           as _pd
 
-from apodeixi.util.a6i_error                            import ApodeixiError
+from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel
 from apodeixi.xli.uid_store                             import UID_Store
@@ -43,6 +43,18 @@ class SkeletonController(PostingController):
     GENERATED_FORM_WORKSHEET            = "Assertions"
     POSTING_LABEL_SHEET                 = "Posting Label"
     POSTING_LABEL_RANGE                 = "B2:C100"
+
+    def getFilingClass(self):
+        '''
+        Abstract method, required to be implemented by concrete derived classes.
+        It returns a class object, corresponding to the concrete subclass of FilingCoordinates
+        that is supported by this controller
+        '''
+        root_trace                      = FunctionalTrace(parent_trace=None, path_mask=None)
+
+        raise ApodeixiError(root_trace, "Someone forgot to implement abstract method 'getFilingClass' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__})
 
     def apply(self, parent_trace, posting_label_handle):
         '''
@@ -549,6 +561,58 @@ class SkeletonController(PostingController):
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifestLabelsFromCoords' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})        
+
+    def manifestAsDataFrame(self, parent_trace, kind, namespace, subnamespace, path_tokens):
+        '''
+        Returns a DataFrame with the contents of a manifest identified by the parameters:
+
+        @param kind A string, corresponding to the `kind` of manifest requested. Must be one of the kinds supported by this
+                    controller class.
+
+        @param namespace A string, corresponding to namespace within which the manifest in question is to be found.
+
+        @param subnamespace A string, corresponding to the subnamespace for the manifest in question, if it is for a kind
+                        of manifest that requires a subnamespace.
+
+        @param path_tokens A list of strings, corresponding to the folder structure for the manifest under the namespace
+                        and, if applicable, the subnamespace.
+                        It should be the same list from which this controller's filing coordinates can be built for use in
+                        method self.manifestFromCoords
+        '''
+        if not kind in self.getSupportedKinds():
+            raise ApodeixiError(parent_trace, "Can't generate a DataFrame for manifest because the submitted `kind` is not valid",
+                                                data = {"kind submitted":       str(kind),
+                                                        "valid kinds":          str(self.getSupportedKinds())})
+
+        filing_class                            = self.getFilingClass()
+        coords                                  = filing_class()
+        coords.build(parent_trace=parent_trace, path_tokens=path_tokens)
+        name                                    = self.manifestNameFromCoords(
+                                                                    parent_trace, 
+                                                                    subnamespace        = subnamespace, 
+                                                                    coords              = coords, 
+                                                                    kind                = kind) 
+        manifest_dict, manifest_path            = self.store.findLatestVersionManifest( 
+                                                                    parent_trace        = parent_trace, 
+                                                                    manifest_api_name   = self.getManifestAPI().apiName(),
+                                                                    namespace           = namespace, 
+                                                                    name                = name, 
+                                                                    kind                = kind) 
+        manifest_nickname                       = str(kind) + " manifest"
+        manifest_entity                         = ManifestUtils().infer_entity(parent_trace, manifest_dict, manifest_nickname)
+        rep                                     = AsDataframe_Representer()
+        content_dict                            = DictionaryUtils().get_val(
+                                                                    parent_trace        = parent_trace, 
+                                                                    root_dict           = manifest_dict,
+                                                                    root_dict_name      = manifest_nickname,
+                                                                    path_list           = ["assertion", str(manifest_entity)],
+                                                                    valid_types         = [dict])
+        content_df                              = rep.dict_2_df(    parent_trace        = parent_trace, 
+                                                                    content_dict        = content_dict,
+                                                                    contents_path       = "assertion." + str(manifest_entity), 
+                                                                    sparse              = False, 
+                                                                    abbreviate_uids     = False)
+        return content_df
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''

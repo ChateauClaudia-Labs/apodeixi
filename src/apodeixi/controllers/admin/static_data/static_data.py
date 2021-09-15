@@ -1,12 +1,9 @@
-from apodeixi.util.a6i_error                                    import FunctionalTrace, ApodeixiError
+
+from apodeixi.util.a6i_error                                    import ApodeixiError
 
 from apodeixi.controllers.util.manifest_api                     import ManifestAPI
 from apodeixi.controllers.util.skeleton_controller              import SkeletonController
 from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
-from apodeixi.knowledge_base.knowledge_base_util                import FormRequest
-
-
-#from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 
 from apodeixi.util.formatting_utils                             import StringUtils
 from apodeixi.xli.posting_controller_utils                      import UpdatePolicy, PostingConfig
@@ -32,6 +29,14 @@ class StaticData_Controller(SkeletonController):
                                             extension       = 'io')
 
     _STATIC_DATA                        = 'static-data' 
+
+    def getFilingClass(self):
+        '''
+        Returns a class object, corresponding to the concrete subclass of FilingCoordinates
+        that is supported by this controller
+        '''
+        return StaticDataFilingCoordinates
+
     def getManifestAPI(self):
         return self.MANIFEST_API
 
@@ -152,7 +157,8 @@ class StaticData_Controller(SkeletonController):
         '''
         template_dict, template_df      = super().createTemplate(parent_trace, form_request, kind)
 
-        return template_dict, template_df
+        return template_dict, template_df  
+
 
     class _StaticDataConfig(PostingConfig):
         '''
