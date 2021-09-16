@@ -461,7 +461,9 @@ class AsDataframe_Representer:
                                                                             acronym_schema  = acronym_schema)
                 new_level_1_row[UID_COL]    = abbreviated_full_e_uid 
             else:
-                new_level_1_row[UID_COL]    = full_e_uid 
+                # Remember to pad if needed, i.e., maybe full_e_uid is BR1.TR1, but if the acronym schema 
+                # is [BR, MR, TR], we should put a BR1.MR0.TR1 in the new_level_1_row, not a BR1.TR1
+                new_level_1_row[UID_COL]    = acronym_schema.pad_uid(parent_trace, full_e_uid) 
             new_level_1_row[e_acronyminfo.entity_name]    = e_dict[NAME]
             
             sub_entities                      = acronym_schema.find_entities(inner_trace, e_dict) # Something like "Sub rock"
