@@ -1,3 +1,5 @@
+import warnings
+
 import pandas      as _pd
 import yaml        as _yaml
 import re          as _re
@@ -331,11 +333,26 @@ class ExcelTableReader:
                                                         data = {"excel_fullpath": str(self.excel_fullpath),
                                                                 "excel sheet": str(self.excel_sheet)})
         try:
-            df                  = _pd.read_excel(   io         = self.excel_fullpath,
-                                                    sheet_name = self.excel_sheet,
-                                                    header     = header, 
-                                                    usecols    = first_column + ':' + last_column, 
-                                                    nrows      = nrows)
+            # Pandas sometimes issues future warnings. By default, these are printed to stderr, which can mess up the
+            # deterministic requirement for regression test output.
+            # So we would rather have an exception be thrown so that we know of where in the Apodeixi code base a code
+            # construct needs to be made future-proof. That is why we use the warnings context manager here
+            with warnings.catch_warnings(record=True) as w:
+                df                  = _pd.read_excel(   io         = self.excel_fullpath,
+                                                        sheet_name = self.excel_sheet,
+                                                        header     = header, 
+                                                        usecols    = first_column + ':' + last_column, 
+                                                        nrows      = nrows)
+                if len(w) >0:
+                    warning_dict                                = {}
+                    for idx in range(len(w)):
+                        a_warning                               = w[idx]
+                        warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
+                        warning_dict['... from']                = str(a_warning.filename)
+                        warning_dict['... at line']             = str(a_warning.lineno)
+                    raise ApodeixiError(my_trace, "Pandas::read_excel issued at least one warning",
+                                            data = {"usecols":  str(first_column + ':' + last_column),
+                                                    "nrows":    str(nrows)} | warning_dict)
         except PermissionError as ex:
             raise ApodeixiError(my_trace, "Was not allowed to access excel file. Perhaps you have it open?",
                                         data = {"excel_fullpath": str(self.excel_fullpath),
