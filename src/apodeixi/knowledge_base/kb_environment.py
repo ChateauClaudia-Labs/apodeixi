@@ -262,6 +262,7 @@ class File_KBEnv_Impl():
 
     ENVS_FOLDER                                     = "envs"
     LOGS_FOLDER                                     = "logs"
+    REPORTS_FOLDER                                  = "reports"
     POSTINGS_ENV_DIR                                = "kb/excel-postings"
     MANIFESTS_ENV_DIR                               = "kb/manifests"
     COLLABORATION_DIR                               = "external-collaboration"

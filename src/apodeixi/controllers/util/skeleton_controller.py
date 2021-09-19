@@ -564,7 +564,9 @@ class SkeletonController(PostingController):
 
     def manifestAsDataFrame(self, parent_trace, kind, namespace, subnamespace, path_tokens):
         '''
-        Returns a DataFrame with the contents of a manifest identified by the parameters:
+        Returns a DataFrame with the contents of the most recent manifest identified by the parameters.
+
+        If no such manifest exists, it returns None
 
         @param kind A string, corresponding to the `kind` of manifest requested. Must be one of the kinds supported by this
                     controller class.
@@ -598,6 +600,10 @@ class SkeletonController(PostingController):
                                                                     namespace           = namespace, 
                                                                     name                = name, 
                                                                     kind                = kind) 
+
+        if manifest_dict == None:
+            return None
+            
         manifest_nickname                       = str(kind) + " manifest"
         manifest_entity                         = ManifestUtils().infer_entity(parent_trace, manifest_dict, manifest_nickname)
         rep                                     = AsDataframe_Representer()

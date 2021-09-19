@@ -8,6 +8,7 @@ import apodeixi
 from apodeixi.cli.kb_session                import KB_Session
 from apodeixi.cli.error_reporting           import CLI_ErrorReporting
 from apodeixi.util.a6i_error                import FunctionalTrace, ApodeixiError
+from apodeixi.util.performance_utils        import ApodeixiTimer
 
 pass_kb_session                             = click.make_pass_decorator(KB_Session, ensure=True)
 
@@ -31,6 +32,7 @@ def namespaces(kb_session):
     '''
     Gets the list of valid namespaces for the system
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get namespace",
@@ -40,6 +42,7 @@ def namespaces(kb_session):
         click.echo(namespaces_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -61,6 +64,7 @@ def products(kb_session, all, environment):
     '''
     Gets the list of valid products for the system.
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get products",
@@ -71,6 +75,7 @@ def products(kb_session, all, environment):
         click.echo(products_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -92,6 +97,7 @@ def assertions(kb_session, all, environment):
     '''
     Gets the list of assertions (manifests) for the system.
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get products",
@@ -105,6 +111,7 @@ def assertions(kb_session, all, environment):
         click.echo(assertions_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -135,6 +142,7 @@ def _get_environment_filter(parent_trace, kb_session, all, environment):
                                                         filter_type = CLI_Utils.ONLY_BASE_ENV_FILTER, sandbox=environment)
     return environment_filter
 
+
 @get.command()
 @click.option('--all/--no-all', default=False, help="If set, scoring cycles across both the base environment and all sandboxes will be returned")
 @click.option('--environment', type=click.STRING,help="If provided, then only scoring cycles in the given environment will be returned")
@@ -143,6 +151,7 @@ def scoring_cycles(kb_session, all, environment):
     '''
     Gets the list of valid scoring cycles for the system.
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get scoring cycles",
@@ -153,6 +162,7 @@ def scoring_cycles(kb_session, all, environment):
         click.echo(sc_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -172,6 +182,7 @@ def environments(kb_session):
     '''
     Gets the list of existing environments (e.g., sandboxes) for the system.
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get sandboxes",
@@ -181,6 +192,7 @@ def environments(kb_session):
         click.echo(environments_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -200,6 +212,7 @@ def apis(kb_session):
     '''
     Gets the list of posting and manifest APIs supported by the KnowledgeBase
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to get posting APIs",
@@ -209,6 +222,7 @@ def apis(kb_session):
         click.echo(posting_apis_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -236,6 +250,7 @@ def post(kb_session, file, dry_run, environment, timestamp):
     Posts contents of an Excel file to the KnowledgeBase.
     The filename must be of the form '<some string><posting API>.xlsx' for some supported KnowledgeBase posting API.
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to post",
@@ -270,6 +285,7 @@ def post(kb_session, file, dry_run, environment, timestamp):
         click.echo(manifests_description)
         output                              = "Success"
         click.echo(output)
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 
@@ -315,6 +331,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
     Requests a form (an Excel spreadsheet) which (after some edits, as appropriate) can be used as the
     input to the post command.
     '''
+    timer                               = ApodeixiTimer()
     func_trace                          = FunctionalTrace(  parent_trace    = None, 
                                                             path_mask       = None) 
     root_trace                          = func_trace.doing("CLI call to post",
@@ -362,7 +379,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
         click.echo(manifests_description)
         output                              = "Success"
         click.echo(output)
-        
+        click.echo(timer.elapsed_time_message())
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 

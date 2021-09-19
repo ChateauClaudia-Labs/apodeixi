@@ -11,6 +11,7 @@ from apodeixi.knowledge_base.kb_environment                         import File_
 from apodeixi.util.a6i_error                                        import ApodeixiError
 from apodeixi.util.formatting_utils                                 import StringUtils
 from apodeixi.util.path_utils                                       import PathUtils
+from apodeixi.util.performance_utils                                import ApodeixiTimer
 
 class CLI_Utils():
     '''
@@ -109,13 +110,15 @@ class CLI_Utils():
     def combined_mask(self, parent_trace, a6i_config):
         MASK_SANDBOX                = self.mask_sandbox_lambda(parent_trace)
         MASK_PATH                   = PathUtils().get_mask_lambda(parent_trace, a6i_config)
+        MASK_TIMER                  = ApodeixiTimer().get_mask_lambda(parent_trace)
         def MASK_COMBINED(txt1):
             if txt1 == None:
                 return None
             txt2                    = MASK_PATH(txt1)
             txt3                    = MASK_SANDBOX(txt2)
-            txt4                    = _re.sub(pattern="[0-9]{6}", repl="<MASKED>", string=txt3)
-            return txt4
+            txt4                    = MASK_TIMER(txt3)
+            txt5                    = _re.sub(pattern="[0-9]{6}", repl="<MASKED>", string=txt4)
+            return txt5
         return MASK_COMBINED
 
     def infer_sandbox_name(self, parent_trace, output_txt):

@@ -191,7 +191,6 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                                                     "CLI exception":    str(result.exc_info),
                                                     "CLI output":       str(result.output),
                                                     "CLI traceback":    str(result.exc_info)})
-                    #assert result.exit_code == 0
 
                     sandbox                     = CLI_Utils().infer_sandbox_name(loop_trace, result.output)
                     if sandbox != None:
