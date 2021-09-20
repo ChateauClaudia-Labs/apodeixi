@@ -32,11 +32,9 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
         self.sandbox               = None # Will be set in self.skeleton_test
 
-        self.provisioned_env_name = None # This will be set in self.skeleton_test the first time it is caleld
+        self.provisioned_env_name   = None # This will be set in self.skeleton_test the first time it is caleld
 
-        root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Selecting stack for test case")
-        
-        # Commented as now it should happen after overwrite_a6i_config_director  .. self.selectStack(root_trace) 
+        self.cli                    = apo_cli # Derived classes may set this to a different CLI program
 
     def overwrite_test_context(self, parent_trace):
         '''
@@ -184,7 +182,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
                     loop_trace                  = self.trace_environment(my_trace, 
                                                                             "Executing '" + " ".join(command_argv) + "'")
-                    result                      = runner.invoke(apo_cli, command_argv)
+                    result                      = runner.invoke(self.cli, command_argv)
                     if result.exit_code != 0:
                         raise ApodeixiError(loop_trace, "CLI command failed",
                                             data = {"CLI exit code":    str(result.exit_code),

@@ -227,13 +227,7 @@ class File_KBEnv_Impl():
     '''
     def __init__(self, parent_trace, name, store, parent_environment, config, 
                     postings_rootdir, manifests_roodir, clientURL):
-        '''
-        super().__init__(   parent_trace            = parent_trace, 
-                            name                    = name, 
-                            store                   = store, 
-                            parent_environment      = parent_environment,
-                            config                  = config)
-        '''
+
         if not type(config)==KB_Environment_Config:
             raise ApodeixiError(parent_trace, "Unsupported config provided when creating environment",
                                                 data = {"config type expected":         str(KB_Environment_Config.__name__),

@@ -60,6 +60,15 @@ class PathUtils():
         
         return False
 
+    def checkPathExists(self, parent_trace, path):
+        '''
+        Raises an ApodeixiError if the given path does not exist. If it exists, this method does nothing.
+        '''
+        # Check if full_path is real
+        if type(path) != str or not _os.path.exists(path):
+            raise ApodeixiError(parent_trace, "The given path does not point to a real file or directory",
+                                                data = {'path':    str(path)})
+
     def relativize(self, parent_trace, root_dir, full_path):
         '''
         Returns a list with two entries: [relative_path, filename] with the property that

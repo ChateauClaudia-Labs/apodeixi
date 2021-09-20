@@ -384,6 +384,66 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             my_trace                    = parent_trace.doing("Seeding client area for integration test")
             self.stack().seedTestClientArea(parent_trace)
 
+    def seedCurrentEnvironment(self, parent_trace, manifest_relative_folder, postings_relative_folder):
+        '''
+        Populates the current environment's manifests or excel postings' area by copying the folder tree structures.
+
+        @param manifest_relative_folder A string. Should be a relative path that adheres to a valid path structure in the 
+            KnowledgeBase store under the manifests folder. 
+            It must also be the case that the input folder for this test has a subfolder called "manifests" which
+            contains the `manifest_relative_folder` as a sub-subfolder.
+            Behavior is to copy everything under the latter to the KnowledgeBase store's manifests area.
+            If set to None, nothing is copied.
+
+            Example: "my-corp.production/modernization.dec-2020.fusionopus.default"
+
+        @param postings_relative_folder A string. Should be a relative path that adheres to a valid path structure in the 
+            KnowledgeBase store under the excel-postings folder. 
+            It must also be the case that the input folder for this test has a subfolder called "excel-postings" which
+            contains the `postings_relative_folder` as a sub-subfolder.
+            Behavior is to copy everything under the latter to the KnowledgeBase store's manifests area.
+            If set to None, nothing is copied.
+
+            Example: "journeys/Dec 2020/FusionOpus/Default"
+        '''
+        INPUT_FOLDER                    = self.getInputDataFolder(parent_trace) + "/" + self.scenario()
+        my_trace                        = self.trace_environment(parent_trace, "Seeding manifests under " 
+                                                                                    + str(manifest_relative_folder))
+        if manifest_relative_folder != None:
+            src_folder                  = INPUT_FOLDER + "/manifests/" + manifest_relative_folder
+            PathUtils().checkPathExists(my_trace, src_folder)
+            manifestsURL                = self.stack().store().current_environment(my_trace).manifestsURL(my_trace)
+            dst_folder                  = manifestsURL + "/" + manifest_relative_folder
+            
+            try:
+                _shutil.copytree(   src                 = src_folder, 
+                                    dst                 = dst_folder,
+                                    ignore              = None)
+            except Exception as ex:
+                raise ApodeixiError(my_trace, "Found an error in seeding the manifests for test " + self.scenario(),
+                                                data = {"URL to download from":     src_folder, 
+                                                        "URL to copy to":           manifestsURL,
+                                                        "error":                    str(ex)})
+
+        my_trace                        = self.trace_environment(parent_trace, "Seeding Excel postings under " 
+                                                                                    + str(postings_relative_folder))
+        if postings_relative_folder != None:
+            src_folder                  = INPUT_FOLDER + "/excel-postings/" + postings_relative_folder
+            PathUtils().checkPathExists(my_trace, src_folder)
+            postingsURL                 = self.stack().store().current_environment(my_trace).postingsURL(my_trace)
+            dst_folder                  = postingsURL + "/" + postings_relative_folder
+            
+            try:
+                _shutil.copytree(   src                 = src_folder, 
+                                    dst                 = dst_folder,
+                                    ignore              = None)
+            except Exception as ex:
+                raise ApodeixiError(my_trace, "Found an error in seeding the Excel postings for test " + self.scenario(),
+                                                data = {"URL to download from":     src_folder, 
+                                                        "URL to copy to":           postingsURL,
+                                                        "error":                    str(ex)})
+
+
     def check_environment_contents(self, parent_trace, snapshot_name = None):     
         '''
         Helper method to validate current environment's folder hierarchy is as expected at this point in time
@@ -397,11 +457,26 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         if snapshot_name == None:
             snapshot_name   = self.next_snapshot()
 
-        description_dict    = current_env.describe(parent_trace, include_timestamps = False)
+        raw_description_dict    = current_env.describe(parent_trace, include_timestamps = False)
 
+        # Some keys are timestamped filenames or folders, like "210915 Some_report.xlsx" (for Sep 15, 2021)
+        # or even "210917.072312 Some_report.xlsx" (if report was produced at 7:32:12 am). To mask such 
+        # timestamps, we replace the occurrence of any 6 digits in a key by the string "<MASKED>"
+        def mask_timestamps(a_dict):
+            REGEX                   = "[0-9]{6}"
+            new_dict                = {}
+            for key in a_dict:
+                raw_child           = a_dict[key]
+                if type(raw_child) == dict:
+                    new_child       = mask_timestamps(raw_child)
+                else:
+                    new_child       = raw_child
+                new_key             = _re.sub(REGEX, "<MASKED>", key)
+                new_dict[new_key]   = new_child
+            return new_dict
+
+        description_dict            = mask_timestamps(raw_description_dict)
         
-        #TOLERANCE               = 4 # We will tolerate up to these many bites of difference
-
         check, explanation = DictionaryUtils().validate_path(   parent_trace    = parent_trace, 
                                                                 root_dict       = self.test_config_dict, 
                                                                 root_dict_name  = "test_config.yaml",
@@ -417,12 +492,15 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
         def tolerance_lambda(key, output_val, expected_val):
             '''
-            When an Excel filename is displayed as a key in a folder hierarchy, and it has a 
+            We need to mask or tolerate differences in regression test output because of
+            expected nondeterminism. Multiple cases:
+
+            1. When an Excel filename is displayed as a key in a folder hierarchy, and it has a 
             description given by a string that includes things like "Size (in bytes):  7677",
             we want to tolerate a small deviation from the number of bytes in the size.
             For example, "Size (in bytes):  7678" would not be considered a test failure
 
-            Also, when an environment's "METADATA.yaml" file is displayed as a key in a folder hierarchy,
+            2. When an environment's "METADATA.yaml" file is displayed as a key in a folder hierarchy,
             its contents can't be masked because the test harness itself needs the full paths inside
             the "METADATA.yaml" when, for example, re-creating a pre-existing environment from disk
             (as it happens in CLI testing - each CLI command is a initializes a separate KnowledgeBaseStore object
@@ -433,13 +511,14 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             reloates the test DB, since its location appears inside "METADATA.yaml". So we "accept" whatever
             byte size it has.
 
-            Lastly, log output files like "POST_EVENT_LOG.txt" are normally masked in test output, so we want
+            3. Log output files like "POST_EVENT_LOG.txt" are normally masked in test output, so we want
             them to match expected output to the byte. *HOWEVER*, in the case of CLI tests we don't mask their
             contents to make them "more realistic" and because CLI test output doesn't show the contents of such
             log files. So to ensure CLI tests don't frivolously fail when the test_db is relocated, there is
             a setting (self.ignore_log_files_byte_size), normally set to False but which derived classes
             (such as CLI tests) can set to True. So if this flag is on, we also accept whatever byte size
             exists in log files.
+
             '''
             if type(key) == str and key.endswith(".xlsx"): # This is an Excel file, apply tolerance
                 output_bytes        = _extract_bytes(output_val)
@@ -502,6 +581,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                                                 'signaled_from':    __file__})
         return my_trace
 
+    
     def snapshot_generated_form(self, parent_trace, form_request_response):     
         '''
         Helper method to remember a generated form at a given point in time, in case it is subsequently
