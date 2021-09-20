@@ -1,6 +1,3 @@
-import os                                               as _os
-#import shutil                                           as _shutil
-#import yaml                                             as _yaml
 
 from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KBStore_Impl
 from apodeixi.util.a6i_error                            import ApodeixiError

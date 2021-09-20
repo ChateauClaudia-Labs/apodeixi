@@ -1,8 +1,8 @@
 
-import yaml                             as _yaml
 import pandas                           as _pd
 
 from apodeixi.util.a6i_error            import ApodeixiError
+from apodeixi.util.yaml_utils import YAML_Utils
 from apodeixi.xli                       import Interval
 from apodeixi.xli.uid_store             import UID_Utils
 from apodeixi.xli.uid_acronym_schema    import UID_Acronym_Schema
@@ -72,9 +72,7 @@ class AsDataframe_Representer:
         '''
         manifest_path       = manifests_folder + '/' + manifests_file
         my_trace            = parent_trace.doing('Loading YAML Manifest', data = {'path': manifest_path})
-        with open(manifest_path, 'r') as file:
-            manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
-
+        manifest_dict       = YAML_Utils().load(my_trace, path = manifest_path)
         path_tokens         = contents_path.split('.')
         
         # Create the dictionary of everything except what is in the path  

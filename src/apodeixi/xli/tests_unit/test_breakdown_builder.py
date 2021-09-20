@@ -1,6 +1,5 @@
 import sys                                                  as _sys
 import pandas                                               as _pd
-import yaml                                                 as _yaml
 
 from apodeixi.testing_framework.a6i_unit_test               import ApodeixiUnitTest
 from apodeixi.testing_framework.controllers.mock_controller import Mock_Controller

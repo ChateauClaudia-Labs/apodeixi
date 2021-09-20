@@ -1,9 +1,3 @@
-#import os                                           as _os
-#import yaml                                         as _yaml
-
-#from apodeixi.knowledge_base.knowledge_base_util    import ManifestHandle, PostingLabelHandle
-#from apodeixi.util.path_utils                       import PathUtils
-#from apodeixi.util.a6i_error                        import ApodeixiError
 
 
 class KnowledgeBaseStore():

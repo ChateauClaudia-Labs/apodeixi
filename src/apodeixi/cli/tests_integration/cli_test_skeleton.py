@@ -1,6 +1,8 @@
-import os                                               as _os 
+import os                                               as _os
+from apodeixi.util.yaml_utils import YAML_Utils 
 import yaml                                             as _yaml
 import click
+import warnings
 
 from apodeixi.cli.cli_utils import CLI_Utils
 from click.testing                                      import CliRunner
@@ -91,8 +93,8 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         # Lastly, we need to 
 
         # Next time an environment is provisioned for this test, use this overwritten config for the name of the folder           
-        with open(self.input_data + "/" + self.scenario() + '/test_config.yaml', 'r', encoding="utf8") as file:
-            self.test_config_dict                   = _yaml.load(file, Loader=_yaml.FullLoader)
+        self.test_config_dict                   = YAML_Utils().load(parent_trace, 
+                                                        path = self.input_data + "/" + self.scenario() + '/test_config.yaml')
 
     def selectStack(self, parent_trace):
         '''
@@ -182,7 +184,28 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
                     loop_trace                  = self.trace_environment(my_trace, 
                                                                             "Executing '" + " ".join(command_argv) + "'")
-                    result                      = runner.invoke(self.cli, command_argv)
+                    # Some Python libraries can be too noisy with warnings, and these get printed out to standard err/output
+                    # where the CLI will regard as "part of output" and display them in regression test output. This makes
+                    # regression output both ugly and sometimes non-deterministc.
+                    # To remedy this, we change the warning context to catch all warnings and based on what we catch, either
+                    # 1. raise an ApodeixiError so that the Apodeixi developer can change the code construct that led to the
+                    #    warning, possible as the ApodeixiError will include a stack trace to pin point where in the Apodeixi
+                    #    code the warning was triggered,
+                    # 2. or ignore the warning if that is pure noise and no code change in Apodeixi could prevent it from being
+                    #   triggered
+                    #
+                    with warnings.catch_warnings(record=True) as w:
+                        result                      = runner.invoke(self.cli, command_argv)
+                    if len(w) >0:
+                        warning_dict                                = {}
+                        for idx in range(len(w)):
+                            a_warning                               = w[idx]
+                            warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
+                            warning_dict['... from']                = str(a_warning.filename)
+                            warning_dict['... at line']             = str(a_warning.lineno)
+                        raise ApodeixiError(my_trace, "CLI issued at least one warning",
+                                                data = {"command_argv":  str(command_argv)} | warning_dict)
+
                     if result.exit_code != 0:
                         raise ApodeixiError(loop_trace, "CLI command failed",
                                             data = {"CLI exit code":    str(result.exit_code),

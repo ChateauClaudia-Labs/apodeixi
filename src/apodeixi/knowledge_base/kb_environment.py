@@ -1,9 +1,9 @@
 import os                                               as _os
 import shutil                                           as _shutil
-import yaml                                             as _yaml
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 from apodeixi.util.path_utils                           import PathUtils, FolderHierarchy
+from apodeixi.util.yaml_utils                           import YAML_Utils
 
 class KB_Environment_Config():
     '''
@@ -463,8 +463,7 @@ class File_KBEnv_Impl():
         
         PathUtils().create_path_if_needed(parent_trace, environment_dir)
 
-        with open(environment_dir + "/" + METADATA_FILENAME, 'w') as file:
-            _yaml.dump(metadata_dict, file)
+        YAML_Utils().save(parent_trace, data_dict = metadata_dict, path = environment_dir + "/" + METADATA_FILENAME)
 
     def find_child_environment_from_metadata(self, parent_trace, child_env_name):
         '''
@@ -508,9 +507,7 @@ class File_KBEnv_Impl():
         if not _os.path.exists(metadata_path):
             return None
 
-        with open(metadata_path, 'r', encoding="utf8") as file:
-            metadata_dict                = _yaml.load(file, Loader=_yaml.FullLoader)
-
+        metadata_dict               = YAML_Utils().load(my_trace, path = metadata_path)
         if self.name(my_trace) != metadata_dict['parent']:
             return None 
 

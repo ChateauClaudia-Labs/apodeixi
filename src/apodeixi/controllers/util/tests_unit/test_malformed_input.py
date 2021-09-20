@@ -1,6 +1,4 @@
 import sys                                                      as _sys
-import pandas                                                   as _pd
-import yaml                                                     as _yaml
 
 from apodeixi.testing_framework.a6i_unit_test                   import ApodeixiUnitTest
 from apodeixi.testing_framework.mock_kb_store                   import UnitTest_KnowledgeBaseStore
@@ -9,9 +7,6 @@ from apodeixi.testing_framework.controllers.mock_controller     import Mock_Cont
 from apodeixi.util.a6i_error                                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.formatting_utils                             import DictionaryFormatter
 
-#from apodeixi.xli.breakdown_builder             import BreakdownTree, UID_Store, Interval
-#from apodeixi.xli.posting_controller_utils      import PostingConfig
-#from apodeixi.xli                               import UpdatePolicy
 
 class Test_MalformedInput(ApodeixiUnitTest):
     '''

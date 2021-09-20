@@ -1,14 +1,11 @@
 import warnings
 
-import pandas      as _pd
-import yaml        as _yaml
-import re          as _re
-import sys         as _sys
-import os          as _os
-import math        as _math
-import datetime    as _datetime
+import pandas                       as _pd
+import re                           as _re
+import math                         as _math
+import datetime                     as _datetime
 
-from apodeixi.util.a6i_error    import *
+from apodeixi.util.a6i_error        import *
 
 class SchemaUtils:
 
