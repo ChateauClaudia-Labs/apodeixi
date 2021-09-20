@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  24473
+    Size (in bytes):  24471
 
     '
   performance_utils.py: '
@@ -84,7 +84,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  2653
+        Size (in bytes):  2712
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -171,5 +171,10 @@ util:
   time_buckets.py: '
 
     Size (in bytes):  5197
+
+    '
+  yaml_utils.py: '
+
+    Size (in bytes):  2452
 
     '

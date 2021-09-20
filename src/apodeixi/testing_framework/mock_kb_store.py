@@ -1,8 +1,8 @@
 import os                                           as _os
-import yaml                                         as _yaml
 
 from apodeixi.util.a6i_error                        import ApodeixiError
 from apodeixi.util.path_utils                       import PathUtils
+from apodeixi.util.yaml_utils                       import YAML_Utils
 
 from apodeixi.knowledge_base.file_kb_store          import File_KBStore_Impl
 from apodeixi.knowledge_base.filing_coordinates     import FilingCoordinates
@@ -124,8 +124,7 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
                                                                 'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})
         if True:
-            with open(self.output_manifests_dir + '/' + manifest_file, 'w') as file:
-                _yaml.dump(manifest_dict, file)
+            YAML_Utils().save(my_trace, data_dict = manifest_dict, path = self.output_manifests_dir + '/' + manifest_file)
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
@@ -198,9 +197,7 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
                                                         origination = {
                                                                 'concrete class':   str(self.__class__.__name__), 
                                                                 'signaled_from':    __file__})
-            with open(folder + '/' + filename, 'r') as file:
-                manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
-            #manifest_dict       = _yaml.load(filename, Loader=_yaml.FullLoader)
+            manifest_dict       = YAML_Utils().load(my_trace, path = folder + '/' + filename)
             inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
             if inferred_handle == manifest_handle:
                 matching_filenames.append(filename)

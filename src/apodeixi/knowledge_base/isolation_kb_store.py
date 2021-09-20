@@ -1,8 +1,6 @@
 import os                                               as _os
 import shutil                                           as _shutil
 from apodeixi.util.formatting_utils import StringUtils
-import yaml                                             as _yaml
-
 
 from apodeixi.knowledge_base.file_kb_store              import File_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl, KB_Environment_Config, KB_Environment
@@ -16,6 +14,7 @@ from apodeixi.representers.as_excel                     import ManifestRepresent
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
 from apodeixi.util.a6i_error                            import ApodeixiError
+from apodeixi.util.yaml_utils                           import YAML_Utils
 
 class TransactionEvents():
     '''
@@ -581,8 +580,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                                 'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})
         if True:
-            with open(manifest_dir + "/" + manifest_file, 'w') as file:
-                _yaml.dump(manifest_dict, file)
+            YAML_Utils().save(my_trace, data_dict = manifest_dict, path = manifest_dir + "/" + manifest_file)
             self._remember_manifest_write(my_trace, relative_path)
             
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
@@ -666,23 +664,22 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 continue
             # So far so good. But check API just in case different manifest APIs have the same 'kind' in 
             # their schemas
-            with open(folder + '/' + filename, 'r') as file:
-                manifest_dict                       = _yaml.load(file, Loader=_yaml.FullLoader)
-                # We will look inside the manifest to make some consistency checks:
-                if not self._check_manifest_matches(parent_trace, 
-                                                    manifest_filename       = filename,
-                                                    manifest_dict           = manifest_dict, 
-                                                    manifest_api_name       = manifest_api_name, 
-                                                    namespace               = namespace, 
-                                                    name                    = name, 
-                                                    kind                    = kind,
-                                                    minimal_version         = latest_version + 1):
-                    continue
-                # If we get this far then this is a bona fide manifest matching our search criteria and also
-                # of a more recent version than anything we found previously
-                result_dict                         = manifest_dict
-                result_path                         = folder + '/' + filename
-                latest_version                      = version_found # increase latest_version for next cycle of loop
+            manifest_dict                       = YAML_Utils().load(parent_trace, path = folder + '/' + filename)
+            # We will look inside the manifest to make some consistency checks:
+            if not self._check_manifest_matches(parent_trace, 
+                                                manifest_filename       = filename,
+                                                manifest_dict           = manifest_dict, 
+                                                manifest_api_name       = manifest_api_name, 
+                                                namespace               = namespace, 
+                                                name                    = name, 
+                                                kind                    = kind,
+                                                minimal_version         = latest_version + 1):
+                continue
+            # If we get this far then this is a bona fide manifest matching our search criteria and also
+            # of a more recent version than anything we found previously
+            result_dict                         = manifest_dict
+            result_path                         = folder + '/' + filename
+            latest_version                      = version_found # increase latest_version for next cycle of loop
                 
         return result_dict, result_path
     
@@ -898,8 +895,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                         origination = {
                                                                 'concrete class':   str(self.__class__.__name__), 
                                                                 'signaled_from':    __file__})
-            with open(folder + '/' + filename, 'r') as file:
-                manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+            manifest_dict   = YAML_Utils().load(my_trace, folder + '/' + filename)
             
             inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
             #if inferred_handle == manifest_handle: # This looks wrong as it will fail if later we change API version
@@ -945,8 +941,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                     continue
 
                 inner_trace         = loop_trace.doing("Loading manifest", data = {'currentdir': currentdir, 'file': a_file})
-                with open(currentdir + '/' + a_file, 'r') as file:
-                    manifest_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+                manifest_dict       = YAML_Utils().load(inner_trace, path=currentdir + '/' + a_file)
                 if filter == None:
                     result.append(manifest_dict)
                 elif filter(inner_trace, manifest_dict):

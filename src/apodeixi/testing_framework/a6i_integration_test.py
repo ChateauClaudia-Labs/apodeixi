@@ -1,14 +1,13 @@
 import os                                               as _os
 import shutil                                           as _shutil
-
 import re                                               as _re
-import yaml                                             as _yaml
 
 from apodeixi.testing_framework.a6i_skeleton_test       import ApodeixiSkeletonTest
 
 from apodeixi.util.a6i_error                            import FunctionalTrace , ApodeixiError
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
 from apodeixi.util.path_utils                           import PathUtils
+from apodeixi.util.yaml_utils                           import YAML_Utils
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
@@ -217,8 +216,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         root_trace                  = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Checking where results should be saved to",
                                                                     origination = {'signaled_from': __file__})
         self.test_db_dir            = _os.path.dirname(self.a6i_config.get_KB_RootFolder(root_trace))           
-        with open(self.test_db_dir + '/test_config.yaml', 'r', encoding="utf8") as file:
-            self.test_config_dict   = _yaml.load(file, Loader=_yaml.FullLoader)
+        self.test_config_dict       = YAML_Utils().load(root_trace, path = self.test_db_dir + '/test_config.yaml')
 
         # Remember location of test_db in ApodeixiConfig.
         # This flag will be set by test cases to assist with masking non-deterministic information about the
@@ -414,6 +412,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             PathUtils().checkPathExists(my_trace, src_folder)
             manifestsURL                = self.stack().store().current_environment(my_trace).manifestsURL(my_trace)
             dst_folder                  = manifestsURL + "/" + manifest_relative_folder
+            PathUtils().remove_folder_if_exists(my_trace, path = dst_folder)
             
             try:
                 PathUtils().remove_folder_if_exists(my_trace, dst_folder)
@@ -433,6 +432,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             PathUtils().checkPathExists(my_trace, src_folder)
             postingsURL                 = self.stack().store().current_environment(my_trace).postingsURL(my_trace)
             dst_folder                  = postingsURL + "/" + postings_relative_folder
+            PathUtils().remove_folder_if_exists(my_trace, path = dst_folder)
             
             try:
                 PathUtils().remove_folder_if_exists(my_trace, dst_folder)

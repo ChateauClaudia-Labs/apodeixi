@@ -1,9 +1,9 @@
 import unittest
 import sys                  as _sys
 import os                   as _os
-import yaml                 as _yaml
 import pandas               as _pd
-from io                     import StringIO
+import warnings
+import traceback
 
 
 from apodeixi.util.formatting_utils                 import DictionaryFormatter
@@ -11,8 +11,23 @@ from apodeixi.util.dictionary_utils                 import DictionaryUtils
 from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.dataframe_utils                  import DataFrameUtils, DataFrameComparator
 from apodeixi.util.a6i_error                        import FunctionalTrace, ApodeixiError
+from apodeixi.util.yaml_utils import YAML_Utils
 
 from apodeixi.util.apodeixi_config                      import ApodeixiConfig
+
+# As suggested in https://stackoverflow.com/questions/22373927/get-traceback-of-warnings
+#
+# This is to ensure that warnings print the stack trace, to make it easier to pin down where the warning
+# is triggered from in Apodeixi code.
+# This is to prevent noisy warnings to creep into test regression output, particularly in the CLI, where that noise
+# may be non-deterministic and cause spurious test failures.
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+
+    log = file if hasattr(file,'write') else _sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+
+warnings.showwarning = warn_with_traceback
 
 class ApodeixiSkeletonTest(unittest.TestCase):  
     '''
@@ -139,13 +154,9 @@ class ApodeixiSkeletonTest(unittest.TestCase):
                                                                         output_data_dir     = output_data_dir, 
                                                                         expected_data_dir   = expected_data_dir, 
                                                                         save_output_dict    = save_output_dict)
-        output_stream               = StringIO()
-        _yaml.dump(output_dict, output_stream)
-        result_yaml                 = output_stream.getvalue()
+        result_yaml                 = YAML_Utils().dict_to_yaml_string(parent_trace, data_dict = output_dict)
 
-        expected_stream             = StringIO()
-        _yaml.dump(expected_dict, expected_stream)
-        expected_yaml               = expected_stream.getvalue()
+        expected_yaml               = YAML_Utils().dict_to_yaml_string(parent_trace, data_dict = expected_dict)
 
         self.assertEqual(result_yaml, expected_yaml)
 
@@ -184,22 +195,13 @@ class ApodeixiSkeletonTest(unittest.TestCase):
 
         # Persist output (based on save_output_dict flag)
         if save_output_dict:
-            # As documented in https://nbconvert.readthedocs.io/en/latest/execute_api.html
-            #
-            # May get an error like this unless we explicity use UTF8 encoding:
-            #
-            #   File "C:\Alex\CodeImages\technos\anaconda3\envs\ea-journeys-env\lib\encodings\cp1252.py", line 19, in encode
-            #   return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-            #   UnicodeEncodeError: 'charmap' codec can't encode character '\u2610' in position 61874: character maps to <undefined>
-            #
-            # Happens in particular when trying to save a string representing a Jupyter notebook's execution, since for the same
-            # reason above that string had to be written to a string using UTF8 encoding, so now if we save to a file we must use UTF8
-            with open(output_data_dir + '/' + test_output_name + '_OUTPUT.yaml', 'w', encoding="utf8") as file:
-                _yaml.dump(output_dict, file)
+            YAML_Utils().save(  parent_trace, 
+                                data_dict       = output_dict, 
+                                path            = output_data_dir + '/' + test_output_name + '_OUTPUT.yaml')
 
         # Retrieve expected output
-        with open(expected_data_dir + '/' + test_output_name + '_EXPECTED.yaml', 'r', encoding="utf8") as file:
-            expected_dict           = _yaml.load(file, Loader=_yaml.FullLoader)
+        expected_dict               = YAML_Utils().load(parent_trace, 
+                                                        path = expected_data_dir + '/' + test_output_name + '_EXPECTED.yaml')
 
         return expected_dict
 
