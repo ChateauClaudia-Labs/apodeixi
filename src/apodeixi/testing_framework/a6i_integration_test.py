@@ -416,6 +416,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             dst_folder                  = manifestsURL + "/" + manifest_relative_folder
             
             try:
+                PathUtils().remove_folder_if_exists(my_trace, dst_folder)
                 _shutil.copytree(   src                 = src_folder, 
                                     dst                 = dst_folder,
                                     ignore              = None)
@@ -434,6 +435,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             dst_folder                  = postingsURL + "/" + postings_relative_folder
             
             try:
+                PathUtils().remove_folder_if_exists(my_trace, dst_folder)
                 _shutil.copytree(   src                 = src_folder, 
                                     dst                 = dst_folder,
                                     ignore              = None)

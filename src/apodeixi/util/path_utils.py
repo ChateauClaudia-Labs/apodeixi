@@ -146,6 +146,7 @@ class PathUtils():
                                                 data = {"path":     str(path),
                                                         "error":    str(ex)})
 
+
     def get_mask_lambda(self, parent_trace, a6i_config):
         '''
         Returns a mask function to hide the top levels of a path if the path refers to a file in an Apodeixi
@@ -248,6 +249,45 @@ class PathUtils():
             return 0
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Error attempting to remove file",
+                                            data = {"path": str(path), "error": str(ex)})
+
+    def remove_folder_if_exists(self, parent_trace, path):
+        '''
+        Removes the folder at the location `path`, and returns an integer status:
+
+        * Returns 0 if the folder was found and it was successfully removed
+        * Returns -1 if there was not folder at that path. For example, if it is a path to a file
+        '''
+        try:
+            if not _os.path.isdir(path): 
+                return -1
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Error checking if path provided is a folder. Is it really a path?",
+                                            data = {"path": str(path), "error": str(ex)})
+            
+        try:
+            # shutil.rmtree can behave oddly. It appears that in some computers it might refuse to remove
+            # an empty directory ~10% of the time. While it has a flag called 'ignore_errors', setting it 
+            # would not help us because we absolutely need to delete the directory - if we can't, we must
+            # allow the exception to be propagated.
+            # So as a workaround, we implement a limited number of re-tries, to reduce the probability 
+            # of the spurious issue
+            NUMBER_OF_RETRIES       = 10
+            nb_attempts_left        = NUMBER_OF_RETRIES
+            while nb_attempts_left > 0:
+                try:
+                    _shutil.rmtree(path) #, ignore_errors=True)
+                except Exception as ex:
+                    if "The directory is not empty" in str(ex) or "Access is denied" in str(ex):
+                        nb_attempts_left    -= 1
+                        continue
+                    else:
+                        raise ex
+                break # If there was no exception, then delete was successful, so don't re-try (that would error out!)
+
+            return 0
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Error attempting to remove folder",
                                             data = {"path": str(path), "error": str(ex)})
 
 class FileMetadata():

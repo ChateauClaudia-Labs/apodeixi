@@ -458,25 +458,8 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         try:
             if _os.path.isdir(dir_to_remove):
 
-                # shutil.rmtree can behave oddly. It appears that in some computers it might refuse to remove
-                # an empty directory ~10% of the time. While it has a flag called 'ignore_errors', setting it 
-                # would not help us because we absolutely need to delete the directory - if we can't, we must
-                # allow the exception to be propagated.
-                # So as a workaround, we implement a limited number of re-tries, to reduce the probability 
-                # of the spurious issue
-                NUMBER_OF_RETRIES       = 10
-                nb_attempts_left        = NUMBER_OF_RETRIES
-                while nb_attempts_left > 0:
-                    try:
-                        _shutil.rmtree(dir_to_remove) #, ignore_errors=True)
-                    except Exception as ex:
-                        if "The directory is not empty" in str(ex) or "Access is denied" in str(ex):
-                            nb_attempts_left    -= 1
-                            continue
-                        else:
-                            raise ex
-                    break # If there was no exception, then delete was successful, so don't re-try (that would error out!)
-
+                PathUtils().remove_folder_if_exists(my_trace, dir_to_remove)
+    
                 # Also remove it as a child in the parent, lest later on when the parent is removed
                 # it will think this child is still around and will try to remove a non-existent environment, and error out
                 # As per earlier comment, we also don't error out if env_to_remove is None, since it might have been
