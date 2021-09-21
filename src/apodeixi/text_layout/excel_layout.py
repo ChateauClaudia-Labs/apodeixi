@@ -163,8 +163,8 @@ class NumFormats():
         '''
         def _format_as_int(parent_trace, x):
             try:
-                # Avoid casting problems to float if x is blank, so make it a 0 if needed
-                if len(str(x).strip())==0:
+                # Avoid casting problems to float if x is blank or a " - ", so make it a 0 if needed
+                if len(str(x).strip())==0 or str(x).strip()=="-": # Excel might format a 0 as "  -  " and manifest might have it as a string
                     x = 0
                 return "{:,.0f}".format(float(x)) # Render 4500 as 4,500
             except Exception as ex:
