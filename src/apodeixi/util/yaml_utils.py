@@ -1,6 +1,7 @@
 
 import yaml                                 as _yaml
 from io                                     import StringIO
+import warnings
 
 from apodeixi.util.a6i_error                import ApodeixiError
 
@@ -40,7 +41,24 @@ class YAML_Utils():
         # Happens in particular when trying to save a string representing a Jupyter notebook's execution, since for the same
         # reason above that string had to be written to a string using UTF8 encoding, so now if we save to a file we must use UTF8
         with open(path, 'w', encoding="utf8") as file:
-            _yaml.dump(data_dict, file)
+
+            # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
+            # such warnings. For other warnings, raise an ApodeixiError
+            with warnings.catch_warnings(record=True) as w:
+                _yaml.dump(data_dict, file)
+            
+                if len(w) == 1 and w[0].category == ResourceWarning and str(w[0].message).startswith("unclosed event loop"):
+                    #Ignore such warnings - they are message
+                    pass
+                elif len(w) > 0:
+                    warning_dict                                = {}
+                    for idx in range(len(w)):
+                        a_warning                               = w[idx]
+                        warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
+                        warning_dict['... from']                = str(a_warning.filename)
+                        warning_dict['... at line']             = str(a_warning.lineno)
+                    raise ApodeixiError(parent_trace, "yaml::dump issued at least one warning",
+                                            data = {"path":  str(path)} | warning_dict)                
 
     def dict_to_yaml_string(self, parent_trace, data_dict):
         '''
