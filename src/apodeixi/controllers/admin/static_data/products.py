@@ -6,6 +6,8 @@ from apodeixi.controllers.admin.static_data.static_data         import StaticDat
 
 from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 
+from apodeixi.xli.posting_controller_utils                      import UpdatePolicy
+from apodeixi.xli.interval                                      import ClosedOpenIntervalSpec
 
 class ProductsController(StaticData_Controller):
     '''
@@ -37,6 +39,30 @@ class ProductsController(StaticData_Controller):
         Must return a string corresponding to the posting API supported by this controller.
         '''
         return self.POSTING_API
+
+    def getPostingConfig(self, parent_trace, kind, manifest_nb):
+        '''
+        Return a PostingConfig, corresponding to the configuration that this concrete controller supports.
+        '''
+        ME                              = ProductsController
+        if kind == 'product':
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
+            xlr_config                  = ME._ProductConfig(    kind            = kind, 
+                                                                update_policy   = update_policy,
+                                                                manifest_nb     = manifest_nb, 
+                                                                controller      = self)
+        elif kind == 'line-of-business':
+            update_policy               = UpdatePolicy(reuse_uids=True, merge=False)
+            xlr_config                  = StaticData_Controller._StaticDataConfig(  kind            = kind, 
+                                                                                    update_policy   = update_policy,
+                                                                                    manifest_nb     = manifest_nb, 
+                                                                                    controller      = self)
+        else:
+            raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
+                                                + ", ".join(self.SUPPORTED_KINDS),
+                                                origination = {'signaled_from': __file__})
+
+        return xlr_config 
 
     def _buildAllManifests(self, parent_trace, posting_label_handle):
 
@@ -225,7 +251,27 @@ class ProductsController(StaticData_Controller):
 
 
 
+    class _ProductConfig(StaticData_Controller._StaticDataConfig):
+        '''
+        Codifies the schema and integrity expectations for scoring cycle static datasets.
+        '''
+        def __init__(self, kind, manifest_nb, update_policy, controller):
+            ME                          = StaticData_Controller._StaticDataConfig
+            super().__init__(   kind                = kind, 
+                                update_policy       = update_policy, 
+                                manifest_nb         = manifest_nb,
+                                controller          = controller)
+        
+            interval_spec    = ClosedOpenIntervalSpec(  parent_trace        = None, 
+                                                        splitting_columns   = ['Sub Product'],
+                                                        entity_name         = kind,
+                                                        may_ignore_tail     = True) 
 
+            self.interval_spec  = interval_spec
+            self._entity_name    = 'product'
+
+        def entity_name(self):
+            return self._entity_name
 
 
 

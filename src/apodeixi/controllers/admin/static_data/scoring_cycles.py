@@ -6,7 +6,7 @@ from apodeixi.controllers.admin.static_data.static_data         import StaticDat
 
 from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 
-from apodeixi.xli.posting_controller_utils                      import UpdatePolicy, PostingConfig
+from apodeixi.xli.posting_controller_utils                      import UpdatePolicy
 from apodeixi.xli.interval                                      import ClosedOpenIntervalSpec
 
 class ScoringCyclesController(StaticData_Controller):

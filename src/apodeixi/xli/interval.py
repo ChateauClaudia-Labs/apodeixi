@@ -1,6 +1,5 @@
-import math                                     as _math
+
 from nltk.tokenize                              import SExprTokenizer 
-import pandas                                   as _pd
 
 from apodeixi.util.a6i_error                    import ApodeixiError
 from apodeixi.util.dataframe_utils              import DataFrameUtils
@@ -205,11 +204,21 @@ class ClosedOpenIntervalSpec(IntervalSpec):
 
     @param splitting_columns The columns inside the interval that partition it. In the above example,
                             that would be [A, F]
+    @param may_ignore_tail A boolean. It determines whether it is OK to not have a "tail" of splitting columns,
+                        i.e., for a posting's columns to only include a subset of splitting columns up to an index
+                        in self.splitting_columns. By default it is False, which means that all splitting columns are 
+                        mandatory.
+                In the above example, if the linear space is  [Q, R, A, T, Y, U] and the splitting columsn are [A, F],
+                then this class will error out when building intervals unless `may_ignore_tail` is True, in which
+                case it will result in these intervals:
+                    * [Q, R]
+                    * [A, T, Y, U]
     '''
-    def __init__(self, parent_trace, splitting_columns, entity_name):
+    def __init__(self, parent_trace, splitting_columns, entity_name, may_ignore_tail=False):
         super().__init__(entity_name)
 
         self.splitting_columns      = splitting_columns
+        self.may_ignore_tail        = may_ignore_tail
 
     def buildIntervals(self, parent_trace, linear_space):
         '''
@@ -219,14 +228,30 @@ class ClosedOpenIntervalSpec(IntervalSpec):
 
         my_trace                                = parent_trace.doing("Checking splitting columns all belong to linear_spac_")
         if True:
+            filtered_splitting_columns          = self.splitting_columns.copy()
             missing                             = [col for col in self.splitting_columns if not col in linear_space]
             if len(missing) > 0:
-                raise ApodeixiError(my_trace, "Can't build intervals because some splitting columns are not in linear space. "
+                if not self.may_ignore_tail: # Error out
+                    raise ApodeixiError(my_trace, "Can't build intervals because some splitting columns are not in linear space. "
                                                + "\n\t=> This sometimes happens if the ranges in the Posting Label don't cover all "
                                                + "the data.",
                                                 data = {    'linear_space':             str(linear_space),
                                                             'splitting_columns':        str(self.splitting_columns),
                                                             'missing in linear space':  str(missing)    })
+                else: # Check if the missing is a tail, which would be OK
+                    missing_start_idx           = min([self.splitting_columns.index(col) for col in missing])
+                    after_misses                = [col for col in self.splitting_columns if not col in missing
+                                                        and self.splitting_columns.index(col) > missing_start_idx]
+                    if len(after_misses) == 0: # We are missing a tail, which is allowed
+                        filtered_splitting_columns  = self.splitting_columns[:missing_start_idx].copy()
+                    else: # error out
+                        raise ApodeixiError(my_trace, "Can't build intervals because some non-blank splitting columns"
+                                                        + " are 'present after misses', i.e., they lie after some "
+                                                        + " of the splitting columns missing in linear space",
+                                                data = {    'linear_space':             str(linear_space),
+                                                            'splitting_columns':        str(self.splitting_columns),
+                                                            'missing in linear space':  str(missing),
+                                                            'present after misses':     str(after_misses)})
 
         my_trace                                = parent_trace.doing("Splitting linear space",
                                                 data = {    'linear_space':             str(linear_space),
@@ -250,7 +275,7 @@ class ClosedOpenIntervalSpec(IntervalSpec):
             #  for loop to work, since if there are N splitting columns we
             # will end up with N+1 intervals, so we need to loop through N+1 cycles, not N
             # That makes the loop below work (otherwise the last interval is not produced, which is a bug)
-            interval_endpoints                  = self.splitting_columns.copy()                    
+            interval_endpoints                  = filtered_splitting_columns.copy()                    
             interval_endpoints.                 append(Interval.POINT_AT_INFINITY) 
 
             for col in interval_endpoints:
@@ -278,18 +303,23 @@ class ClosedOpenIntervalSpec(IntervalSpec):
                         raise ApodeixiError(loop_trace, "Strange internal error: couldn't split columns by column",
                                                         data = {    'columns_to_split':     remaining_cols,
                                                                     'splitting_column':     col})
+
+                    interval_entity                 = IntervalUtils().infer_first_entity(loop_trace, remaining_cols)
+
+                    intervals_list.append(Interval( parent_trace        = loop_trace,
+                                                    columns             = pre_cols, 
+                                                    entity_name         = interval_entity))
+                    # Initialize data for next cycle in loop
+                    remaining_cols                  = split_by
+                    remaining_cols.extend(post_cols)
+
                 else: # This is the last interval, splitting by the POINT_AT_INFINITY 
-                    pre_cols                        = remaining_cols
-                    post_cols                       = []
+                    interval_entity                 = IntervalUtils().infer_first_entity(loop_trace, remaining_cols)
 
-                interval_entity                 = IntervalUtils().infer_first_entity(loop_trace, remaining_cols)
+                    intervals_list.append(Interval( parent_trace        = loop_trace,
+                                                    columns             = remaining_cols, 
+                                                    entity_name         = interval_entity))
 
-                intervals_list.append(Interval( parent_trace        = loop_trace,
-                                                columns             = pre_cols, 
-                                                entity_name         = interval_entity))
-                # Initialize data for next cycle in loop
-                remaining_cols                  = split_by
-                remaining_cols.extend(post_cols)
 
         return intervals_list
 
