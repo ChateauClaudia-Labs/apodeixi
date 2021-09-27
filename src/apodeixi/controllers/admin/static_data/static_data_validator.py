@@ -125,7 +125,7 @@ class StaticDataValidator():
         @param namespace A string. Corresponds to a namespace in the manifest's section of the KnowledgeBase store.
                             For example, "my-corp.production"
 
-        @param allged_product A string that is claimed represents the name of a product or an known alias for a
+        @param alleged_product A string that is claimed represents the name of a product or an known alias for a
                             valid product.
         '''
         PRODUCT_COL                 = 'product'
@@ -144,6 +144,48 @@ class StaticDataValidator():
 
         # If we get this far, then we didn't find it, so return None
         return None
+
+    def getSubProducts(self, parent_trace, namespace, alleged_product):
+        '''
+        Returns a list, consisting of the sub products for the given product, if any.
+        If none exists then it returns an empty list.
+
+        If the `alleged_product` is not a valid product (or at least an alias for a valid product), it raises an ApodeixiError
+
+        @param namespace A string. Corresponds to a namespace in the manifest's section of the KnowledgeBase store.
+                            For example, "my-corp.production"
+
+        @param alleged_product A string that is claimed represents the name of a product or an known alias for a
+                            valid product.
+        '''
+        PRODUCT_COL                 = 'product'
+        SUB_PRODUCT_COL             = 'sub-product'
+
+        ALIAS_COL                   = 'Alias names'
+
+        my_trace                    = parent_trace.doing("Retrieving product static data")
+        contents_df                 = self._loadStaticData(my_trace, namespace, kind='product', entity='product') 
+
+        my_trace                    = parent_trace.doing("Checking if '" + str(alleged_product) 
+                                                            + "' appears in product static data")
+        def _is_a_match(row):
+            prod_code               = row[PRODUCT_COL].strip()
+            alias_list              = [alias.strip() for alias in row[ALIAS_COL].split(",")]
+            if alleged_product == prod_code or alleged_product in alias_list:
+                return True
+            else:
+                return False
+
+        alleged_product_df          = contents_df[contents_df.apply(_is_a_match, axis=1) == True]
+
+        if len(alleged_product_df.index) == 0:
+            raise ApodeixiError(my_trace, "'" + str(alleged_product) + "' is not a valid product or alias of a valid product")
+
+
+        if SUB_PRODUCT_COL in alleged_product_df.columns:
+            return list(alleged_product_df['SUB_PRODUCT_COL'].unique())
+        else:
+            return []
 
     def allProductCodes(self, parent_trace, namespace):
         '''

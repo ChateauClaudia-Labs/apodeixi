@@ -339,7 +339,7 @@ class SkeletonController(PostingController):
         manifests_in_scope_dict                 = {}
         scope                                   = form_request.getScope(parent_trace)
         if type(scope) == FormRequest.ExplicitScope:
-            manifest_handles_dict               = scope.manifestHandles(parent_trace)
+            manifest_handles_dict               = scope.manifestHandles(parent_trace, controller=self)
             for key in manifest_handles_dict.keys():
                 manifest_handle                 = manifest_handles_dict[key]
                 my_trace                        = parent_trace.doing("Loading manifest as a DataFrame",
@@ -1619,12 +1619,12 @@ class SkeletonController(PostingController):
                 _keep_work(parent_trace, 0, kind_field, range_field, sheet_field)
                 
             else:                   # There are multiple manifests to build in this case
-                
-                for idx in range(len(kind_list)):
-                    kind_field  = ME._DATA_KIND    + '.' + str(kind_list[idx])   # The field in the PostingLabel, like 'data.kind.2'
-                    range_field = ME._DATA_RANGE   + '.' + str(range_list[idx])
-                    sheet_field = ME._DATA_SHEET   + '.' + str(sheet_list[idx])
-                    _keep_work(parent_trace, idx, kind_field, range_field, sheet_field) 
+                for idx in range(len(kind_list)): 
+                    manifest_nb = int(kind_list[idx])
+                    kind_field  = ME._DATA_KIND    + '.' + str(manifest_nb)   # The field in the PostingLabel, like 'data.kind.2'
+                    range_field = ME._DATA_RANGE   + '.' + str(manifest_nb)
+                    sheet_field = ME._DATA_SHEET   + '.' + str(manifest_nb)
+                    _keep_work(parent_trace, manifest_nb, kind_field, range_field, sheet_field) 
 
         def _default_sheet_if_needed(self, parent_trace, suffix_list, posting_label_handle):
             '''

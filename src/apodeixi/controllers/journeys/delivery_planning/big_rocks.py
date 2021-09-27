@@ -1,15 +1,18 @@
+from numpy import product
 import pandas                                                               as _pd
 
 from apodeixi.util.a6i_error                                                import ApodeixiError
 from apodeixi.util.formatting_utils                                         import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
+from apodeixi.controllers.admin.static_data.static_data_validator           import StaticDataValidator
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label  import JourneysPostingLabel
 from apodeixi.controllers.journeys.delivery_planning.journeys_controller     import JourneysController
 
 from apodeixi.text_layout.excel_layout                                      import AsExcel_Config_Table, \
                                                                                 ManifestXLWriteConfig, \
                                                                                 JoinedManifestXLWriteConfig, \
+                                                                                MappedManifestXLWriteConfig, \
                                                                                 NumFormats, ExcelFormulas
 
 from apodeixi.xli.interval                                                  import IntervalUtils, GreedyIntervalSpec, \
@@ -41,7 +44,7 @@ class BigRocksEstimate_Controller(JourneysController):
         # here, and that key is later assumed in the _build_manifestsXLWriteconfig. If instead we put big-rock second end
         # of the list, the key would be 'big-rock.1' and _build_manifestsXLWriteconfig would error out as an
         # unrecognized key
-        self.SUPPORTED_KINDS            = ['big-rock', 'big-rock-estimate', 'investment']
+        self.SUPPORTED_KINDS            = ['big-rock', 'sub-product-scope', 'big-rock-estimate', 'investment']
 
         self.variant                    = None # When reading the label it will be set to VARIANT_BURNOUT or VARIANT_EXPLAINED
 
@@ -64,6 +67,13 @@ class BigRocksEstimate_Controller(JourneysController):
             xlr_config                  = ME._BigRocksConfig(           kind            = kind, 
                                                                         update_policy   = update_policy,
                                                                         manifest_nb     = manifest_nb, 
+                                                                        controller      = self)
+
+        elif kind == 'sub-product-scope':
+            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            xlr_config                  = ME._SubProductsScopeConfig(   kind            = kind, 
+                                                                        update_policy   = update_policy, 
+                                                                        manifest_nb     = manifest_nb,
                                                                         controller      = self)
         elif kind == 'big-rock-estimate':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
@@ -129,7 +139,54 @@ class BigRocksEstimate_Controller(JourneysController):
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)
-            elif key == 'big-rock-estimate.1':
+                # Put next manifest to the right of this one, separated by an empty column
+                x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
+
+            elif key == 'sub-product-scope.1':
+                editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
+                hidden_cols                 = ['big-rock'] # These are list values, so can't be displayed in a cell. Will instead display in enriched mapping rows.
+                right_margin                = 0
+                num_formats                 = {}
+                excel_formulas              = None
+                df_xy_2_excel_xy_mapper     = None
+
+                # We display sub-product scope rotated 90 degrees, so we set the transposed flag and also exchange
+                # the x and y offsets (so here the value of x is vertical and y is horizontal, and right
+                # values have x being horizontal and y being vertical)
+                is_transposed               = True
+                original_x_offset           = x_offset
+                original_y_offset           = y_offset
+                x_offset                    = 1
+                y_offset                    = original_x_offset
+
+                # We use a specialized XL Write Config class, one that understands mappings
+                xlw_config  = MappedManifestXLWriteConfig( 
+                                            sheet                           = SkeletonController.GENERATED_FORM_WORKSHEET,
+                                            manifest_name                   = key, 
+                                            read_only                       = False,
+                                            referenced_manifest_name_list   = ['big-rock.0'],
+                                            my_entity                       = "sub-product-scope", 
+                                            mapped_entities_list            = ["big-rock"],
+                                            is_transposed                   = is_transposed,    
+                                            viewport_width                  = 100,  
+                                            viewport_height                 = 40,   
+                                            max_word_length                 = 20, 
+                                            editable_cols                   = editable_cols,
+                                            hidden_cols                     = hidden_cols,  
+                                            num_formats                     = num_formats, 
+                                            excel_formulas                  = excel_formulas,
+                                            df_xy_2_excel_xy_mapper         = df_xy_2_excel_xy_mapper,
+                                            editable_headers                = [],   
+                                            x_offset                        = x_offset,    
+                                            y_offset                        = y_offset)
+                # Restore the values
+                x_offset                    = original_x_offset
+                y_offset                    = original_y_offset
+
+                # Put next manifest to the right of this one, separated by an empty column
+                x_offset                        += data_df.shape[0] -len(hidden_cols) + right_margin
+
+            elif key == 'big-rock-estimate.2':
                 # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
                 # make a join, and pass the mapper that effects this associate
                 def my_mapper(manifest_df, manifest_df_row_number, representer):
@@ -192,7 +249,10 @@ class BigRocksEstimate_Controller(JourneysController):
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)
-            elif key == 'investment.2':
+                # Put next manifest to the right of this one, separated by an empty column
+                x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
+
+            elif key == 'investment.3':
                 hidden_cols                 = ['UID']
                 right_margin                = 1
 
@@ -215,11 +275,12 @@ class BigRocksEstimate_Controller(JourneysController):
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
                                                 y_offset                    = y_offset)
+
+                # Put next manifest to the right of this one, separated by an empty column
+                x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
             else:
                 raise ApodeixiError(loop_trace, "Invalid manifest key: '" + str(key) + "'")
 
-            # Put next manifest to the right of this one, separated by an empty column
-            x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
             xlw_config_table.addManifestXLWriteConfig(loop_trace, xlw_config)
         return xlw_config_table
 
@@ -234,6 +295,7 @@ class BigRocksEstimate_Controller(JourneysController):
                                                                         linkField   = 'bigRock', 
                                                                         refKind     = 'big-rock',
                                                                         many_to_one = False)
+
         return all_manifests_dict, label
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
@@ -299,6 +361,20 @@ class BigRocksEstimate_Controller(JourneysController):
             sr_list                     = ["", "MM UI", "FX UI", "", "", "", ""]
             template_df                 = _pd.DataFrame({"Big Rock": br_list, "Mid Rock": mr_list, 'Small Rock': sr_list})
 
+        elif kind == 'sub-product-scope':
+            product                     = labels_dict[PL._PRODUCT]
+            FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+            organization                = labels_dict[PL._ORGANIZATION]
+            kb_area                     = labels_dict[PL._KNOWLEDGE_BASE_AREA]
+            namespace                   = FMT(organization + '.' + kb_area)
+            validator                   = StaticDataValidator(parent_trace, self.store, self.a6i_config)
+            sub_products                = validator.getSubProducts(parent_trace, namespace, product)
+            if len(sub_products) == 0:
+                # In this case, don't include the sub-product-scope in the template
+                template_dict               = None
+                template_df                 = None
+            else:
+                template_df             = _pd.DataFrame(columns=['Sub Product'], data = [[subprod] for subprod in sub_products])
         elif kind == 'big-rock-estimate':
             fy19_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
             fy20_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
@@ -377,7 +453,65 @@ class BigRocksEstimate_Controller(JourneysController):
             ME                      = BigRocksEstimate_Controller._BigRocksConfig
             return ME._ENTITY_NAME
 
+    class _SubProductsScopeConfig(PostingConfig):
+        '''
+        Codifies the schema and integrity expectations for sub-product-scope postings
+        '''
 
+        _ENTITY_NAME                            = 'Sub Product'
+
+        def __init__(self, update_policy, kind, manifest_nb, controller):
+            ME                                  = BigRocksEstimate_Controller._SubProductsScopeConfig
+
+            super().__init__(   kind            = kind, 
+                                update_policy   = update_policy, 
+                                manifest_nb     = manifest_nb,
+                                controller      = controller)
+
+            # These three settings replace the parent class's defaults. That ensures we read Excel by columns, 
+            # not by rows, and that we realize a fair amount of rows in Excel are really a mapping to big rock, not
+            # manifest entities' properties.
+            self.horizontally                   = False 
+            self.is_a_mapping                   = True
+            self.kind_mapped_from_list          = ['big-rock']
+
+            interval_spec_milestones   = GreedyIntervalSpec( parent_trace = None, entity_name = ME._ENTITY_NAME) 
+
+            self.interval_spec                  = interval_spec_milestones
+
+        def preflightPostingValidation(self, parent_trace, posted_content_df):
+            '''
+            Method performs some initial validation of the `dataframe`, which is intended to be a DataFrame representation of the
+            data posted in Excel.
+
+            The intention for this preflight validation is to provide the user with more user-friendly error messages that
+            educate the user on what he/she should change in the posting for it to be valid. In the absence of this 
+            preflight validation, the posting error from the user would eventually be caught deeper in the parsing logic,
+            by which time the error generated might not be too user friendly.
+
+            Thus this method is not so much to avoid corruption of the data, since downstream logic will prevent corruption
+            anyway. Rather, it is to provide usability by outputting high-level user-meaningful error messages.
+            '''
+            ME                              = BigRocksEstimate_Controller._SubProductsScopeConfig
+            posted_cols                     = list(posted_content_df.columns)
+            mandatory_cols                  = [ME._ENTITY_NAME]
+
+            missing_cols                    = [col for col in mandatory_cols 
+                                                if not StringUtils().is_in_as_yaml(col, posted_cols)]
+        
+            if len(missing_cols) > 0:
+                raise ApodeixiError(parent_trace, "Posting lacks some mandatory columns. This often happens if "
+                                                    + "ranges are wrong in Posting Label.",
+                                                    data = {    'Missing columns':    missing_cols,
+                                                                'Posted columns':     posted_cols})
+
+        def entity_name(self):
+            ME                              = BigRocksEstimate_Controller._SubProductsScopeConfig
+            return ME._ENTITY_NAME
+
+        def entity_as_yaml_fieldname(self):
+            ME                              = BigRocksEstimate_Controller._SubProductsScopeConfig
+            return StringUtils().format_as_yaml_fieldname(ME._ENTITY_NAME)
 
     class _BigRocksEstimatesConfig(PostingConfig):
         '''

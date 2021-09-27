@@ -371,7 +371,7 @@ class FormRequestResponse(Response):
     @param manifest_identifiers A list of strings, corresponding to the identifiers or all manifest data sets
                 in the form. 
                 Example: 
-                            ['big-rock.0', 'big-rock-estimates.1', 'investment.2']
+                            ['big-rock.0', 'big-rock-estimates.1', 'investment.3']
     '''
     def __init__(self, clientURL, posting_api, filing_coords, filename, path_mask, manifest_identifiers):
         super().__init__()
@@ -526,7 +526,7 @@ class FormRequest():
         def __init__(self, manifest_handle_list):
             self._manifest_handle_list  = manifest_handle_list
 
-        def manifestHandles(self, parent_trace):
+        def manifestHandles(self, parent_trace, controller):
             '''
             Used to obtain the ManifestHandles for the manifests in the scope of this FormRequest, assuming it is not
             a blind request.
@@ -536,13 +536,20 @@ class FormRequest():
 
             If ManifestHandles have not been configured in this FormRequest, returns None as this FormRequest is
             then interpreted to be a blind request.
+
+            @param controller An instance of PostingController
             '''
             if self._manifest_handle_list != None and len(self._manifest_handle_list) > 0:
                 result_dict                         = {}
+                supported_kinds                     = controller.getSupportedKinds()
                 for idx in range(len(self._manifest_handle_list)):
                     manifest_handle                 = self._manifest_handle_list[idx]
                     kind                            = manifest_handle.kind
-                    manifest_key                    = str(kind) + "." + str(idx)
+                    if not kind in supported_kinds:
+                        raise ApodeixiError(parent_trace, "Can't create a manifest handle for kind '" + str(kind)
+                                                    + "' because it is not supported by controller '" + str(type(controller)) + "'")
+                    manifest_nb                     = supported_kinds.index(kind)
+                    manifest_key                    = str(kind) + "." + str(manifest_nb)
                     result_dict[manifest_key]       = manifest_handle
 
                 return result_dict
