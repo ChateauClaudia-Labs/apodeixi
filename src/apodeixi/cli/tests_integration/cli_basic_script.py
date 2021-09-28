@@ -4,6 +4,8 @@ from apodeixi.knowledge_base.kb_environment             import File_KBEnv_Impl
 
 from apodeixi.cli.cli_utils                             import CLI_Utils
 
+from apodeixi.util.path_utils                           import PathUtils
+
 class CLI_Basic_Script():
 
     def __init__(self, myTest):
@@ -76,11 +78,14 @@ class CLI_Basic_Script():
             root_dir                    = _os.path.dirname(store.base_environment(my_trace).manifestsURL(my_trace))
             envs_dir                    = root_dir + "/" + File_KBEnv_Impl.ENVS_FOLDER
 
-            _os.chdir(envs_dir + "/" + self.myTest.sandbox + "/external-collaboration/" + _args[_s.REL_PATH_IN_EXT_COLLABORATION])
+            working_dir                 = envs_dir + "/" + self.myTest.sandbox + "/external-collaboration/" \
+                                            + _args[_s.REL_PATH_IN_EXT_COLLABORATION]
         else:
             clientURL                   = store.base_environment(my_trace).clientURL(my_trace)
-            _os.chdir(clientURL + "/" + _args[_s.REL_PATH_IN_EXT_COLLABORATION])
+            working_dir                 = clientURL + "/" + _args[_s.REL_PATH_IN_EXT_COLLABORATION]
 
+        PathUtils().create_path_if_needed(parent_trace, working_dir)
+        _os.chdir(working_dir)
 
         COMMANDS_2                    = [
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__4", 

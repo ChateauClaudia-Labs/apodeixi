@@ -128,17 +128,14 @@ class StaticDataValidator():
         @param alleged_product A string that is claimed represents the name of a product or an known alias for a
                             valid product.
         '''
-        PRODUCT_COL                 = 'product'
-        ALIAS_COL                   = 'Alias names'
-
         my_trace                    = parent_trace.doing("Retrieving product static data")
         contents_df                 = self._loadStaticData(my_trace, namespace, kind='product', entity='product') 
 
         my_trace                    = parent_trace.doing("Checking if '" + str(alleged_product) 
                                                             + "' appears in product static data")
         for row in contents_df.iterrows():
-            prod_code               = row[1][PRODUCT_COL].strip()
-            alias_list              = [alias.strip() for alias in row[1][ALIAS_COL].split(",")]
+            prod_code               = row[1][ProductsController.PRODUCT_COL].strip()
+            alias_list              = [alias.strip() for alias in row[1][ProductsController.ALIAS_COL].split(",")]
             if alleged_product == prod_code or alleged_product in alias_list:
                 return prod_code
 

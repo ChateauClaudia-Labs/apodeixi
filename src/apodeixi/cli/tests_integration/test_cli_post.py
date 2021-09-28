@@ -5,8 +5,6 @@ from apodeixi.util.a6i_error                            import FunctionalTrace
 from apodeixi.cli.tests_integration.cli_test_skeleton   import CLI_Test_Skeleton
 from apodeixi.cli.tests_integration.cli_basic_script    import CLI_Basic_Script
 
-from apodeixi.util.path_utils import PathUtils
-
 class Test_CLI_Post(CLI_Test_Skeleton):
 
     _s                              = CLI_Basic_Script

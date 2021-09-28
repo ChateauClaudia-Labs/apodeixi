@@ -585,6 +585,122 @@ class ManifestUtils():
 
         return result
 
+    def sort_manifest_df_by_foreign_uid(self, parent_trace, manifest_df, foreign_uid_column):
+        '''
+        This method is used to help group a manifest's sparse DataFrame by a foreign entity, preserving the
+        entity-subentity relationships that sparse DataFrames represent by empty strings.
+
+        Such grouping is useful when rendering a form that must align the manifest rows to the foreign entity's rows.
+
+        Example: consider the Product object, that references the Line-of-Business object. 
+
+                UID   | product     | lineOfBusiness  | UID-1   |   Sub Product 
+            ================================================================================         
+            0   P1      MYPROD_A        LOB1                                                          
+            1                                           P1.1        Prod A Enterprise  
+            2                                           P1.2        Prod A Express        
+            3   P2      MYPROD_B        LOB2                                                          
+            4   P3      MYPROD_C        LOB1                                                          
+            5                                           P3.1        Prod C Premium                                 
+            6                                           P3.2        Prod C Basic   
+
+        Intuitively, we want to "sort by line of business", so that the manifest is re-sorted into segments
+        per LOB. Thus, P1 and P3 would appear in the first segment (for LOB1), followed by P2 (for LOB2).
+
+        What is tricky is to maintain the relationship to children entities: moving the row where P3 appears, for example,
+        should also move the rows where P3.1, P3.2 appears, so all of {P3, P3.1, P3.2} should appear before P2 after sorting.
+
+        Additionally, parents should appear immediately before children (so the order should be <P3, P3.1, P3.2>, not
+        <P3.1, P3, P3.2>, say)                     
+
+        The correct output of this method would return a DataFrame that looks like this:
+
+                UID   | product     | lineOfBusiness  | UID-1   |   Sub Product 
+            ================================================================================         
+            0   P1      MYPROD_A        LOB1                                                          
+            1                                           P1.1        Prod A Enterprise  
+            2                                           P1.2        Prod A Express        
+            3   P3      MYPROD_C        LOB1                                                          
+            4                                           P3.1        Prod C Premium                                 
+            5                                           P3.2        Prod C Basic   
+            6   P2      MYPROD_B        LOB2                                                                
+
+        To accomplish this, the algorithm creates a "padded DataFrame" from the input, adding two columns in order
+        to preserve orders, and then orders by those two columns. The 2nd one is the original order, to contiguous segments
+        of parent-children relationships:
+
+                UID   | product     | lineOfBusiness  | UID-1   |   Sub Product         | SortBy-1  | SortBy-2  
+            ==============================================================================================================         
+            0   P1      MYPROD_A        LOB1                                            |  LOB1     |  0       |              
+            1                                           P1.1        Prod A Enterprise   |  LOB1     |  1       |     
+            2                                           P1.2        Prod A Express      |  LOB1     |  2       |       
+            3   P2      MYPROD_B        LOB2                                            |  LOB2     |  6       |                  
+            4   P3      MYPROD_C        LOB1                                            |  LOB1     |  3       |                
+            5                                           P3.1        Prod C Premium      |  LOB1     |  4       |                               
+            6                                           P3.2        Prod C Basic        |  LOB1     |  5       |
+        '''
+        if not foreign_uid_column in manifest_df.columns:
+            raise ApodeixiError(parent_trace, "Can't sort manifest DataFrame by foreign key since it lacks some required column",
+                                                data = {"Required column":  str(foreign_uid_column),
+                                                        "manifest columns": str(list(manifest_df.columns))})
+
+        padded_df                   = self.pad_manifest_dataframe(parent_trace, manifest_df, padding_column=foreign_uid_column)
+        padded_df                   = padded_df.reset_index()
+        # At this point padded_df has this additional columns: foreign_uid_column + "_PADDED", and "index"
+        # We sort using them        
+
+        sorted_products_df          = padded_df.sort_values(by=[foreign_uid_column + "_PADDED", "index"], axis=0).reset_index()
+            
+        return sorted_products_df
+
+    def pad_manifest_dataframe(self, parent_trace, manifest_df, padding_column):
+        '''
+        Returns a DataFrame that is based on a copy of `manifest_df` plus an additional column, populated in a non-sparse
+        semantic from the `padding_column`. The additional column is named after the `padding_column` with a "_PADDED" suffix.
+
+        Example: consider a manifest_df as per below, and suppose that the `padding_column` is "UID".
+
+                UID   | product     | lineOfBusiness  | UID-1   |   Sub Product 
+            ================================================================================         
+            0   P1      MYPROD_A        LOB1                                                          
+            1                                           P1.1        Prod A Enterprise  
+            2                                           P1.2        Prod A Express        
+            3   P3      MYPROD_C        LOB1                                                          
+            4                                           P3.1        Prod C Premium                                 
+            5                                           P3.2        Prod C Basic   
+            6   P2      MYPROD_B        LOB2                                                                
+
+        Then this method will return this other DataFrame, containing an additional column "UID_PADDED"
+
+                UID   | product     | lineOfBusiness  | UID-1   |   Sub Product         | UID_PADDED
+            ==========================================================================================         
+            0   P1      MYPROD_A        LOB1                                            |   P1             
+            1                                           P1.1        Prod A Enterprise   |   P1
+            2                                           P1.2        Prod A Express      |   P1  
+            3   P3      MYPROD_C        LOB1                                            |   P3              
+            4                                           P3.1        Prod C Premium      |   P3                           
+            5                                           P3.2        Prod C Basic        |   P3
+            6   P2      MYPROD_B        LOB2                                            |   P2                     
+
+        '''
+        current_padded_val              = None
+        PADDED_COL                      = padding_column + "_PADDED"
+        padded_vals                     = []
+        for row in manifest_df.iterrows():
+            row_val                     = row[1][padding_column]
+            if row_val != None and not StringUtils().is_blank(row_val) and row_val != current_padded_val: 
+                # Entering a new segment
+                current_padded_val = row_val
+
+            if current_padded_val == None:
+                raise ApodeixiError(parent_trace, "Can't pad UIDs for DataFrame because value for column " + str(padding_column)
+                                                    + " is null in a row that should have a value",
+                                            data = {"DataFrame row":    str(row[0])})
+            padded_vals.append(current_padded_val)
+        result_df                       = manifest_df.copy()
+        result_df[PADDED_COL]           = padded_vals   
+        return result_df
+
 class ManifestDiffResult():
     '''
     Class used as a data structure to hold the differences between two versions of the same manifest.

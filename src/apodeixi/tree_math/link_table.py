@@ -132,6 +132,12 @@ class LinkTable():
                                                     manifest_identifier     = our_manifest_id,
                                                     uid                     = our_manifest_uid)
 
+        if row_nb == None:
+            raise ApodeixiError(parent_trace, "Can't find foreign uid because our manifest uid does not appear to be in any row",
+                                                data = {"our_manifest_id":      str(our_manifest_id),
+                                                        "our_manifest_uid":     str(our_manifest_uid),
+                                                        "foreign_manifest_id":  str(foreign_manifest_id)})
+
         if many_to_one == False: # search only in row_nb
             foreign_uid     = self.uid_from_row(    parent_trace            = parent_trace,
                                                     manifest_identifier     = foreign_manifest_id,
@@ -232,11 +238,31 @@ class LinkTable():
                 raise ApodeixiError(parent_trace, "Can't retrieve a row number for uid that is not an string",
                                 data = {    "type(uid)": str(type(uid))})
 
-            if uid in self.uid_2_row.keys():
-                row_number              = self.uid_2_row[uid]
-                return row_number
-            else:
+            # There is some nuance to the search. Consider the case where the Product domain object needs to link to
+            # the Line-of-Business domain object. A product might have a UID like "P1", which is what would be passed
+            # to this method as the `uid` parameter.
+            # In the simple case, self.uid_2_row might looks like:
+            #
+            #           {0: 'P1', 7: 'P2', ...}
+            #
+            # so we would just return 0 as the row number.
+            #
+            # However, it is possible that a product has sub products, in which case self.uid_2_row might looke like
+            #
+            #           {0: 'P1.SP1', 1: 'P1.SP2', 7: 'P2', ...}
+            #
+            # So nothing would be found under key 'P1', and we might inadvertently return a null row number that is both
+            # incorrect and causes other exceptions downstream.
+            # So in the algorithm used here, we look at all keys that are either "P1" or start with "P1.", and take the
+            # one for which the row number is smallest, and return that
+            #
+            candidate_keys              = [key for key in self.uid_2_row.keys() if key==uid or key.startswith(uid + ".")]
+
+            if len(candidate_keys) == 0:
                 return None
+            else:
+                row_number              = min([self.uid_2_row[key] for key in candidate_keys])
+                return row_number
 
         def find_uid(self, parent_trace, row_number):
             '''

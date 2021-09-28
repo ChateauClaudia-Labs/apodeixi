@@ -1,13 +1,17 @@
 import pandas                                                   as _pd
-from apodeixi.util.a6i_error                                    import ApodeixiError
 
 from apodeixi.controllers.util.skeleton_controller              import SkeletonController
 from apodeixi.controllers.admin.static_data.static_data         import StaticData_Controller
 
-from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
+from apodeixi.knowledge_base.manifest_utils                     import ManifestUtils
 
+from apodeixi.util.a6i_error                                    import ApodeixiError
+from apodeixi.util.formatting_utils                             import StringUtils
+
+from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 from apodeixi.xli.posting_controller_utils                      import UpdatePolicy
-from apodeixi.xli.interval                                      import ClosedOpenIntervalSpec
+from apodeixi.xli.interval                                      import ClosedOpenIntervalSpec, Interval
+
 
 class ProductsController(StaticData_Controller):
     '''
@@ -26,6 +30,11 @@ class ProductsController(StaticData_Controller):
         self.SUPPORTED_KINDS            = ['product', 'line-of-business']
 
         self.POSTING_API                = 'products.static-data.admin.a6i'
+
+    PRODUCT_COL                 = 'product'
+    ALIAS_COL                   = 'Alias names'
+    SUB_PRODUCT_COL             = 'Sub Product'
+    SUB_PRODUCT_ALIAS_COL       = 'Sub product aliases'
 
     def getSupportedVersions(self):
         return self.SUPPORTED_VERSIONS 
@@ -92,23 +101,34 @@ class ProductsController(StaticData_Controller):
         '''
         template_dict, template_df      = super().createTemplate(parent_trace, form_request, kind)
 
+        ME                              = ProductsController
         # Discard whatever the parent class did for the templated content. Here we decide how we want it to look
-        list_of_blanks                   = [""] *6
         if kind == "product":
-            p_list                          = ["MYPROD_A"]
-            p_list.extend(list_of_blanks)
-            p_list.append('MYPROD_B')
-            p_list.append('MYPROD_C')
-            p_list.extend(list_of_blanks)
-            an_list                         = ["My Product A, My product A, myprod A"]
-            an_list.extend(list_of_blanks)
-            an_list.append("My Product B, My product B, myprod B")
-            an_list.append("My Product C, My product C, myprod C")
-            an_list.extend(list_of_blanks)
+            columns                     = [ME.PRODUCT_COL,  ME.ALIAS_COL,                               
+                                                                ME.SUB_PRODUCT_COL,     ME.SUB_PRODUCT_ALIAS_COL]
 
-            template_df                     = _pd.DataFrame({   "Product":      p_list,
-                                                                "Alias names":  an_list})
+            data                        = [
+                ["MYPROD_A",    "My Product A, My product A, myprod A",     "Prod A Enterprise",    "Prod A enterprise, A enterprise"],
+                ["",            "",                                         "Prod A Express",       "Prod A express, A express"],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["MYPROD_B",    "My Product B, My product B, myprod B",     "", ""],
+                ["MYPROD_C",    "My Product C, My product C, myprod C",     "Prod C Premium",       ""],
+                ["",            "",                                         "Prod C Basic",         ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+                ["",            "",                                         "", ""],
+            ]
+
+            template_df                     = _pd.DataFrame(columns=columns, data=data)
+
         elif kind == "line-of-business":
+            list_of_blanks                  = [""] *6
             lob_list                        = ["My business unit"]
             lob_list.extend(list_of_blanks)
             lob_list.append("The other business unit")
@@ -141,11 +161,22 @@ class ProductsController(StaticData_Controller):
             # grouped by LOB. First step: sort products by LOB so that they are grouped by LOB, and make
             # this the order how we display them (see below the definition of my_prod_mapper lambda, that uses
             # this sorted DataFrame)
-            sorted_products_df                  = products_df.sort_values(by=["lineOfBusiness"], axis=0).reset_index()
+            sorted_products_df          = ManifestUtils().sort_manifest_df_by_foreign_uid(
+                                                                        parent_trace        = parent_trace, 
+                                                                        manifest_df         = products_df, 
+                                                                        foreign_uid_column  = "lineOfBusiness")
+            ORIGINAL_INDEX_COL          = "index"     
+            # Pad a UID top-level column, so that it is never blank, since that is how we will map rows
+            # Reason UID might be blank is that a product may have sub-products, so product_df['UID'] would be blank
+            # for the sub-product rows, since they "inherit" the UID from a prior row.
+            sorted_products_df          = ManifestUtils().pad_manifest_dataframe(   parent_trace        = parent_trace, 
+                                                                                    manifest_df         = sorted_products_df, 
+                                                                                    padding_column      = Interval.UID)
+                     
         else:
             # In this case, we must be displaying a template, so mapping isn't established yet. So
             # display in the same order
-            sorted_products_df                  = products_df
+            sorted_products_df              = products_df
 
         for key in manifestInfo_dict:
             loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
@@ -179,13 +210,27 @@ class ProductsController(StaticData_Controller):
                                                                 + "(up to sorting) have different number of rows",
                                                                 data = {"Number of rows": str(manifest_df.index) +
                                                                             " vs " + str(sorted_products_df.index)})
-                        prod_uid            = manifest_df['UID'].iloc[manifest_df_row_number] 
-                        sorted_idx_list     = sorted_products_df.index[sorted_products_df['UID'] == prod_uid].tolist()
+
+                        # Pad a UID top-level column, so that it is never blank, since that is how we will map rows
+                        # Reason UID might be blank is that a product may have sub-products, so manifest_df['UID'] would be blank
+                        # for the sub-product rows, since they "inherit" the UID from a prior row.
+                        '''
+                        padded_manifest_df  = ManifestUtils().pad_manifest_dataframe(   
+                                                                                    parent_trace        = loop_trace, 
+                                                                                    manifest_df         = manifest_df, 
+                                                                                    padding_column      = Interval.UID)
+                        PADDED_UID_COL      = Interval.UID + "_PADDED"
+
+                        prod_uid            = padded_manifest_df[PADDED_UID_COL].iloc[manifest_df_row_number] 
+                        sorted_idx_list     = sorted_products_df.index[sorted_products_df[Interval.UID] == prod_uid].tolist()
+                        '''
+                        sorted_idx_list     = sorted_products_df.index[sorted_products_df[ORIGINAL_INDEX_COL] == manifest_df_row_number].tolist()
 
                         if len(sorted_idx_list) != 1:
                             raise ApodeixiError(loop_trace, "Misalignment problem: not a unique entry in product manifest for "
                                                                 + "a given UID",
-                                                                data = {"manifest": key, "product UID": str(prod_uid),
+                                                                data = {"manifest": key, 
+                                                                        "manifest_df_row_number": str(manifest_df_row_number),
                                                                         "number of entries": str(len(sorted_idx_list))})
                         sorted_idx          = sorted_idx_list[0]
                         excel_row           = y_offset + 1 + sorted_idx # An extra '1' because of the headers
