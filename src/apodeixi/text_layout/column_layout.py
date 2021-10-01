@@ -58,9 +58,17 @@ class ColumnWidthCalculator:
                         column_formatters = {}):
         self.data_df                = data_df
 
-        # Ensure that columns are strings, in case they are integers (can happen if caller is using a transpose,
+        # Ensure that columns are strings (or, in the case of a MultiIndex a tuple of strings), in case they are integers 
+        # (can happen if caller is using a transpose,
         # so caller's row indices become column headers by the time this function is called)
-        self.data_df.columns        = [str(col) for col in self.data_df.columns]
+        def _stringify_column(col):
+            if type(col) == tuple:
+                result             = tuple([str(x) for x in col])
+            else:
+                result              = str(col)
+            return result
+
+        self.data_df.columns         = [_stringify_column(col) for col in self.data_df.columns]
 
         self.viewport_width         = viewport_width
         self.viewport_height        = viewport_height
@@ -212,11 +220,9 @@ class ColumnWidthCalculator:
          
         if column in self.column_formatters.keys():
             formatter       = self.column_formatters[column]
-            #try:
-            rendered_tokens   = self.data_df[column].apply(lambda x: [formatter(my_trace, x)]) # A list of 1 formatter string per row
-            #except Exception as ex:
-            #    raise ApodeixiError(my_trace, "Encountered problem applying formatter in column '" + str(column) + "'",
-            #                        data = {"error": str(ex)})
+
+            rendered_tokens   = self.data_df[column].apply(lambda x: [formatter(my_trace, x)]) # A list of 1 formatted string per row
+
         else:
             rendered_tokens   = self.data_df[column].apply(lambda x: _re.split(r"\s", str(x).strip()))
 
@@ -234,7 +240,21 @@ class ColumnWidthCalculator:
         my_trace            = parent_trace.doing("Getting longest word in column '" + str(column) + "'")
         all_words           = self._all_words(my_trace, column)
         # The column header will the "the longest word by default", unless we find a longer word in the rows below the header
-        default_answer      = column 
+        # GOTCHA:
+        #       Must handle the case where the column is a tuple. It can happen for MultiLevel indices in the DataFrames
+        #   representing manifests. For example, the big-rock-estimate DataFrame uses a MultiIndex when there are
+        #   subproducts, in which case the columns look like
+        #
+        #       (<subproduct 1>, "Q1"), (<subproduct 1>, "Q2"), ..., (<subproduct 2>, "Q1"), (<subproduct 2>, "Q2"), ...
+        #
+        #   In that case the default_answer should the the longest member of tuple representing the column, not the column itself
+        if type(column) == tuple:
+            candidates          = list(column)
+            candidates_length   = [len(c) for c in candidates]
+            max_length          = max(candidates_length)
+            default_answer      = [c for c in candidates if len(c)==max_length][0] # Pick one that has largest length
+        else:
+            default_answer      = column 
         
         if len(all_words)==0:
             return default_answer
@@ -433,7 +453,7 @@ class _ScenarioGenerator():
             data_df_row_nb     = -1
             for word_list in list_of_word_lists: # Each cycle is for a different row in data_df[column]
                 data_df_row_nb  += 1
-                EXPLANATION_PREFIX = NEXT + ": (column, row)=(" + column + ", " + str(data_df_row_nb) + ") - "
+                EXPLANATION_PREFIX = NEXT + ": (column, row)=(" + str(column) + ", " + str(data_df_row_nb) + ") - "
                 text                             = ' '.join(word_list)
                 # Find how many lines this used to take
                 processor                        = TextProcessor(prior_width)
@@ -464,7 +484,7 @@ class _ScenarioGenerator():
                                         + "Violated row_height_limit=" 
                                         + str(self.row_height_limit) + " for text='" + text + "'")
                     
-            OUTER_LOOP_EXPLANATION_PREFIX = NEXT + ": column='" + column + "' - "
+            OUTER_LOOP_EXPLANATION_PREFIX = NEXT + ": column='" + str(column) + "' - "
             # See if this column in data_df found a way to shrink
             if len(what_ifs) > 0:
                 best_found         = max(what_ifs) # They are all acceptable minima conditions to meet, hence max

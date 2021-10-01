@@ -156,7 +156,7 @@ class StaticDataValidator():
                             valid product.
         '''
         PRODUCT_COL                 = 'product'
-        SUB_PRODUCT_COL             = 'sub-product'
+        SUB_PRODUCT_COL             = 'Sub Product'
 
         ALIAS_COL                   = 'Alias names'
 
@@ -180,7 +180,7 @@ class StaticDataValidator():
 
 
         if SUB_PRODUCT_COL in alleged_product_df.columns:
-            return list(alleged_product_df['SUB_PRODUCT_COL'].unique())
+            return list(alleged_product_df[SUB_PRODUCT_COL].unique())
         else:
             return []
 

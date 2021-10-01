@@ -28,7 +28,15 @@ class IntervalUtils():
         Helper method that returns true if the given column `col` is a UID column. Used to not treat as "entity content" any
         Excel columns with UIDs populated by controller logic during previously done postings from the user.
         '''
-        return col.startswith(Interval.UID)
+        if type(col) == tuple:
+            # This happens when using a MultiLevel index in a DataFrame for a manifest. 
+            # For example, for the big-rocks-estimate content when there are subproducts: columns would look like
+            #
+            # (<subproduct 1>, "Q1"), (<subproduct 1>, "Q2"), ..., (<subproduct 2>, "Q1"), (<subproduct 2>, "Q2"), ...
+            #
+            return col[-1].startswith(Interval.UID)
+        else:
+            return col.startswith(Interval.UID)
 
     def without_comments_in_parenthesis(self, parent_trace, txt):
         '''

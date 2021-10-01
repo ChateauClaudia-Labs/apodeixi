@@ -160,14 +160,16 @@ class ManifestRepresenter:
 
                 y_1             = max(y_1, len(referenced_df.index))
                 
+            # Make room for the headers by adding extra columns.
+            # We know that the number of header will be xlw_config.nb_header_levels, and that
+            # y_0 as previously computed should be the last header. 
+            # So move y_1 down by 1, and move y_0 up by nb_header_levels-1
+            y_0             -= xlw_config.nb_header_levels - 1
+            y_1             += 1
             if xlw_config.layout.is_transposed:
-                # Add an extra columns, for the headers
-                y_1             += 1
                 cell_0          = xl_rowcol_to_cell(x_0, y_0) 
                 cell_1          = xl_rowcol_to_cell(x_1, y_1)
             else: 
-                # Add an extra row, for the headers
-                y_1             += 1
                 cell_0          = xl_rowcol_to_cell(y_0, x_0) 
                 cell_1          = xl_rowcol_to_cell(y_1, x_1)
 
@@ -265,10 +267,10 @@ class ManifestRepresenter:
         '''
         if xl_config.layout.is_transposed == False:
             title_x             = xl_config.x_offset
-            title_y             = xl_config.y_offset - 1
+            title_y             = xl_config.y_offset - xl_config.nb_header_levels
         else:
             title_x             = xl_config.y_offset 
-            title_y             = xl_config.x_offset - 1
+            title_y             = xl_config.x_offset - xl_config.nb_header_levels
                       
         title               = text
         fmt_dict            ={'bold': True, 'font_color': Palette.DARK_BLUE}
@@ -316,14 +318,6 @@ class ManifestRepresenter:
         @param excel_col An int. Normally this should be the same as layout_x, except in cases special
                             cases as described above.
         @param num_format A string for an Excel formatter that is supported by the Apodeixi NumFormats class.
-        '''
-        '''
-        if layout.is_transposed:
-            xl_x            = excel_row
-            xl_y            = layout_x
-        else:
-            xl_x            = layout_x
-            xl_y            = excel_row
         '''
         clean_val   = DataFrameUtils().clean(val)
 
@@ -446,7 +440,7 @@ class ManifestRepresenter:
             xl_columns          = xl_df.columns 
             for xl_idx in range(len(xl_columns)): # GOTCHA: Loop is in "Excel space"
                 col             = xl_columns[xl_idx]
-                loop_trace      = my_trace.doing("Processing XL column '" + col + "'")
+                loop_trace      = my_trace.doing("Processing XL column '" + str(col) + "'")
                 width           = float(widths_dict[col]['width']) # Cast to float to do float arithmetic in scaling to font size
                 if is_transposed:
                     xl_x        = xlw_config.y_offset + xl_idx
@@ -460,7 +454,7 @@ class ManifestRepresenter:
             columns                     = displayable_df.columns
             for layout_idx in range(len(columns)): # GOTCHA: Loop is in "Layout space"
                 col                     = columns[layout_idx]
-                loop_trace              = my_trace.doing("Processing layout column '" + col + "'")
+                loop_trace              = my_trace.doing("Processing layout column '" + str(col) + "'")
                 layout_x                = xlw_config.x_offset + layout_idx
                 layout_y                = xlw_config.y_offset 
 
@@ -470,23 +464,43 @@ class ManifestRepresenter:
                                                                             df_row_number           = -1, # -1 for headers
                                                                             df_col_number           = layout_idx,
                                                                             representer             = self)
+                if type(col) == tuple: 
+                    # This happens when displayble_df uses a MultiIndex. For example, when estimates data is specific to a subproduct
+                    # so get columns like (<subproduct>, "Q1"), (<subproduct>, "Q2"), etc.
+                    # In that case we need more than one row for the headers
+                    headers             = list(col)
+                else:
+                    headers             = [col]
+                
+                for header_jdx in range(len(headers)):
+                    col_val             = headers[header_jdx]
+                    # If col is not a tuple, then xl_col = excel_col and xl_row = excel_row
+                    # Otherwise, xl_row <= excel_row for non-transposed data sets, i.e., we place the multi-level headers
+                    # so that the last row they use is excel_row.
+                    # For transposed data sets is it similar, but xl_col <= excel_col in that case
+                    if is_transposed:
+                        xl_row          = excel_row
+                        xl_col          = excel_col + header_jdx - len(headers) + 1
 
-                self._write_val(        parent_trace        = loop_trace, 
-                                        workbook            = workbook, 
-                                        worksheet           = worksheet, 
-                                        layout_x            = layout_x, 
-                                        layout_y            = layout_y, 
-                                        excel_row           = excel_row, 
-                                        excel_col           = excel_col,
-                                        val                 = col, 
-                                        layout              = layout, 
-                                        num_format          = None)
+                    else:
+                        xl_row          = excel_row + header_jdx - len(headers) + 1
+                        xl_col          = excel_col
+                    self._write_val(        parent_trace        = loop_trace, 
+                                            workbook            = workbook, 
+                                            worksheet           = worksheet, 
+                                            layout_x            = layout_x, 
+                                            layout_y            = layout_y, #No change even if col is a tuple, since in layout space columns are a single row, and layout_y is only relevenat for purposes of getting the formatters
+                                            excel_row           = xl_row, 
+                                            excel_col           = xl_col,
+                                            val                 = col_val, 
+                                            layout              = layout, 
+                                            num_format          = None)
         # Now lay out the content
         my_trace                        = parent_trace.doing("Populating content", data = {'layout span': str(span)})
         if True:
             for layout_idx in range(len(columns)):
                 col                     = columns[layout_idx]
-                outer_loop_trace        = my_trace.doing("Processing column = '" + col + "'")
+                outer_loop_trace        = my_trace.doing("Processing column = '" + str(col) + "'")
 
                 # These are the coordinates of the first cell populated with content for this column
                 # They are needed later to define the start of the range to which a column-level formula applies,
@@ -502,7 +516,7 @@ class ManifestRepresenter:
                     row_nb      = row[0]
                     row_content = row[1]
                 
-                    loop_trace          = outer_loop_trace.doing("Processing column = '" + col 
+                    loop_trace          = outer_loop_trace.doing("Processing column = '" + str(col) 
                                                                     + "' row = '" + str(row_nb) + "'")
                     layout_x            = xlw_config.x_offset + layout_idx 
                     layout_y            = xlw_config.y_offset + 1 + row_nb # An extra '1' because of the headers

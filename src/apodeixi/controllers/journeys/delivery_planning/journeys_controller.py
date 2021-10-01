@@ -1,14 +1,17 @@
-import pandas                                                               as _pd
+import itertools                                                            as _itertools
 
 from apodeixi.controllers.util.manifest_api                                 import ManifestAPI
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label  import JourneysPostingLabel
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
+from apodeixi.controllers.admin.static_data.static_data_validator           import StaticDataValidator
 
 from apodeixi.knowledge_base.filing_coordinates                             import JourneysFilingCoordinates
 from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
 
 from apodeixi.util.a6i_error                                                import ApodeixiError
 from apodeixi.util.formatting_utils                                         import StringUtils
+from apodeixi.util.dictionary_utils                                         import DictionaryUtils
+from apodeixi.util.dataframe_utils                                          import DataFrameUtils
 
 class JourneysController(SkeletonController):
     '''
@@ -216,3 +219,112 @@ class JourneysController(SkeletonController):
 
         return template_dict, template_df
 
+    def apply_subproducts_to_df(self, parent_trace, template_dict, template_df):
+        '''
+        Helper method that derived classes may use when creating templates for manifests that should be replicated
+        per subproduct.
+
+        This method creates and returns a DataFrame that the caller (a derived class) can use as a template, by 
+        replicating `template_df` for each subproduct that exists for the product of `template_dict`.
+        It also adds an extra level to the columns of the returned value (i.e., columns are a MultiIndex of tuples)
+        where the top level is the subproduct.
+
+        If the product in question has no subproducts, then it just returns `template_df` without changes.
+        '''
+        subproducts                     = self.get_subproducts(parent_trace, template_dict)
+        if subproducts == None:
+            return template_df
+        else:
+            template_per_subproduct_df  = DataFrameUtils().replicate_dataframe( parent_trace, 
+                                                                                seed_df         = template_df, 
+                                                                                categories_list = subproducts)
+            return template_per_subproduct_df
+
+    def apply_subproducts_to_list(self, parent_trace, a_list, subproducts):
+        '''
+        Creates and returns a list of tuples, based on the given list `a_list`, "duplicating" it (kind of) for each subproduct
+
+        For each element X in `a_list` and each sub-product P in `subproducts`, the returned list has a tuple (P, X)
+
+        If subproducts is None, then it just returns `a_list`
+
+        @param a_list A list, typically of strings
+        @param suproducts A list, typically of strings
+        '''
+        if subproducts == None:
+            return a_list
+        else:
+            result                          = [(x,y) for (x, y) in _itertools.product(*[subproducts, a_list])]
+            return result
+
+    def apply_subproducts_to_dict(self, parent_trace, a_dict, subproducts):
+        '''
+        Creates and returns a dict whose keys are tuples, based on the given dict `a_dict`, "duplicating keys" (kind of)
+        for each subproduct
+
+        For each key X in `a_dict` and each sub-product P in `subproducts`, the returned dict R has a key (P, X)
+        such that R[(P, X)] = a_dict[X]
+
+        If subproducts is None, then it just returns `a_dict`
+
+        @param a_dict A dict, typically of strings
+        @param suproducts A list, typically of strings
+        '''
+        if subproducts == None:
+            return a_dict
+        else:
+            result                          = {}
+            for (x, y) in _itertools.product(*[subproducts, a_dict.keys()]):
+                result[(x,y)]               = a_dict[y]
+
+            return result
+
+    def get_foreign_uid(self, parent_trace, foreign_key, manifest_df, manifest_df_row_number, subproducts):
+        '''
+        Helper function for derived classes to retrieve the UID of a referenced manifest that corresponds
+        to a given row number in the referencing manifest `manifest_df`.
+
+        Typical use case: when creating a form that involves aligning row-by-row a referencing manifest's content
+        to that of a referenced manifest. For example, aligning big-rock-estimates with big-rocks.
+
+        This method handles the case where subproducts may exist, and if so will ensure that all subproducts
+        agree on the referenced UID to use for the given row
+        '''
+        if subproducts == None:
+            # If there are no subproduct, the columns are strings, not tuples
+            referenced_uid          = manifest_df[foreign_key].iloc[manifest_df_row_number] 
+        else:
+            ref_columns             = [(subprod, foreign_key) for subprod in subproducts]
+            ref_uid_list            = [manifest_df[col].iloc[manifest_df_row_number] for col in ref_columns]
+            # Remove duplites by going to set and back
+            br_uid_list             = list(set(ref_uid_list))
+            if len(br_uid_list) != 1:
+                raise ApodeixiError(parent_trace, "Can't link to " +str(foreign_key) + "' for DataFrame row "
+                                                + str(manifest_df_row_number) 
+                                                + " because expected exacly 1 foreign UID, and instead found "
+                                                + str(len(br_uid_list)),
+                                                data = {"Referenced UIDs": str(br_uid_list)})
+            referenced_uid          = br_uid_list[0]
+
+        return referenced_uid
+
+    def get_subproducts(self, parent_trace, manifest_dict):
+        '''
+        Helper method intended to be used by derived classes when dealing with a manifest for a product that has
+        subproducts.
+
+        This method returns a list, consisting of the subproducts of the manifest's product.
+        '''
+        validator                       = StaticDataValidator(parent_trace, self.store, self.a6i_config)
+        product                         = DictionaryUtils().get_val(parent_trace, 
+                                                                    root_dict       = manifest_dict,
+                                                                    root_dict_name  = "Sub Product Scope",
+                                                                    path_list       = ["metadata", "labels", "product"],
+                                                                    valid_types     = [str])
+        namespace                         = DictionaryUtils().get_val(parent_trace, 
+                                                                    root_dict       = manifest_dict,
+                                                                    root_dict_name  = "Sub Product Scope",
+                                                                    path_list       = ["metadata", "namespace"],
+                                                                    valid_types     = [str])
+        subproducts                     = validator.getSubProducts(parent_trace, namespace, product)
+        return subproducts

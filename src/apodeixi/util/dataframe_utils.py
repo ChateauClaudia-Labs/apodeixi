@@ -1,10 +1,11 @@
-from os import supports_dir_fd
 import numpy                                    as _numpy
 import math                                     as _math
 import pandas                                   as _pd
 import datetime    as _datetime
+import warnings
 
-from apodeixi.util.a6i_error                    import ApodeixiError    
+from apodeixi.util.a6i_error                    import ApodeixiError  
+from apodeixi.util.warning_utils                import WarningUtils
 
 from apodeixi.util.list_utils              		import ListMerger 
 
@@ -163,6 +164,94 @@ class DataFrameUtils():
         # All is good, so now it is safe to call the Pandas unique() function
         return list(df[column_name].unique())
        
+    def replicate_dataframe(self, parent_trace, seed_df, categories_list):
+        '''
+        Creates and returns a DataFrame, by replicating the `seed_df` for each member of the `categories_list`,
+        and concatenating them horizonally.
+        The columns are also added a new top level, from `categories_list`.
+
+        A usecase where this is used is to create templates for product-related manifests where similar content
+        must exist per sub-product.
+        
+        Example:
+
+        Suppose a product has subproducts ["Basic", "Premium], and this is provided as the `categories_list`.
+        Suppose the `seed_df` is some estimates about the product, such as:
+
+                bigRock  FY 19  FY 20  FY 21
+            ================================
+            0    None    150    150    150
+            1    None    100    100    100
+            2    None      0      0      0
+            3    None     45     45     45
+            4    None      0      0      0
+            5    None    300    300    300
+            6    None    140    140    140
+
+        Then this method would return the following DataFrame
+
+                        Basic                |          Premium
+                bigRock  FY 19  FY 20  FY 21 |  bigRock  FY 19  FY 20  FY 21
+            ====================================================================
+            0    None    150    150    150      None    150    150    150   
+            1    None    100    100    100      None    100    100    100
+            2    None      0      0      0      None      0      0      0
+            3    None     45     45     45      None     45     45     45
+            4    None      0      0      0      None      0      0      0
+            5    None    300    300    300      None    300    300    300
+            6    None    140    140    140      None    140    140    140
+
+        @param categories_list A list of hashable objects, such as strings or ints
+        '''
+        with warnings.catch_warnings(record=True) as w:
+            WarningUtils().turn_traceback_on(parent_trace)
+            
+            dfs_dict                = {}
+            for category in categories_list:
+                dfs_dict[category]  = seed_df.copy()
+            
+            replicas_df             = _pd.concat(dfs_dict, axis=1)
+            
+            WarningUtils().handle_warnings(parent_trace, warning_list=w)
+
+            return replicas_df
+
+    def is_UID_column(self, parent_trace, column):
+        '''
+        Returns a boolean: True if `column` is the name of a UID column, False otherwise.
+
+        Examples: "UID", "UID-1", "UID-3", ("SubProductA", "UID-4") are all examples of UID columns.
+        '''
+        if type(column)==str:
+            return column.startswith('UID')
+        elif type(column)==tuple:
+            if len(column)==0 or type(column[-1]) != str:
+                raise ApodeixiError(parent_trace, "Invalid MultiIndex DataFrame column: tuple should not be empty and "
+                                                    + "its last member should be a string",
+                                                    data = {"column": str(column)})
+            return column[-1].startswith('UID')
+
+    def re_index(self, parent_trace, input_df):
+        '''
+        Returns a new DataFrame that is "amost the same" as the `input_df`, in the sense that the columns, the number and
+        order of the rows, and data content are the same.
+
+        The only difference is that the index is reset, so it becomes a successive set of ordinals 0,1,2,..., without adding
+        any additional columns.
+        '''
+        df2                 = input_df.reset_index()
+        
+        # Now we have to drop the column that was added as part of the reset. If the column index is not multi-level, then
+        # that column is called "index" (a string).
+        # However, if the column index is multi-level (say, it has 2 levels) then the column is a tuple like ("index", "")
+        if type(df2.columns) == _pd.core.indexes.multi.MultiIndex:
+            N               = len(df2.columns.levels)
+            INDEX_COLUMN    = tuple(["index"] + ['']*(N-1))
+        else:
+            INDEX_COLUMN    = "index"
+
+        df3                 = df2.drop(INDEX_COLUMN, axis=1)
+        return df3
 
 class DataFrameComparator():
     '''

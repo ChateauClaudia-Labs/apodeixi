@@ -1,15 +1,15 @@
 import os                                               as _os
 from apodeixi.util.yaml_utils import YAML_Utils 
-import yaml                                             as _yaml
 import click
 import warnings
 
-from apodeixi.cli.cli_utils import CLI_Utils
 from click.testing                                      import CliRunner
 
 from apodeixi.cli.apo_cli                               import apo_cli
+from apodeixi.cli.cli_utils import CLI_Utils
 from apodeixi.testing_framework.a6i_integration_test    import ShutilStoreTestStack, ApodeixiIntegrationTest
-from apodeixi.util.a6i_error                            import FunctionalTrace, ApodeixiError
+from apodeixi.util.a6i_error                            import ApodeixiError
+from apodeixi.util.warning_utils                        import WarningUtils
 from apodeixi.util.apodeixi_config                      import ApodeixiConfig
 
 '''
@@ -195,16 +195,11 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                     #   triggered
                     #
                     with warnings.catch_warnings(record=True) as w:
+                        WarningUtils().turn_traceback_on(parent_trace)
+
                         result                      = runner.invoke(self.cli, command_argv)
-                    if len(w) >0:
-                        warning_dict                                = {}
-                        for idx in range(len(w)):
-                            a_warning                               = w[idx]
-                            warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
-                            warning_dict['... from']                = str(a_warning.filename)
-                            warning_dict['... at line']             = str(a_warning.lineno)
-                        raise ApodeixiError(my_trace, "CLI issued at least one warning",
-                                                data = {"command_argv":  str(command_argv)} | warning_dict)
+
+                        WarningUtils().handle_warnings(parent_trace, warning_list=w)
 
                     if result.exit_code != 0:
                         raise ApodeixiError(loop_trace, "CLI command failed",

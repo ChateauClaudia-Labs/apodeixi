@@ -1,8 +1,9 @@
-from numpy import product
+from numpy import column_stack, product
 import pandas                                                               as _pd
 
 from apodeixi.util.a6i_error                                                import ApodeixiError
 from apodeixi.util.formatting_utils                                         import StringUtils
+from apodeixi.util.dataframe_utils                                          import DataFrameUtils
 
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
 from apodeixi.controllers.admin.static_data.static_data_validator           import StaticDataValidator
@@ -111,14 +112,26 @@ class BigRocksEstimate_Controller(JourneysController):
         ME                                  = BigRocksEstimate_Controller
         xlw_config_table                    = AsExcel_Config_Table()
         x_offset                            = 1
-        y_offset                            = 1
+
+        if 'sub-product-scope.1' in manifestInfo_dict.keys():
+            # We must leave some rows above empty for the sub product manifest that will
+            # appear transposed. So we shift y_offset by the number of columns in the sub product manifest
+            subprod_manifest_df             = manifestInfo_dict['sub-product-scope.1']._contents_df
+            y_offset                        = 1 + len(subprod_manifest_df.columns)
+            subproducts_dict                 = manifestInfo_dict['sub-product-scope.1']._manifest_dict
+            subproducts                     = self.get_subproducts(parent_trace, subproducts_dict)
+        else:
+            y_offset                        = 1
+            subproducts                     = None
+
         for key in manifestInfo_dict:
             loop_trace                      = parent_trace.doing("Creating layout configurations for manifest '"
                                                                 + str(key) + "'")
             manifest_info                   = manifestInfo_dict[key]
             data_df                         = manifest_info.getManifestContents(parent_trace)
-            editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
+            
             if key == 'big-rock.0':
+                editable_cols = [col for col in data_df.columns if not DataFrameUtils().is_UID_column(loop_trace, col)]
                 hidden_cols                 = []
                 right_margin                = 0
                 num_formats                 = {}
@@ -143,7 +156,7 @@ class BigRocksEstimate_Controller(JourneysController):
                 x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
 
             elif key == 'sub-product-scope.1':
-                editable_cols = [col for col in data_df.columns if not col.startswith('UID')]
+                editable_cols = [col for col in data_df.columns if not DataFrameUtils().is_UID_column(loop_trace, col)]
                 hidden_cols                 = ['big-rock'] # These are list values, so can't be displayed in a cell. Will instead display in enriched mapping rows.
                 right_margin                = 0
                 num_formats                 = {}
@@ -184,13 +197,18 @@ class BigRocksEstimate_Controller(JourneysController):
                 y_offset                    = original_y_offset
 
                 # Put next manifest to the right of this one, separated by an empty column
-                x_offset                        += data_df.shape[0] -len(hidden_cols) + right_margin
+                x_offset                    += data_df.shape[0] + 1 + right_margin # +1 because of data_df's header
 
             elif key == 'big-rock-estimate.2':
                 # Want the estimates to be displayed in the same row as the big rocks they estimate. So we need to
                 # make a join, and pass the mapper that effects this associate
                 def my_mapper(manifest_df, manifest_df_row_number, representer):
-                    big_rock_uid        = manifest_df['bigRock'].iloc[manifest_df_row_number]  
+
+                    big_rock_uid            = self.get_foreign_uid( parent_trace                = loop_trace, 
+                                                                    foreign_key                 = "bigRock", 
+                                                                    manifest_df                 = manifest_df, 
+                                                                    manifest_df_row_number      = manifest_df_row_number, 
+                                                                    subproducts                 = subproducts)
                     if big_rock_uid == None:
                         # This can happen when we are creating a new template: there are no UIDs around. In that
                         # case, since the function self.createTemplate for this controller class is implemented
@@ -212,15 +230,28 @@ class BigRocksEstimate_Controller(JourneysController):
                     return excel_row_nb, final_excel_row
                 df_xy_2_excel_xy_mapper   = my_mapper  
 
+                editable_cols = [col for col in data_df.columns if not DataFrameUtils().is_UID_column(loop_trace, col)]
+                if subproducts == None:
+                    nb_header_levels        = 1
+                else:
+                    # If we have subproducts, we need 2 rows for the column headers in Excel, which will correspond
+                    # to DataFrame columns like
+                    #
+                    #   (<subproduct 1>, "Q1"), (<subproduct 1>, "Q2"), ..., (<subproduct 2>, "Q1"), (<subproduct 2>, "Q2"), ...
+                    #
+                    nb_header_levels        = 2
+
                 if self.variant ==  ME.VARIANT_BURNOUT:
-                    hidden_cols             = ['UID', 'bigRock']
+                    hidden_cols             = self.apply_subproducts_to_list(loop_trace, ['UID', 'bigRock'], subproducts)
                     right_margin            = 1                    
-                    num_formats             = {'effort': NumFormats.INT}
+                    num_formats             = self.apply_subproducts_to_dict(loop_trace,
+                                                                                a_dict      = {'effort': NumFormats.INT},
+                                                                                subproducts = subproducts)
                     excel_formulas          = ExcelFormulas(key)
                     excel_formulas.addTotal(loop_trace, column = "effort", 
                                                         parameters = {ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL: True})
                 elif self.variant ==  ME.VARIANT_EXPLAINED:
-                    hidden_cols             = ['UID', 'bigRock', 'effort']
+                    hidden_cols             = self.apply_subproducts_to_list(loop_trace, ['UID', 'bigRock', 'effort'], subproducts)
                     right_margin            = 1      
                     estimate_cols           = [col for col in editable_cols if not col in hidden_cols] 
                     num_formats             = {} 
@@ -245,6 +276,7 @@ class BigRocksEstimate_Controller(JourneysController):
                                                 hidden_cols                 = hidden_cols,  
                                                 num_formats                 = num_formats, 
                                                 excel_formulas              = excel_formulas,
+                                                nb_header_levels            = nb_header_levels,
                                                 df_xy_2_excel_xy_mapper   = df_xy_2_excel_xy_mapper,
                                                 editable_headers            = [],   
                                                 x_offset                    = x_offset,    
@@ -253,6 +285,7 @@ class BigRocksEstimate_Controller(JourneysController):
                 x_offset                        += data_df.shape[1] -len(hidden_cols) + right_margin
 
             elif key == 'investment.3':
+                editable_cols               = [col for col in data_df.columns if not DataFrameUtils().is_UID_column(loop_trace, col)]
                 hidden_cols                 = ['UID']
                 right_margin                = 1
 
@@ -380,8 +413,10 @@ class BigRocksEstimate_Controller(JourneysController):
             fy20_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
             fy21_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
             big_rock_reference_list     = [None, None, None, None, None, None, None]
+            
             template_df                 = _pd.DataFrame({"bigRock": big_rock_reference_list,
                                                         "FY 19": fy19_effort, "FY 20": fy20_effort, 'FY 21': fy21_effort})
+            template_df                 = self.apply_subproducts_to_df(parent_trace, template_dict, template_df)
         elif kind == 'investment':
             # We chose variant to be "explained" (ME.VARIANT_EXPLAINED), and in this case the 'investment' manifest
             # is not needed since that information is built into th e'big-rock-estimate' already

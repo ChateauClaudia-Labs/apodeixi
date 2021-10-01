@@ -6,6 +6,8 @@ import math                         as _math
 import datetime                     as _datetime
 
 from apodeixi.util.a6i_error        import *
+from apodeixi.util.warning_utils    import WarningUtils
+from apodeixi.util.dataframe_utils  import DataFrameUtils
 
 class SchemaUtils:
 
@@ -198,8 +200,7 @@ class PostingLabelXLReadConfig(XLReadConfig):
         df2             = df2.set_index(keys_p)
         df2.index.name = None
         df2             = df2.transpose()
-        df2             = df2.reset_index()
-        df2             = df2.drop(columns=['index'])
+        df2             = DataFrameUtils().re_index(parent_trace, df2)
 
         manifest_df     = df2
         
@@ -276,8 +277,7 @@ class ManifestXLReadConfig(XLReadConfig):
             df2             = df2.set_index(keys_p)
             df2.index.name = None
             df2             = df2.transpose()
-            df2             = df2.reset_index()
-            df2             = df2.drop(columns=['index'])
+            df2             = DataFrameUtils().re_index(parent_trace, df2)
 
             manifest_df     = df2
         
@@ -335,21 +335,15 @@ class ExcelTableReader:
             # So we would rather have an exception be thrown so that we know of where in the Apodeixi code base a code
             # construct needs to be made future-proof. That is why we use the warnings context manager here
             with warnings.catch_warnings(record=True) as w:
+                WarningUtils().turn_traceback_on(parent_trace)
+
                 df                  = _pd.read_excel(   io         = self.excel_fullpath,
                                                         sheet_name = self.excel_sheet,
                                                         header     = header, 
                                                         usecols    = first_column + ':' + last_column, 
                                                         nrows      = nrows)
-                if len(w) >0:
-                    warning_dict                                = {}
-                    for idx in range(len(w)):
-                        a_warning                               = w[idx]
-                        warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
-                        warning_dict['... from']                = str(a_warning.filename)
-                        warning_dict['... at line']             = str(a_warning.lineno)
-                    raise ApodeixiError(my_trace, "Pandas::read_excel issued at least one warning",
-                                            data = {"usecols":  str(first_column + ':' + last_column),
-                                                    "nrows":    str(nrows)} | warning_dict)
+                WarningUtils().handle_warnings(parent_trace, warning_list=w)
+
         except PermissionError as ex:
             raise ApodeixiError(my_trace, "Was not allowed to access excel file. Perhaps you have it open?",
                                         data = {"excel_fullpath": str(self.excel_fullpath),

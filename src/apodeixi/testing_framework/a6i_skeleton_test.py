@@ -1,10 +1,6 @@
 import unittest
-import sys                  as _sys
 import os                   as _os
 import pandas               as _pd
-import warnings
-import traceback
-
 
 from apodeixi.util.formatting_utils                 import DictionaryFormatter
 from apodeixi.util.dictionary_utils                 import DictionaryUtils
@@ -14,20 +10,6 @@ from apodeixi.util.a6i_error                        import FunctionalTrace, Apod
 from apodeixi.util.yaml_utils import YAML_Utils
 
 from apodeixi.util.apodeixi_config                      import ApodeixiConfig
-
-# As suggested in https://stackoverflow.com/questions/22373927/get-traceback-of-warnings
-#
-# This is to ensure that warnings print the stack trace, to make it easier to pin down where the warning
-# is triggered from in Apodeixi code.
-# This is to prevent noisy warnings to creep into test regression output, particularly in the CLI, where that noise
-# may be non-deterministic and cause spurious test failures.
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
-
-    log = file if hasattr(file,'write') else _sys.stderr
-    traceback.print_stack(file=log)
-    log.write(warnings.formatwarning(message, category, filename, lineno, line))
-
-warnings.showwarning = warn_with_traceback
 
 class ApodeixiSkeletonTest(unittest.TestCase):  
     '''

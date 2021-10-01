@@ -4,6 +4,7 @@ from io                                     import StringIO
 import warnings
 
 from apodeixi.util.a6i_error                import ApodeixiError
+from apodeixi.util.warning_utils            import WarningUtils
 
 class YAML_Utils():
     '''
@@ -23,9 +24,11 @@ class YAML_Utils():
                 # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
                 # such warnings. For other warnings, raise an ApodeixiError
                 with warnings.catch_warnings(record=True) as w:
+                    WarningUtils().turn_traceback_on(parent_trace)
+
                     loaded_dict             = _yaml.load(file, Loader=_yaml.FullLoader)
 
-                    self._handle_yaml_warnings(parent_trace, warning_list=w, path=path)
+                    WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path)
                     return loaded_dict
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Found a problem loading YAML file",
@@ -50,32 +53,11 @@ class YAML_Utils():
             # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
             # such warnings. For other warnings, raise an ApodeixiError
             with warnings.catch_warnings(record=True) as w:
+                WarningUtils().turn_traceback_on(parent_trace)
+
                 _yaml.dump(data_dict, file)
             
-                self._handle_yaml_warnings(parent_trace, warning_list=w, path=path) 
-
-    def _handle_yaml_warnings(self, parent_trace, warning_list, path):
-        '''
-        Helper method for this class when invoking persistent methods of the yaml Python module.
-        That module invokes asyncio.base_events.py, which as of this writing (September 2021) is noisy and
-        prints out spurious ResourceWarnings about "unclosede event loop...". This method catches
-        and ignores such warnings.
-
-        For any other warnings, this method catches them and turns them into ApodeixiErrors.
-        '''   
-        if len(warning_list) == 1 and w[0].category == ResourceWarning \
-                                and str(warning_list[0].message).startswith("unclosed event loop"):
-            #Ignore such warnings - they are noise
-            pass
-        elif len(warning_list) > 0:
-            warning_dict                                = {}
-            for idx in range(len(w)):
-                a_warning                               = warning_list[idx]
-                warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
-                warning_dict['... from']                = str(a_warning.filename)
-                warning_dict['... at line']             = str(a_warning.lineno)
-            raise ApodeixiError(parent_trace, "yaml Python module issued at least one warning",
-                                    data = {"path":  str(path)} | warning_dict)          
+                WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path)           
 
     def dict_to_yaml_string(self, parent_trace, data_dict):
         '''

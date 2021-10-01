@@ -433,7 +433,8 @@ class FolderHierarchy():
             trace_msg           += traceback_stream.getvalue()
             trace_msg           += "\n" + "-"*60
             raise ApodeixiError(parent_trace, "Encountered error while building a FolderHierarchy",
-                                                data = {"rootdir": str(rootdir), "exception": str(ex)})
+                                                data = {"rootdir": str(rootdir), "exception": str(ex),
+                                                        "stack trace":  trace_msg})
                 
         hierarchy                   = FolderHierarchy(hierarchy_dict)
         return hierarchy

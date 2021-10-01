@@ -2,6 +2,7 @@ import datetime                         as _datetime
 
 from apodeixi.util.a6i_error            import ApodeixiError
 from apodeixi.util.formatting_utils     import StringUtils
+from apodeixi.util.dataframe_utils      import DataFrameUtils
 
 
 class Excel_Block():
@@ -434,7 +435,7 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, sheet, hidden_cols = [], num_formats = {}, excel_formulas = None,
+    def __init__(self, sheet, hidden_cols = [], num_formats = {}, excel_formulas = None, nb_header_levels = 1,
                     viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
@@ -444,6 +445,17 @@ class AsExcel_Config():
                             which the data object is to be laid out.
         @param hidden_cols  A list of strings, possibly empty, corresponding to cloumn's in the manifest's tabular
                             display that should not be shown.
+        @param num_formats A dictionary, possibly empty, that associates a formatter to each column for which a formmater
+                            applies. For example, columns of numbers typically have a formatter configured for them
+                            through this dictionary. Keys are columns and values are formatter string codes from the
+                            NumFormats class.
+        @param excel_formulas An ExcelFormulas object, which maps a manifest_name to a dictionary of formulas that should
+                            be inserted into the Excel rendering. Usually done for usability reasons, to display things
+                            like the total for a numerically-valued column or row. It may be None if no formulas are needed.
+        @para nb_header_levels An int, representing the number of levels in the header. Typically this is 1: a single row of
+                            column headers. However, in cases where there are MultiLevel columns in a manifest's DataFrame,
+                            this parameter needs to be set to the number of levels in that MultiLevel index so that headers
+                            and other information are appropriate laid out.
         @param viewport_width  Horizontal length of visible screen allocated to this element (in number of characters)
         @param viewport_height Vertical length of visible screen allocated to this element (in number of characters)
         @param max_word_length Integer for the size of a string after which it is considered a "ridiculously long"
@@ -465,6 +477,7 @@ class AsExcel_Config():
         self.hidden_cols            = hidden_cols
         self.num_formats            = num_formats
         self.excel_formulas         = excel_formulas
+        self.nb_header_levels       = nb_header_levels
                
     def df_xy_2_excel_xy(self, parent_trace, displayable_df, df_row_number, df_col_number, representer):
         '''
@@ -574,9 +587,10 @@ class ManifestXLWriteConfig(AsExcel_Config):
     def __init__(self, manifest_name,  read_only, is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
+                                excel_formulas  = None,  nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
         super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats, excel_formulas = excel_formulas,
+                            nb_header_levels = nb_header_levels,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
 
@@ -636,7 +650,7 @@ class ManifestXLWriteConfig(AsExcel_Config):
         
         # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
         # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
-        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
+        displayable_df      = DataFrameUtils().re_index(parent_trace, displayable_df)
 
         self._buildLayout(parent_trace, content_df)
 
@@ -729,12 +743,12 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                                 is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
+                                excel_formulas  = None,  nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
 
         super().__init__(manifest_name, read_only, is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
                                 editable_cols,   hidden_cols, num_formats, editable_headers, 
-                                excel_formulas,  df_xy_2_excel_xy_mapper,
+                                excel_formulas,  nb_header_levels, df_xy_2_excel_xy_mapper,
                                 x_offset,    y_offset)
 
         self.my_entity                          = my_entity
@@ -811,7 +825,7 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
 
         # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
         # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
-        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
+        displayable_df      = DataFrameUtils().re_index(parent_trace, displayable_df)
 
         return displayable_df
 
@@ -1077,12 +1091,12 @@ class JoinedManifestXLWriteConfig(ManifestXLWriteConfig):
     def __init__(self, manifest_name,  read_only, referenced_manifest_name, is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  df_xy_2_excel_xy_mapper = None,
+                                excel_formulas  = None,  nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
 
         super().__init__(manifest_name, read_only, is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
                                 editable_cols,   hidden_cols, num_formats, editable_headers, 
-                                excel_formulas,  df_xy_2_excel_xy_mapper,
+                                excel_formulas,  nb_header_levels, df_xy_2_excel_xy_mapper,
                                 x_offset,    y_offset)
 
         self.referenced_manifest_name   = referenced_manifest_name
@@ -1156,7 +1170,7 @@ class PostingLabelXLWriteConfig(AsExcel_Config):
 
         # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
         # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
-        displayable_df      = displayable_df.reset_index().drop("index", axis=1)
+        displayable_df      = DataFrameUtils().re_index(parent_trace, displayable_df)
 
         self._buildLayout(parent_trace, content_df)
 
