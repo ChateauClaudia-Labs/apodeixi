@@ -128,6 +128,32 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
+    def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
+        '''
+        '''
+        if kind == 'product': # We'll create a mock product manifest and return it
+            manifest_dict               = {}
+            assertion_dict              = {}
+
+            product_dict                = {}
+
+            p1_dict                     = {}
+            p1_dict['UID']              = "P1"
+            p1_dict['name']             = "FusionOpus"
+            p1_dict['lineOfBusiness']   = "LOB1"
+            p1_dict["Alias names"]      = "Opus, Fusion Opus, Opus Health Pro"
+
+            product_dict["P1"]          = p1_dict
+
+            assertion_dict["product"]   = product_dict
+            manifest_dict["assertion"]  = assertion_dict  
+
+            manifest_path               = "DUMMY PATH"
+            return manifest_dict, manifest_path
+
+        else:
+            raise ApodeixiError(parent_trace, "findLatestVersionManifest not implemented")
+
     def retrieveManifest(self, parent_trace, manifest_handle):
         '''
         Returns a dict representing the unique manifest in the store that is identified by the `manifest handle`.

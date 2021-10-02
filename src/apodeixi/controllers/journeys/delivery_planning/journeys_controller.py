@@ -29,6 +29,8 @@ class JourneysController(SkeletonController):
                                             api_publisher   = 'a6i',
                                             extension       = 'io')
 
+        self.using_subproducts          = None # This will be set in self._buildOneManifest
+
     def getFilingClass(self):
         '''
         Returns a class object, corresponding to the concrete subclass of FilingCoordinates
@@ -149,6 +151,29 @@ class JourneysController(SkeletonController):
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
         structure
         '''
+        # Determine if we have subproducts, because in that case we need to remember that since it may affect how some
+        # derived classes create their posting configuration. For example, for kind `big-rock-estimate` the posting configuration
+        # needs to record that there will be 2 headers (a MultiLevel index in Pandas), not 1
+        #
+        # GOTCHA: This determination must be done *before* calling super()._buildOneManifest, since super will lead to the
+        #   actual loading of the Excel, which requires having the posting configuration aware of how many headers are expected
+        #   in Excel (i.e., whether Pandas shuold build a MultiLevel index for the columns, or not)
+        #   It is for that reason that his code duplicates some things that the call to super() will redo, like determining
+        #   the namespace
+        my_trace                        = parent_trace.doing("Determining if subproducts exist")
+        if True:
+            organization                = label.organization        (parent_trace)
+            kb_area                     = label.knowledgeBaseArea   (parent_trace) 
+            FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+            namespace                   = FMT(organization + '.' + kb_area)
+            product                     = label.product             (my_trace)
+            validator                   = StaticDataValidator(parent_trace, self.store, self.a6i_config)
+            subproducts                 = validator.getSubProducts(parent_trace, namespace, product)
+            if len(subproducts) == 0:
+                self.using_subproducts  = False
+            else:
+                self.using_subproducts  = True # Derived classes can use this in self.getPostingConfig to ensure multiple headers are on
+
         manifest_dict                   = super()._buildOneManifest(parent_trace, posting_data_handle, label)
            
         my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to BigRocksEstimate_Controller") 

@@ -38,6 +38,7 @@ class Test_EnvironmentLIfecycle(ApodeixiIntegrationTest):
 
             my_trace                = self.trace_environment(root_trace, "Isolating test case")
             self.provisionIsolatedEnvironment(my_trace)
+            self.seedCurrentEnvironment(my_trace, manifest_relative_folder = "", postings_relative_folder = None)
             self.check_environment_contents(my_trace)
 
             my_trace                = self.trace_environment(root_trace, "Doing postByFile")

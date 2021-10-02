@@ -59,5 +59,7 @@ if __name__ == "__main__":
         what_to_do = args[1]
         if what_to_do=='cli_post_dry_run':
             T.test_cli_post_dry_run()
+        elif what_to_do=='cli_post_live_run':
+            T.test_cli_post_live_run()
 
     main(_sys.argv)

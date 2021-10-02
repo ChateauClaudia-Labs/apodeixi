@@ -16,7 +16,7 @@ util:
     '
   dataframe_utils.py: '
 
-    Size (in bytes):  24603
+    Size (in bytes):  24664
 
     '
   dictionary_utils.py: '
@@ -175,11 +175,11 @@ util:
     '
   warning_utils.py: '
 
-    Size (in bytes):  3649
+    Size (in bytes):  3704
 
     '
   yaml_utils.py: '
 
-    Size (in bytes):  3435
+    Size (in bytes):  3557
 
     '

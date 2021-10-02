@@ -82,6 +82,11 @@ class BigRocksEstimate_Controller(JourneysController):
                                                                         update_policy   = update_policy, 
                                                                         manifest_nb     = manifest_nb,
                                                                         controller      = self)
+            # Ensure that a MultiLevel index is used for the columns of the DataFrame read from Excel, if
+            # there are multiple products
+            if self.using_subproducts == True: # This was set in _buildOneManifest
+                xlr_config.nb_header_levels = 2
+
         elif kind == 'investment':
             update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
             xlr_config                  = ME._InvestmentConfig(         kind            = kind, 

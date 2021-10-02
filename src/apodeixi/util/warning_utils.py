@@ -1,6 +1,7 @@
 import sys                                              as _sys
 import warnings
 import traceback
+from io                                                 import StringIO
 
 from apodeixi.util.a6i_error                            import ApodeixiError
 
@@ -13,6 +14,9 @@ class WarningUtils():
         '''
         This method ensures that warnings print stack traces.
 
+        Returns a StringIO object, to which stack traces are printed, that the caller can then examine, print, or dispose
+        of as appropriate.
+
         The intention is to pin down the origin of warnings, in the case of warnings that should be caught in Apodeixi.
         For example, noisy warning that must be ignored, or serious warnings that should become errors.
 
@@ -21,15 +25,19 @@ class WarningUtils():
 
         Implementation is as suggested in https://stackoverflow.com/questions/22373927/get-traceback-of-warnings 
         '''
+        traceback_stream        = StringIO()
         def _warn_with_traceback(message, category, filename, lineno, file=None, line=None):
 
-            log = file if hasattr(file,'write') else _sys.stderr
+            #log = file if hasattr(file,'write') else _sys.stderr
+            log = traceback_stream
             traceback.print_stack(file=log)
             log.write(warnings.formatwarning(message, category, filename, lineno, line))
 
         warnings.showwarning        = _warn_with_traceback 
 
-    def handle_yaml_warnings(self, parent_trace, warning_list, path):
+        return traceback_stream
+
+    def handle_yaml_warnings(self, parent_trace, warning_list, path, traceback_stream):
         '''
         Helper method for this class when invoking persistent methods of the yaml Python module.
         That module invokes asyncio.base_events.py, which as of this writing (September 2021) is noisy and
@@ -43,20 +51,9 @@ class WarningUtils():
             #Ignore such warnings - they are noise
             pass
         else:
-            self.handle_warnings(parent_trace, warning_list)
-        '''
-        elif len(warning_list) > 0:
-            warning_dict                                = {}
-            for idx in range(len(warning_list)):
-                a_warning                               = warning_list[idx]
-                warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
-                warning_dict['... from']                = str(a_warning.filename)
-                warning_dict['... at line']             = str(a_warning.lineno)
-            raise ApodeixiError(parent_trace, "yaml Python module issued at least one warning",
-                                    data = {"path":  str(path)} | warning_dict)
-        '''
+            self.handle_warnings(parent_trace, warning_list, traceback_stream)
 
-    def handle_warnings(self, parent_trace, warning_list):
+    def handle_warnings(self, parent_trace, warning_list, traceback_stream):
         '''
         Helper method to catch warnings and turns them into ApodeixiErrors.
         '''   
@@ -67,5 +64,11 @@ class WarningUtils():
                 warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
                 warning_dict['... from']                = str(a_warning.filename)
                 warning_dict['... at line']             = str(a_warning.lineno)
-            raise ApodeixiError(parent_trace, "yaml Python module issued at least one warning",
+
+            trace_msg                                   = "\n" + "-"*60 + "\tWarnings Stack Trace\n\n"
+            trace_msg                                   += traceback_stream.getvalue()
+            trace_msg                                   += "\n" + "-"*60
+            warning_dict['Stack Trace']                 = trace_msg
+
+            raise ApodeixiError(parent_trace, "A dependency issued at least one warning",
                                     data = {} | warning_dict)  

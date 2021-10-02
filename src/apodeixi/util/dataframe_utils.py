@@ -204,7 +204,7 @@ class DataFrameUtils():
         @param categories_list A list of hashable objects, such as strings or ints
         '''
         with warnings.catch_warnings(record=True) as w:
-            WarningUtils().turn_traceback_on(parent_trace)
+            traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
             
             dfs_dict                = {}
             for category in categories_list:
@@ -212,7 +212,7 @@ class DataFrameUtils():
             
             replicas_df             = _pd.concat(dfs_dict, axis=1)
             
-            WarningUtils().handle_warnings(parent_trace, warning_list=w)
+            WarningUtils().handle_warnings(parent_trace, warning_list=w, traceback_stream=traceback_stream)
 
             return replicas_df
 

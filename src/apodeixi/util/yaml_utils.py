@@ -24,11 +24,11 @@ class YAML_Utils():
                 # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
                 # such warnings. For other warnings, raise an ApodeixiError
                 with warnings.catch_warnings(record=True) as w:
-                    WarningUtils().turn_traceback_on(parent_trace)
+                    traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
 
                     loaded_dict             = _yaml.load(file, Loader=_yaml.FullLoader)
 
-                    WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path)
+                    WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path, traceback_stream=traceback_stream)
                     return loaded_dict
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Found a problem loading YAML file",
@@ -53,11 +53,11 @@ class YAML_Utils():
             # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
             # such warnings. For other warnings, raise an ApodeixiError
             with warnings.catch_warnings(record=True) as w:
-                WarningUtils().turn_traceback_on(parent_trace)
+                traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
 
                 _yaml.dump(data_dict, file)
             
-                WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path)           
+                WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path, traceback_stream=traceback_stream)           
 
     def dict_to_yaml_string(self, parent_trace, data_dict):
         '''

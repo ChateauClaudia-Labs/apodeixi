@@ -4,6 +4,7 @@ import pandas                       as _pd
 import re                           as _re
 import math                         as _math
 import datetime                     as _datetime
+import string                       as _string
 
 from apodeixi.util.a6i_error        import *
 from apodeixi.util.warning_utils    import WarningUtils
@@ -112,12 +113,20 @@ class XLReadConfig():
       (such as a mapping between two manifests)
     '''
     def __init__(self):
+
+        # This determines whether a MultiLevel index is created for the columns of the Pandas DataFrame read
+        # from Excel. Derived classes can set it up to a value different than 1 if a MultiLevel index applies
+        self.nb_header_levels       = 1
         return
 
     def pandasRowParameters(self, parent_trace, first_row, last_row):
         '''
-        Returns two ints: header and number_of_rows, which are the row parameters Pandas
-        needs to load a portion of Excel real estate.
+        Returns two things:
+        
+        * a list of ints, corresponding to the row number in Excel that are occupied by headers
+        * an int, corresponding to the number_of_rows
+        
+        These are the row parameters Pandas needs to load a portion of Excel real estate.
 
         @first_row An int, representing the first Excel row (numbering starts at 1
                             of real estate that is to be loaded
@@ -156,12 +165,17 @@ class PostingLabelXLReadConfig(XLReadConfig):
     '''
     def __init__(self):
         super().__init__()
+
         return
 
     def pandasRowParameters(self, parent_trace, first_row, last_row):
         '''
-        Returns two ints: header and number_of_rows, which are the row parameters Pandas
-        needs to load a portion of Excel real estate.
+        Returns two things:
+        
+        * a list of ints, corresponding to the row number in Excel that are occupied by headers
+        * an int, corresponding to the number_of_rows
+        
+        These are the row parameters Pandas needs to load a portion of Excel real estate.
 
         @first_row An int, representing the first Excel row (numbering starts at 1
                             of real estate that is to be loaded
@@ -174,7 +188,7 @@ class PostingLabelXLReadConfig(XLReadConfig):
             header = None 
         nrows  = last_row - first_row +1 # First row must be included, so nrows is 1 bigger
 
-        return header, nrows
+        return [header], nrows
 
     def toManifestDF(self, parent_trace, raw_df, first_row, last_row):
         '''
@@ -226,28 +240,52 @@ class ManifestXLReadConfig(XLReadConfig):
 
     def pandasRowParameters(self, parent_trace, first_row, last_row):
         '''
-        Returns two ints: header and number_of_rows, which are the row parameters Pandas
-        needs to load a portion of Excel real estate.
+        Returns two things:
+        
+        * a list of ints, corresponding to the row number in Excel that are occupied by headers
+        * an int, corresponding to the number_of_rows
+        
+        These are the row parameters Pandas needs to load a portion of Excel real estate.
 
-        @first_row An int, representing the first Excel row (numbering starts at 1
+        @first_row An int, representing the first Excel row (numbering starts at 1)
                             of real estate that is to be loaded
         @last_row An int, representing the first Excel row (numbering starts at 1)
                             of real estate that is to be loaded
         '''
+        if self.nb_header_levels == None or self.nb_header_levels <= 0:
+            raise ApodeixiError(parent_trace, "Bad posting configuration, so can't compute Pandas row parameters: "
+                                                + " the `nb_header_levels` internal config setting must be at least 1",
+                                                data = {"nb_header_levels": str(self.nb_header_levels)})
+
+        # self.nb_header_levels is usually 1, but sometimes is higher if there is a MultiLevel index
         if self.horizontally==True:
-            header = first_row - 1
-            nrows  = last_row - first_row
+            # Intuitively, the logic aims to be:
+            #       header = first_row - 1
+            #       nrows  = last_row - first_row
+            # but it is more complicated because we must cater to the possibility of a MultiLevel index
+            header_list             = [first_row -1 + x for x in range(self.nb_header_levels)]
+            nrows                   = last_row - first_row - (self.nb_header_levels -1)
         elif self.is_a_mapping == False:
+            # For transveral layouts we don't support MultiLevel index, so error out of nb_header_levels is not 1
+            if self.nb_header_levels != 1:
+                raise ApodeixiError(parent_trace, "Can't compute Pandas row parameters because "
+                                                    " a MultiLevel index was configured, which is not allowed for vertical layouts",
+                                                    data = {"first Excel row": str(first_row), "last Excel row": str(last_row)})
             if first_row > 1:
-                header = first_row -2 
+                header              = first_row -2 
             else:
-                header = None 
+                header              = None 
+            header_list             = [header]
             nrows  = last_row - first_row +1 # First row must be included, so nrows is 1 bigger
         else: # We are processing a mapping
-            header = first_row - 1
-            nrows  = last_row - first_row
+            # Intuitively, the logic aims to be:
+            #       header = first_row - 1
+            #       nrows  = last_row - first_row
+            # but it is more complicated because we must cater to the possibility of a MultiLevel index
+            header_list             = [first_row -1 + x for x in range(self.nb_header_levels)]
+            nrows                   = last_row - first_row - (self.nb_header_levels -1)
 
-        return header, nrows
+        return header_list, nrows
 
     def toManifestDF(self, parent_trace, raw_df, first_row, last_row):
         '''
@@ -325,7 +363,15 @@ class ExcelTableReader:
                                                                 "excel sheet": str(self.excel_sheet)})        
         first_column, last_column, first_row, last_row  = ExcelTableReader.parse_range(my_trace, self.excel_range)
         
-        header, nrows           = self.xlr_config.pandasRowParameters(parent_trace, first_row, last_row)
+        header_list, nrows      = self.xlr_config.pandasRowParameters(parent_trace, first_row, last_row)
+
+        if len(header_list) != self.xlr_config.nb_header_levels:
+            raise ApodeixiError(my_trace, "Internal problem: inconsistency as to the number of headers expected in Excel",
+                                            data = {"excel_fullpath":       str(self.excel_fullpath),
+                                                    "excel sheet":          str(self.excel_sheet),
+                                                    "excel range":          str(self.excel_range),
+                                                    "# headers inferred":   str(len(header_list )),
+                                                    "# headers configured": str(self.xlr_config.nb_header_levels)})
         my_trace                = parent_trace.doing("Loading Excel spreadsheet",
                                                         data = {"excel_fullpath": str(self.excel_fullpath),
                                                                 "excel sheet": str(self.excel_sheet)})
@@ -335,14 +381,66 @@ class ExcelTableReader:
             # So we would rather have an exception be thrown so that we know of where in the Apodeixi code base a code
             # construct needs to be made future-proof. That is why we use the warnings context manager here
             with warnings.catch_warnings(record=True) as w:
-                WarningUtils().turn_traceback_on(parent_trace)
+                traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
 
-                df                  = _pd.read_excel(   io         = self.excel_fullpath,
-                                                        sheet_name = self.excel_sheet,
-                                                        header     = header, 
-                                                        usecols    = first_column + ':' + last_column, 
-                                                        nrows      = nrows)
-                WarningUtils().handle_warnings(parent_trace, warning_list=w)
+                # We have two cases:
+                #   1. header_list is a singleton - this is the "normal" case, and we can use the `usecols` parameter
+                #      in Pandas read_excel
+                #   2. header_list has multiple elements. This means we have a MultiLevel index in the DataFrame-to-be,
+                #      and unfortunately Pandas disallows `usecols` in that case. That makes the logic more complicated,
+                #      because after calling Pandas::read_excel we have to prune spurious columns that might have been
+                #      picked up by Pandas::read_excel, since we couldn't tell it to just use columns in the range
+                #      first_column:last_column
+                #
+                #  Case #2 is more general than #1, so the logic for #2 could address #1 as well. However, since historically
+                #  Apodeixi only supported #1, we retain the simpler code for #1 as a defensive quality tactic: if for 
+                #  some reason our implementation of #2 is buggy, we don't want that bug to affect the previously working
+                #  functionality for usecase #1
+                #  So we explicitly have an "if-else" statement for the two cases, even if in theory that's unnecessary
+                #
+                if len(header_list) == 1:
+                    df                  = _pd.read_excel(   io         = self.excel_fullpath,
+                                                            sheet_name = self.excel_sheet,
+                                                            header     = header_list, 
+                                                            usecols    = first_column + ':' + last_column, 
+                                                            nrows      = nrows)
+                elif len(header_list) > 1:
+                    # This is the MultiLevel index case, and can' t use `usecols` in the call to Pandas::read_excel, so must
+                    # first call read_excel and after that prune the result to confine to the desired columns
+                    #
+                    raw_df              = _pd.read_excel(   io         = self.excel_fullpath,
+                                                            sheet_name = self.excel_sheet,
+                                                            header     = header_list, 
+                                                            nrows      = nrows)
+                    # We need to convert the letter columns to integers, before we can prune them. That requires a little
+                    # helper function inspired by 
+                    # https://stackoverflow.com/questions/7261936/convert-an-excel-or-spreadsheet-column-letter-to-its-number-in-pythonic-fashion
+                    def _col2num(col):
+                        '''
+                        Converts Excel letter columns to ints, starting at 0
+                        '''
+                        num = 0
+                        for c in col:
+                            if c in _string.ascii_letters:
+                                num = num * 26 + (ord(c.upper()) - ord('A')) + 1
+                        return num - 1
+
+                    first_col_nb        = _col2num(first_column)
+                    last_col_nb         = _col2num(last_column)
+
+                    raw_columns         = list(raw_df.columns)
+                    # Prune spurious columns on the left
+                    df                  = raw_df.drop(raw_columns[:first_col_nb], axis=1)
+
+                    # Prune columns on the right
+                    df                  = raw_df.drop(raw_columns[last_col_nb+1:], axis=1)
+
+                else:
+                    raise ApodeixiError(parent_trace, "Can't load Excel file because no headers were specified",
+                                                        data = {"path": str(self.excel_fullpath), 
+                                                                "sheet_name": str(self.sheet_name),
+                                                                "range": str(self.excel_range)})   
+                WarningUtils().handle_warnings(parent_trace, warning_list=w, traceback_stream=traceback_stream)
 
         except PermissionError as ex:
             raise ApodeixiError(my_trace, "Was not allowed to access excel file. Perhaps you have it open?",
