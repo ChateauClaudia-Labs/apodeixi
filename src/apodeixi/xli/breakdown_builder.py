@@ -185,15 +185,21 @@ class BreakdownTree():
                 FMT                         = StringUtils().format_as_yaml_fieldname
                 raw_col                     = columns[idx]
                 no_parenthesis_col          = GIST_OF(my_trace, raw_col)
+                if type(no_parenthesis_col) == tuple:
+                    # This is a boundary case where a MultiLevel index is used for the columns of the DataFrame.
+                    # In that case the entity, if there is one at all, is expected to be the first member of the tuple
+                    column_main_value       = no_parenthesis_col[0]
+                else:
+                    column_main_value       = no_parenthesis_col
                 REGEX                       = "(\.[0-9]+)$"
-                suffix_search               =  _re.search(REGEX, no_parenthesis_col)
+                suffix_search               =  _re.search(REGEX, column_main_value)
                 if suffix_search == None:
-                    cleaned_col             = no_parenthesis_col
+                    cleaned_col_main_value  = column_main_value
                 else:
                     suffix                  = suffix_search.group(0)
-                    cleaned_len             = len(no_parenthesis_col) - len(suffix)
-                    cleaned_col             = no_parenthesis_col[:cleaned_len]
-                return FMT(cleaned_col) == FMT(interval.entity_name) # Format as yaml fieldname to avoid spurious differences due to e.g. upper/lower case
+                    cleaned_len             = len(column_main_value) - len(suffix)
+                    cleaned_col_main_value  = column_main_value[:cleaned_len]
+                return FMT(cleaned_col_main_value) == FMT(interval.entity_name) # Format as yaml fieldname to avoid spurious differences due to e.g. upper/lower case
 
             idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
             if len(idxs)>1:

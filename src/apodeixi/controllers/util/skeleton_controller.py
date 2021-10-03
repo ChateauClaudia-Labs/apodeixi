@@ -85,6 +85,11 @@ class SkeletonController(PostingController):
                 else:
                     response.recordUpdate(parent_trace=loop_trace, manifest_dict=manifest_dict, manifest_nb=manifest_nb)
 
+        my_trace                    = parent_trace.doing("Registering any foreign key constraints that should be honored "
+                                                            + "in subsequent updates, if any")
+        self.registerForeignKeyConstraints(my_trace, all_manifests_dicts)
+
+
         my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
                                                             + "creating manifests",
                                                             data = {"excel_filename": excel_filename})
@@ -92,14 +97,20 @@ class SkeletonController(PostingController):
         response.recordArchival(my_trace, posting_label_handle, archival_handle)
 
         manifest_handles            = response.allActiveManifests(my_trace)
-        #[h for h in response.createdManifests() + response.updatedManifests()
-        #                                    + response.unchangedManifests()]
         form_request                = posting_label_handle.createUpdateForm(my_trace, manifest_handles)
         response.recordOptionalForm(my_trace, form_request)
 
         self.log_txt                = self.store.logPostEvent(my_trace, response)
 
         return response
+
+    def registerForeignKeyConstraints(self, parent_trace, all_manifests_dict):
+        '''
+        Intended as a hook for derived classes to register foreign key constraints.
+
+        This method is used the the write flow (i.e., when processing postings) after all manifests pertinent
+        to this controller are persisted, but before the transaction is committed.
+        '''
 
     def generateForm(self, parent_trace, form_request):
         '''

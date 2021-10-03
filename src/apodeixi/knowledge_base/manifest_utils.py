@@ -65,7 +65,7 @@ class ManifestUtils():
         formed it raises an error.
         '''
         if not type(manifest_dict) == dict:
-            raise ApodeixiError(parent_trace, "Can't record manifest creation because manifest was not passed as a dictionary. "
+            raise ApodeixiError(parent_trace, "Can't infer ManifestHandle because manifest was not passed as a dictionary. "
                                                 "Instead was given a " + str(type(manifest_dict)),
                                                 origination = {'signaled_from': __file__})
         VERSION                     = 'version'
@@ -700,6 +700,29 @@ class ManifestUtils():
         result_df                       = manifest_df.copy()
         result_df[PADDED_COL]           = padded_vals   
         return result_df
+
+    def get_manifest_uids(self, parent_trace, manifest_dict):
+        '''
+        Returns a string of UIDs, co
+        '''
+        if not type(manifest_dict) == dict:
+            raise ApodeixiError(parent_trace, "Can't determine manifest's UIDs because manifest was not passed as a dictionary. "
+                                                "Instead was given a " + str(type(manifest_dict)),
+                                                origination = {'signaled_from': __file__})
+
+        content_df, entity_name             = ManifestUtils().extract_manifest_content_as_df(   
+                                                                                parent_trace        = parent_trace, 
+                                                                                manifest_dict       = manifest_dict, 
+                                                                                manifest_nickname   = "Given manifest", 
+                                                                                abbreviate_uids     = False)
+        uid_columns                         = [col for col in content_df.columns 
+                                                    if IntervalUtils().is_a_UID_column(parent_trace, col)]
+        valid_uids                          = []
+        for uid_col in uid_columns:
+            uid_list                        = list(content_df[uid_col])
+            valid_uids.extend(uid_list)
+        
+        return valid_uids
 
 class ManifestDiffResult():
     '''

@@ -114,6 +114,7 @@ class PostingController():
 
         # Clean up df's columns by removing anything in parenthesis
         GIST_OF                 = IntervalUtils().without_comments_in_parenthesis # Intentional abbreviation for clarity/readability
+
         df.columns              = [GIST_OF(parent_trace, col) for col in df.columns]
 
         my_trace                = parent_trace.doing("Sanity check that user complied with right schema")

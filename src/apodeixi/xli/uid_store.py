@@ -161,7 +161,7 @@ class UID_Store:
         self.acronym_schema         = acronym_schema
     
     def generateUID(self, parent_trace, parent_UID, acronym):
-        branch        = UID_Utils()._tokenize(parent_trace, parent_UID)
+        branch        = UID_Utils().tokenize(parent_trace, parent_UID)
         # GOTCHA: 
         #           it is possible that the user "skipped" an entity. For example, maybe the acronym schema
         # is along the lines of [BR(big rock), SR(sub rock), TR(tiny rock)], and the user skipped the sub-rock,
@@ -257,7 +257,7 @@ class UID_Store:
         '''
         Recursive implementation of `add_known_uid`
         '''
-        tokens              = UID_Utils()._tokenize(parent_trace, uid, acronym_list)
+        tokens              = UID_Utils().tokenize(parent_trace, uid, acronym_list)
         if len(tokens) == 0:
             return # Nothing to do
 
@@ -307,7 +307,7 @@ class UID_Utils():
 
                 A4.2.0.1,   as oppose to A4.2.1, which would be "buggy" since the last token is for the wrong entity.
         '''
-        tokens                      = self._tokenize(parent_trace, uid=uid, acronym_list=None)
+        tokens                      = self.tokenize(parent_trace, uid=uid, acronym_list=None)
         if len(tokens)<= 1:
             return uid
 
@@ -392,8 +392,8 @@ class UID_Utils():
 
         acronym_list        = [acronyminfo.acronym for acronyminfo in acronym_schema.acronym_infos()]
 
-        # Calling self._tokenize produces "unabbreviated" tokens
-        tokens              = UID_Utils()._tokenize(parent_trace, uid, acronym_list)
+        # Calling self.tokenize produces "unabbreviated" tokens
+        tokens              = UID_Utils().tokenize(parent_trace, uid, acronym_list)
         if len(tokens) == 0:
             raise ApodeixiError(parent_trace, "Unable to parse and unabbreviate uid '" + str(uid) + "'")
             
@@ -401,12 +401,12 @@ class UID_Utils():
 
         # Due to the possibility that the end user skipped some entities, need to pad
         # the UID before returning it. That is because in the current implementation our call to
-        # self._tokenize wiped out the padding that might have existed in the abbreviated uid
+        # self.tokenize wiped out the padding that might have existed in the abbreviated uid
         padded_uid      = acronym_schema.pad_uid(parent_trace, full_uid)
 
         return padded_uid
 
-    def _tokenize(self, parent_trace, uid, acronym_list=None):
+    def tokenize(self, parent_trace, uid, acronym_list=None):
         '''
         Returns a list of strings which are the individual tokens of the uid. It disabbreviates them if 
         necessary.

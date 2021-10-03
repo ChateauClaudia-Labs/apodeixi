@@ -16,7 +16,7 @@ class Test_UIDStore(ApodeixiUnitTest):
     def attempt_tokenize(self, parent_trace, uid):
         my_trace      = parent_trace.doing("Attempting to tokenize '" + uid + "'")
         try:
-            x = UID_Utils()._tokenize(parent_trace, uid)
+            x = UID_Utils().tokenize(parent_trace, uid)
         except ApodeixiError as ex:
             x = 'error'
         return x

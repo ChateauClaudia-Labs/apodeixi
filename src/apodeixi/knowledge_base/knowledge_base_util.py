@@ -160,12 +160,17 @@ class ManifestHandle():
         else:
             return False
 
-    def __copy__(self):
+    #def __copy__(self):
+    def copy(self):
             return ManifestHandle(manifest_api = self.manifest_api, kind = self.kind, namespace = self.namespace, 
                                     name = self.name, version = self.version)
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(str(self.manifest_api)) + hash(str(self.kind)) + hash(str(self.namespace)) \
+                        + hash(str(self.name)) + hash(str(self.version))
 
     def display(self, parent_trace, indentation=""):
         msg = "" \

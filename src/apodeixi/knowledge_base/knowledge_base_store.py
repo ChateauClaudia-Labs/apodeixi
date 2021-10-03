@@ -203,6 +203,13 @@ class KnowledgeBaseStore():
         '''
         return self._impl.persistManifest(parent_trace, manifest_dict)
 
+    def getForeignKeyConstraints(self, parent_trace):
+        '''
+        Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
+        with this store
+        '''
+        return self._impl.getForeignKeyConstraints(parent_trace)
+
     def retrievePreviousManifest(self, parent_trace, manifest_dict):
         '''
         Given a manifest expressed as a dict with a certain version N, will retrieve the same manifest

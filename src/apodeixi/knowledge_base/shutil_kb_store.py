@@ -1,9 +1,12 @@
-import os                                               as _os
+import os                                                   as _os
 
-from apodeixi.knowledge_base.isolation_kb_store         import Isolation_KBStore_Impl
-from apodeixi.knowledge_base.manifest_utils             import ManifestUtils
-from apodeixi.util.a6i_error                            import ApodeixiError
-from apodeixi.util.path_utils                           import PathUtils
+from apodeixi.knowledge_base.isolation_kb_store             import Isolation_KBStore_Impl
+from apodeixi.knowledge_base.manifest_utils                 import ManifestUtils
+
+from apodeixi.tree_relationships.foreign_key_constraints    import ForeignKeyConstraintsRegistry
+
+from apodeixi.util.a6i_error                                import ApodeixiError
+from apodeixi.util.path_utils                               import PathUtils
 
 class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
     '''
@@ -30,6 +33,8 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
     def __init__(self, parent_trace, kb_rootdir, clientURL):
 
         super().__init__(parent_trace, kb_rootdir, clientURL)
+
+        self.foreign_key_constraints                = ForeignKeyConstraintsRegistry()
 
     def beginTransaction(self, parent_trace):
         '''
@@ -331,10 +336,21 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                 raise ApodeixiError(my_trace, "Can't persist manifest with version " + str(new_version) 
                                                 + " because no prior manifest exist with version " + str(new_version - 1),
                                             data = {"manifest handle": new_handle.display(my_trace)})
+
+        my_trace                        = parent_trace.doing("Checking foreign key constraints are respected")
+        if True:
+            self.foreign_key_constraints.check_foreign_key_constraints(my_trace, manifest_dict)
             
         my_trace                        = parent_trace.doing("Persisting manifest")
         handle                          = super().persistManifest(parent_trace, manifest_dict)
         return handle
+
+    def getForeignKeyConstraints(self, parent_trace):
+        '''
+        Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
+        with this store
+        '''
+        return self.foreign_key_constraints
 
     def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''

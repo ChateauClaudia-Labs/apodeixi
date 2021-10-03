@@ -38,20 +38,38 @@ class IntervalUtils():
         else:
             return col.startswith(Interval.UID)
 
-    def without_comments_in_parenthesis(self, parent_trace, txt):
+    def without_comments_in_parenthesis(self, parent_trace, txt_or_tuple):
         '''
-        Returns a substring of `txt` ignoring any sub-text within `txt` that is in parenthesis. It also strips
-        any leading or trailing spaces.
+        Returns a modified version of `txt_or_tuple`.
+        
+        If `txt_or_tuple` is a string, then it returns a substring of `txt_or_tuple` ignoring any sub-text 
+        within `txt_or_tuple` that is in parenthesis. 
+        It also strips any leading or trailing spaces.
         
         For example, if txt is 'Effort (man days) to deliver', then this function return 'Effort to deliver'
+
+        If `txt_or_tuple` is a tuple then it applies the same logic to each string in the tuple, and returns the tuple.
         '''
-        stripped_txt = StringUtils().strip(txt)
-        # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
-        sexpr                       = SExprTokenizer(strict=False)
-        sexpr_tokens                = sexpr.tokenize(stripped_txt)
-        parenthesis_free_tokens     = [t for t in sexpr_tokens if not ')' in t and not '(' in t]
-        parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
-        return parentheis_free_txt
+        def _strip_parenthesis(parent_trace, txt):
+            if type(txt) != str:
+                raise ApodeixiError(parent_trace, "Encountered problem removing comments in parenthesis: expected a string, "
+                                                    + "but instead was given a '" + str(type(txt)),
+                                                    data = {"invalid input":    str(txt)})
+            stripped_txt = StringUtils().strip(txt)
+            # Remove text within parenthesis, if any, using the natural language tool nltk.tokenize.SExprTokenizer
+            sexpr                       = SExprTokenizer(strict=False)
+            sexpr_tokens                = sexpr.tokenize(stripped_txt)
+            parenthesis_free_tokens     = [t for t in sexpr_tokens if not ')' in t and not '(' in t]
+            parentheis_free_txt         = ' '.join(parenthesis_free_tokens)
+            return parentheis_free_txt
+
+        if type(txt_or_tuple) == str:
+            return _strip_parenthesis(parent_trace, txt_or_tuple)
+        elif type(txt_or_tuple) == tuple: # This happens when there is a MultiLevel index for the columns
+            result_list     = [_strip_parenthesis(parent_trace, txt) for txt in txt_or_tuple]
+            return tuple(result_list)
+        else:
+            raise ApodeixiError(parent_trace, "Expected column header to be a string or tuple, not a '" + str(type(txt_or_tuple)) + "'")
 
 
 
@@ -344,7 +362,7 @@ class Interval():
         self.columns                = columns
         if entity_name == None:
             self.entity_name        = IntervalUtils().without_comments_in_parenthesis(  parent_trace    = parent_trace,
-                                                                                        txt             = columns[0])
+                                                                                        txt_or_tuple    = columns[0])
         else:
             self.entity_name        = entity_name
 

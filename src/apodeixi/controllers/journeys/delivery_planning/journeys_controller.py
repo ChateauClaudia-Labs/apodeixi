@@ -315,10 +315,16 @@ class JourneysController(SkeletonController):
         This method handles the case where subproducts may exist, and if so will ensure that all subproducts
         agree on the referenced UID to use for the given row
         '''
-        if subproducts == None:
-            # If there are no subproduct, the columns are strings, not tuples
+        if subproducts == None or foreign_key in manifest_df.columns:
+            # If there are no subproduct, the columns are strings, not tuples.
+            # And even in cases where there are subproducts, sometimes the foreign_key is not tied to subproducts,
+            # so that particular column wouldn't be a tuple but simply a string.
+            # In either case we can just use foreign_key as the column to search for the referenced_uid
             referenced_uid          = manifest_df[foreign_key].iloc[manifest_df_row_number] 
         else:
+            # In this case we are looking for columns that is a tuple, whose first entry is a subproduct and the
+            # second is the foreign_key.
+            # There might be multiple such, but they should all agree on what is the referenced_uid
             ref_columns             = [(subprod, foreign_key) for subprod in subproducts]
             ref_uid_list            = [manifest_df[col].iloc[manifest_df_row_number] for col in ref_columns]
             # Remove duplites by going to set and back
@@ -339,17 +345,20 @@ class JourneysController(SkeletonController):
         subproducts.
 
         This method returns a list, consisting of the subproducts of the manifest's product.
+
+        If there are no subprodcuts, it returns an empty list
         '''
         validator                       = StaticDataValidator(parent_trace, self.store, self.a6i_config)
         product                         = DictionaryUtils().get_val(parent_trace, 
                                                                     root_dict       = manifest_dict,
-                                                                    root_dict_name  = "Sub Product Scope",
+                                                                    root_dict_name  = "A Manifest",
                                                                     path_list       = ["metadata", "labels", "product"],
                                                                     valid_types     = [str])
         namespace                         = DictionaryUtils().get_val(parent_trace, 
                                                                     root_dict       = manifest_dict,
-                                                                    root_dict_name  = "Sub Product Scope",
+                                                                    root_dict_name  = "A Manifest",
                                                                     path_list       = ["metadata", "namespace"],
                                                                     valid_types     = [str])
         subproducts                     = validator.getSubProducts(parent_trace, namespace, product)
         return subproducts
+

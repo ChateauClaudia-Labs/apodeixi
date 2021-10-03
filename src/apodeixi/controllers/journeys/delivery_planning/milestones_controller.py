@@ -1,11 +1,10 @@
 import pandas as                                                            _pd
 
-from apodeixi.util.a6i_error                                                import ApodeixiError
-from apodeixi.util.formatting_utils                                         import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label import JourneysPostingLabel
 from apodeixi.controllers.journeys.delivery_planning.journeys_controller    import JourneysController
+from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
 
 from apodeixi.knowledge_base.knowledge_base_util                            import FormRequest
 from apodeixi.knowledge_base.manifest_utils                                 import ManifestUtils
@@ -15,11 +14,15 @@ from apodeixi.text_layout.excel_layout                                      impo
                                                                                 MappedManifestXLWriteConfig, \
                                                                                 NumFormats
 
-from apodeixi.xli.interval                                                  import GreedyIntervalSpec
+from apodeixi.tree_relationships.foreign_key_constraints                    import ForeignKeyConstraintEntries, ForeignKeyLink
 
+from apodeixi.util.a6i_error                                                import ApodeixiError
+from apodeixi.util.formatting_utils                                         import StringUtils
+
+from apodeixi.xli.interval                                                  import GreedyIntervalSpec
 from apodeixi.xli.posting_controller_utils                                  import PostingConfig
 from apodeixi.xli                                                           import UpdatePolicy
-from apodeixi.controllers.journeys.delivery_planning.big_rocks              import BigRocksEstimate_Controller
+
 
 class MilestonesController(JourneysController):
     '''
@@ -185,6 +188,33 @@ class MilestonesController(JourneysController):
 
         return all_manifests_dict, label
 
+    def registerForeignKeyConstraints(self, parent_trace, all_manifests_dict):
+        '''
+         Register foreign key constraint milestones -> big rocks
+        '''
+        super().registerForeignKeyConstraints(parent_trace, all_manifests_dict)
+
+        my_trace                        = parent_trace.doing("Registering a foreign key constraint between milestones and big rocks") 
+
+        big_rock_dict                   = all_manifests_dict[0]
+        milestones_dict                 = all_manifests_dict[1]
+
+        big_rock_handle                 = ManifestUtils().inferHandle(my_trace, big_rock_dict)
+        milestones_handle               = ManifestUtils().inferHandle(my_trace, milestones_dict)
+
+        entries                         = ForeignKeyConstraintEntries(my_trace, big_rock_handle, self.store)
+
+        entity_dict                     = milestones_dict['assertion']['milestone']                                                        
+        entity_uids                     = [e_uid for e_uid in entity_dict.keys() if not e_uid.endswith("-name")]
+
+        for e_uid in entity_uids:
+            referencing_path            = ["assertion", "milestone", e_uid, "big-rock"]
+            link                        = ForeignKeyLink(my_trace, milestones_handle, referencing_path, self.store)
+            entries.addLink(my_trace, link)
+
+        foreign_key_constraints         = self.store.getForeignKeyConstraints(my_trace)
+        foreign_key_constraints.registerEntries(my_trace, entries)
+
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
         Helper function, amenable to unit testing, unlike the enveloping controller `apply` function that require a knowledge base
@@ -192,8 +222,6 @@ class MilestonesController(JourneysController):
         '''
         manifest_dict                   = super()._buildOneManifest(parent_trace, posting_data_handle, label)
            
-        my_trace                        = parent_trace.doing("Getting PostingLabel fields specific to MilestonesController") 
-
         return manifest_dict
 
     def createTemplate(self, parent_trace, form_request, kind):
@@ -236,12 +264,21 @@ class MilestonesController(JourneysController):
                                         + "\n\tname                 = " + str(name)
                                         + "\n\tkind                 = " + str(kind))
         elif kind == ME.MY_KIND:
-            name                        = self.manifestNameFromCoords(parent_trace, subnamespace, coords, kind)
+            #name                        = self.manifestNameFromCoords(parent_trace, subnamespace, coords, kind)
+
+            sub_products                = self.get_subproducts(parent_trace, template_dict)
+
             m_list                      = ["SME market", "SME market", "New UX", "Cloud"]
             t_list                      = ["CAM expansion", "Margin improvement", "New UX", "Cloud Native"]
             d_list                      = ["Q3 FY20", "Q1 FY21", "Q4 FY21", "Q4 FY22"]
 
-            template_df                 = _pd.DataFrame({"Milestone": m_list, "Theme": t_list, 'Date': d_list})
+            content_dict                = {"Milestone": m_list, "Theme": t_list}
+            if len(sub_products) == 0:
+                content_dict            = content_dict | {'Date': d_list}
+            else:
+                for sub_prod in sub_products:
+                    content_dict            = content_dict | {'Date for ' + str(sub_prod): d_list.copy()}
+            template_df             = _pd.DataFrame(content_dict)
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "
                                                 + ", ".join(self.SUPPORTED_KINDS),

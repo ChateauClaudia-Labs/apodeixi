@@ -247,7 +247,8 @@ class BigRocksEstimate_Controller(JourneysController):
                     nb_header_levels        = 2
 
                 if self.variant ==  ME.VARIANT_BURNOUT:
-                    hidden_cols             = self.apply_subproducts_to_list(loop_trace, ['UID', 'bigRock'], subproducts)
+                    #hidden_cols             = self.apply_subproducts_to_list(loop_trace, ['UID', 'bigRock'], subproducts)
+                    hidden_cols             = ['UID', 'bigRock'] # These columns are never tuples, even with subproducts
                     right_margin            = 1                    
                     num_formats             = self.apply_subproducts_to_dict(loop_trace,
                                                                                 a_dict      = {'effort': NumFormats.INT},
@@ -256,7 +257,8 @@ class BigRocksEstimate_Controller(JourneysController):
                     excel_formulas.addTotal(loop_trace, column = "effort", 
                                                         parameters = {ExcelFormulas.COLUMN_TOTAL.INCLUDE_LABEL: True})
                 elif self.variant ==  ME.VARIANT_EXPLAINED:
-                    hidden_cols             = self.apply_subproducts_to_list(loop_trace, ['UID', 'bigRock', 'effort'], subproducts)
+                    #hidden_cols             = self.apply_subproducts_to_list(loop_trace, ['UID', 'bigRock', 'effort'], subproducts)
+                    hidden_cols             = ['UID', 'bigRock', 'effort'] # These columns are never tuples, even with subproducts
                     right_margin            = 1      
                     estimate_cols           = [col for col in editable_cols if not col in hidden_cols] 
                     num_formats             = {} 
@@ -291,12 +293,21 @@ class BigRocksEstimate_Controller(JourneysController):
 
             elif key == 'investment.3':
                 editable_cols               = [col for col in data_df.columns if not DataFrameUtils().is_UID_column(loop_trace, col)]
-                hidden_cols                 = ['UID']
+                hidden_cols                 = self.apply_subproducts_to_list(loop_trace, ['UID'], subproducts)
                 right_margin                = 1
 
-                num_formats                 = {'Incremental': NumFormats.INT}
+                num_formats                 = self.apply_subproducts_to_dict(loop_trace,
+                                                                                a_dict      = {'Incremental': NumFormats.INT},
+                                                                                subproducts = subproducts)
+
                 excel_formulas              = ExcelFormulas(key)
-                excel_formulas.addCumulativeSum(parent_trace, 'Incremental')
+                if subproducts == None or len(subproducts)==0:
+                    excel_formulas.addCumulativeSum(parent_trace, 'Incremental')
+                else:
+                    # In this case columns are tuples, and there is a (<subproduct>, 'Incremental') column per subproduct,
+                    # and each of them should have a cumulative sum formula
+                    for subprod in subproducts:
+                        excel_formulas.addCumulativeSum(parent_trace, (subprod, 'Incremental'))
                 df_xy_2_excel_xy_mapper   = None
                 xlw_config  = ManifestXLWriteConfig(sheet                   = SkeletonController.GENERATED_FORM_WORKSHEET,
                                                 manifest_name               = key, 
@@ -400,13 +411,7 @@ class BigRocksEstimate_Controller(JourneysController):
             template_df                 = _pd.DataFrame({"Big Rock": br_list, "Mid Rock": mr_list, 'Small Rock': sr_list})
 
         elif kind == 'sub-product-scope':
-            product                     = labels_dict[PL._PRODUCT]
-            FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
-            organization                = labels_dict[PL._ORGANIZATION]
-            kb_area                     = labels_dict[PL._KNOWLEDGE_BASE_AREA]
-            namespace                   = FMT(organization + '.' + kb_area)
-            validator                   = StaticDataValidator(parent_trace, self.store, self.a6i_config)
-            sub_products                = validator.getSubProducts(parent_trace, namespace, product)
+            sub_products                = self.get_subproducts(parent_trace, template_dict)
             if len(sub_products) == 0:
                 # In this case, don't include the sub-product-scope in the template
                 template_dict               = None
@@ -419,9 +424,17 @@ class BigRocksEstimate_Controller(JourneysController):
             fy21_effort                 = [150, 100, 0 , 45, 0, 300, 140 ]
             big_rock_reference_list     = [None, None, None, None, None, None, None]
             
-            template_df                 = _pd.DataFrame({"bigRock": big_rock_reference_list,
-                                                        "FY 19": fy19_effort, "FY 20": fy20_effort, 'FY 21': fy21_effort})
-            template_df                 = self.apply_subproducts_to_df(parent_trace, template_dict, template_df)
+            time_buckets_dict           = {"FY 19": fy19_effort, "FY 20": fy20_effort, 'FY 21': fy21_effort}
+
+            sub_products                = self.get_subproducts(parent_trace, template_dict)
+            content_dict                = {"bigRock": big_rock_reference_list} | \
+                                            self.apply_subproducts_to_dict(parent_trace, time_buckets_dict, sub_products)
+            
+            template_df                 = _pd.DataFrame(content_dict)
+
+            #template_df                 = _pd.DataFrame({"bigRock": big_rock_reference_list,
+            #                                            "FY 19": fy19_effort, "FY 20": fy20_effort, 'FY 21': fy21_effort})
+            #template_df                 = self.apply_subproducts_to_df(parent_trace, template_dict, template_df)
         elif kind == 'investment':
             # We chose variant to be "explained" (ME.VARIANT_EXPLAINED), and in this case the 'investment' manifest
             # is not needed since that information is built into th e'big-rock-estimate' already

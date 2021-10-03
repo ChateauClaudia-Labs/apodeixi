@@ -433,7 +433,7 @@ class ExcelTableReader:
                     df                  = raw_df.drop(raw_columns[:first_col_nb], axis=1)
 
                     # Prune columns on the right
-                    df                  = raw_df.drop(raw_columns[last_col_nb+1:], axis=1)
+                    df                  = df.drop(raw_columns[last_col_nb+1:], axis=1)
 
                 else:
                     raise ApodeixiError(parent_trace, "Can't load Excel file because no headers were specified",

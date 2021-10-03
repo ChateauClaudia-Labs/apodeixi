@@ -1,12 +1,14 @@
-import os                                           as _os
+import os                                                   as _os
 
-from apodeixi.util.a6i_error                        import ApodeixiError
-from apodeixi.util.path_utils                       import PathUtils
-from apodeixi.util.yaml_utils                       import YAML_Utils
+from apodeixi.util.a6i_error                                import ApodeixiError
+from apodeixi.util.path_utils                               import PathUtils
+from apodeixi.util.yaml_utils                               import YAML_Utils
 
-from apodeixi.knowledge_base.file_kb_store          import File_KBStore_Impl
-from apodeixi.knowledge_base.filing_coordinates     import FilingCoordinates
-from apodeixi.knowledge_base.manifest_utils         import ManifestUtils
+from apodeixi.knowledge_base.file_kb_store                  import File_KBStore_Impl
+from apodeixi.knowledge_base.filing_coordinates             import FilingCoordinates
+from apodeixi.knowledge_base.manifest_utils                 import ManifestUtils
+
+from apodeixi.tree_relationships.foreign_key_constraints    import ForeignKeyConstraintsRegistry        
 
 class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
     '''
@@ -127,6 +129,14 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
             YAML_Utils().save(my_trace, data_dict = manifest_dict, path = self.output_manifests_dir + '/' + manifest_file)
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
+
+    def getForeignKeyConstraints(self, parent_trace):
+        '''
+        Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
+        with this store
+        '''
+        # Return an empty registry without constraints
+        return ForeignKeyConstraintsRegistry()
 
     def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''
