@@ -40,6 +40,10 @@ class KnowledgeBaseStore():
         Finalizes a transaction previously started by beginTransaction, by cascading any I/O previously done in
         the transaction's isolation area to the store's persistent area.
         '''
+        # First call getForeignKeyConstraints to ensure foreign key constraints get loaded (they are delayed-loaded)
+        # due to the need of passing the containing store to self._impl)
+        self.getForeignKeyConstraints(parent_trace)
+        
         return self._impl.commitTransaction(parent_trace)
         
     def abortTransaction(self, parent_trace):
@@ -201,6 +205,10 @@ class KnowledgeBaseStore():
         It persists a manifest object whose content is given by `manifest_dict`, and returns a 
         ManifestHandle that uniquely identifies it.
         '''
+        # First call getForeignKeyConstraints to ensure foreign key constraints get loaded (they are delayed-loaded)
+        # due to the need of passing the containing store to self._impl)
+        self.getForeignKeyConstraints(parent_trace)
+
         return self._impl.persistManifest(parent_trace, manifest_dict)
 
     def getForeignKeyConstraints(self, parent_trace):
@@ -208,7 +216,28 @@ class KnowledgeBaseStore():
         Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
         with this store
         '''
-        return self._impl.getForeignKeyConstraints(parent_trace)
+        return self._impl.getForeignKeyConstraints(parent_trace, containing_store = self)
+
+    def check_foreign_key_constraints(self, parent_trace, manifest_dict):
+        '''
+        Checks if all foreign key constraints against the `manifest_dict` are honored. If any isn't, will raise
+        an Apodeixi error. Otherwise it just returns.
+        '''
+        # First call getForeignKeyConstraints to ensure foreign key constraints get loaded (they are delayed-loaded)
+        # due to the need of passing the containing store to self._impl)
+        self.getForeignKeyConstraints(parent_trace)
+
+        return self._impl.check_foreign_key_constraints(parent_trace, manifest_dict)
+
+    def persistForeignKeyConstraints(self, parent_trace):
+        '''
+        Persists this store's ForeignKeyConstraintsRegistry to the system area of the store
+        '''
+        # First call getForeignKeyConstraints to ensure foreign key constraints get loaded (they are delayed-loaded)
+        # due to the need of passing the containing store to self._impl)
+        self.getForeignKeyConstraints(parent_trace)
+
+        return self._impl.persistForeignKeyConstraints(parent_trace)
 
     def retrievePreviousManifest(self, parent_trace, manifest_dict):
         '''

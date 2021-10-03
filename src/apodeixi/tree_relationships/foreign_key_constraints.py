@@ -7,7 +7,6 @@ from apodeixi.util.a6i_error                                        import Apode
 from apodeixi.util.dictionary_utils                                 import DictionaryUtils
 
 from apodeixi.xli.uid_store                                         import UID_Utils
-from apodeixi.xli.interval                                          import IntervalUtils
 
 class ForeignKeyConstraintsRegistry():
     '''
@@ -76,14 +75,17 @@ class ForeignKeyConstraintsRegistry():
            not to register the relationship from B to A in this class's registry because if we did, the software would not allow
            saving A v2 unless B v2 is saved first, which is cumbersome for the user and unnecessary to protect against
            referential integrity problems as long as the only means to change A and B is via their common posting API.
+
+    @param store A KnowledgeBaseStore
     '''
-    def __init__(self):
+    def __init__(self, store):
 
         # This dictionary has the contents of the registry.
         #   * Each key is a ManifestHandle object, corresponding to a manifest that is referenced by other manifests.
         #   * Each value is a ForeignKeyConstraintEntries object, recording the links that pertain to that key
         #
         self.registry                       = {}
+        self.store                          = store
         
     def registerEntries(self, parent_trace, entries):
         '''
@@ -153,6 +155,40 @@ class ForeignKeyConstraintsRegistry():
                                             data = {"Manifest": handle.display(parent_trace),
                                                     "Problem UIDs": str(violation_uids),
                                                     "Referencing manifests": ref_handle_msg})
+
+    def to_persistent_dict(self, parent_trace):
+        '''
+        Returns a dictionary with the data that should be persisted. This is a slimmed-down version of self.registry,
+        removing transient or referential state that shouldn't be persisted.
+        '''
+        result_dict                         = {}
+
+        for key in self.registry.keys():
+            entries                         = self.registry[key]
+            slimmed_links                   = [link.to_persistent_dict(parent_trace) for link in entries.links]
+            result_dict[key]                = slimmed_links
+
+        return result_dict
+
+    def from_persisted_dict(parent_trace, persisted_dict, store):
+        '''
+        Creates and returns a ForeignKeyConstraintsRegistry that is built from the `persisted_dict`
+
+        @param store A KnowledgeBaseStore object
+        '''
+        
+        registry                            = {}
+        for key in persisted_dict.keys():
+            slimmed_links                   = persisted_dict[key]
+            links                           = [ForeignKeyLink.from_persisted_dict(parent_trace, slim_link_dict, store) 
+                                                            for slim_link_dict in slimmed_links]
+            entries                         = ForeignKeyConstraintEntries(parent_trace, key, store)
+            entries.links                   = links
+            registry[key]                   = entries
+    
+        result                              = ForeignKeyConstraintsRegistry(store = store)
+        result.registry                     = registry
+        return result
 
 class ForeignKeyConstraintEntries():
     '''
@@ -299,4 +335,27 @@ class ForeignKeyLink():
         # If we get this far without erroring out, the UIDs are all well-formed, so we can return them
         return alleged_uids
 
-        
+    def to_persistent_dict(self, parent_trace):
+        '''
+        Returns a dictionary with the data that should be persisted. This is a slimmed-down version of self.registry,
+        removing transient or referential state that shouldn't be persisted.
+        '''
+        result_dict                         = {}
+
+        result_dict["referencing_handle"]   = self.referencing_handle
+        result_dict["referencing_path"]     = self.referencing_path
+        result_dict["referenced_uids"]      = self.referenced_uids
+
+        return result_dict        
+
+    def from_persisted_dict(parent_trace, persisted_dict, store):
+        '''
+        Creates and returns a ForeignKeyLink that is built from the `persisted_dict`
+        '''
+        referencing_handle                  = persisted_dict["referencing_handle"]
+        referencing_path                    = persisted_dict["referencing_path"] 
+
+        result                              = ForeignKeyLink(parent_trace, referencing_handle, referencing_path, store)
+    
+        return result
+    

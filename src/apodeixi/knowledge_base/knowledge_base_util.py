@@ -1,3 +1,4 @@
+import yaml                                                     as _yaml
 
 from apodeixi.knowledge_base.filing_coordinates                 import TBD_FilingCoordinates
 
@@ -138,6 +139,7 @@ class PostingDataHandle():
             excel_path                  = '/'.join(parsed_tokens)
             return excel_path + "/" + self.excel_filename
 
+
 class ManifestHandle():
     '''
     Object that uniquely identifies a manifest in an Apodeixi knowledge base
@@ -181,6 +183,22 @@ class ManifestHandle():
             + "\n\t\t" + indentation + " version        = '" + str(self.version) + "'" \
 
         return msg
+
+YAML_LOADER                     = _yaml.FullLoader
+def manifest_handle_constructor(loader: YAML_LOADER, node: _yaml.nodes.MappingNode) -> ManifestHandle:
+    '''
+    Constructor of a ManifestHandler for the YAML loader
+    '''
+    return ManifestHandle(**loader.construct_mapping(node))
+
+# "could not determine a constructor for the tag 
+# 'tag:yaml.org,2002:python/object:apodeixi.knowledge_base.knowledge_base_util.ManifestHandle'"
+# OR
+# ? !!python/object:apodeixi.knowledge_base.knowledge_base_util.ManifestHandle
+
+#TAG                             = "? !!python/object:apodeixi.knowledge_base.knowledge_base_util.ManifestHandle"
+TAG                             = 'tag:yaml.org,2002:python/object:apodeixi.knowledge_base.knowledge_base_util.ManifestHandle'
+YAML_LOADER.add_constructor(TAG, manifest_handle_constructor)
 
 class Response():
     '''

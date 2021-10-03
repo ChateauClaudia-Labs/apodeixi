@@ -130,14 +130,25 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
 
-    def getForeignKeyConstraints(self, parent_trace):
+    def getForeignKeyConstraints(self, parent_trace, containing_store):
         '''
-        Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
-        with this store
+        No-op for this class
         '''
         # Return an empty registry without constraints
-        return ForeignKeyConstraintsRegistry()
+        return ForeignKeyConstraintsRegistry(store = containing_store)
 
+    def check_foreign_key_constraints(self, parent_trace, manifest_dict):
+        '''
+        No-op for this class
+        '''
+        return
+
+    def persistForeignKeyConstraints(self, parent_trace):
+        '''
+        No-op for this class
+        '''
+        return
+        
     def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''
         '''

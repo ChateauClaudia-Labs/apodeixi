@@ -6,6 +6,9 @@ import warnings
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.util.warning_utils            import WarningUtils
 
+#YAML_LOADER                         = _yaml.FullLoader
+#YAML_DUMPER                         = _yaml.SafeDumper
+
 class YAML_Utils():
     '''
     Utility class to robustly access YAML functionality, such as loading YAML files.
@@ -55,7 +58,7 @@ class YAML_Utils():
             with warnings.catch_warnings(record=True) as w:
                 traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
 
-                _yaml.dump(data_dict, file)
+                _yaml.dump(data_dict, file) #, Dumper=YAML_DUMPER)
             
                 WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path, traceback_stream=traceback_stream)           
 
@@ -67,3 +70,4 @@ class YAML_Utils():
         _yaml.dump(data_dict, output_stream)
         result_yaml                 = output_stream.getvalue()
         return result_yaml
+

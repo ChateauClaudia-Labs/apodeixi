@@ -1,4 +1,5 @@
 import os                                               as _os
+from pathlib import Path
 import shutil                                           as _shutil
 from apodeixi.util.formatting_utils import StringUtils
 
@@ -11,6 +12,9 @@ from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDat
 from apodeixi.knowledge_base.knowledge_base_util        import PostingLabelHandle
 from apodeixi.knowledge_base.manifest_utils             import ManifestUtils
 from apodeixi.representers.as_excel                     import ManifestRepresenter
+
+from apodeixi.tree_relationships.foreign_key_constraints    import ForeignKeyConstraintsRegistry
+
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
 from apodeixi.util.a6i_error                            import ApodeixiError
@@ -176,6 +180,10 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         # Per transactional environment, it tracks all writes and deletes, in case they need to be applied
         # to a parent environment
         self._transaction_events_dict   = {} 
+
+        # These will be set on the first call to self.getForeignKeyConstraints
+        self.containing_store                       = None
+        self.foreign_key_constraints                = None
 
     _TRANSACTION                    = "store-transaction"
 
@@ -579,12 +587,83 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                     origination = {
                                                                 'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})
+
+        my_trace                        = parent_trace.doing("Checking foreign key constraints are respected")
+        if True:
+            self.foreign_key_constraints.check_foreign_key_constraints(my_trace, manifest_dict)
+
         if True:
             YAML_Utils().save(my_trace, data_dict = manifest_dict, path = manifest_dir + "/" + manifest_file)
             self._remember_manifest_write(my_trace, relative_path)
             
             handle          = ManifestUtils().inferHandle(my_trace, manifest_dict)
             return handle
+
+    def getForeignKeyConstraints(self, parent_trace, containing_store):
+        '''
+        Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
+        with this store
+        '''
+        if self.foreign_key_constraints == None:
+            # This is the first time this method is called, so initialize it.
+            # NB: reason we do this "delayed initialization" is that we need the `containing_store`, i.e.,
+            # the KnowledgeBaseStore X such that X.impl = self
+            self.containing_store               = containing_store
+            self.foreign_key_constraints, path  = self.loadForeignKeyConstraints(parent_trace)
+            if self.foreign_key_constraints == None:
+                # None exists in storage, so create a new one
+                self.foreign_key_constraints    = ForeignKeyConstraintsRegistry(store = containing_store)
+
+        return self.foreign_key_constraints
+
+    def check_foreign_key_constraints(self, parent_trace, manifest_dict):
+        '''
+        Checks if all foreign key constraints against the `manifest_dict` are honored. If any isn't, will raise
+        an Apodeixi error. Otherwise it just returns.
+        '''
+        self.foreign_key_constraints.check_foreign_key_constraints(parent_trace, manifest_dict)
+
+    def persistForeignKeyConstraints(self, parent_trace):
+        '''
+        Persists this store's ForeignKeyConstraintsRegistry to the system area of the store
+        '''
+        foreign_key_constraints_dict        = self.foreign_key_constraints.to_persistent_dict(parent_trace)
+
+        manifest_dir                        = self._current_env.manifestsURL(parent_trace) + "/system"
+        PathUtils().create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
+        version                             = 1
+        FOREIGN_KEY_FILE                    = "foreign_key_contraints." + str(version) + ".yaml"
+        YAML_Utils().save(  parent_trace, 
+                            data_dict       = foreign_key_constraints_dict, 
+                            path            = manifest_dir + "/" + FOREIGN_KEY_FILE)
+
+    def loadForeignKeyConstraints(self, parent_trace):
+        '''
+        Loads this store's ForeignKeyConstraintsRegistry from the system area of the store
+        Returns two things:
+
+        * A ForeignKeyConstraintsRegistry object. If null, this signifies that there was none found in storage
+        * A string, for the path in the file system where the ForeignKeyConstraintsRegistry was retrieved from
+        '''
+        manifest_dir                        = self._current_env.manifestsURL(parent_trace) + "/system"
+        PathUtils().create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
+        version                             = 1
+        FOREIGN_KEY_FILE                    = "foreign_key_contraints." + str(version) + ".yaml"
+        full_path                           = manifest_dir + "/" + FOREIGN_KEY_FILE
+        try:
+            PathUtils().checkPathExists(parent_trace, full_path) # Will error out if path does not exist
+        except ApodeixiError:
+            # There is are no pre-existing constraints to load, so just create an empty registry and return
+            return None, full_path
+
+        loaded_dict                         = YAML_Utils().load(parent_trace, path = full_path)
+
+        foreign_key_constraints             = ForeignKeyConstraintsRegistry.from_persisted_dict(
+                                                                            parent_trace, 
+                                                                            persisted_dict      = loaded_dict, 
+                                                                            store               = self.containing_store)
+
+        return foreign_key_constraints, full_path
 
     def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''

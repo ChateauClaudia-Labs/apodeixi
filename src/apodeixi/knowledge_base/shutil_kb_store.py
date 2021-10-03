@@ -3,8 +3,6 @@ import os                                                   as _os
 from apodeixi.knowledge_base.isolation_kb_store             import Isolation_KBStore_Impl
 from apodeixi.knowledge_base.manifest_utils                 import ManifestUtils
 
-from apodeixi.tree_relationships.foreign_key_constraints    import ForeignKeyConstraintsRegistry
-
 from apodeixi.util.a6i_error                                import ApodeixiError
 from apodeixi.util.path_utils                               import PathUtils
 
@@ -33,8 +31,6 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
     def __init__(self, parent_trace, kb_rootdir, clientURL):
 
         super().__init__(parent_trace, kb_rootdir, clientURL)
-
-        self.foreign_key_constraints                = ForeignKeyConstraintsRegistry()
 
     def beginTransaction(self, parent_trace):
         '''
@@ -134,6 +130,18 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                 if parent_events != None:
                     parent_events.remember_clientURL_deletes(relative_path)
 
+        # Last but not least: persist foreign key constraints and copy them to the
+        # parent environment
+        # 
+        self.persistForeignKeyConstraints(parent_trace)
+
+        version                             = 1
+        FOREIGN_KEY_FILE                    = "foreign_key_contraints." + str(version) + ".yaml"
+        from_path               = src_manifests_root + "/system/" + FOREIGN_KEY_FILE
+        to_dir                 = dst_manifests_root + "/system/"
+        PathUtils().create_path_if_needed(parent_trace, to_dir)
+        PathUtils().copy_file(parent_trace, from_path, to_dir)
+      
 
         # Now remove the environment of the transaction we just committed
         self.removeEnvironment(parent_trace, env.name(parent_trace)) 
@@ -336,22 +344,12 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
                 raise ApodeixiError(my_trace, "Can't persist manifest with version " + str(new_version) 
                                                 + " because no prior manifest exist with version " + str(new_version - 1),
                                             data = {"manifest handle": new_handle.display(my_trace)})
-
-        my_trace                        = parent_trace.doing("Checking foreign key constraints are respected")
-        if True:
-            self.foreign_key_constraints.check_foreign_key_constraints(my_trace, manifest_dict)
-            
+           
         my_trace                        = parent_trace.doing("Persisting manifest")
         handle                          = super().persistManifest(parent_trace, manifest_dict)
         return handle
 
-    def getForeignKeyConstraints(self, parent_trace):
-        '''
-        Returns a ForeignKeyConstraintsRegistry object containing all the foreign key constraints that have been registered
-        with this store
-        '''
-        return self.foreign_key_constraints
-
+        
     def findLatestVersionManifest(self, parent_trace, manifest_api_name, namespace, name, kind):
         '''
         For a given manifest API, a manifest is logically identified by its name and kind properties within 
@@ -528,6 +526,55 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
 
 
         return manifest, manifest_path
+
+    def loadForeignKeyConstraints(self, parent_trace):
+        '''
+        Loads this store's ForeignKeyConstraintsRegistry from the system area of the store
+
+        Returns two things:
+
+        * A ForeignKeyConstraintsRegistry object. If null, this signifies that there was none found in storage
+        * A string, for the path in the file system where the ForeignKeyConstraintsRegistry was retrieved from
+        '''
+        foreign_key_constraints, path   = super().loadForeignKeyConstraints(parent_trace)
+
+        if foreign_key_constraints == None:
+            # Not found, so normally we should return None. But before giving up, look in parent environment
+            # if we have been configured to fail over the parent environment whenver we can't find something
+            if self._failover_manifest_reads_to_parent(parent_trace):
+                # Search in parent first, and copy anything found to the current environment
+
+                my_trace                = parent_trace.doing("Searching in parent environment")
+                # Temporarily switch to the parent environment, and try again
+                original_env            = self.current_environment(my_trace)
+                self.activate(my_trace, self.parent_environment(my_trace).name(my_trace))
+
+                foreign_key_constraints, path = self.loadForeignKeyConstraints(my_trace)
+                # Now that search in parent environment is done, reset back to original environment
+                self.activate(my_trace, original_env.name(my_trace))
+
+                # Populate current environment with anything found in the parent environment, but only if it is not
+                # already in current environment
+                if foreign_key_constraints != None:
+                    my_trace            = parent_trace.doing("Copying foreign key constraints from parent environment",
+                                                    data = {"parent environment name":  
+                                                                        self.parent_environment(my_trace).name(my_trace),
+                                                            "current environment name":     
+                                                                        self.current_environment(my_trace).name(my_trace)})
+                
+                
+                    from_path           = path
+                    to_dir              = self.current_environment(my_trace).postingsURL(parent_trace) 
+
+                    if not _os.path.exists(to_dir):
+                        my_trace                    = parent_trace.doing("Copying a manifest file",
+                                                        data = {"src_path":     from_path,
+                                                                "to_dir":       to_dir})
+                        PathUtils().create_path_if_needed(parent_trace=my_trace, path=to_dir)
+                    PathUtils().copy_file(parent_trace, from_path, to_dir)
+
+
+        return foreign_key_constraints, path
 
     def archivePosting(self, parent_trace, posting_label_handle):
         '''

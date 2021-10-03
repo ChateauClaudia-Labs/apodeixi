@@ -89,6 +89,8 @@ class SkeletonController(PostingController):
                                                             + "in subsequent updates, if any")
         self.registerForeignKeyConstraints(my_trace, all_manifests_dicts)
 
+        # Persistence happens later, during committing of the transaction- self.store.persistForeignKeyConstraints(my_trace)
+
 
         my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
                                                             + "creating manifests",
