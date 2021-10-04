@@ -83,20 +83,24 @@ class CLI_BigRocks_and_Milestones_Script():
                                             _args[_s.BIG_MILESTONES_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__6", 
                                             _path_of(_args[_s.BIG_MILESTONES_v1_FILE])],
-                                        # Update big rocks v2
+                                        # First try to update big rocks v2 - should fail due to foreign key constraints
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__7", 
                                             _args[_s.BIG_ROCKS_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__8", 
                                             _path_of(_args[_s.BIG_ROCKS_v2_FILE])],
-                                        # Update milestones v2
+                                        # Update milestones v2 - should remove the reference that cuased big rocks v2 to fail
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__9", 
                                             _args[_s.BIG_MILESTONES_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__10", 
                                             _path_of(_args[_s.BIG_MILESTONES_v2_FILE])],
+                                        # Second try to update big rocks v2 - should work now that user removed references in
+                                        # milestones v2 to the rocks that were removed in v2
+                                        ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__11", 
+                                            _path_of(_args[_s.BIG_ROCKS_v2_FILE])],
                                         # Get final forms
-                                        ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__11", 
-                                            _args[_s.BIG_MILESTONES_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__12", 
+                                            _args[_s.BIG_ROCKS_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
+                                        ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__13", 
                                             _args[_s.BIG_MILESTONES_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         # Summarize assertions created
                                         ['get', 'assertions',           __environment, ENV_CHOICE]

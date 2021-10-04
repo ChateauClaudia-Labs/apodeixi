@@ -148,6 +148,7 @@ class ManifestHandle():
     @param namespace            A string. Example: "my-corp.production"
     @param name                 A string. Example: "modernization.default.dec-2020.opus"
     @param kind                 A string. Example: "big-rock"
+    @param version              An int, starting at 1 for persisted manifests
     '''
     def __init__(self, manifest_api, kind, namespace, name, version):
         self.manifest_api   = manifest_api
@@ -155,6 +156,9 @@ class ManifestHandle():
         self.namespace      = namespace
         self.name           = name
         self.version        = version
+
+    def getManifestType(self):
+        return ManifestType(manifest_api=self.manifest_api, kind=self.kind, namespace=self.namespace, name=self.name)
         
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -162,7 +166,6 @@ class ManifestHandle():
         else:
             return False
 
-    #def __copy__(self):
     def copy(self):
             return ManifestHandle(manifest_api = self.manifest_api, kind = self.kind, namespace = self.namespace, 
                                     name = self.name, version = self.version)
@@ -181,6 +184,47 @@ class ManifestHandle():
             + "\n\t\t" + indentation + " kind           = '" + str(self.kind) + "'" \
             + "\n\t\t" + indentation + " name           = '" + str(self.name) + "'" \
             + "\n\t\t" + indentation + " version        = '" + str(self.version) + "'" \
+
+        return msg
+
+class ManifestType():
+    '''
+    This is similar to a ManifestHandle, except it has no version. It is a helper class used in cases
+    where we need to check if two manifest handles are for different versions of the same domain object.
+
+    @param manifest_api_name    A string. Example: "delivery-planning.journeys.a6i.io"
+    @param namespace            A string. Example: "my-corp.production"
+    @param name                 A string. Example: "modernization.default.dec-2020.opus"
+    @param kind                 A string. Example: "big-rock"
+    '''
+    def __init__(self, manifest_api, kind, namespace, name):
+        self.manifest_api   = manifest_api
+        self.kind           = kind
+        self.namespace      = namespace
+        self.name           = name
+        
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
+    def copy(self):
+            return ManifestHandle(manifest_api = self.manifest_api, kind = self.kind, namespace = self.namespace, 
+                                    name = self.name)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(str(self.manifest_api)) + hash(str(self.kind)) + hash(str(self.namespace)) + hash(str(self.name))
+
+    def display(self, parent_trace, indentation=""):
+        msg = "" \
+            + "\n\t\t" + indentation + " manifest_api   = '" + str(self.manifest_api) + "'" \
+            + "\n\t\t" + indentation + " namespace      = '" + str(self.namespace) + "'" \
+            + "\n\t\t" + indentation + " kind           = '" + str(self.kind) + "'" \
+            + "\n\t\t" + indentation + " name           = '" + str(self.name) + "'" \
 
         return msg
 

@@ -25,6 +25,9 @@ class Test_BigRocks_and_Milestones_CLI(CLI_Test_Skeleton):
     }
        
     def test_cli_bigrocks_and_milestones(self):
+        '''
+        Exercises two capabilities: 1) subproduct functionality and 2) foreign key constraints
+        '''
         ME                              = Test_BigRocks_and_Milestones_CLI
         self.setScenario("cli.bigrocks_&_milestones")
         self.setCurrentTestName('cli.br_ml')

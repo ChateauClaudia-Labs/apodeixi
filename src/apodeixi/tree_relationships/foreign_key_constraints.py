@@ -131,11 +131,30 @@ class ForeignKeyConstraintsRegistry():
         
         constraint_entries                          = self.registry[prior_handle]
 
+        # Filter the links in the constraint_entries to be the latest version of each referencing manifest
+        if True:
+            handle_types                                = [link.referencing_handle.getManifestType() 
+                                                                for link in constraint_entries.links]
+            #Remove duplicates
+            handle_types                                = list(set(handle_types))
+
+            filtered_links                              = []
+            for ht in handle_types:
+                matching_links                          = [link for link in constraint_entries.links if
+                                                            link.referencing_handle.getManifestType()== ht]
+                latest_version                          = max([link.referencing_handle.version for link in matching_links])
+                latest_links                            = [link for link in matching_links if
+                                                            link.referencing_handle.version == latest_version]
+                # GOTCHA: while there is only one ManifestType in this loop, there might be multiple links since a
+                # single referencing manifest instance has a link per path. So we use extend, not a append,
+                # since there are multiple links to add, not 1
+                filtered_links.extend(latest_links)
+
         # We will aggregate all foreign key constraint violations (if any) in a dictionary where the keys
         # are ManifestHandles for the referencing manifests, and the values are lists of UIDs that were removed
         # but are relied upon by those referencing manifests
         violations                                  = {}
-        for link in constraint_entries.links:
+        for link in filtered_links: #constraint_entries.links:
             referenced_uids                         = link.referenced_uids
             link_violations                         = [uid for uid in deleted_uids if uid in referenced_uids]
             if len(link_violations)  > 0:
