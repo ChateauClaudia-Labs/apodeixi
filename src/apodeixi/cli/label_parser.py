@@ -35,7 +35,7 @@ class LabelParser():
                     return False
                 else:
                     return True
-            elif self.is
+            #elif self.is #TODO - Finish the implementation
 
     def is_and(self, parent_trace, expression):
         '''
@@ -52,7 +52,7 @@ class LabelParser():
     def is_clause(self, parent_trace, expression):
         '''
         '''
-        if 
+        pass # TODO
 
     def is_equality(self, parent_trace, expression):
         '''
