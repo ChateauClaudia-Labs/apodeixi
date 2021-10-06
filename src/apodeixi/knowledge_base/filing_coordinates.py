@@ -60,7 +60,7 @@ class FilingCoordinates():
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                                 'signaled_from': __file__}) 
     
-    def getTag(self, parent_trace):
+    def getTag(self, parent_trace, suffix):
         '''
         Abstract method.
 
@@ -189,7 +189,7 @@ class JourneysFilingCoordinates(FilingCoordinates):
         '''
         return "['"+ JourneysFilingCoordinates.JOURNEYS + "', <scoringCycle>, <product>, <scenario>]"
 
-    def getTag(self, parent_trace):
+    def getTag(self, parent_trace, suffix):
         '''
         Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
         filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
@@ -207,7 +207,10 @@ class JourneysFilingCoordinates(FilingCoordinates):
         in Excel since they have different filenames (Excel won't allow opening two files with the same
         filename, even if they are in different folders)
         '''
-        return self.product
+        if suffix != None:
+            return self.product + "." + suffix
+        else:
+            return self.product
 
 class InitiativesFilingCoordinates(FilingCoordinates):
     '''
@@ -366,7 +369,7 @@ class InitiativesFilingCoordinates(FilingCoordinates):
 
         return output_txt
 
-    def getTag(self, parent_trace):
+    def getTag(self, parent_trace, suffix):
         '''
         Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
         filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
@@ -384,7 +387,10 @@ class InitiativesFilingCoordinates(FilingCoordinates):
         in Excel since they have different filenames (Excel won't allow opening two files with the same
         filename, even if they are in different folders)
         '''
-        return self.initiative + "." + self.workstream_UID
+        tag             = self.initiative + "." + self.workstream_UID
+        if suffix != None:
+            tag         = tag + "." + suffix
+        return tag  
 
 class TBD_FilingCoordinates(FilingCoordinates):
     '''
@@ -454,7 +460,7 @@ class TBD_FilingCoordinates(FilingCoordinates):
         msg             = "TBD - Submitted from: " + str(path)
         return msg
 
-    def getTag(self, parent_trace):
+    def getTag(self, parent_trace, suffix):
         '''
         Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
         filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
@@ -473,7 +479,7 @@ class TBD_FilingCoordinates(FilingCoordinates):
         filename, even if they are in different folders)
         '''
         if self._inferred_coords != None:
-            return self._inferred_coords.getTag(parent_trace)
+            return self._inferred_coords.getTag(parent_trace, suffix)
         else:
             raise ApodeixiError(parent_trace, "Filename tag is not available because coordinate haven't yet been inferred",
                                             origination = {'concrete class': str(self.__class__.__name__), 

@@ -38,7 +38,7 @@ class Test_BasicPostingFlows(Post_and_Update_Skeleton):
         self.run_script(    scenario                    = "basic_posting_flows.milestones", 
                             test_name                   = "ml_jackh", 
                             excel_relative_path         = "journeys/Dec 2020/Jack Henry/OfficialPlan", 
-                            excel_file                  = "Jack Henry.milestone.journeys.a6i.xlsx", 
+                            excel_file                  = "Jack Henry.modernization.milestone.journeys.a6i.xlsx", 
                             excel_sheet                 = "Posting Label", 
                             nb_manifests                = 1, # Not 2, since big-rock manifest will be read-only 
                             from_nothing                = True, 

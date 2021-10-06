@@ -35,6 +35,7 @@ class StaticDataValidator():
                     raise ApodeixiError(my_trace, "Invalid product field in Posting Label",
                                     data = {    "Expected one of":  str(all_product_codes),
                                                 "Submitted":        str(alleged_product)})
+
         except ApodeixiError as ex:
             raise ex
         except Exception as ex:
@@ -52,40 +53,50 @@ class StaticDataValidator():
                         'Scoring Cycle', and 'Scenario'
 
         '''
-        JOURNEY_COL                     = 'journey'
-        SCORING_CYCLE_COL               = 'Scoring Cycle'
-        SCENARIO_COL                    = 'Scenario'
-        submitted                       = None
+        JOURNEY_COL                         = 'journey'
+        SCORING_CYCLE_COL                   = 'Scoring Cycle'
+        SCENARIO_COL                        = 'Scenario'
+        submitted                           = None
         try:
-            my_trace                    = parent_trace.doing("Checking scoring cycle referential integrity")
+            my_trace                        = parent_trace.doing("Checking scoring cycle referential integrity")
             if True:
-                alleged_journey         = label.journey(my_trace)
-                alleged_scoring_cycle   = label.scoring_cycle(my_trace)
-                alleged_scenario        = label.scenario(my_trace)
+                alleged_journey, subproduct = self._split_subnamespace(my_trace, label, namespace)
+                alleged_scoring_cycle       = label.scoring_cycle(my_trace)
+                alleged_scenario            = label.scenario(my_trace)
 
-                submitted               = [alleged_journey, alleged_scoring_cycle, alleged_scenario]
+                submitted                   = [alleged_journey, alleged_scoring_cycle, alleged_scenario]
 
-                contents_df             = self._loadStaticData( my_trace, 
-                                                                namespace, 
-                                                                kind            = 'scoring-cycle', 
-                                                                entity          = 'journey')
+                contents_df                 = self._loadStaticData( my_trace, 
+                                                                    namespace, 
+                                                                    kind            = 'scoring-cycle', 
+                                                                    entity          = 'journey')
 
-                valid_options           = []
+
+                valid_options               = []
+                MULTIPLE_JOURNEYS           = "Multiple"
+
                 for row in contents_df.iterrows():
-                    journey             = row[1][JOURNEY_COL]
-                    scoring_cycle       = row[1][SCORING_CYCLE_COL]
-                    scenario            = row[1][SCENARIO_COL]
+                    journey                 = row[1][JOURNEY_COL]
+                    scoring_cycle           = row[1][SCORING_CYCLE_COL]
+                    scenario                = row[1][SCENARIO_COL]
 
-                    EQ                  = StringUtils().equal_as_yaml
+                    EQ                      = StringUtils().equal_as_yaml
 
                     if EQ(alleged_journey, journey) and EQ(alleged_scoring_cycle, scoring_cycle) \
                                                     and EQ(alleged_scenario, scenario):
-                    #if alleged_journey == journey and alleged_scoring_cycle == scoring_cycle and alleged_scenario == scenario:
                         # Good, we have a match so that Posting Label is referencing things that exist.
                         # So just return, validation is a success
                         return
+                    elif EQ(alleged_journey, MULTIPLE_JOURNEYS) and EQ(alleged_scoring_cycle, scoring_cycle) \
+                                                    and EQ(alleged_scenario, scenario):
+                        # This is also a "match", in the sense that sometimes (e.g., for products with subproducts)
+                        # there might be different journeys for different subproducts, say, and Apodeixi
+                        # semantics are that the user should enter "Multiple" as the journey. So this is
+                        # also considered vaid
+                        return
                     # Remember this in case we need to error out and provide this feedback to the user
                     valid_options.append([journey, scoring_cycle, scenario])
+                    valid_options.append([MULTIPLE_JOURNEYS, scoring_cycle, scenario])
 
                 # If we get this far then there has been no match. 
                 raise ApodeixiError(my_trace, "Invalid combination of [journey, scoring cycle, scenario] in Posting Label",
@@ -100,6 +111,45 @@ class StaticDataValidator():
                                 + " [journey, scoring cycle, scenario] in Posting Label",
                                 data = {    "in posting label": submitted, 
                                             "error":            str(ex)})
+
+    def _split_subnamespace(self, parent_trace, label, namespace):
+        '''
+        Helper method to self.validateScoringCycle. It determines whether the subnamespace provided by the user in the
+        posting request (i.e., label.journey) is really a journey like "Cloud" or, in situations where subproducts
+        exist, a composite like "Cloud.PTG", which would indicate that it is the "Cloud" journey for the
+        subproduct "PTG".
+
+        Returns two strings: the journey the subproduct, if it exists.
+
+        Example 1: if label.journey is "Cloud.PTG", then it returns ("Cloud", "PTG")
+
+        Example 2: if label.journey is "Cloud" then it returns ("Cloud", None)
+
+        It does some validation: in the case of composite subnamespaces like "Cloud.PTG", then it 
+        validates that "PTG" is a real subproduct of label.product (which should be something like "GPP")
+        '''
+        subnamespace                = label.journey(parent_trace)
+        tokens                      = subnamespace.split(".")
+        if len(tokens) == 1:
+            alleged_journey         = tokens[0]
+            subproduct      = None
+        elif len(tokens) == 2:
+            alleged_journey         = tokens[0]
+            subproduct              = tokens[1]
+        else:
+            raise ApodeixiError("'" + str(subnamespace) +"' is invalid subnamespace. "
+                                "Should have at most token separated by '.', like 'Cloud' or 'Cloud.PTG'")
+        if subproduct != None:
+            # Check it is a valid subproduct
+            alleged_product         = label.product(parent_trace)
+            valid_subproducts       = self.getSubProducts(parent_trace, namespace, alleged_product)
+            if not StringUtils().is_in_as_yaml(subproduct, valid_subproducts):
+                raise ApodeixiError(parent_trace, "'" + str(subproduct) + " is not a valid subproduct for '"
+                                    + str(alleged_product) + "'",
+                                    data = {"valid subproducts":    str(valid_subproducts)})
+
+        # If we get this far then the subproduct (if it exists) seems legit, so return
+        return alleged_journey, subproduct
 
     def getScoringCycles(self, parent_trace, namespace):
         '''
@@ -180,7 +230,15 @@ class StaticDataValidator():
 
 
         if SUB_PRODUCT_COL in alleged_product_df.columns:
-            return list(alleged_product_df[SUB_PRODUCT_COL].unique())
+            # Because of the way how content_df is built (with sparse=False in self._loadStaticData), 
+            # it probably has a dedicated row for the product and additional
+            # rows for each subproduct. In other words, there like is a row (the one for the product) that has a blank
+            # subproduct field.
+            # So we must not pick up the row where the product lies is the subproduct field is
+            # blank - otherwise we would be erroreously returning a spurious "blank" subproduct. Hence the filter we do here
+            candidates              = list(alleged_product_df[SUB_PRODUCT_COL].unique())
+            real_subproducts        = [prod for prod in candidates if not StringUtils().is_blank(prod)]
+            return real_subproducts
         else:
             return []
 

@@ -66,7 +66,7 @@ class StaticDataFilingCoordinates(FilingCoordinates):
         ME                  = StaticDataFilingCoordinates
         return "['"+ ME.ADMIN + ", " + ME.STATIC_DATA + "]"
 
-    def getTag(self, parent_trace):
+    def getTag(self, parent_trace, suffix):
         '''
         Returns a string, which is possibly empty. This string is a "tag" that would be appended to the
         filename of any generated form (i.e., any Excel spreadsheet created by Apodeixi that adheres
@@ -84,4 +84,7 @@ class StaticDataFilingCoordinates(FilingCoordinates):
         in Excel since they have different filenames (Excel won't allow opening two files with the same
         filename, even if they are in different folders)
         '''
-        return ''
+        if suffix != None:
+            return suffix
+        else:
+            return ''

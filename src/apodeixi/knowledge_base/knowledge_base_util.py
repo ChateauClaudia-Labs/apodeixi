@@ -71,7 +71,7 @@ class PostingLabelHandle():
                     LedgerPro.big-rocks.journeys.a6i
 
         '''
-        tag                         = self.filing_coords.getTag(parent_trace)
+        tag                         = self.filing_coords.getTag(parent_trace, suffix=None)
         if type(tag) == str and len(tag) > 0:
             filename                = tag + "." + self.posting_api + ".xlsx"
         else:
@@ -486,7 +486,7 @@ class FormRequestResponse(Response):
         which this class is the response.
         '''
         parsed_tokens               = self._filing_coords.path_tokens(parent_trace)
-        tag                         = self._filing_coords.getTag(parent_trace)
+        tag                         = self._filing_coords.getTag(parent_trace, suffix=None)
         if type(tag) == str and len(tag) > 0:
             filename                = tag + "." + self._posting_api + ".xlsx"
         else:
@@ -573,7 +573,12 @@ class FormRequest():
         should reside
         '''
         parsed_tokens               = self._filing_coords.path_tokens(parent_trace)
-        tag                         = self._filing_coords.getTag(parent_trace)
+        if type(self._scope) == FormRequest.SearchScope:
+            suffix                  = self._scope.subnamespace
+        else:
+            suffix                  = None
+
+        tag                         = self._filing_coords.getTag(parent_trace, suffix)
         if type(tag) == str and len(tag) > 0:
             filename                = tag + "." + self._posting_api + ".xlsx"
         else:

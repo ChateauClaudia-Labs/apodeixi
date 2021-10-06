@@ -30,6 +30,7 @@ class JourneysController(SkeletonController):
                                             extension       = 'io')
 
         self.using_subproducts          = None # This will be set in self._buildOneManifest
+        self.subproducts                = None # This will be set in self._buildOneManifest
 
     def getFilingClass(self):
         '''
@@ -173,6 +174,7 @@ class JourneysController(SkeletonController):
                 self.using_subproducts  = False
             else:
                 self.using_subproducts  = True # Derived classes can use this in self.getPostingConfig to ensure multiple headers are on
+                self.subproducts        = subproducts
 
         manifest_dict                   = super()._buildOneManifest(parent_trace, posting_data_handle, label)
            
@@ -254,10 +256,11 @@ class JourneysController(SkeletonController):
         It also adds an extra level to the columns of the returned value (i.e., columns are a MultiIndex of tuples)
         where the top level is the subproduct.
 
-        If the product in question has no subproducts, then it just returns `template_df` without changes.
+        If the product in question has no subproducts, or if it is an empty list, 
+        then it just returns `template_df` without changes.
         '''
         subproducts                     = self.get_subproducts(parent_trace, template_dict)
-        if subproducts == None:
+        if subproducts == None or len(subproducts) == 0:
             return template_df
         else:
             template_per_subproduct_df  = DataFrameUtils().replicate_dataframe( parent_trace, 
@@ -271,12 +274,12 @@ class JourneysController(SkeletonController):
 
         For each element X in `a_list` and each sub-product P in `subproducts`, the returned list has a tuple (P, X)
 
-        If subproducts is None, then it just returns `a_list`
+        If subproducts is None, or if it is an empty list, then it just returns `a_list`
 
         @param a_list A list, typically of strings
         @param suproducts A list, typically of strings
         '''
-        if subproducts == None:
+        if subproducts == None or len(subproducts) == 0:
             return a_list
         else:
             result                          = [(x,y) for (x, y) in _itertools.product(*[subproducts, a_list])]
@@ -290,12 +293,12 @@ class JourneysController(SkeletonController):
         For each key X in `a_dict` and each sub-product P in `subproducts`, the returned dict R has a key (P, X)
         such that R[(P, X)] = a_dict[X]
 
-        If subproducts is None, then it just returns `a_dict`
+        If subproducts is None, or if it is an empty list, then it just returns `a_dict`
 
         @param a_dict A dict, typically of strings
         @param suproducts A list, typically of strings
         '''
-        if subproducts == None:
+        if subproducts == None or len(subproducts) == 0:
             return a_dict
         else:
             result                          = {}

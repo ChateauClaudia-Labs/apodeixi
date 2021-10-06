@@ -22,11 +22,12 @@ from apodeixi.xli.posting_controller_utils                                  impo
 
 class BigRocksEstimate_Controller(JourneysController):
     '''
-    Class to process an Excel posting for big rocks estimates. It produces three YAML manifests:
+    Class to process an Excel posting for big rocks estimates. It produces up to four YAML manifests:
     
     * One for the big rocks
+    * One for the sub products scope, if there are sub products
     * One for the effort estimates
-    * One for the investment promised
+    * One for the investment promised, for the "burnout" variant
 
     @param store A KnowledgeBaseStore instance. Handles all I/O of postings and manifests for this controller.
     @param a6i_config The ApodeixiConfig instance for the Python process in which we are running.
