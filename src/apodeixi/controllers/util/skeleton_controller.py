@@ -95,7 +95,8 @@ class SkeletonController(PostingController):
         my_trace                    = parent_trace.doing("Archiving posting after successfully parsing it and "
                                                             + "creating manifests",
                                                             data = {"excel_filename": excel_filename})
-        archival_handle             = self.store.archivePosting(my_trace, posting_label_handle)
+        subnamespace                = self.subnamespaceFromLabel(my_trace, label)
+        archival_handle             = self.store.archivePosting(my_trace, posting_label_handle, subnamespace)
         response.recordArchival(my_trace, posting_label_handle, archival_handle)
 
         manifest_handles            = response.allActiveManifests(my_trace)
@@ -507,6 +508,18 @@ class SkeletonController(PostingController):
                                                         excel_range         = excel_range)
             result.append(data_handle)
         return result
+
+    def subnamespaceFromLabel(self, parent_trace, label):
+        '''
+        Helper method that returns what the 'subnamespace' that is a portion of a manifest's name.
+        It is inferred from a `label` that provides the posting details for a manifest that should be created.
+
+        Returns a string corresponding to the subnamespace, if one applies to this `kind` of manifest.
+        If no subnamespace applies, returns None.
+        '''
+        raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'subnamespaceFromLabel' in concrete class",
+                                                origination = {'concrete class': str(self.__class__.__name__), 
+                                                                'signaled_from': __file__}) 
 
     def manifestNameFromLabel(self, parent_trace, label, kind):
         '''

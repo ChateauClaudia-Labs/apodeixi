@@ -75,6 +75,18 @@ class Workstream_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
+    def subnamespaceFromLabel(self, parent_trace, label):
+        '''
+        Helper method that returns what the 'subnamespace' that is a portion of a manifest's name.
+        It is inferred from a `label` that provides the posting details for a manifest that should be created.
+
+        Returns a string corresponding to the subnamespace, if one applies to this `kind` of manifest.
+        If no subnamespace applies, returns None.
+        '''
+        program                         = label.program             (parent_trace)
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        return FMT(program)
+
     def manifestNameFromLabel(self, parent_trace, label, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given
@@ -127,7 +139,8 @@ class Workstream_Controller(SkeletonController):
 
 
         workstream_UID                  = coords.workstream_UID
-        initiative                      = subnamespace
+        program                         = subnamespace
+        initiative                      = coords.initiative
         scenario                        = coords.scenario
         scoring_cycle                   = coords.scoring_cycle
 

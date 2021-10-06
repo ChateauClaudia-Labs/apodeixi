@@ -252,7 +252,7 @@ class UnitTest_KnowledgeBaseStore(File_KBStore_Impl):
 
         return matching_manifests, matching_filenames
 
-    def archivePosting(self, parent_trace, posting_label_handle):
+    def archivePosting(self, parent_trace, posting_label_handle, subnamespace):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
         to this posting event and returns a FilingCoordinates object to identify that folder.       

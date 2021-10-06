@@ -576,13 +576,13 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
 
         return foreign_key_constraints, path
 
-    def archivePosting(self, parent_trace, posting_label_handle):
+    def archivePosting(self, parent_trace, posting_label_handle, subnamespace):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
         to this posting event and returns a PostingLabelHandle to identify the Excel file in this newly
         created archival folder.       
         '''
-        archival_handle                     = super().archivePosting(parent_trace, posting_label_handle)
+        archival_handle                     = super().archivePosting(parent_trace, posting_label_handle, subnamespace)
         
         return archival_handle
 

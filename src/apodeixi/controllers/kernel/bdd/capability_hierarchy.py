@@ -55,6 +55,18 @@ class CapabilityHierarchy_Controller(SkeletonController):
         ME                              = CapabilityHierarchy_Controller
         return ME._MyPostingLabel(parent_trace, controller = self)
 
+    def subnamespaceFromLabel(self, parent_trace, label):
+        '''
+        Helper method that returns what the 'subnamespace' that is a portion of a manifest's name.
+        It is inferred from a `label` that provides the posting details for a manifest that should be created.
+
+        Returns a string corresponding to the subnamespace, if one applies to this `kind` of manifest.
+        If no subnamespace applies, returns None.
+        '''
+        scaffolding_purpose             = label.scaffoldingPurpose  (parent_trace)
+        FMT                             = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+        return FMT(scaffolding_purpose)
+
     def manifestNameFromLabel(self, parent_trace, label, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given

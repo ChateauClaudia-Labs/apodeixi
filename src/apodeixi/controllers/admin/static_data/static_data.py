@@ -70,6 +70,16 @@ class StaticData_Controller(SkeletonController):
 
         return all_manifests_dict, label
 
+    def subnamespaceFromLabel(self, parent_trace, label):
+        '''
+        Helper method that returns what the 'subnamespace' that is a portion of a manifest's name.
+        It is inferred from a `label` that provides the posting details for a manifest that should be created.
+
+        Returns a string corresponding to the subnamespace, if one applies to this `kind` of manifest.
+        If no subnamespace applies, returns None.
+        '''
+        return None
+
     def manifestNameFromLabel(self, parent_trace, label, kind):
         '''
         Helper method that returns what the 'name' field should be in the manifest to be created with the given

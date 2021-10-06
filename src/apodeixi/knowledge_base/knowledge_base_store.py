@@ -320,12 +320,12 @@ class KnowledgeBaseStore():
         '''
         return self._impl.searchManifests(parent_trace, kinds_of_interest, manifest_filter)
 
-    def archivePosting(self, parent_trace, posting_label_handle):
+    def archivePosting(self, parent_trace, posting_label_handle, subnamespace):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
         to this posting event and returns a FilingCoordinates object to identify that folder.       
         '''
-        return self._impl.archivePosting(parent_trace, posting_label_handle)
+        return self._impl.archivePosting(parent_trace, posting_label_handle, subnamespace)
         
     def logPostEvent(self, parent_trace, controller_response):
         '''

@@ -1030,7 +1030,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 
         return result
 
-    def archivePosting(self, parent_trace, posting_label_handle):
+    def archivePosting(self, parent_trace, posting_label_handle, subnamespace):
         '''
         Used after a posting Excel file has been processed. It moves the Excel file to a newly created folder dedicated 
         to this posting event and returns a PostingLabelHandle to identify the Excel file in this newly
@@ -1124,7 +1124,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                 dst_filename                = filename)
 
         # Save posting in official area with official name, possibly removing it from the source
-        dst_filename                        = posting_label_handle.createTaggedFilename(parent_trace)
+        dst_filename                        = posting_label_handle.createTaggedFilename(parent_trace, subnamespace)
         my_trace                            = parent_trace.doing("Saving posted Excel file to KnowledgeBase's excel postings area",
                                                         data = {"destination": str(dst_filename)})
         _conditional_move(  parent_trace                = my_trace,

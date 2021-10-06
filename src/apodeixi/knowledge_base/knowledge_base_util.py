@@ -55,7 +55,7 @@ class PostingLabelHandle():
             excel_path                  = '/'.join(parsed_tokens)
             return excel_path + "/" + self.excel_filename
 
-    def createTaggedFilename(self, parent_trace):
+    def createTaggedFilename(self, parent_trace, subnamespace):
         '''
         Returns a filename that should be used when creating "copies" of a posting Excel file as a result
         of processing it with this PostingLabelHandle.
@@ -71,7 +71,7 @@ class PostingLabelHandle():
                     LedgerPro.big-rocks.journeys.a6i
 
         '''
-        tag                         = self.filing_coords.getTag(parent_trace, suffix=None)
+        tag                         = self.filing_coords.getTag(parent_trace, suffix=subnamespace)
         if type(tag) == str and len(tag) > 0:
             filename                = tag + "." + self.posting_api + ".xlsx"
         else:
