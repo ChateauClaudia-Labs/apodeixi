@@ -73,7 +73,6 @@ class StaticDataValidator():
 
 
                 valid_options               = []
-                MULTIPLE_JOURNEYS           = "Multiple"
 
                 for row in contents_df.iterrows():
                     journey                 = row[1][JOURNEY_COL]
@@ -87,7 +86,7 @@ class StaticDataValidator():
                         # Good, we have a match so that Posting Label is referencing things that exist.
                         # So just return, validation is a success
                         return
-                    elif EQ(alleged_journey, MULTIPLE_JOURNEYS) and EQ(alleged_scoring_cycle, scoring_cycle) \
+                    elif EQ(alleged_journey, ProductsController.MULTIPLE_JOURNEYS) and EQ(alleged_scoring_cycle, scoring_cycle) \
                                                     and EQ(alleged_scenario, scenario):
                         # This is also a "match", in the sense that sometimes (e.g., for products with subproducts)
                         # there might be different journeys for different subproducts, say, and Apodeixi
@@ -96,7 +95,7 @@ class StaticDataValidator():
                         return
                     # Remember this in case we need to error out and provide this feedback to the user
                     valid_options.append([journey, scoring_cycle, scenario])
-                    valid_options.append([MULTIPLE_JOURNEYS, scoring_cycle, scenario])
+                    valid_options.append([ProductsController.MULTIPLE_JOURNEYS, scoring_cycle, scenario])
 
                 # If we get this far then there has been no match. 
                 raise ApodeixiError(my_trace, "Invalid combination of [journey, scoring cycle, scenario] in Posting Label",
@@ -254,7 +253,9 @@ class StaticDataValidator():
         my_trace                    = parent_trace.doing("Retrieving product static data")
         contents_df                 = self._loadStaticData(my_trace, namespace, kind='product', entity='product')
         
-        all_product_codes           = list(contents_df[PRODUCT_COL])
+        # GOTCHA: due to subproducts, some products may appear in multiple rows in contents_df, so make sure to
+        # remove duplicates
+        all_product_codes           = list(contents_df[PRODUCT_COL].unique())
         return all_product_codes
 
     def _loadStaticData(self, parent_trace, namespace, kind, entity):

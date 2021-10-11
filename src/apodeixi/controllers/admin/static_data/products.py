@@ -36,6 +36,8 @@ class ProductsController(StaticData_Controller):
     SUB_PRODUCT_COL             = 'Sub Product'
     SUB_PRODUCT_ALIAS_COL       = 'Sub product aliases'
 
+    MULTIPLE_JOURNEYS           = "Multiple"
+
     def getSupportedVersions(self):
         return self.SUPPORTED_VERSIONS 
 

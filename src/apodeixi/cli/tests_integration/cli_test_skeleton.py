@@ -221,6 +221,8 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         argv_without_arguments      = command_argv[:1]
                     elif command_argv[0] in ["get"]:
                         argv_without_arguments      = command_argv[:2]
+                    elif command_argv[0] in ["import"]:
+                        argv_without_arguments      = command_argv[:2]
                     else:
                         raise ApodeixiError(my_trace, "Command not recognized: '" + str(command_argv[0]) + "'")
 
@@ -242,6 +244,9 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         path_posted                 = command_argv[-1]
                         unique_argument             = _os.path.split(path_posted)[1]
                         command_without_flag_params += " " + unique_argument 
+                    elif command_argv[:2] in [["import", "aha"]]:
+                        args                        = command_argv[-2:]
+                        command_without_flag_params += " ".join(args)
 
                     output_to_display           = "=> " + command_without_flag_params + "\n\n"
                     

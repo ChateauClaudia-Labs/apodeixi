@@ -1,14 +1,18 @@
 import sys                                  as _sys
 import os                                   as _os
-from apodeixi.cli.cli_utils import CLI_Utils
-from apodeixi.util.path_utils import PathUtils
+
 import click
+import warnings
 
 import apodeixi
 from apodeixi.cli.kb_session                import KB_Session
 from apodeixi.cli.error_reporting           import CLI_ErrorReporting
+from apodeixi.cli.cli_utils                 import CLI_Utils
 from apodeixi.util.a6i_error                import FunctionalTrace, ApodeixiError
+from apodeixi.util.path_utils               import PathUtils
 from apodeixi.util.performance_utils        import ApodeixiTimer
+from apodeixi.util.warning_utils            import WarningUtils
+
 
 pass_kb_session                             = click.make_pass_decorator(KB_Session, ensure=True)
 
@@ -338,48 +342,54 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
                                                             origination     = {'signaled_from': __file__})
     kb_operation_succeeded              = False
     try:
-        if environment != None:
-            kb_session.store.activate(parent_trace = root_trace, environment_name = environment)
-            click.echo(CLI_Utils().sandox_announcement(environment))
-        elif dry_run == True:
-            sandbox_name                    = kb_session.provisionSandbox(root_trace)
-            click.echo(CLI_Utils().sandox_announcement(sandbox_name))
-        '''
-        else:
-            raise ApodeixiError(root_trace, "Sorry, only sandbox-isolated runs are supported at this time. Aborting.")
-        '''
-        # Now that we have pinned down the environment (sandbox or not) in which to call the KnowledgeBase's services,
-        # set that environment's tag to use for KnoweldgeBase's posting logs, if the user set it.
-        if timestamp:
-            kb_session.store.current_environment(root_trace).config(root_trace).use_timestamps = timestamp
+        # Catch warnings and handle them so that we avoid spurious noise in the CLI due to noisy 3rd party libraries
+        with warnings.catch_warnings(record=True) as w:
+            traceback_stream            = WarningUtils().turn_traceback_on(root_trace)        
+            if environment != None:
+                kb_session.store.activate(parent_trace = root_trace, environment_name = environment)
+                click.echo(CLI_Utils().sandox_announcement(environment))
+            elif dry_run == True:
+                sandbox_name                    = kb_session.provisionSandbox(root_trace)
+                click.echo(CLI_Utils().sandox_announcement(sandbox_name))
+            '''
+            else:
+                raise ApodeixiError(root_trace, "Sorry, only sandbox-isolated runs are supported at this time. Aborting.")
+            '''
+            # Now that we have pinned down the environment (sandbox or not) in which to call the KnowledgeBase's services,
+            # set that environment's tag to use for KnoweldgeBase's posting logs, if the user set it.
+            if timestamp:
+                kb_session.store.current_environment(root_trace).config(root_trace).use_timestamps = timestamp
 
-  
-        my_trace                            = root_trace.doing("Invoking KnowledgeBase's requestForm service")
+    
+            my_trace                            = root_trace.doing("Invoking KnowledgeBase's requestForm service")
 
-        output_dir                          = _os.getcwd()
-        clientURL                           = kb_session.store.getClientURL(my_trace)
-        relative_path, void                 = PathUtils().relativize(   parent_trace    = my_trace, 
-                                                                        root_dir        = clientURL, 
-                                                                        full_path       = output_dir)
+            output_dir                          = _os.getcwd()
+            clientURL                           = kb_session.store.getClientURL(my_trace)
+            relative_path, void                 = PathUtils().relativize(   parent_trace    = my_trace, 
+                                                                            root_dir        = clientURL, 
+                                                                            full_path       = output_dir)
 
-        form_request                        = kb_session.store.getBlindFormRequest( parent_trace    = my_trace, 
-                                                                                    relative_path   = relative_path, 
-                                                                                    posting_api     = posting_api, 
-                                                                                    namespace       = namespace, 
-                                                                                    subnamespace    = subnamespace)
-        
-        response, log_txt, rep              = kb_session.kb.requestForm(parent_trace        = my_trace, 
-                                                                        form_request        = form_request)
-        kb_operation_succeeded              = True
-        manifests_description               = CLI_Utils().describe_req_form_response(my_trace, 
-                                                                                form_request_response   = response, 
-                                                                                store                   = kb_session.store,
-                                                                                representer             = rep)
+            form_request                        = kb_session.store.getBlindFormRequest( parent_trace    = my_trace, 
+                                                                                        relative_path   = relative_path, 
+                                                                                        posting_api     = posting_api, 
+                                                                                        namespace       = namespace, 
+                                                                                        subnamespace    = subnamespace)
+            
+            response, log_txt, rep              = kb_session.kb.requestForm(parent_trace        = my_trace, 
+                                                                            form_request        = form_request)
+            kb_operation_succeeded              = True
+            manifests_description               = CLI_Utils().describe_req_form_response(my_trace, 
+                                                                                    form_request_response   = response, 
+                                                                                    store                   = kb_session.store,
+                                                                                    representer             = rep)
 
-        click.echo(manifests_description)
-        output                              = "Success"
-        click.echo(output)
-        click.echo(timer.elapsed_time_message())
+            click.echo(manifests_description)
+            output                              = "Success"
+            click.echo(output)
+            click.echo(timer.elapsed_time_message())
+
+            WarningUtils().handle_warnings(root_trace, warning_list=w, traceback_stream=traceback_stream)
+
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
                                                                         parent_trace                = root_trace, 

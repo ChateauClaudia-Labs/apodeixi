@@ -873,6 +873,13 @@ class SkeletonController(PostingController):
 
             manifest_df[refKind]        = manifest_df.apply(lambda row: assign_ref_uids(row), axis=1)
 
+        # Clean up any spurious Pandas suffixes in the raw column names that made it to the first column of 
+        # manifest_df when it was created by rotating the raw DataFrame.
+        #
+        # GOTCHA: Don't do this earlier in the flow, as it could break the test made in self._collect_referenced_uid_list,
+        #           which compares two lists one of which is the raw columns, with Pandas suffixes and all.
+        manifest_df                     = self._remove_spurious_Pandas_column_suffixes(parent_trace, manifest_df)
+
         # If we are doing an update, we need to clear out spuriously named "UIDs" like "Unnamed: 8". This happens
         # if the user added additional milestones as part of the update. Since there is a "UID" already (being
         # an update), these new milestones will have a blank UID in Excel, and Pandas will convert into something
@@ -1097,14 +1104,14 @@ class SkeletonController(PostingController):
         @param first_row An int, corresponding to the row number in Excel where the `raw_df` dataset starts
         @param last_row An int, corresponding to the last row number in Excel where the `raw_df` dataset appears
         '''
-        my_trace                        = parent_trace.doing("Creating manifest DataFrame")
+        my_trace                            = parent_trace.doing("Creating manifest DataFrame")
         if True:
-            manifest_columns            = list(non_mapping_raw_df.columns)[0] # These will be the manifest columns
-            df2                         = SchemaUtils.drop_blanks(non_mapping_raw_df, manifest_columns)
-            df2                         = df2.set_index(manifest_columns) # That way when we transpose these become the columns
-            df2.index.name              = None
-            df2                         = df2.transpose()
-            df2                         = df2.reset_index() # Ensures columns of dataset_df become the first column of df2
+            manifest_columns                = list(non_mapping_raw_df.columns)[0] # These will be the manifest columns
+            df2                             = SchemaUtils.drop_blanks(non_mapping_raw_df, manifest_columns)
+            df2                             = df2.set_index(manifest_columns) # That way when we transpose these become the columns
+            df2.index.name                  = None
+            df2                             = df2.transpose()
+            df2                             = df2.reset_index() # Ensures columns of dataset_df become the first column of df2
 
             # GOTCHA This is some tricky code. Various situations can happen, when one does an initial create
             #           and later does updates. Consider an entity called "Milestone"
@@ -1149,9 +1156,43 @@ class SkeletonController(PostingController):
                 # referenced manifest that our referencing manifest must reference.
                 linkage_column               = Interval.UID
 
-            manifest_df                 = df2
+            manifest_df                     = df2
 
         return manifest_df, linkage_column
+
+    def _remove_spurious_Pandas_column_suffixes(self, parent_trace, rotated_df):
+        '''
+        This method does some cleanup on a DataFrame that arose from a rotation of a prior DataFrame
+        read "raw" from Excel.
+
+        The raw DataFrame might have had "duplicate columns" which were simply meant to be
+        the same entity value for multiple entries in `rotated_df`'s first column.
+        For example, perhaps multiple columns in Excel were labelled "Target State" by the user, which Pandas
+        converted to "Target State", "Target State.1", "Target State.2", etc.
+        
+        Now that we rotated, the extra suffixes attached by Pandas (".1", ".2", etc) should be removed to
+        restore the user's original intention
+        '''
+        restored_df                     = rotated_df.copy()
+        FIRST_COL                       = restored_df.columns[0]
+        raw_vals                        = list(restored_df[FIRST_COL])
+
+        restored_vals                   = []
+        for raw in raw_vals:
+            tokens                      = raw.split(".")
+            head                        = ".".join(tokens[:-1])
+            tail                        = tokens[-1]
+            if len(tokens) > 1 and tail.isdigit() and head in restored_vals:
+                # This means this is something like "Target State.2" and we previously saw "Target State", so
+                # it seems certain that Pandas added the ".2" suffix. So don't use it
+                restored_vals.append(head)
+            else:
+                restored_vals.append(raw)
+        
+        restored_df[FIRST_COL]                  = restored_vals
+
+        return restored_df
+       
 
     def _collect_referenced_uid_list(self, parent_trace, referencing_entities_list, referencing_entity,
                                                     refKind, first_refRow, refMapping_df):
