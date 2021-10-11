@@ -1,5 +1,8 @@
+
 import pandas                                                   as _pd
+
 from apodeixi.util.a6i_error                                    import ApodeixiError
+from apodeixi.util.time_buckets                                 import FY_Quarter
 
 from apodeixi.controllers.util.skeleton_controller              import SkeletonController
 from apodeixi.controllers.admin.static_data.static_data         import StaticData_Controller
@@ -7,7 +10,7 @@ from apodeixi.controllers.admin.static_data.static_data         import StaticDat
 from apodeixi.text_layout.excel_layout                          import AsExcel_Config_Table, ManifestXLWriteConfig
 
 from apodeixi.xli.posting_controller_utils                      import UpdatePolicy
-from apodeixi.xli.interval                                      import ClosedOpenIntervalSpec
+from apodeixi.xli.interval                                      import ClosedOpenIntervalSpec, IntervalUtils
 
 class ScoringCyclesController(StaticData_Controller):
     '''
@@ -179,14 +182,55 @@ class ScoringCyclesController(StaticData_Controller):
                                 controller          = controller)
         
             interval_spec    = ClosedOpenIntervalSpec(  parent_trace        = None, 
-                                                        splitting_columns   = ['Scoring Cycle', 'Scenario'],
+                                                        splitting_columns   = [self.SCORING_CYCLE_COL, self.SCENARIO_COL],
                                                         entity_name         = kind) 
 
             self.interval_spec  = interval_spec
-            self._entity_name    = 'Journey'
+            self._entity_name    = self.JOURNEY_COL
+
+        JOURNEY_COL                     = 'Journey'
+        SCORING_CYCLE_COL               = 'Scoring Cycle'
+        SCENARIO_COL                    = 'Scenario'
 
         def entity_name(self):
             return self._entity_name
+
+        def preprocessReadFragment(self, parent_trace, interval, dataframe_row):
+            '''
+            This is called by the BreakdownTree's readDataframeFragment method before attempting to parse a fragment
+            from a row in a DataFrame.
+
+            This method is offered as a "hook" to derived classes in case they want to "enrich" the input to the parser,
+            by overwriting this method with the appropriate "enriching" logic.
+
+            It returns "potentically improved" versions of the `interval` and `dataframe_row` parameters.
+
+            For this concrete class, the gist of what this method does is validate the input, i.e., that the
+            scoring cycles can be parsed into valid FY_Quarter objects
+
+            @param interval         An Interval object, corresponding to the columns in `row` that pertain to an entity being 
+                                    processed in readDataframeFragment
+            @param dataframe_row    A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
+                                    the Dataframe `iterrows()` iterator.
+            @returns                A pair: 1) an Interval object, and 2) tuple `(idx, series)` that may pass for a Pandas row
+
+            '''
+            scoring_cycle               = dataframe_row[1][self.SCORING_CYCLE_COL]
+
+            grandfathered               = self.controller.a6i_config.getGrandfatheredScoringCycles(parent_trace)
+
+            if not IntervalUtils().is_blank(scoring_cycle) and not scoring_cycle in grandfathered:
+                # See if we can parse it
+                try:
+                    time_bucket         = FY_Quarter.build_FY_Quarter(parent_trace, scoring_cycle)
+                except ApodeixiError as ex:
+                    raise ApodeixiError(parent_trace, "Can't process posting because there it at least one invalid scoring "
+                                                    + "cycle. Ideally they should be something like 'FY22' or 'Q2 FY25'",
+                                                    data = {"invalid scoring cycle": str(scoring_cycle),
+                                                            "parsing error":    ex.msg})
+
+            return interval, dataframe_row
+
 
 
 

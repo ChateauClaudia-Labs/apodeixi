@@ -89,9 +89,6 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         # paths
         self.a6i_config.test_db_dir                 = original_a6i_config.test_db_dir
 
-
-        # Lastly, we need to 
-
         # Next time an environment is provisioned for this test, use this overwritten config for the name of the folder           
         self.test_config_dict                   = YAML_Utils().load(parent_trace, 
                                                         path = self.input_data + "/" + self.scenario() + '/test_config.yaml')
@@ -246,7 +243,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         command_without_flag_params += " " + unique_argument 
                     elif command_argv[:2] in [["import", "aha"]]:
                         args                        = command_argv[-2:]
-                        command_without_flag_params += " ".join(args)
+                        command_without_flag_params += " " + " ".join(args)
 
                     output_to_display           = "=> " + command_without_flag_params + "\n\n"
                     

@@ -67,6 +67,58 @@ class Test_FY_Quarter(ApodeixiUnitTest):
                                         test_output_name    = 'test_fy_quarter', 
                                         save_output_txt     = True)
 
+    def test_time_bucket_parser(self):
+
+        root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing parser for quarter time buckets")
+
+        tests               = ["Q3 FY23", "Q3 FY 23", " Q3 FY 23 ", "FY23", "FY 25", "FY 2026", "Q 4 FY 29" ]
+
+        output              = ""
+        for idx in range(len(tests)):
+            time_bucket     = FY_Quarter.build_FY_Quarter(root_trace, tests[idx], month_fiscal_year_starts=4)
+
+            output          += "\n'" + tests[idx] + "' was parsed as:\t\t" + time_bucket.display()
+
+        self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                        output_txt          = output, 
+                                        test_output_name    = 'test_time_bucket_parse', 
+                                        save_output_txt     = True)
+
+    def test_time_bucket_comparison(self):
+
+        root_trace          = FunctionalTrace(parent_trace=None, path_mask=self._path_mask).doing("Testing parser for quarter time buckets")
+
+        tests               = [
+                                FY_Quarter(2021, 1, month_fiscal_year_starts=6),
+                                FY_Quarter(2021, 4, month_fiscal_year_starts=6),
+                                FY_Quarter(2021, 2, month_fiscal_year_starts=6),
+                                FY_Quarter(2024, 1, month_fiscal_year_starts=6),
+                                FY_Quarter(2019, 4, month_fiscal_year_starts=6),
+                                FY_Quarter(2019, 1, month_fiscal_year_starts=1),
+                                FY_Quarter(2018, 4, month_fiscal_year_starts=6),
+                                FY_Quarter(2019, 4, month_fiscal_year_starts=6),
+        ]
+
+        output              = ""
+        for idx in range(1, len(tests)):
+            time_bucket_1   = tests[idx-1]
+            time_bucket_2   = tests[idx]
+
+            last_day_1      = time_bucket_1.last_day().strftime("%d %B %Y")
+            last_day_2      = time_bucket_2.last_day().strftime("%d %B %Y")
+
+            comparison      = time_bucket_1.less_than(root_trace, time_bucket_2)
+            output          += "\n" + time_bucket_1.display() + " < " + time_bucket_2.display() + " ?\t" \
+                                + str(comparison) + "\t\tReason: last days are: " + last_day_1 + ", " + last_day_2 + ")"
+
+        self._compare_to_expected_txt(  parent_trace        = root_trace,
+                                        output_txt          = output, 
+                                        test_output_name    = 'test_time_bucket_compare', 
+                                        save_output_txt     = True)
+
+
+
+
 if __name__ == "__main__":
     # execute only if run as a script
     def main(args):

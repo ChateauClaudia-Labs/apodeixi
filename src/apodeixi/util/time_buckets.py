@@ -1,5 +1,9 @@
 import datetime                                 as _datetime
 import calendar                                 as _calendar
+import re                                       as _re
+
+from apodeixi.util.a6i_error                    import ApodeixiError
+
 
 class FY_Quarter():
     '''
@@ -20,6 +24,61 @@ class FY_Quarter():
         self.month_fiscal_year_starts   = month_fiscal_year_starts
         self.fiscal_year                = fiscal_year
         self.quarter                    = quarter
+
+    def build_FY_Quarter(parent_trace, formatted_time_bucket_txt, month_fiscal_year_starts=1):
+        '''
+        Parses the string `formatted_time_bucket_txt`, and returns a FY_Quarter object constructed from that.
+
+        If the parsing is not possible then it raises an Apodeixi error.
+
+        The quarter portion might be optional, and spaces are allowed. Thus, all of the following are valid
+        possible values for `formatted_time_bucket_txt`:
+         
+            "Q3 FY23", "Q3 FY 23", " Q3 FY 23 ", "FY23", "FY 25", "FY 2026", "Q 4 FY 29" 
+
+        If the quarter is not provided, it is assumed to be Q4
+        '''
+        REGEX           = "^\s*(Q\s*([1-4]))?\s*FY\s*(([0-9][0-9])?[0-9][0-9])\s*$"
+        if type(formatted_time_bucket_txt) != str:
+            raise ApodeixiError(parent_trace, "Invalid time bucket: expected a string, but instead was given a "
+                                                + str(type(formatted_time_bucket_txt)))
+        m               = _re.search(REGEX, formatted_time_bucket_txt)
+        if m==None or len(m.groups())!= 4:
+            raise ApodeixiError(parent_trace, "Invalid time bucket `" + formatted_time_bucket_txt + "`. Use a valid format, "
+                                                + "such as 'Q2 FY23', 'Q1 FY 25', 'FY 26', or FY 1974")
+
+        # If the input is "Q 4 FY 29", then [m.group(1), m.group(2), m.group(3), m.group(4)] is:
+        #       
+        #           ['Q 4', '4', '29', None]
+        #
+        if m.group(2) == None:
+            quarter     = 4
+        else:
+            quarter     = int(m.group(2))
+        year            = int(m.group(3))
+        if year < 100:
+            year        += 2000     # For example, FY23 means the year is 2023, not 23
+        
+        return FY_Quarter(year, quarter, month_fiscal_year_starts=1)
+
+    def less_than(self, parent_trace, other_quarter):
+        '''
+        Returns True or False, depending on whether self lies before the other_quarter (returns True), or
+        not (return False).
+
+        Raises an ApodeixiError if the `other_quarter` is not an FY_Quarter object.
+        '''
+        if type(other_quarter) != FY_Quarter:
+            raise ApodeixiError(parent_trace, "Can only do `less_than` comparison against another FY_Quarter, but "
+                                                "was give a '" + str(type(other_quarter)) + "' instead")
+
+        my_last_day         = self.last_day()
+        other_last_day      = other_quarter.last_day()
+
+        if my_last_day < other_last_day:
+            return True
+        else:
+            return False
         
     def getQuarter(date, month_fiscal_year_starts):
         '''
@@ -73,6 +132,9 @@ class FY_Quarter():
     def displayQuarter(self):
         return 'Q' + str(self.quarter)
     
+    def display(self):
+        return self.displayQuarter() + " " + self.displayFY()
+
     def _starts_on_month(self):
         '''
         Helper method to compute the calendar month when the quarter starts. 

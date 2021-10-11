@@ -1,0 +1,8 @@
+
+Q1 FY21 < Q4 FY21 ?	True		Reason: last days are: 31 August 2020, 31 May 2021)
+Q4 FY21 < Q2 FY21 ?	False		Reason: last days are: 31 May 2021, 30 November 2020)
+Q2 FY21 < Q1 FY24 ?	True		Reason: last days are: 30 November 2020, 31 August 2023)
+Q1 FY24 < Q4 FY19 ?	False		Reason: last days are: 31 August 2023, 31 May 2019)
+Q4 FY19 < Q1 FY19 ?	False		Reason: last days are: 31 May 2019, 31 March 2018)
+Q1 FY19 < Q4 FY18 ?	True		Reason: last days are: 31 March 2018, 31 May 2018)
+Q4 FY18 < Q4 FY19 ?	True		Reason: last days are: 31 May 2018, 31 May 2019)

@@ -6,3 +6,6 @@ organization-settings.organization		My Corp
 organization-settings.knowledge-base-areas.0		Production
 organization-settings.knowledge-base-areas.1		Testing Area
 cli.initializer-classname		<APODEIXI INSTALLATION>/apodeixi.cli.kb_session.KB_Session_Initializer
+backward-compabitility.grandfathered_scoring_cycles.0		Dec 2020
+backward-compabitility.grandfathered_scoring_cycles.1		FY 21 - 9+3
+backward-compabitility.grandfathered_scoring_cycles.2		March 2021

@@ -182,3 +182,25 @@ class ApodeixiConfig():
             raise ApodeixiError(my_trace, "Can't locate Knowledge Base's areas: " + explanation)
         
         return self.config_dict[CLI][CLASSNAME]
+
+    def getGrandfatheredScoringCycles(self, parent_trace):
+        '''
+        Returns a list of strings, corresponding to manually configured scoring cycles that are considered
+        valid.
+        This method exists for backward compatibility reasons, to not invalidate data created before Apodeixi started
+        enforcing that scoring cycles must be strings that can be successfully parsed into FY_Quarter objects.
+        '''
+        my_trace            = parent_trace.doing("Retrieving grandfathered scorcing cycles from the Apodeixi Configuration ")
+        BACK_COMPATIBILITY  = 'backward-compabitility'
+        GRANDFATHERED_SC    = 'grandfathered_scoring_cycles'
+        check, explanation = DictionaryUtils().validate_path(   parent_trace    = my_trace, 
+                                                                root_dict       = self.config_dict, 
+                                                                root_dict_name  = 'apodeixi',
+                                                                path_list       = [BACK_COMPATIBILITY, GRANDFATHERED_SC],
+                                                                valid_types     = [list])
+        if not check:
+            # If nothing is grandfathered, that is good. It means this deployment will only use modern
+            # scoring cycles that can be converted to FY_Quarter objects
+            return []
+        
+        return self.config_dict[BACK_COMPATIBILITY][GRANDFATHERED_SC]
