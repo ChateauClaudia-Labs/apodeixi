@@ -242,7 +242,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         unique_argument             = _os.path.split(path_posted)[1]
                         command_without_flag_params += " " + unique_argument 
                     elif command_argv[:2] in [["import", "aha"]]:
-                        args                        = command_argv[-2:]
+                        args                        = command_argv[-4:]
                         command_without_flag_params += " " + " ".join(args)
 
                     output_to_display           = "=> " + command_without_flag_params + "\n\n"
