@@ -7,8 +7,8 @@ from apodeixi.util.a6i_error                    import ApodeixiError
 
 class FY_Quarter():
     '''
-    Represents a quarter in the fiscal year. The fiscal year runs from the 1st of the month initialized in the constructure. Years are only supported
-    from 2012 onwards.
+    Represents a quarter in the fiscal year. The fiscal year runs from the 1st of the month initialized in the constructure. 
+    Years are only supported from 2012 onwards.
     
     @param month_fiscal_year_starts: an integer, representing the month of the year when the fiscal year starts. Defaults to January
     @param year: an integer, representing a fiscal year. For example, 2022 represents the fiscal year from June 1st 2021 
@@ -21,11 +21,15 @@ class FY_Quarter():
             raise ValueError("Fiscal Year " + str(fiscal_year) + " is not supported as a valid year. Only years after 2012 are supported")
         if quarter not in [1, 2, 3, 4]:
             raise ValueError("Quarter " + str(quarter) + " is not a valid quarter. Must be of of: 1, 2, 3, or 4")
+
+        if month_fiscal_year_starts not in range(1, 13):
+            raise ValueError("Invalid `month_fiscal_year_starts`: should be an integer between 1 and 12, but got "
+                                + str(month_fiscal_year_starts) + " instead.")
         self.month_fiscal_year_starts   = month_fiscal_year_starts
         self.fiscal_year                = fiscal_year
         self.quarter                    = quarter
 
-    def build_FY_Quarter(parent_trace, formatted_time_bucket_txt, month_fiscal_year_starts=1):
+    def build_FY_Quarter(parent_trace, formatted_time_bucket_txt, month_fiscal_year_starts=1, default_quarter=4):
         '''
         Parses the string `formatted_time_bucket_txt`, and returns a FY_Quarter object constructed from that.
 
@@ -37,6 +41,12 @@ class FY_Quarter():
             "Q3 FY23", "Q3 FY 23", " Q3 FY 23 ", "FY23", "FY 25", "FY 2026", "Q 4 FY 29" 
 
         If the quarter is not provided, it is assumed to be Q4
+
+        @param month_fiscal_year_starts An int between 1 and 12, corresponding to the month of the year
+                        when the fiscal year starts. January is 1 and December is 12.
+        @param default_quarter An int between 1 and 4. In situations where the quarter is not provided (e.g., 
+                        `formatted_time_bucket_txt` is something like "FY 22"), then this is used as the default
+                        value for the quarter in the result. Otherwise this parameter is ignored.
         '''
         REGEX           = "^\s*(Q\s*([1-4]))?\s*FY\s*(([0-9][0-9])?[0-9][0-9])\s*$"
         if type(formatted_time_bucket_txt) != str:
@@ -52,7 +62,11 @@ class FY_Quarter():
         #           ['Q 4', '4', '29', None]
         #
         if m.group(2) == None:
-            quarter     = 4
+            if not default_quarter in [1, 2, 3, 4]:
+                raise ApodeixiError(parent_trace, "Problem with parsing time bucket `" + formatted_time_bucket_txt + "`: "
+                                                    + " the given default_quarter should be an integer between 1 and 4, not "
+                                                    + str(default_quarter))
+            quarter     = default_quarter
         else:
             quarter     = int(m.group(2))
         year            = int(m.group(3))
