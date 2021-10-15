@@ -338,13 +338,14 @@ class ExcelDropDowns:
     def __init__(self, manifest_name):
         self._manifest_name         = manifest_name
 
-        # A list of ExcelDropDownParams objects. For a given cell, at most one of the ExcelDropDownParams
+        # A dictionary. Keys are strings (the "name" of a dropdown) and values are ExcelDropDownParams objects. 
+        # For a given cell, at most one of the ExcelDropDownParams
         # objects should match it, i.e., the ExcelDropDownParams' criterion_lambda returns true
-        self._dropdowns              = [] 
+        self._dropdowns              = {} 
 
         return
 
-    def addDropDown(self, range_lambda, source):
+    def addDropDown(self, name, range_lambda, source):
         '''
         @param range_lambda A function that determines the range (in layout space) over which a drop down must
                 be used.
@@ -358,22 +359,24 @@ class ExcelDropDowns:
                         @returns 4 integers: first_row, first_col, last_row, last_col, that delimit a range for
                                 in which the dropdown applies 
 
+        @param name A string, uniquely providing a name for this drop down among all others in this object.
         @param source A list, typically of strings or ints, corresponding to the contents of the drop down.
         '''
-        self._dropdowns.append(ExcelDropDownParams(range_lambda, source))
+        self._dropdowns[name]       = ExcelDropDownParams(name, range_lambda, source)
 
     def getAll(self):
         '''
-        Returns an ExcelDropDownParams object associated to the given column. If no such ExcelDropDownParams has
-        been configured for the column then it returns None
+        Returns a list of ExcelDropDownParams object associated to the given column. If no such ExcelDropDownParams has
+        been configured for the column then it returns an empty list
         '''
-        return self._dropdowns
+        return list(self._dropdowns.values())
 
 class ExcelDropDownParams():
     '''
     Helper class to contain the parameters for a drop down list
     '''
-    def __init__(self, range_lambda, source):
+    def __init__(self, name, range_lambda, source):
+        self.name                   = name
         self.range_lambda           = range_lambda
         self.source                 = source
 

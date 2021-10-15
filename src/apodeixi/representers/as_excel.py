@@ -1,7 +1,7 @@
-from apodeixi.xli.uid_acronym_schema import UID_Acronym_Schema
+
 import xlsxwriter
 import pandas                               as _pd
-from xlsxwriter.utility                     import xl_rowcol_to_cell, xl_range
+from xlsxwriter.utility                     import xl_col_to_name, xl_rowcol_to_cell, xl_range, xl_range_abs
 
 from apodeixi.util.a6i_error                import ApodeixiError
 from apodeixi.util.path_utils               import PathUtils
@@ -10,9 +10,10 @@ from apodeixi.util.dataframe_utils          import DataFrameUtils
 from apodeixi.text_layout.column_layout     import ColumnWidthCalculator
 from apodeixi.text_layout.excel_layout      import Palette, NumFormats, ExcelFormulas, MappedManifestXLWriteConfig, \
                                                     JoinedManifestXLWriteConfig
-from apodeixi.representers.as_dataframe     import AsDataframe_Representer
+
 from apodeixi.xli.interval                  import IntervalUtils
 from apodeixi.xli.uid_store                 import UID_Store, UID_Utils
+from apodeixi.xli.uid_acronym_schema        import UID_Acronym_Schema
 
 from apodeixi.tree_math.link_table          import LinkTable
 
@@ -617,11 +618,65 @@ class ManifestRepresenter:
         # Add any drop downs that where configured
         # If we have drop downs for this column, add them to the worksheet
         my_trace                        = parent_trace.doing("Populating dropdowns", data = {'layout span': str(span)})
-        if True:
-            if xlw_config.excel_dropdowns != None:
-                for dropdown_params in xlw_config.excel_dropdowns.getAll():
-                    x_0, y_0, x_1, y_1  = dropdown_params.range_lambda(displayable_df)    
+        self._add_dropdowns(my_trace, workbook, worksheet, xlw_config, displayable_df)
 
+    def _add_dropdowns(self, parent_trace, workbook, worksheet, xlw_config, displayable_df):
+        '''
+        '''
+        if xlw_config.excel_dropdowns != None:
+            for dropdown_params in xlw_config.excel_dropdowns.getAll():
+                x_0, y_0, x_1, y_1  = dropdown_params.range_lambda(displayable_df)    
+
+                my_trace            = parent_trace.doing("Adding dropdown list reference sheet for '" 
+                                                            + str(dropdown_params.name) + "'")
+                if True:
+                    # Due to not totally understood reasons, XlsxWriter will error out if we pass a
+                    # list bigger than 6 entries as the source of a drop down. What seems to work instead is 
+                    # to pass an Excel range of a list that is in Excel itself.
+                    #
+                    # So what we do is create a worksheet for the "static data" of the dropdown: it is a
+                    # sheet where we write out the list we want the dropdown to display.
+                    # Then we use the range of that Excel worksheet's data as the specification to XlsxWriter of
+                    # the contents of the dropdown list
+                    #
+                    sheet_name          = dropdown_params.name.replace(" ", "_") # Excel won't allow spaces in data validation reference
+                    reference_sheet     = workbook.add_worksheet(name = sheet_name)
+                    HEADER              = "Source for dropdown list"
+                    col_width           = max(len(HEADER), max(len(item) for item in dropdown_params.source)) * 1.2
+                    xl_col              = 1
+                    reference_sheet.set_column(xl_col,      xl_col,       col_width)
+
+                    fmt_dict            = {'bold': True, 'font_color': Palette.WHITE, 'align': 'center', 
+                                            'bg_color': Palette.VERY_DARK_GREY}
+
+                    fmt                 = workbook.add_format(fmt_dict)
+                    reference_sheet.write(0, xl_col, HEADER, fmt)
+
+                    for idx in range(len(dropdown_params.source)):
+                        item            = dropdown_params.source[idx]
+                        xl_row          = idx + 1
+                        
+                        try:
+                            reference_sheet.write(xl_row, xl_col, item)
+                        except Exception as ex:
+                            raise ApodeixiError(parent_trace, "Encountered a problem when writing a drop down list's "
+                                                                + " contents as static data in Excel in dedicated worksheet",
+                                                            data = {"problematic val":  str(item),
+                                                                    "error":            str(ex),
+                                                                    "dropdown.name":    str(dropdown_params.name),
+                                                                    "excel row":        str(xl_row),
+                                                                    "excel column":     str(xl_col)})
+                dropdown_source_range   = xl_range_abs( first_row   = 1,
+                                                        first_col   = 1,
+                                                        last_row    = xl_row, # From last cycle of loop
+                                                        last_col    = 1)    
+                dropdown_source_range   = reference_sheet.get_name() + "!" + dropdown_source_range           
+                    
+
+
+                my_trace            = parent_trace.doing("Determining dropdown range for '" 
+                                                            + str(dropdown_params.name) + "'")
+                if True:
                     excel_row_0, excel_col_0, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
                                                                             parent_trace            = my_trace,
                                                                             displayable_df          = displayable_df, 
@@ -635,12 +690,23 @@ class ManifestRepresenter:
                                                                             df_col_number           = x_1,
                                                                             representer             = self)
 
-                    worksheet.data_validation(  first_row       = excel_row_0, 
-                                                first_col       = excel_col_0, 
-                                                last_row        = excel_row_1, 
-                                                last_col        = excel_col_1, 
-                                                options         = { 'validate':    'list',
-                                                                    'source':       dropdown_params.source})
+                my_trace            = parent_trace.doing("Adding dropdown '" + str(dropdown_params.name) + "'",
+                                                            data = {"first Excel row": str(excel_row_0),
+                                                                    "last Excel row": str(excel_row_1),
+                                                                    "first Excel col": str(excel_col_0),
+                                                                    "last Excel col": str(excel_col_1),})
+                if True:
+                    status          = worksheet.data_validation(  
+                                            first_row       = excel_row_0, 
+                                            first_col       = excel_col_0, 
+                                            last_row        = excel_row_1, 
+                                            last_col        = excel_col_1, 
+                                            options         = { 'validate':    'list',
+                                                                'source':       "=" + dropdown_source_range})
+                                                                #'source':       dropdown_params.source})
+                    if status != 0:
+                        raise ApodeixiError(my_trace, "Unable to add dropdown because the XlxsWriter library returned status="
+                                                        + str(status))
 
     def _add_formulas(self, parent_trace, column, column_width, first_x, first_y, last_x, last_y,
                         data_df, config, workbook, worksheet):
