@@ -672,7 +672,7 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         However, there might be multiple versions of a logical manifest (versions are integers starting
         at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
 
-        This method returns a manifest and a string.
+        This method returns a manifest (as a dict) and a string.
         
         The manifest is the most recent version of the manifest that is logically identified
         by the parameters.

@@ -457,7 +457,7 @@ class ManifestUtils():
 
         contents_path                   = ".".join(path_list)
         rep                             = AsDataframe_Representer()
-        contents_df                     = rep.dict_2_df(    parent_trace        = my_trace, 
+        contents_df, uid_info_list      = rep.dict_2_df(    parent_trace        = my_trace, 
                                                             content_dict        = content_dict, 
                                                             contents_path       = contents_path, 
                                                             sparse              = False,

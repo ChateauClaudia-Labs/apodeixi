@@ -42,6 +42,9 @@ class SkeletonController(PostingController):
     POSTING_LABEL_SHEET                 = "Posting Label"
     POSTING_LABEL_RANGE                 = "B2:C100"
 
+    # Key used in self.show_your_work.general_dict
+    MANIFESTS_IN_SCOPE_DICT             = "MANIFESTS_IN_SCOPE_DICT"
+
     def getFilingClass(self):
         '''
         Abstract method, required to be implemented by concrete derived classes.
@@ -326,7 +329,7 @@ class SkeletonController(PostingController):
                 content_dict                    = assertion_dict[entity]
                 rep                             = AsDataframe_Representer()
                 contents_path                   = 'assertion.' + entity
-                contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path, 
+                contents_df, uid_info_list      = rep.dict_2_df(parent_trace, content_dict, contents_path, 
                                                                     sparse=True, abbreviate_uids=True)
             
             return contents_df
@@ -351,6 +354,13 @@ class SkeletonController(PostingController):
         @param form_request A FormRequest object
         '''
         manifests_in_scope_dict                 = {}
+
+        # Some derived classes need access to some of the manifest data that is built in this method's loop
+        # even before this method is returned. So to remember the data that is being built so that concrete classes
+        # can access it, we will remember the manifests_in_scope_dict in self.show_your_work
+        #
+        self.show_your_work.general_dict[self.MANIFESTS_IN_SCOPE_DICT]   = manifests_in_scope_dict
+
         scope                                   = form_request.getScope(parent_trace)
         if type(scope) == FormRequest.ExplicitScope:
             manifest_handles_dict               = scope.manifestHandles(parent_trace, controller=self)
@@ -637,7 +647,7 @@ class SkeletonController(PostingController):
                                                                     root_dict_name      = manifest_nickname,
                                                                     path_list           = ["assertion", str(manifest_entity)],
                                                                     valid_types         = [dict])
-        content_df                              = rep.dict_2_df(    parent_trace        = parent_trace, 
+        content_df, uid_info_list               = rep.dict_2_df(    parent_trace        = parent_trace, 
                                                                     content_dict        = content_dict,
                                                                     contents_path       = "assertion." + str(manifest_entity), 
                                                                     sparse              = False, 

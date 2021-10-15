@@ -234,12 +234,16 @@ class PostingCtrl_ShowYourWork():
     
         * <manifest number> => {manifest metadata, as key-value pairs, for kind, excel range, excel sheet}
 
+    * general_dict: a general purpose dictionary. Derived classes may use it to remember data. It is up to derived
+                    classes to determine what keys and values to remember, if any.
+
     '''
     def __init__(self, parent_trace):
 
         '''
         '''
-        self.manifest_props_dict                       = {}
+        self.manifest_props_dict                        = {}
+        self.general_dict                               = {}
         return
 
     _DATA_KIND              = '_DATA_KIND'

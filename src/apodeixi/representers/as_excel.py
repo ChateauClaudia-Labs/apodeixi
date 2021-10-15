@@ -221,7 +221,15 @@ class ManifestRepresenter:
         # Now we must unprotect a large area outside the cells we pasted, which may span multiple
         # manifests per worksheet, potentially
         for worksheet in manifest_worksheet_list:
-            self._unprotect_free_space(parent_trace, worksheet = worksheet)
+            # BUG FIX ON OCTOBER 13, 2021 -  The code to unprotect is buggy for layouts that have vertical
+            # displays, since it will switch what are the global x and global y ranges. Nasty if one mixes
+            # a big horizontal layout of (say) 400 rows + a vertical mapping, as the mappings' 400 rows will
+            # be incorrectly thought to be 400 columns, so the amount of internal state in Excel to protect
+            # cells will get huge. So better to drop the functionality altogether - in practice the user
+            # will simply remove protection if he/she needs to edit this space. 
+            #
+            #self._unprotect_free_space(parent_trace, worksheet = worksheet)
+
             self._remember_formatting(worksheet, worksheet.get_name())
 
     def _write_posting_label(self, parent_trace, workbook):
@@ -350,6 +358,7 @@ class ManifestRepresenter:
         
         try:
             worksheet.write(excel_row, excel_col, clean_val, fmt)
+
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Encountered a problem when writing a cell in Excel",
                                             data = {"problematic val":  str(clean_val),
@@ -521,7 +530,7 @@ class ManifestRepresenter:
                     layout_x            = xlw_config.x_offset + layout_idx 
                     layout_y            = xlw_config.y_offset + 1 + row_nb # An extra '1' because of the headers
                     excel_row, excel_col, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
-                                                                                parent_trace            = parent_trace,
+                                                                                parent_trace            = loop_trace,
                                                                                 displayable_df          = displayable_df, 
                                                                                 df_row_number           = row_nb,
                                                                                 df_col_number           = layout_idx,
@@ -604,6 +613,34 @@ class ManifestRepresenter:
                                     config              = xlw_config,
                                     workbook            = workbook,
                                     worksheet           = worksheet)
+
+        # Add any drop downs that where configured
+        # If we have drop downs for this column, add them to the worksheet
+        my_trace                        = parent_trace.doing("Populating dropdowns", data = {'layout span': str(span)})
+        if True:
+            if xlw_config.excel_dropdowns != None:
+                for dropdown_params in xlw_config.excel_dropdowns.getAll():
+                    x_0, y_0, x_1, y_1  = dropdown_params.range_lambda(displayable_df)    
+
+                    excel_row_0, excel_col_0, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
+                                                                            parent_trace            = my_trace,
+                                                                            displayable_df          = displayable_df, 
+                                                                            df_row_number           = y_0,
+                                                                            df_col_number           = x_0,
+                                                                            representer             = self)
+                    excel_row_1, excel_col_1, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
+                                                                            parent_trace            = my_trace,
+                                                                            displayable_df          = displayable_df, 
+                                                                            df_row_number           = y_1,
+                                                                            df_col_number           = x_1,
+                                                                            representer             = self)
+
+                    worksheet.data_validation(  first_row       = excel_row_0, 
+                                                first_col       = excel_col_0, 
+                                                last_row        = excel_row_1, 
+                                                last_col        = excel_col_1, 
+                                                options         = { 'validate':    'list',
+                                                                    'source':       dropdown_params.source})
 
     def _add_formulas(self, parent_trace, column, column_width, first_x, first_y, last_x, last_y,
                         data_df, config, workbook, worksheet):
@@ -751,6 +788,7 @@ class ManifestRepresenter:
         global_xmax                     = max([layout.getSpan(my_trace)[1][0] for layout in layouts])
         global_ymax                     = max([layout.getSpan(my_trace)[1][1] for layout in layouts])
 
+
         # Outside the global area, unprotect entire ranges. If global span is A1:F20, we unprotect G1:ZZ500 and A21:ZZ500, kind of
         distant_columns = xl_range( 0,                          global_xmax + 1,    
                                     LIMIT,                      LIMIT + global_xmax + 1)
@@ -761,7 +799,7 @@ class ManifestRepresenter:
         worksheet.unprotect_range(distant_columns)
         worksheet.unprotect_range(distant_rows)
         
-        # With the global area, unprotect any empty space not in any layout (e.g., if pasting multiple
+        # Within the global area, unprotect any empty space not in any layout (e.g., if pasting multiple
         # manifests, there will be empty space between them)
         for x in range(global_xmin, global_xmax + 1):
             for y in range(global_ymin,global_ymax + 1):

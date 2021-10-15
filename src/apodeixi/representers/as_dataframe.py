@@ -1,4 +1,5 @@
 
+from apodeixi.xli import uid_store
 import pandas                           as _pd
 
 from apodeixi.util.a6i_error            import ApodeixiError
@@ -6,6 +7,19 @@ from apodeixi.util.yaml_utils import YAML_Utils
 from apodeixi.xli                       import Interval
 from apodeixi.xli.uid_store             import UID_Utils
 from apodeixi.xli.uid_acronym_schema    import UID_Acronym_Schema
+
+class UID_Info:
+    '''
+    Data structure class, used to contain some contextual information around a UID. It is a by-product of the
+    AsDataframe_Representer, and callers may use it. One use case is to create a list of all entities across all levels: for
+    example, to add to Excel a drop down of all rock (a list of big rocks, medium rocks, etc), where each rock 
+    is identified by UID along with the human-understandable description of the rock (i.e., the entity value).
+    Such a list is returned as a by-product of AsDataframe_Representer, each member of the list being an instance of
+    UID_Info.
+    '''
+    def __init__(self, uid, entity_value):
+        self.uid                = uid
+        self.entity_value       = entity_value
 
 class AsDataframe_Representer:
     '''
@@ -79,7 +93,7 @@ class AsDataframe_Representer:
         my_trace             = parent_trace.doing('Splitting manifest', data = {'path_tokens': path_tokens})
         content_dict, non_content_dict = self._split_out(my_trace, manifest_dict, path_tokens)
 
-        df                  = self.dict_2_df(parent_trace, content_dict, contents_path, sparse, abbreviate_uids)
+        df, uid_info_list    = self.dict_2_df(parent_trace, content_dict, contents_path, sparse, abbreviate_uids)
         return df, non_content_dict
 
     def dict_2_df(self, parent_trace, content_dict, contents_path, sparse, abbreviate_uids):
@@ -92,6 +106,12 @@ class AsDataframe_Representer:
         * As input to data analysis in Pandas (using sparse=False). 
         
         Refer to detailed documentation for method `self._build_df_rows`, that does the heavy lifting.
+
+        It returns two objects:
+
+        * A DataFrame, corresponding to the manifests' content.
+        * A list of UID_Info objects, built as a by-product of this method's processing and which some callers
+            may find useful. Refer to the documentation of UID_Info for explanation and example use cases.
 
         @param contents_dict A dict object representing the contents of a manifest, as opposed to the
                             entire manifest. For example, if manifest_dict represents a full manifest in 
@@ -133,7 +153,8 @@ class AsDataframe_Representer:
                                                             content_dict        = content_dict, 
                                                             parent_path         = contents_path)
 
-        intervals, rows     = self._build_df_rows(          parent_trace        = my_trace,
+        intervals, rows, uid_info_list      = self._build_df_rows(          
+                                                            parent_trace        = my_trace,
                                                             content_dict        = content_dict,
                                                             acronym_schema      = acronym_schema,
                                                             parent_path         = contents_path,
@@ -148,7 +169,7 @@ class AsDataframe_Representer:
         df                  =  _pd.DataFrame(columns=all_columns, data=rows)
         df                  = df.fillna('')
 
-        return df
+        return df, uid_info_list
     
     def _split_out(self, parent_trace, manifest_dict, splitting_path):
         '''
@@ -216,6 +237,8 @@ class AsDataframe_Representer:
             example below for an explanation)
         * The list of rows (each row represented as a dict, whose keys are DataFrame columns, at least those
             columns for which the row has a non-NaN value)
+        * A list of UID_Info objects, built as a by-product of this method's processing and which some callers
+            may find useful. Refer to the documentation of UID_Info for explanation and example use cases.
 
         The rows might be populated to be "sparse" or not, depending on the `sparse` paremeter (a boolean).
         This is best explained in an example. The following is a non-sparse DataFrame:
@@ -390,6 +413,8 @@ class AsDataframe_Representer:
         
         all_intervals                       = []
 
+        uid_info_list                       = [] # We'll build this as a by-product and return it
+
         # On a first call we loop through something like e_uid = "BR1", "BR2", "BR3", .... For that call
         #       parent_uid = None and parent_path = "assertion.big-rock"
         # On a recursive call with parent_uid = "BR1" we loop through e_uid = "SR1", "SR2", "SR3", .... In this case
@@ -463,6 +488,9 @@ class AsDataframe_Representer:
                 # is [BR, MR, TR], we should put a BR1.MR0.TR1 in the new_level_1_row, not a BR1.TR1
                 new_level_1_row[UID_COL]    = acronym_schema.pad_uid(parent_trace, full_e_uid) 
             new_level_1_row[e_acronyminfo.entity_name]    = e_dict[NAME]
+
+            uid_info_list.append(UID_Info(  uid             = new_level_1_row[UID_COL], 
+                                            entity_value    = new_level_1_row[e_acronyminfo.entity_name]))
             
             sub_entities                      = acronym_schema.find_entities(inner_trace, e_dict) # Something like "Sub rock"
             # Now add the "scalar" attributes to the row and if needed also to the interval. A reason they may
@@ -488,13 +516,16 @@ class AsDataframe_Representer:
                 inner_trace                 = loop_trace.doing("Making a recursive call for '" + sub_entity + "'",
                                                                 data = {'signaledFrom': __file__})
                 
-                sub_intervals, sub_rows     = self._build_df_rows(  parent_trace        = inner_trace, 
+                sub_intervals, sub_rows, sub_uid_info_list  = self._build_df_rows(  
+                                                                    parent_trace        = inner_trace, 
                                                                     content_dict        = e_dict[sub_entity], 
                                                                     acronym_schema      = acronym_schema,
                                                                     parent_path         = e_path + '.' + sub_entity,
                                                                     parent_uid          = full_e_uid,
                                                                     sparse              = sparse,
                                                                     abbreviate_uids     = abbreviate_uids)
+
+                uid_info_list.extend(sub_uid_info_list)
 
                 # Post-processing recursive call: handle the columns
                 # 
@@ -553,7 +584,7 @@ class AsDataframe_Representer:
                                                     "len(sorted_intervals)":    str(len(sorted_intervals))})
         
         # Return value to caller (which for recursive call was this method itself, processing left interval to ours)
-        return sorted_intervals, all_rows
+        return sorted_intervals, all_rows, uid_info_list
         
 
     

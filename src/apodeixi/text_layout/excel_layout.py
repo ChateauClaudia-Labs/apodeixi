@@ -330,7 +330,54 @@ class ExcelFormulas:
             return None
         else:
             return candidates[0].parameters
-                
+
+class ExcelDropDowns:
+    '''
+    Helper class used to contain the information about all drop downs that should appear in a manifest's display
+    '''  
+    def __init__(self, manifest_name):
+        self._manifest_name         = manifest_name
+
+        # A list of ExcelDropDownParams objects. For a given cell, at most one of the ExcelDropDownParams
+        # objects should match it, i.e., the ExcelDropDownParams' criterion_lambda returns true
+        self._dropdowns              = [] 
+
+        return
+
+    def addDropDown(self, range_lambda, source):
+        '''
+        @param range_lambda A function that determines the range (in layout space) over which a drop down must
+                be used.
+                The function returns 4 integers: first_row, first_col, last_row, last_col, that delimit a range.
+
+            The signature for the range_lambda must be as in this example:
+
+                    def my_criterion_lambda(df):
+                        
+                        @param df The DataFrame whose contents are to be displayed in Excel
+                        @returns 4 integers: first_row, first_col, last_row, last_col, that delimit a range for
+                                in which the dropdown applies 
+
+        @param source A list, typically of strings or ints, corresponding to the contents of the drop down.
+        '''
+        self._dropdowns.append(ExcelDropDownParams(range_lambda, source))
+
+    def getAll(self):
+        '''
+        Returns an ExcelDropDownParams object associated to the given column. If no such ExcelDropDownParams has
+        been configured for the column then it returns None
+        '''
+        return self._dropdowns
+
+class ExcelDropDownParams():
+    '''
+    Helper class to contain the parameters for a drop down list
+    '''
+    def __init__(self, range_lambda, source):
+        self.range_lambda           = range_lambda
+        self.source                 = source
+
+
 class PostingLayout(Excel_Layout):
     '''
     Class to assist in the construction of an Excel_Layout for one manifest. It enforces the appropriate Excel formatting
@@ -435,7 +482,8 @@ class PostingLayout(Excel_Layout):
                                             mode        = body_mode)
 
 class AsExcel_Config():
-    def __init__(self, sheet, hidden_cols = [], num_formats = {}, excel_formulas = None, nb_header_levels = 1,
+    def __init__(self, sheet, hidden_cols = [], num_formats = {}, excel_formulas = None, excel_dropdowns = None,
+                    nb_header_levels = 1,
                     viewport_width=100, viewport_height=40, max_word_length=20, x_offset=0, y_offset=0):
         '''
         Configuration for laying out an Apodeixi data object, such as a manifest, into a rectangular area in 
@@ -452,6 +500,9 @@ class AsExcel_Config():
         @param excel_formulas An ExcelFormulas object, which maps a manifest_name to a dictionary of formulas that should
                             be inserted into the Excel rendering. Usually done for usability reasons, to display things
                             like the total for a numerically-valued column or row. It may be None if no formulas are needed.
+
+        @param excel_dropdowns An ExcelDropDowns object that captures the specification of which columns have dropdowns and,
+                            for the columns that do, what that dropdown should contain.
         @para nb_header_levels An int, representing the number of levels in the header. Typically this is 1: a single row of
                             column headers. However, in cases where there are MultiLevel columns in a manifest's DataFrame,
                             this parameter needs to be set to the number of levels in that MultiLevel index so that headers
@@ -477,6 +528,7 @@ class AsExcel_Config():
         self.hidden_cols            = hidden_cols
         self.num_formats            = num_formats
         self.excel_formulas         = excel_formulas
+        self.excel_dropdowns        = excel_dropdowns
         self.nb_header_levels       = nb_header_levels
                
     def df_xy_2_excel_xy(self, parent_trace, displayable_df, df_row_number, df_col_number, representer):
@@ -562,8 +614,9 @@ class ManifestXLWriteConfig(AsExcel_Config):
 
     @param excel_formulas   An ExcelFormulas object that expresses which formulas (if any) should be written
                             to the excel spreadsheet in the vicinity of the area where the manifest was laid out.
-    @param excel_formulas   An ExcelFormulas object that expresses which formulas (if any) should be written
-                            to the excel spreadsheet in the vicinity of the area where the manifest was laid out.
+
+    @param excel_dropdowns An ExcelDropDowns object that captures the specification of which columns have dropdowns and,
+                            for the columns that do, what that dropdown should contain.
 
     @param df_xy_2_excel_xy_mapper A function that is needed to figure the Excel row number in which to display
                             a datum. It's signature as as in this example:
@@ -587,9 +640,11 @@ class ManifestXLWriteConfig(AsExcel_Config):
     def __init__(self, manifest_name,  read_only, is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
+                                excel_formulas  = None,  excel_dropdowns = None,
+                                nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
-        super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats, excel_formulas = excel_formulas,
+        super().__init__(sheet, hidden_cols = hidden_cols, num_formats = num_formats, 
+                            excel_formulas = excel_formulas, excel_dropdowns = excel_dropdowns,
                             nb_header_levels = nb_header_levels,
                             viewport_width = viewport_width, viewport_height = viewport_height, 
                             max_word_length = max_word_length, x_offset = x_offset, y_offset = y_offset)
@@ -743,12 +798,14 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
                                 is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
+                                excel_formulas  = None,  excel_dropdowns = None,
+                                nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
 
         super().__init__(manifest_name, read_only, is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
                                 editable_cols,   hidden_cols, num_formats, editable_headers, 
-                                excel_formulas,  nb_header_levels, df_xy_2_excel_xy_mapper,
+                                excel_formulas,  excel_dropdowns,
+                                nb_header_levels, df_xy_2_excel_xy_mapper,
                                 x_offset,    y_offset)
 
         self.my_entity                          = my_entity
@@ -1091,12 +1148,13 @@ class JoinedManifestXLWriteConfig(ManifestXLWriteConfig):
     def __init__(self, manifest_name,  read_only, referenced_manifest_name, is_transposed, sheet,  
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
-                                excel_formulas  = None,  nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
+                                excel_formulas  = None,  excel_dropdowns = None,
+                                nb_header_levels = 1, df_xy_2_excel_xy_mapper = None,
                                 x_offset        = 0,    y_offset = 0):
 
         super().__init__(manifest_name, read_only, is_transposed, sheet,  viewport_width,  viewport_height,   max_word_length, 
                                 editable_cols,   hidden_cols, num_formats, editable_headers, 
-                                excel_formulas,  nb_header_levels, df_xy_2_excel_xy_mapper,
+                                excel_formulas,  excel_dropdowns, nb_header_levels, df_xy_2_excel_xy_mapper,
                                 x_offset,    y_offset)
 
         self.referenced_manifest_name   = referenced_manifest_name

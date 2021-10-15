@@ -269,7 +269,7 @@ class KnowledgeBaseStore():
         However, there might be multiple versions of a logical manifest (versions are integers starting
         at 1, 2, 3, ..., with version increasing each time the manifest gets updated).
 
-        This method returns a manifest and a string.
+        This method returns a manifest (as a dict) and a string.
         
         The manifest is the most recent version of the manifest that is logically identified
         by the parameters.
@@ -286,8 +286,9 @@ class KnowledgeBaseStore():
                 * the name is "modernization.default.dec-2020.fusionopus"
                 * the kind is "big-rock"
                 * the version is 2 (an int)
-                * the manifest api is embedded within the YAML file, and is something like 
-                  "delivery-planning.journeys.a6i.io/v1a"
+                * the manifest api name is embedded within the YAML file. The YAML file has a field called
+                  "apiVersion" with a value like "delivery-planning.journeys.a6i.io/v1a", and the manifest api
+                  is the substring without the suffix: "delivery-planning.journeys.a6i.io"
 
         @param manifest_api_name A string representing the Apodeixi API defining the YAML schemas for the
                     manifest kinds subsumed under such API. The search for manifests is filtered to those

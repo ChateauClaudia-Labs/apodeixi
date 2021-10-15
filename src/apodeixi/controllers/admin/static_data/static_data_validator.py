@@ -294,7 +294,7 @@ class StaticDataValidator():
                                                                 'signaled_from':    __file__})
 
         content_dict                    = manifest_dict['assertion'][str(entity)]
-        contents_df                     = rep.dict_2_df(parent_trace, content_dict, contents_path, 
+        contents_df, uid_info_list      = rep.dict_2_df(parent_trace, content_dict, contents_path, 
                                                                 sparse=False, abbreviate_uids=True)
 
         return contents_df
