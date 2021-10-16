@@ -1045,25 +1045,25 @@ class SkeletonController(PostingController):
                 # It should be the case that next_non_mapping_row_candidate <= first_refRow <= last_refRow
                 # and that all of them are a valid index in working_df
                 if not (next_non_mapping_row_candidate <= first_refRow and first_refRow <= last_refRow):
-                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + "' and '"
                                                     + str(refKind) + "': expected Excel rows to adhere to "
                                                     + "next_non_mapping_row_candidate <= first_refRow <= last_refRow",
                                                     data = {"next_non_mapping_row":     str(next_non_mapping_row_candidate),
                                                             "first_refRow":             str(first_refRow),
                                                             "last_refRow":              str(last_refRow)})
                 if not next_non_mapping_row_candidate in working_df.index:
-                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + "' and '"
                                                     + str(refKind) + "': " + str(my_entity) + " should include row "
                                                     + str(next_non_mapping_row_candidate),
                                                     data = {"next_non_mapping_row":     str(next_non_mapping_row_candidate)})
                 if not first_refRow in working_df.index:
-                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + "' and '"
                                                     + str(refKind) + "': " + str(my_entity) + " should include row "
                                                     + str(first_refRow)
                                                     + " Are your ranges for both datasets aligned in the Posting Label?",
                                                     data = {"first_refRow":             str(first_refRow)})
                 if not last_refRow in working_df.index:
-                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + " and '"
+                    raise ApodeixiError(loop_trace, "Invalid mapping structure between '" + str(my_entity) + "' and '"
                                                     + str(refKind) + "': " + str(my_entity) + " should include row "
                                                     + str(last_refRow) 
                                                     + " Are your ranges for both datasets aligned in the Posting Label?",

@@ -641,7 +641,7 @@ class ManifestRepresenter:
                     #
                     sheet_name          = dropdown_params.name.replace(" ", "_") # Excel won't allow spaces in data validation reference
                     reference_sheet     = workbook.add_worksheet(name = sheet_name)
-                    HEADER              = "Source for dropdown list"
+                    HEADER              = "Source for dropdown list (generated - don't change it!)"
                     col_width           = max(len(HEADER), max(len(item) for item in dropdown_params.source)) * 1.2
                     xl_col              = 1
                     reference_sheet.set_column(xl_col,      xl_col,       col_width)
