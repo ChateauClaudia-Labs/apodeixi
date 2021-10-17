@@ -164,7 +164,9 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         if callable(param):
                             return param()
                         else:
-                            return param
+                            # As a precaution, make sure we return a string. Otherwise, if param is an int,
+                            # click will later through some exception
+                            return str(param)
 
                     # Note: two operations are being done here:
                     # 
@@ -180,7 +182,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
 
                     loop_trace                  = self.trace_environment(my_trace, 
-                                                                            "Executing '" + " ".join(command_argv) + "'")
+                                                            "Executing '" + " ".join([str(cmd) for cmd in command_argv]) + "'")
                     # Some Python libraries can be too noisy with warnings, and these get printed out to standard err/output
                     # where the CLI will regard as "part of output" and display them in regression test output. This makes
                     # regression output both ugly and sometimes non-deterministc.

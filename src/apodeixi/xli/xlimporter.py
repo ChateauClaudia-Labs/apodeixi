@@ -304,7 +304,26 @@ class ManifestXLReadConfig(XLReadConfig):
         @param last_row An int, corresponding to the last row number in Excel where the dataset appears
         '''
         if self.horizontally == True:
-            manifest_df     = raw_df
+            manifest_df             = raw_df.copy()
+
+            # If we have any multi-level index, sometimes one of the levels is blank, which Pandas treats
+            # by calling it something like "unnamed:-8_level_1", say. We replace all such by "" both for
+            # usability reasons and because that is assumed by concrete classes when checking if the DataFrame
+            # read from Excel contains the expected columns
+            def _clean_level_of_col(level_col_value):
+                if level_col_value.startswith("unnamed:"):
+                    return ""
+                else:
+                    return level_col_value
+            def _clean_column(col):
+                if type(col) == tuple:
+                    cleaned_list    = [_clean_level_of_col(elt) for elt in col]
+                    return tuple(cleaned_list)
+                else:
+                    return col
+
+            cleaned_columns         = [_clean_column(col) for col in manifest_df.columns]
+            manifest_df.columns     = cleaned_columns
 
         elif self.is_a_mapping == False:
             #In thise case we must rotate the raw_df and eliminate any Excel rows where

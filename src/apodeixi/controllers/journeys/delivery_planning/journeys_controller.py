@@ -376,4 +376,3 @@ class JourneysController(SkeletonController):
                                                                     valid_types     = [str])
         subproducts                     = validator.getSubProducts(parent_trace, namespace, product)
         return subproducts
-

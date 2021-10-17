@@ -32,6 +32,9 @@ class StringUtils():
         tyt     = txt
         if type(txt) == float and _math.isnan(txt):
             tyt = ''
+        elif type(txt) == tuple:
+            formatted_list = [self.format_as_yaml_fieldname(elt) for elt in txt]
+            return tuple(formatted_list)
         else:
             tyt = str(txt) # Precaution in case somebody passes a non-string, like a float (Pandas might put a 0.0 on an empty field instead of '')
         
