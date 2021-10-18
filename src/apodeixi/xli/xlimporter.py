@@ -311,7 +311,7 @@ class ManifestXLReadConfig(XLReadConfig):
             # usability reasons and because that is assumed by concrete classes when checking if the DataFrame
             # read from Excel contains the expected columns
             def _clean_level_of_col(level_col_value):
-                if level_col_value.startswith("unnamed:"):
+                if level_col_value.startswith("Unnamed:"):
                     return ""
                 else:
                     return level_col_value
