@@ -8,7 +8,7 @@ from apodeixi.util.a6i_error                    import ApodeixiError
 class FY_Quarter():
     '''
     Represents a quarter in the fiscal year. The fiscal year runs from the 1st of the month initialized in the constructure. 
-    Years are only supported from 2012 onwards.
+    Years are only supported from 2001 onwards.
     
     @param month_fiscal_year_starts: an integer, representing the month of the year when the fiscal year starts. Defaults to January
     @param year: an integer, representing a fiscal year. For example, 2022 represents the fiscal year from June 1st 2021 
@@ -17,8 +17,8 @@ class FY_Quarter():
                     the 3 months from December 1st 2021 to February 28 2022.
     '''
     def __init__(self, fiscal_year, quarter, month_fiscal_year_starts=1):
-        if fiscal_year < 2012:
-            raise ValueError("Fiscal Year " + str(fiscal_year) + " is not supported as a valid year. Only years after 2012 are supported")
+        if fiscal_year < 2001:
+            raise ValueError("Fiscal Year " + str(fiscal_year) + " is not supported as a valid year. Only years after 2001 are supported")
         if quarter not in [1, 2, 3, 4]:
             raise ValueError("Quarter " + str(quarter) + " is not a valid quarter. Must be of of: 1, 2, 3, or 4")
 
