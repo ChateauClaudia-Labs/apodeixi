@@ -126,6 +126,7 @@ class Palette():
 
     # Static colors.
     DARK_BLUE                   = '#0070C0'
+    LIGHT_BLUE                  = "#E1F2FF"
     WHITE                       = '#FFFFFF'
     DARK_GREEN                  = '#548235'
     LIGHT_GREEN                 = '#E2EFDA' # '#E5EDD3' # '#EBF1DE'

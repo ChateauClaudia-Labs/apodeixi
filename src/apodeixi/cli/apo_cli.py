@@ -1,5 +1,6 @@
 import sys                                          as _sys
 import os                                           as _os
+import datetime                                     as _datetime
 
 import click
 import warnings
@@ -9,6 +10,7 @@ from apodeixi.cli.kb_session                        import KB_Session
 from apodeixi.cli.error_reporting                   import CLI_ErrorReporting
 from apodeixi.cli.cli_utils                         import CLI_Utils
 from apodeixi.util.a6i_error                        import FunctionalTrace, ApodeixiError
+from apodeixi.util.formatting_utils                 import DictionaryFormatter
 from apodeixi.util.path_utils                       import PathUtils
 from apodeixi.util.performance_utils                import ApodeixiTimer
 from apodeixi.util.warning_utils                    import WarningUtils
@@ -242,6 +244,50 @@ def apis(kb_session):
         click.echo("Unrecoverable error: " + str(ex))
         _sys.exit()
 
+@get.command()
+@click.option('--environment', type=click.STRING,help="If provided, will be displayed the Apodeixi configuration for the given environment")
+@pass_kb_session
+def config(kb_session, environment):
+    '''
+    Displays the Apodeixi configuration.
+    '''
+    T0                                  = _datetime.datetime.now()
+    func_trace                          = FunctionalTrace(  parent_trace    = None, 
+                                                            path_mask       = None) 
+    root_trace                          = func_trace.doing("CLI call to get products",
+                                                            origination     = {'signaled_from': __file__})
+    try:
+        if environment != None:
+            kb_session.store.activate(parent_trace = root_trace, environment_name = environment)
+            click.echo(CLI_Utils().sandox_announcement(environment))
+
+        client_url                      = kb_session.store.getClientURL(root_trace)
+        postings_url                    = kb_session.store.getPostingsURL(root_trace)
+        click.echo("\n----- Current environment -----")
+        click.echo("\nclient URL:\t\t" + str(client_url))
+        click.echo("postings URL:\t\t" + str(postings_url))
+        config_txt                      = DictionaryFormatter().dict_2_nice(root_trace, kb_session.a6i_config.config_dict, flatten=True)
+        click.echo("\n\n----- Config Settings -----")
+        click.echo("\n" + config_txt)
+        output                              = "Success"
+        click.echo(output)
+    except ApodeixiError as ex:
+        error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 
+                                                                        parent_trace                = root_trace, 
+                                                                        a6i_error                   = ex)
+        # GOTCHA
+        #       Use print, not click.echo or click exception because they don't correctly display styling
+        #       (colors, underlines, etc.). So use vanilla Python print and then exit
+        print(error_msg)
+        _sys.exit()
+    except Exception as ex:
+        click.echo("Unrecoverable error: " + str(ex))
+        _sys.exit()
+    T1                                  = _datetime.datetime.now()
+    duration                            = T1 - T0
+
+    duration_msg = str(duration.seconds)+ "." + str(duration.microseconds) + " sec"
+    click.echo(duration_msg)
 
 
 @apo_cli.command()

@@ -1,14 +1,17 @@
 from datetime import datetime
 import os                                                           as _os
 import re                                                           as _re
+from pandas.core.indexes.base import maybe_extract_name
 from tabulate                                                       import tabulate
 import pandas                                                       as _pd
+import xlsxwriter
 
 from apodeixi.cli.error_reporting                                   import CLI_ErrorReporting
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
 
 from apodeixi.knowledge_base.manifest_utils                         import ManifestUtils
 from apodeixi.knowledge_base.kb_environment                         import File_KBEnv_Impl
+from apodeixi.text_layout.excel_layout                              import Palette
 from apodeixi.util.a6i_error                                        import ApodeixiError
 from apodeixi.util.formatting_utils                                 import StringUtils
 from apodeixi.util.path_utils                                       import PathUtils
@@ -252,53 +255,126 @@ class CLI_Utils():
 
         @param diff_result A ManifestDiffResult object encapsulating all the differences
         '''
-        description_table                   = []
-        description_headers                 = ["Diff Type", "Entity", "Field", "Original Value", "New Value"]
+        my_trace                            = parent_trace.doing("Constructing the diff report's data")
+        if True:
+            description_table                   = []
+            description_headers                 = ["Diff Type", "Entity", "Field", "Original Value", "New Value"]
+            headers_widths                      = [20,          50,         25,     40,                 40]
 
-        # Important: order in list must match the order of the headers in `description_headers`. Required by
-        # the tabulate Python package.
-        for entity_desc in diff_result.added_entities_description(parent_trace):
-            description_table.append(["ENTITY ADDED", entity_desc, "", "", ""])
+            # Important: order in list must match the order of the headers in `description_headers`. Required by
+            # the tabulate Python package.
+            for entity_desc in diff_result.added_entities_description(parent_trace):
+                description_table.append(["ENTITY ADDED", entity_desc, "", "", ""])
 
-        for entity_desc in diff_result.removed_entities_description(parent_trace):
-            description_table.append(["ENTITY REMOVED", entity_desc, "", "", ""])
+            for entity_desc in diff_result.removed_entities_description(parent_trace):
+                description_table.append(["ENTITY REMOVED", entity_desc, "", "", ""])
 
-        changed_entities_dict               = diff_result.changed_entities_description_dict(parent_trace)
-        for entity_desc in changed_entities_dict.keys():
-            entity_diff                     = changed_entities_dict[entity_desc]
+            changed_entities_dict               = diff_result.changed_entities_description_dict(parent_trace)
+            for entity_desc in changed_entities_dict.keys():
+                entity_diff                     = changed_entities_dict[entity_desc]
 
-            for field in entity_diff.added_fields:
-                description_table.append(["FIELD ADDED", entity_desc, field, "", ""])
-            for field in entity_diff.removed_fields:
-                description_table.append(["FIELD REMOVED", entity_desc, field, "", ""])
-            for changed_value in entity_diff.changed_fields:
-                description_table.append(["FIELD CHANGED", entity_desc, changed_value.field, 
-                                                                    changed_value.old_value, 
-                                                                    changed_value.new_value])
+                for field in entity_diff.added_fields:
+                    description_table.append(["FIELD ADDED", entity_desc, field, "", ""])
+                for field in entity_diff.removed_fields:
+                    description_table.append(["FIELD REMOVED", entity_desc, field, "", ""])
+                for changed_value in entity_diff.changed_fields:
+                    description_table.append(["FIELD CHANGED", entity_desc, changed_value.field, 
+                                                                        changed_value.old_value, 
+                                                                        changed_value.new_value])
 
-        diff_description                    = "\n" + diff_result.description + ":\n\n"
+            diff_description                    = "\n" + diff_result.short_description + ":\n\n"
 
-        diff_description                    += tabulate(description_table, headers=description_headers)
-        diff_description                    += "\n"
+            diff_description                    += tabulate(description_table, headers=description_headers)
+            diff_description                    += "\n"
 
         # Save the report
-        reports_folder                      = kb_session.kb_rootdir + "/" + File_KBEnv_Impl.REPORTS_FOLDER
-        
-        REPORT_FILENAME                     = kb_session.timestamp + "_" + diff_result.description.replace(" ", "_") \
-                                                                            + "_diff.xlsx"
-        PathUtils().create_path_if_needed(parent_trace, reports_folder)
-        report_df                           = _pd.DataFrame(data=description_table, columns=description_headers)
-        report_df.to_excel(reports_folder + "/" + REPORT_FILENAME)
+        my_trace                            = parent_trace.doing("Saving diff report")
+        if True:
+            reports_folder                      = kb_session.kb_rootdir + "/" + File_KBEnv_Impl.REPORTS_FOLDER
+            
+            REPORT_FILENAME                     = kb_session.timestamp + "_" + diff_result.short_description.replace(" ", "_") \
+                                                                                + "_diff.xlsx"
+            PathUtils().create_path_if_needed(parent_trace, reports_folder)
+
+            '''
+            report_df                           = _pd.DataFrame(data=description_table, columns=description_headers)
+            report_df.to_excel(reports_folder + "/" + REPORT_FILENAME)
+            '''
+            self._write_report( parent_trace    = my_trace, 
+                                data            = description_table, 
+                                columns         = description_headers, 
+                                column_widths   = headers_widths, 
+                                path            = reports_folder + "/" + REPORT_FILENAME, 
+                                description     = diff_result.long_description)
 
         # Append pointer to report
         #
-        cli_reporter                        = CLI_ErrorReporting(kb_session)
-        diff_description                    += cli_reporter.POINTERS("\n\nRetrieve Excel report at ")
-        diff_description                    += cli_reporter.POINTERS(cli_reporter.UNDERLINE("file:///" + reports_folder
-                                                                                                + "/" + REPORT_FILENAME))
+        my_trace                            = parent_trace.doing("Adding link to diff report")
+        if True:
+            cli_reporter                        = CLI_ErrorReporting(kb_session)
+            diff_description                    += cli_reporter.POINTERS("\n\nRetrieve Excel report at ")
+            diff_description                    += cli_reporter.POINTERS(cli_reporter.UNDERLINE("file:///" + reports_folder
+                                                                                                    + "/" + REPORT_FILENAME))
 
         return diff_description
 
+    def _write_report(self, parent_trace, data, columns, column_widths, path, description):
+        '''
+        Creates an Excel file  based on the content in `data`, with headers taken from `columns`
+
+        @param data A list of list. The inner lists correspond to the rows to be written to Excel, and
+            they are all have the same length, which should equal the number of elements in `columns`.
+            The values of the inner list should be scalars so that each of them can be displayed in Excel, such
+            as a string, int, or float.
+        @param columns A list of strings, corresponding to the column headers for the data to be written to Excel.
+        @param column_widths: A list of floats, whose length must equal the number of elements in `columns`.
+            They determine how wide each of the Excel columns should be
+        @param path A string, corresponding to the full path to which the Excel file must be saved (i.e., full
+            directory and filename)
+        @param description A string, used to give a description of the report. Example: "big-rock_v1-v2_diff".
+        '''
+        workbook                        = xlsxwriter.Workbook(path)
+        ROOT_FMT                        = {'text_wrap': True, 'valign': 'top', 'border': True, 'border_color': Palette.WHITE}
+        HEADER_FMT                      = ROOT_FMT | {'bold': True, 'font_color': Palette.WHITE, 'align': 'center','border_color': Palette.WHITE, 
+                                                            'right': True, 'fg_color':     Palette.DARK_BLUE} 
+
+        header_format                   = workbook.add_format(HEADER_FMT)  
+
+        report_ws                       = workbook.add_worksheet("Report")
+        x_offset                        = 1
+        y_offset                        = 3
+        my_trace                        = parent_trace.doing("Writing out the description")
+        if True:
+            report_ws.write(0, x_offset, description)
+
+        my_trace                        = parent_trace.doing("Writing out columns")  
+        if True:
+            # Write the headers
+            x_offset                    = 1
+            for idx in range(len(columns)):
+                report_ws.set_column(idx + x_offset, idx + x_offset, column_widths[idx])
+                col                     = columns[idx]
+                report_ws.write(y_offset -1, idx + x_offset, col, header_format)
+        
+        my_trace                        = parent_trace.doing("Writing the rows")
+        if True:
+            for idx in range(len(data)):
+                row                                 = data[idx]
+                for jdx in range(len(columns)):
+                    col                             = columns[jdx]
+                    val                             = row[jdx]
+                    fmt_dict                        = ROOT_FMT.copy()
+                    if idx%2 == 0: 
+                        fmt_dict                    |= {'bg_color': Palette.LIGHT_BLUE}
+                    fmt                             = workbook.add_format(fmt_dict)
+                    
+                    report_ws.write(idx + y_offset, jdx + x_offset, val, fmt)            
+
+        try:
+            workbook.close()
+        except Exception as ex:
+            raise ApodeixiError(my_trace, "Encountered a problem saving the Excel spreadsheet",
+                            data = {"error": str(ex), "path": path})
 
     def get_namespaces(self, parent_trace, kb_session):
         '''
