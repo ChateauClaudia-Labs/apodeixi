@@ -270,7 +270,9 @@ class ManifestUtils():
                                                                 "manifest1": str(manifest_file1),
                                                                 "manifest2": str(manifest_file2)})
         if True:
-            result                      = ManifestDiffResult(contents_df1, uid_info_list1, contents_df2, uid_info_list2)
+
+            description                 = self._tell_what_is_being_diffed(manifest_api_name, namespace, name, kind, version1, version2)
+            result                      = ManifestDiffResult(description, contents_df1, uid_info_list1, contents_df2, uid_info_list2)
 
             # First section: process the intervals that were there before
             for idx in range(len(interval_list1)):
@@ -337,6 +339,13 @@ class ManifestUtils():
    
         
         return result
+
+    def _tell_what_is_being_diffed(self, manifest_api_name, namespace, name, kind, version1, version2):
+        '''
+        Returns a friendly string that identifies what is being diff-ed
+        '''
+        description         = kind + " v" + str(version1) + "-v" + str(version2)
+        return description
 
     def describe_manifest(self, parent_trace, manifest_handle, store, post_response):
         '''
@@ -794,13 +803,16 @@ class ManifestDiffResult():
     An entity is considered "changed" by looking at its properties, and if any property either changed value, or
         if some properties were added or removed, then the entity is regarded as having changed.
 
+    @param description A string with a friendly explanation of what diff is for. 
+                        Example: "diff from version 1 to version 2 for fy-22.opus.mtp/big-rock"
     @param contents_df1 A DataFrame, for the manifest contents of the "first" version being compared
     @param uid_info_list1 A list of UID_Info objects, for the manifest of the "first" version being compared
     @param contents_df2 A DataFrame, for the manifest contents of the "second" version being compared
     @param uid_info_list2 A list of UID_Info objects, for the manifest of the "second" version being compared
     '''
-    def __init__(self, contents_df1, uid_info_list1, contents_df2, uid_info_list2):
+    def __init__(self, description, contents_df1, uid_info_list1, contents_df2, uid_info_list2):
 
+        self.description                        = description
         self.contents_df1                       = contents_df1
         self.uid_info_list1                     = uid_info_list1
         self.contents_df2                       = contents_df2

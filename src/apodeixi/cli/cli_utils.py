@@ -1,9 +1,10 @@
 from datetime import datetime
 import os                                                           as _os
 import re                                                           as _re
-from apodeixi.util.dictionary_utils import DictionaryUtils
 from tabulate                                                       import tabulate
+import pandas                                                       as _pd
 
+from apodeixi.cli.error_reporting                                   import CLI_ErrorReporting
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
 
 from apodeixi.knowledge_base.manifest_utils                         import ManifestUtils
@@ -12,6 +13,7 @@ from apodeixi.util.a6i_error                                        import Apode
 from apodeixi.util.formatting_utils                                 import StringUtils
 from apodeixi.util.path_utils                                       import PathUtils
 from apodeixi.util.performance_utils                                import ApodeixiTimer
+from apodeixi.util.dictionary_utils                                 import DictionaryUtils
 
 class CLI_Utils():
     '''
@@ -237,9 +239,11 @@ class CLI_Utils():
 
         return form_description
 
-    def describe_diff_response(self, parent_trace, diff_result):
+    def describe_diff_response(self, parent_trace, kb_session, diff_result):
         '''
         Returns a string suitable for display in the Apodeixi CLI.
+
+        Also persists the same information as an Excel file in the reports area of the KnowledgeBase.
 
         The string is formatted as a table that provides information on what Apodeixi did in response to a user
         requesting a diff between two versions of a manifest
@@ -272,9 +276,26 @@ class CLI_Utils():
                                                                     changed_value.old_value, 
                                                                     changed_value.new_value])
 
-        diff_description                    = "\nDiff results:\n\n"
+        diff_description                    = "\n" + diff_result.description + ":\n\n"
+
         diff_description                    += tabulate(description_table, headers=description_headers)
         diff_description                    += "\n"
+
+        # Save the report
+        reports_folder                      = kb_session.kb_rootdir + "/" + File_KBEnv_Impl.REPORTS_FOLDER
+        
+        REPORT_FILENAME                     = kb_session.timestamp + "_" + diff_result.description.replace(" ", "_") \
+                                                                            + "_diff.xlsx"
+        PathUtils().create_path_if_needed(parent_trace, reports_folder)
+        report_df                           = _pd.DataFrame(data=description_table, columns=description_headers)
+        report_df.to_excel(reports_folder + "/" + REPORT_FILENAME)
+
+        # Append pointer to report
+        #
+        cli_reporter                        = CLI_ErrorReporting(kb_session)
+        diff_description                    += cli_reporter.POINTERS("\n\nRetrieve Excel report at ")
+        diff_description                    += cli_reporter.POINTERS(cli_reporter.UNDERLINE("file:///" + reports_folder
+                                                                                                + "/" + REPORT_FILENAME))
 
         return diff_description
 

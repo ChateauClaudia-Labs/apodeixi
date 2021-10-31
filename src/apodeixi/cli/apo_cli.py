@@ -464,10 +464,7 @@ def diff(kb_session, manifest_api, kind, namespace, name):
                                                             version2            = None)
         kb_operation_succeeded              = True
 
-        diff_description                    = CLI_Utils().describe_diff_response(my_trace, diff_result)
-
-        # TODO TEMPORY FIX  - NEED TO REPLACE BY SOMETHING THAT HANDLES UTF-8 ENCODING
-        #diff_description                    = diff_description.replace("\uFFFD", " ")
+        diff_description                    = CLI_Utils().describe_diff_response(my_trace, kb_session, diff_result)
 
         # GOTCHA:
         # Make sure to remove non-ascii characters before passing the description to click.echo, since it

@@ -222,6 +222,8 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                         argv_without_arguments      = command_argv[:2]
                     elif command_argv[0] in ["import"]:
                         argv_without_arguments      = command_argv[:2]
+                    elif command_argv[0] in ["diff"]:
+                        argv_without_arguments      = command_argv[:1]
                     else:
                         raise ApodeixiError(my_trace, "Command not recognized: '" + str(command_argv[0]) + "'")
 
