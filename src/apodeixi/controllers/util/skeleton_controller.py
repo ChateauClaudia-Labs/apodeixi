@@ -683,7 +683,7 @@ class SkeletonController(PostingController):
             # path, so it was left out of the self.getPostingConfig which is sometimes called in situations
             # where the label is not known or needed.
             xlr_config.posting_label    = label
-            if prior_version != None:
+            if prior_version != None: 
                 if read_only == True:
                     # This manifest won't be updated, and if the posting was not adultered by the user
                     # then the manifest in the posting must match exactly the manifest in the store.
@@ -1590,6 +1590,16 @@ class SkeletonController(PostingController):
             if not field_name in self.ctx.keys():
                 return None
             val  = self._getField(parent_trace, field_name)
+
+            # Ensure val is an int. If it is a blank, treat it as null (so no prior version - caller must do a "Create"). 
+            # Otherwise, that's an error
+            if StringUtils().is_blank(val):
+                val         = None
+            elif val != None and type(val) != int:
+                raise ApodeixiError(parent_trace, "Invalid priorVersion: expected an integer, and instead found a '"
+                                                    + str(type(val)) + "'",
+                                                    data = {"priorVersion": str(val)})
+
             return val
 
         def readOnly(self, parent_trace, manifest_nb):

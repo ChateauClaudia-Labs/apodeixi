@@ -7,7 +7,7 @@ from apodeixi.controllers.util.manifest_api                     import ManifestA
 # So in this module we refer to them as kb_utils.Manifest_Handle and kb_utils.PostResponse
 import apodeixi.knowledge_base.knowledge_base_util              as kb_utils 
 
-from apodeixi.representers.as_dataframe                         import AsDataframe_Representer
+from apodeixi.representers.as_dataframe                         import AsDataframe_Representer, UID_Info
 
 from apodeixi.xli.interval                                      import Interval, IntervalUtils
 from apodeixi.xli.uid_store                                     import UID_Utils
@@ -227,9 +227,11 @@ class ManifestUtils():
                                                     data = {"manifest1": str(manifest_file1),
                                                             "manifest2": str(manifest_file2)})
         if True:
-            contents_df1, entity_name1  = self.extract_manifest_content_as_df(my_trace, manifest_dict1, manifest_file1,
+            contents_df1, entity_name1, uid_info_list1 = self.extract_manifest_content_as_df(my_trace, 
+                                                                                        manifest_dict1, manifest_file1,
                                                                                         abbreviate_uids = False)
-            contents_df2, entity_name2  = self.extract_manifest_content_as_df(my_trace, manifest_dict2, manifest_file2,
+            contents_df2, entity_name2, uid_info_list2 = self.extract_manifest_content_as_df(my_trace, 
+                                                                                        manifest_dict2, manifest_file2,
                                                                                         abbreviate_uids = False)
 
         my_trace                        = parent_trace.doing("Validating manifest is consistent across boths version",
@@ -268,7 +270,7 @@ class ManifestUtils():
                                                                 "manifest1": str(manifest_file1),
                                                                 "manifest2": str(manifest_file2)})
         if True:
-            result                      = ManifestDiffResult()
+            result                      = ManifestDiffResult(contents_df1, uid_info_list1, contents_df2, uid_info_list2)
 
             # First section: process the intervals that were there before
             for idx in range(len(interval_list1)):
@@ -304,7 +306,23 @@ class ManifestUtils():
                                                                                         contents_df2    = contents_df2)]
                 result.record_entities_added    (loop_trace, acronym, entities_added)
                 result.record_entities_removed  (loop_trace, acronym, entities_removed)
-                result.record_entities_changed  (loop_trace, acronym, entities_changed)
+
+                # Build a list of _ChangedEntityDiff objects, one for each entity that changed. Unlike other
+                # events, for CHANGEs we need to know more than a boolean status of whether a change occured or not:
+                # need to know what fields changed, and how. Hence a list of _ChangedEntityDiff objects instead
+                # of a list of UIDs.
+                entities_changed_diffs  = []
+                for uid in entities_changed:
+                    entity_diff         = self.compute_entity_diff( parent_trace  = loop_trace, 
+                                                                    entity_uid      = uid, 
+                                                                    interval1       = interval1, 
+                                                                    interval2       = interval2,
+                                                                    contents_df1    = contents_df1, 
+                                                                    contents_df2    = contents_df2)
+                    entities_changed_diffs.append(entity_diff)
+
+                result.record_entities_changed  (loop_trace, acronym, entities_changed_diffs)
+
                 result.record_entities_unchanged(loop_trace, acronym, entities_unchanged)
             # Now process the rest of the differences: arising from new intervals that were not there before
             for idx in range(len(interval_list1), len(interval_list2)):
@@ -338,7 +356,8 @@ class ManifestUtils():
 
         my_trace                        = parent_trace.doing("Extracting manifest's content as a DataFrame",
                                                     data = {"manifest": str(manifest_file)})
-        contents_df, entity_name        = self.extract_manifest_content_as_df(my_trace, manifest_dict, manifest_file,
+        contents_df, entity_name, uid_info_list     = self.extract_manifest_content_as_df(my_trace, 
+                                                                                        manifest_dict, manifest_file,
                                                                                         abbreviate_uids=False)
         
         my_trace                        = parent_trace.doing("Determining the manifest lifecycle event",
@@ -427,10 +446,11 @@ class ManifestUtils():
 
     def extract_manifest_content_as_df(self, parent_trace, manifest_dict, manifest_nickname, abbreviate_uids):
         '''
-        Returns two things:
+        Returns three things:
 
         * A Pandas DataFrame
         * A string
+        * A list of UID_Info objects
 
         The string corresponds to the entity of `manifest_dict`, defined as the unique key <entity> in
         `manifest_dict` such that manifest_dict["assertion"][<entity>] is a dict
@@ -462,7 +482,7 @@ class ManifestUtils():
                                                             contents_path       = contents_path, 
                                                             sparse              = False,
                                                             abbreviate_uids     = abbreviate_uids)
-        return contents_df, entity
+        return contents_df, entity, uid_info_list
 
     def interval_values_match(self, parent_trace, entity_uid, interval1, interval2, contents_df1, contents_df2):
         '''
@@ -482,13 +502,34 @@ class ManifestUtils():
         @param contents_df1: A DataFrame with the contents of a manifest. 
         @param contents_df2: A DataFrame with the contents of a manifest
         '''
+        entity_diff                 = self.compute_entity_diff( parent_trace, 
+                                                                entity_uid, 
+                                                                interval1, 
+                                                                interval2, 
+                                                                contents_df1, 
+                                                                contents_df2)
+        return not entity_diff.has_differences()
+
+    def compute_entity_diff(self, parent_trace, entity_uid, interval1, interval2, contents_df1, contents_df2):
+        '''
+        Returns a ManifestDiffResult._ChangedEntityDiff object, expressing how the entity defined by 
+        `entity_uid` has changed.
+
+        @param entity_uid A string representing a UID in a manifest. Example: "BR3.B2"
+        @param interval1 An Interval object representing a subset of columns in contents_df1
+        @param interval2 An Interval representing a subset of columns in contents_df2
+        @param contents_df1: A DataFrame with the contents of a manifest. 
+        @param contents_df2: A DataFrame with the contents of a manifest
+        '''
+        
         if type(interval1) != Interval or type(interval2) != Interval:
-            raise ApodeixiError(parent_trace, "Can't see if intervals match because at least of of them is the right type",
+            raise ApodeixiError(parent_trace, "Can't diff intervals match because at least of of them is the right type",
                                             data = {"Expected type": Interval.__name__,
                                                     "type(interval1)":  str(type(interval1)),
                                                     "type(interval2)":  str(type(interval2))})
+        
         if len(interval1.columns) == 0 or len(interval2.columns) == 0:
-            raise ApodeixiError(parent_trace, "Can't see if intervals match because at least of of them is empty",
+            raise ApodeixiError(parent_trace, "Can't diff intervals match because at least of of them is empty",
                                             data = {"interval1":    str(interval1.columns),
                                                     "interval2":    str(interval2.columns)})
         if not set(interval1.columns).issubset(set(contents_df1.columns)):
@@ -499,27 +540,42 @@ class ManifestUtils():
             raise ApodeixiError(parent_trace, "Interval provided is not a subset of DataFrame's columns",
                                                 data = {"interval": str(interval2.columns),
                                                         "df columns": str(list(contents_df2.columns))})
+        
 
+        entity_diff                     = ManifestDiffResult._ChangedEntityDiff(entity_uid)
+        
+        entity_diff.added_fields        = [field for field in interval2.columns if not field in interval1.columns]
+        entity_diff.removed_fields      = [field for field in interval1.columns if not field in interval2.columns]
 
-        if interval1.columns != interval2.columns:
-            return False
+        common_fields                   = [field for field in interval1.columns if field in interval2.columns]
 
         UID_COL                         = interval1.columns[0]
+        if not UID_COL in interval2.columns:
+            raise ApodeixiError("Corrupted manifest: lacks UID '" + str(UID_COL) + "' in the new version",
+                                    data = {"Interval in new version:" + str(interval2.columns)})
+
         rows_df1                        = contents_df1[contents_df1[UID_COL] == entity_uid]
         rows_df2                        = contents_df2[contents_df2[UID_COL] == entity_uid]
 
-        vals1                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df1[interval1.columns])
-        vals2                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df2[interval2.columns])
-
+        vals1                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df1[common_fields])
+        vals2                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df2[common_fields])
+        
         if len(vals1) != 1 or len(vals2) != 1:
             raise ApodeixiError(parent_trace, "Can't assess if two manifests' entity values match because "
                                                 + " they don't have a unique row for the given entity_uid",
                                                 data = {"entity_uid":       str(entity_uid),
                                                         "rows 1":           str(vals1),
                                                         "rows 2":           str(vals2)})
-        val1                            = list(vals1.iloc[0])
-        val2                            = list(vals2.iloc[0])
-        return val1 == val2
+        val1_row                        = vals1.iloc[0]
+        val2_row                        = vals2.iloc[0]
+        for col in common_fields:
+            if val1_row[col] != val2_row[col]:
+                entity_diff.changed_fields.append(ManifestDiffResult._ChangedValue( uid         = entity_uid,
+                                                                                    field       = col,
+                                                                                    old_value   = val1_row[col],
+                                                                                    new_value   = val2_row[col]))
+
+        return entity_diff
 
     def _infer_intervals(self, parent_trace, contents_df):
         '''
@@ -710,7 +766,7 @@ class ManifestUtils():
                                                 "Instead was given a " + str(type(manifest_dict)),
                                                 origination = {'signaled_from': __file__})
 
-        content_df, entity_name             = ManifestUtils().extract_manifest_content_as_df(   
+        content_df, entity_name, uid_info_list  = ManifestUtils().extract_manifest_content_as_df(   
                                                                                 parent_trace        = parent_trace, 
                                                                                 manifest_dict       = manifest_dict, 
                                                                                 manifest_nickname   = "Given manifest", 
@@ -738,16 +794,22 @@ class ManifestDiffResult():
     An entity is considered "changed" by looking at its properties, and if any property either changed value, or
         if some properties were added or removed, then the entity is regarded as having changed.
 
-    @param entities_added A list of the UIDs for entities that were added.
-    @param entities_removed A list of the UIDs for entities that were removed.
-    @param entities_changed A list of the UIDs for entities that were changed.
-    @param entities_unchanged A list of the UIDs for entities that were unchanged
-
+    @param contents_df1 A DataFrame, for the manifest contents of the "first" version being compared
+    @param uid_info_list1 A list of UID_Info objects, for the manifest of the "first" version being compared
+    @param contents_df2 A DataFrame, for the manifest contents of the "second" version being compared
+    @param uid_info_list2 A list of UID_Info objects, for the manifest of the "second" version being compared
     '''
-    def __init__(self):
+    def __init__(self, contents_df1, uid_info_list1, contents_df2, uid_info_list2):
+
+        self.contents_df1                       = contents_df1
+        self.uid_info_list1                     = uid_info_list1
+        self.contents_df2                       = contents_df2
+        self.uid_info_list2                     = uid_info_list2
+
+        # These will be populated by calling the record_entities_<EVENT> methods
         self.entities_added_dict                = {}
         self.entities_removed_dict              = {}
-        self.entities_changed_dict              = {}
+        self.entities_changed_dict              = {} 
         self.entities_unchanged_dict            = {}
 
     def record_entities_added(self, parent_trace, acronym, uid_list):
@@ -756,8 +818,8 @@ class ManifestDiffResult():
     def record_entities_removed(self, parent_trace, acronym, uid_list):
         self.entities_removed_dict[acronym]     = uid_list
 
-    def record_entities_changed(self, parent_trace, acronym, uid_list):
-        self.entities_changed_dict[acronym]     = uid_list
+    def record_entities_changed(self, parent_trace, acronym, entity_diff_list):
+        self.entities_changed_dict[acronym]     = entity_diff_list
 
     def record_entities_unchanged(self, parent_trace, acronym, uid_list):
         self.entities_unchanged_dict[acronym]   = uid_list
@@ -800,7 +862,7 @@ class ManifestDiffResult():
 
     def _acronym_counts(self, parent_trace, entities_dict):
         '''
-        Helper method for common implementation of methods to get acronym counts
+        Helper method for common implementation of methods to get acronym counts. Returns a list
         '''
         acronym_counts              = []
         for acronym in entities_dict.keys():
@@ -808,6 +870,128 @@ class ManifestDiffResult():
             acronym_counts.append(str(acronym + "(" + str(count) + ")"))
 
         return ", ".join(acronym_counts)
+
+    def added_entities_description(self, parent_trace):
+        '''
+        Returns a list of strings, one for each entity that was added.
+        The description consists of the entity's UID followed by its name
+
+        Example: ["BR4: Events", "MR3: Support UI"]
+        '''
+        return self._entities_in_diff(parent_trace, self.entities_added_dict)
+
+    def removed_entities_description(self, parent_trace):
+        '''
+        Returns a list of strings, one for each entity that was removed.
+        The description consists of the entity's UID followed by its name
+
+        Example: ["BR4: Events", "MR3: Support UI"]
+        '''
+        return self._entities_in_diff(parent_trace, self.entities_removed_dict)
+
+    def changed_entities_description_dict(self, parent_trace):
+        '''
+        Returns a dictionary, containing an entry for each entity that was changed.
+        Each key is a string description, consisting of the entity's UID followed by its name.
+
+        Each value is a corresponding _ChangedEntityDiff object that describes more fully what changed
+
+        Example: {"BR4: Events": <_ChangedEntityDiff object>, "MR3: Support UI": <_ChangedEntityDiff object>}
+        '''
+        result_dict                                 = {}
+        for acronym in self.entities_changed_dict.keys():
+            entity_diff_list                        = self.entities_changed_dict[acronym]
+            for entity_diff in entity_diff_list:
+                uid_info                            = self._find_uid_info(parent_trace, entity_diff.uid)
+                result_dict[uid_info.display()]     = entity_diff
+
+        return result_dict
+
+    def unchanged_entities_description(self, parent_trace):
+        '''
+        Returns a list of strings, one for each entity that was unchanged.
+        The description consists of the entity's UID followed by its name
+
+        Example: ["BR4: Events", "MR3: Support UI"]
+        '''
+        return self._entities_in_diff(parent_trace, self.entities_unchanged_dict)
+
+    def _entities_in_diff(self, parent_trace, entities_dict):
+        '''
+        Helper method for common implementation to get a list of descriptions for entities that
+        were flagged in a diff.
+        Returns a list of strings
+        '''
+        result                      = []
+        for acronym in entities_dict.keys():
+            item_list                = entities_dict[acronym]
+            for item in item_list:
+                # Usually the item is a UID, except when this is for a CHANGED event, in which case it is a
+                # _ChangedEntityDiff object, sinced CHANGED events need more detail than just a UID
+                if type(item) == ManifestDiffResult._ChangedEntityDiff:
+                    uid             = item.uid
+                else:
+                    uid             = item
+                uid_info            = self._find_uid_info(parent_trace, uid)
+                result.append(uid_info.display())
+        return result
+
+    def _find_uid_info(self, parent_trace, uid):
+        '''
+        Helper method, to return the unique UID_Info object that corresponds to the given uid.
+        Raises an error if it doesn't find one.
+        '''
+        # First search in the "second version" of the manifest. There should be at most 1, and no match
+        # is permitted since perhaps this uid was removed
+        uid_info_matches    = [uid_info for uid_info in self.uid_info_list2 if uid_info.uid == uid]
+        if len(uid_info_matches) == 1:
+            return uid_info_matches[0]
+        elif len(uid_info_matches) > 1:
+            raise ApodeixiError(parent_trace, "Manifest seems corrupted: UID '" + str(uid) + "' seems to appear multiple times",
+                                        data = {"Occurrences": str([uid_info.display() for uid_info in uid_info_matches])})
+
+        # Didn't find it in the "second version", so try in the "first version"
+        uid_info_matches    = [uid_info for uid_info in self.uid_info_list1 if uid_info.uid == uid]
+        if len(uid_info_matches) == 1:
+            return uid_info_matches[0]
+        elif len(uid_info_matches) > 1:
+            raise ApodeixiError(parent_trace, "Manifest seems corrupted: UID '" + str(uid) + "' seems to appear multiple times",
+                                        data = {"Occurrences": str([uid_info.display() for uid_info in uid_info_matches])})
+        else: # Didn't find it any where so error out
+            raise ApodeixiError(parent_trace, "Manifest seems corrupted: UID '" + str(uid) + "' appears missing")
+
+    class _ChangedEntityDiff():
+        '''
+        Helper data structured used by the ManifestDiffResult class to hold details about what fields changed for
+        a particular entity
+        '''
+        def __init__(self, uid):
+            '''
+            '''
+            self.uid                = uid
+            self.added_fields       = [] # A list of strings, each string being a field name
+            self.removed_fields     = [] # A list of strings, each string being a field name
+            self.changed_fields     = [] # A list of ChangedValue objects
+
+        def has_differences(self):
+            '''
+            Returns a boolean: True if this object has recorded differences, and False otherwise
+            '''
+            if len(self.added_fields) == 0 and len(self.removed_fields)==0 and len(self.changed_fields)==0:
+                return False
+            else:
+                return True
+
+    class _ChangedValue():
+        '''
+        Helper data structured used by the ManifestDiffResult class to hold information about a change in a field's
+        value
+        '''
+        def __init__(self, uid, field, old_value, new_value):
+            self.uid                = uid
+            self.field              = field
+            self.old_value          = old_value
+            self.new_value          = new_value
 
 class ManifestEventDescription():
     '''

@@ -7,9 +7,14 @@ Apodeixi relies on an environment variable called APODEIXI_CONFIG_DIRECTORY that
 the Apodeixi configuration file to use. The configuration file must be called ApodeixiConfig.toml
 
 An example configuration (for testing purposes) is included in the distribution, referencing a test database external
-to the distribution. This example illustrates setting of the environment varialble to that sample configuration:
+to the distribution. This example illustrates setting of the environment variable to that sample configuration:
 
 export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/project/src/apodeixi/testing_framework/config"
+
+For interactive testing, it is sometimes convenient to set up a UAT environment, with its dedicated configuration
+file, and point Apodeixi to it, as in this example:
+
+export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/UAT_ENV"
 
 # Using a sandbox in the CLI
 

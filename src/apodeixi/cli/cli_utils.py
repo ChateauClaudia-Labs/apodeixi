@@ -189,9 +189,9 @@ class CLI_Utils():
         Returns a string suitable for display in the Apodeixi CLI.
 
         The string is formatted as a table that provides information on what Apodeixi did in response to a user
-        requesting a form
+        requesting a form, by highlighting certain properties of the generated form.
 
-        The table has a row per manifest that was involved, with a description of what changed, if anything.
+        The table has a row for each highlighted property.
         '''
         description_table                   = []
         description_headers                 = ["Property", "Value"]
@@ -210,32 +210,73 @@ class CLI_Utils():
         description_table.append(["Posting API", posting_api])
 
         for manifest_id in form_request_response.manifest_identifiers(parent_trace):
-            kind, nb            = manifest_id.split(".")
-            excel_range         = representer.label_ctx['data.range.'    + str(nb)]
-            excel_sheet         = representer.label_ctx['data.sheet.'    + str(nb)]
-            READ_ONLY           = 'readOnly.'+ str(nb)
+            kind, nb                        = manifest_id.split(".")
+            excel_range                     = representer.label_ctx['data.range.'    + str(nb)]
+            excel_sheet                     = representer.label_ctx['data.sheet.'    + str(nb)]
+            READ_ONLY                       = 'readOnly.'+ str(nb)
             if READ_ONLY in representer.label_ctx.keys() and representer.label_ctx[READ_ONLY] == True:
                 description_table.append(["Read-only Excel range for '" + kind + "'", 
                                         excel_sheet + "!" + excel_range])
             else:
-                PRIOR_VERSION       = "priorVersion." + str(nb)
+                PRIOR_VERSION               = "priorVersion." + str(nb)
                 if PRIOR_VERSION in representer.label_ctx.keys():
-                    last_version    = representer.label_ctx[PRIOR_VERSION]
-                    next_version    = last_version + 1
+                    last_version            = representer.label_ctx[PRIOR_VERSION]
+                    next_version            = last_version + 1
                     description_table.append(["Excel range for updating '" + kind + "' to version " + str(next_version), 
                                             excel_sheet + "!" + excel_range])
                 else:
-                    next_version    = 1
+                    next_version            = 1
                     description_table.append(["Excel range for creating first version of '" + kind + "'", 
                                             excel_sheet + "!" + excel_range])
 
 
-        manifests_description               = "\nGenerated Excel form in this area:\n\n"
-        manifests_description               += clientURL + "\n\n"
-        manifests_description               += tabulate(description_table, headers=description_headers)
-        manifests_description               += "\n"
+        form_description                    = "\nGenerated Excel form in this area:\n\n"
+        form_description                    += clientURL + "\n\n"
+        form_description                    += tabulate(description_table, headers=description_headers)
+        form_description                    += "\n"
 
-        return manifests_description
+        return form_description
+
+    def describe_diff_response(self, parent_trace, diff_result):
+        '''
+        Returns a string suitable for display in the Apodeixi CLI.
+
+        The string is formatted as a table that provides information on what Apodeixi did in response to a user
+        requesting a diff between two versions of a manifest
+
+        The table has a row for each noteworthy difference.
+
+        @param diff_result A ManifestDiffResult object encapsulating all the differences
+        '''
+        description_table                   = []
+        description_headers                 = ["Diff Type", "Entity", "Field", "Original Value", "New Value"]
+
+        # Important: order in list must match the order of the headers in `description_headers`. Required by
+        # the tabulate Python package.
+        for entity_desc in diff_result.added_entities_description(parent_trace):
+            description_table.append(["ENTITY ADDED", entity_desc, "", "", ""])
+
+        for entity_desc in diff_result.removed_entities_description(parent_trace):
+            description_table.append(["ENTITY REMOVED", entity_desc, "", "", ""])
+
+        changed_entities_dict               = diff_result.changed_entities_description_dict(parent_trace)
+        for entity_desc in changed_entities_dict.keys():
+            entity_diff                     = changed_entities_dict[entity_desc]
+
+            for field in entity_diff.added_fields:
+                description_table.append(["FIELD ADDED", entity_desc, field, "", ""])
+            for field in entity_diff.removed_fields:
+                description_table.append(["FIELD REMOVED", entity_desc, field, "", ""])
+            for changed_value in entity_diff.changed_fields:
+                description_table.append(["FIELD CHANGED", entity_desc, changed_value.field, 
+                                                                    changed_value.old_value, 
+                                                                    changed_value.new_value])
+
+        diff_description                    = "\nDiff results:\n\n"
+        diff_description                    += tabulate(description_table, headers=description_headers)
+        diff_description                    += "\n"
+
+        return diff_description
 
 
     def get_namespaces(self, parent_trace, kb_session):

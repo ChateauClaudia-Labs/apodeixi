@@ -21,6 +21,12 @@ class UID_Info:
         self.uid                = uid
         self.entity_value       = entity_value
 
+    def display(self):
+        '''
+        Returns a human-friendly string for the UID info
+        '''
+        return str(self.uid) + ": " + str(self.entity_value)
+
 class AsDataframe_Representer:
     '''
     Class that can represent an Apodeixi manifest as a Pandas DataFrame

@@ -119,6 +119,15 @@ class StringUtils():
         stripped_txt = str(txt).replace('\n', '').strip(' ')
         return stripped_txt
 
+    def to_ascii(self, txt):
+        '''
+        Replaces any non-ascii character in `txt` by a space, and returns the result.
+
+        The implementation was inpired by discussion in 
+        https://stackoverflow.com/questions/20078816/replace-non-ascii-characters-with-a-single-space
+        '''
+        return ''.join([i if ord(i) < 128 else ' ' for i in txt])
+
 class NotebookUtils():
     '''
     Utilities to process Jupyter notebooks
