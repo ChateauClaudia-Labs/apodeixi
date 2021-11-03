@@ -26,7 +26,7 @@ util:
     '
   excel_writer_utils.py: '
 
-    Size (in bytes):  1369
+    Size (in bytes):  1375
 
     '
   formatting_utils.py: '
@@ -47,6 +47,11 @@ util:
   performance_utils.py: '
 
     Size (in bytes):  2877
+
+    '
+  reporting_utils.py: '
+
+    Size (in bytes):  13330
 
     '
   tests_unit:
@@ -84,7 +89,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  2960
+        Size (in bytes):  3025
 
         '
       test_fy_quarter_EXPECTED.txt: '

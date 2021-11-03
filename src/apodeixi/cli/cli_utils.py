@@ -1,7 +1,7 @@
 from datetime import datetime
 import os                                                           as _os
 import re                                                           as _re
-from pandas.core.indexes.base import maybe_extract_name
+
 from tabulate                                                       import tabulate
 import pandas                                                       as _pd
 import xlsxwriter
@@ -17,6 +17,7 @@ from apodeixi.util.formatting_utils                                 import Strin
 from apodeixi.util.path_utils                                       import PathUtils
 from apodeixi.util.performance_utils                                import ApodeixiTimer
 from apodeixi.util.dictionary_utils                                 import DictionaryUtils
+from apodeixi.util.reporting_utils                                  import ReportWriterUtils
 
 class CLI_Utils():
     '''
@@ -334,42 +335,16 @@ class CLI_Utils():
         @param description A string, used to give a description of the report. Example: "big-rock_v1-v2_diff".
         '''
         workbook                        = xlsxwriter.Workbook(path)
-        ROOT_FMT                        = {'text_wrap': True, 'valign': 'top', 'border': True, 'border_color': Palette.WHITE}
-        HEADER_FMT                      = ROOT_FMT | {'bold': True, 'font_color': Palette.WHITE, 'align': 'center','border_color': Palette.WHITE, 
-                                                            'right': True, 'fg_color':     Palette.DARK_BLUE} 
+        my_trace                        = parent_trace.doing("Populating the report's content") 
+        report_content_df               = _pd.DataFrame(data=data, columns=columns)
+        ReportWriterUtils().write_report(   parent_trace            = my_trace, 
+                                            report_df               = report_content_df, 
+                                            column_widths           = column_widths, 
+                                            workbook                = workbook, 
+                                            sheet                   = "Report", 
+                                            description             = description)
 
-        header_format                   = workbook.add_format(HEADER_FMT)  
-
-        report_ws                       = workbook.add_worksheet("Report")
-        x_offset                        = 1
-        y_offset                        = 3
-        my_trace                        = parent_trace.doing("Writing out the description")
-        if True:
-            report_ws.write(0, x_offset, description)
-
-        my_trace                        = parent_trace.doing("Writing out columns")  
-        if True:
-            # Write the headers
-            x_offset                    = 1
-            for idx in range(len(columns)):
-                report_ws.set_column(idx + x_offset, idx + x_offset, column_widths[idx])
-                col                     = columns[idx]
-                report_ws.write(y_offset -1, idx + x_offset, col, header_format)
-        
-        my_trace                        = parent_trace.doing("Writing the rows")
-        if True:
-            for idx in range(len(data)):
-                row                                 = data[idx]
-                for jdx in range(len(columns)):
-                    col                             = columns[jdx]
-                    val                             = row[jdx]
-                    fmt_dict                        = ROOT_FMT.copy()
-                    if idx%2 == 0: 
-                        fmt_dict                    |= {'bg_color': Palette.LIGHT_BLUE}
-                    fmt                             = workbook.add_format(fmt_dict)
-                    
-                    report_ws.write(idx + y_offset, jdx + x_offset, val, fmt)            
-
+        my_trace                        = parent_trace.doing("Saving the report") 
         try:
             workbook.close()
         except Exception as ex:

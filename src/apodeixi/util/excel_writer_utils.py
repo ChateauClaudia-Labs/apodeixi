@@ -21,3 +21,5 @@ def nice_ws_info(parent_trace, worksheet_info):
                                                                             a_dict          = cell_fmt_dict)
             nice_format += "\n" + nice
     return nice_format
+
+
