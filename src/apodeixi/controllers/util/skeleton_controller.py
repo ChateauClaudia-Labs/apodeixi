@@ -598,9 +598,13 @@ class SkeletonController(PostingController):
 
     def manifestAsDataFrame(self, parent_trace, kind, namespace, subnamespace, path_tokens):
         '''
-        Returns a DataFrame with the contents of the most recent manifest identified by the parameters.
+        Returns three things:
+        
+        * DataFrame with the contents of the most recent manifest identified by the parameters.
+        * A dict object for the full manifest (i.e., including metadata)
+        * A list of UID_Info objects, one per row in the DataFrame returned
 
-        If no such manifest exists, it returns None
+        If no such manifest exists, it returns None, None
 
         @param kind A string, corresponding to the `kind` of manifest requested. Must be one of the kinds supported by this
                     controller class.
@@ -636,7 +640,7 @@ class SkeletonController(PostingController):
                                                                     kind                = kind) 
 
         if manifest_dict == None:
-            return None
+            return None, None, None
             
         manifest_nickname                       = str(kind) + " manifest"
         manifest_entity                         = ManifestUtils().infer_entity(parent_trace, manifest_dict, manifest_nickname)
@@ -652,7 +656,7 @@ class SkeletonController(PostingController):
                                                                     contents_path       = "assertion." + str(manifest_entity), 
                                                                     sparse              = False, 
                                                                     abbreviate_uids     = False)
-        return content_df
+        return content_df, manifest_dict, uid_info_list
 
     def _buildOneManifest(self, parent_trace, posting_data_handle, label):
         '''
