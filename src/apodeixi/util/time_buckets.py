@@ -1,6 +1,7 @@
 import datetime                                 as _datetime
 import calendar                                 as _calendar
 import re                                       as _re
+from unittest import result
 
 from apodeixi.util.a6i_error                    import ApodeixiError
 
@@ -29,6 +30,12 @@ class FY_Quarter():
         self.fiscal_year                = fiscal_year
         self.quarter                    = quarter
 
+        # This flag determines whether the time bucket represents a whole fiscal year, or just a quarter
+        # It is false by default. When it is True, this object still has a `quarter` attribute, which is
+        # recommended to be 4, to signify that the time bucket represents a full fiscal year up to 
+        # Q4 of that year.
+        self.is_a_year_bucket           = False
+
     def build_FY_Quarter(parent_trace, formatted_time_bucket_txt, month_fiscal_year_starts=1, default_quarter=4):
         '''
         Parses the string `formatted_time_bucket_txt`, and returns a FY_Quarter object constructed from that.
@@ -40,7 +47,7 @@ class FY_Quarter():
          
             "Q3 FY23", "Q3 FY 23", " Q3 FY 23 ", "FY23", "FY 25", "FY 2026", "Q 4 FY 29" 
 
-        If the quarter is not provided, it is assumed to be Q4
+        If the quarter is not provided, it is assumed to be Q4, and self.is_a_year_bucket is set to True.
 
         @param month_fiscal_year_starts An int between 1 and 12, corresponding to the month of the year
                         when the fiscal year starts. January is 1 and December is 12.
@@ -48,11 +55,11 @@ class FY_Quarter():
                         `formatted_time_bucket_txt` is something like "FY 22"), then this is used as the default
                         value for the quarter in the result. Otherwise this parameter is ignored.
         '''
-        REGEX           = "^\s*(Q\s*([1-4]))?\s*FY\s*(([0-9][0-9])?[0-9][0-9])\s*$"
+        REGEX                       = "^\s*(Q\s*([1-4]))?\s*FY\s*(([0-9][0-9])?[0-9][0-9])\s*$"
         if type(formatted_time_bucket_txt) != str:
             raise ApodeixiError(parent_trace, "Invalid time bucket: expected a string, but instead was given a "
                                                 + str(type(formatted_time_bucket_txt)))
-        m               = _re.search(REGEX, formatted_time_bucket_txt)
+        m                           = _re.search(REGEX, formatted_time_bucket_txt)
         if m==None or len(m.groups())!= 4:
             raise ApodeixiError(parent_trace, "Invalid time bucket `" + formatted_time_bucket_txt + "`. Use a valid format, "
                                                 + "such as 'Q2 FY23', 'Q1 FY 25', 'FY 26', or FY 1974")
@@ -66,14 +73,18 @@ class FY_Quarter():
                 raise ApodeixiError(parent_trace, "Problem with parsing time bucket `" + formatted_time_bucket_txt + "`: "
                                                     + " the given default_quarter should be an integer between 1 and 4, not "
                                                     + str(default_quarter))
-            quarter     = default_quarter
+            quarter                 = default_quarter
+            is_a_year_bucket        = True
         else:
-            quarter     = int(m.group(2))
-        year            = int(m.group(3))
+            quarter                 = int(m.group(2))
+            is_a_year_bucket        = False
+        year                        = int(m.group(3))
         if year < 100:
-            year        += 2000     # For example, FY23 means the year is 2023, not 23
+            year                    += 2000     # For example, FY23 means the year is 2023, not 23
         
-        return FY_Quarter(year, quarter, month_fiscal_year_starts=1)
+        result                      = FY_Quarter(year, quarter, month_fiscal_year_starts=1)
+        result.is_a_year_bucket     = is_a_year_bucket
+        return result
 
     def less_than(self, parent_trace, other_quarter):
         '''
@@ -147,36 +158,51 @@ class FY_Quarter():
         return 'Q' + str(self.quarter)
     
     def display(self):
-        return self.displayQuarter() + " " + self.displayFY()
+        if self.is_a_year_bucket:
+            return self.displayFY()
+        else:
+            return self.displayQuarter() + " " + self.displayFY()
 
     def _starts_on_month(self):
         '''
         Helper method to compute the calendar month when the quarter starts. 
-        Returns two integers. The first one is the month when the quarter starts.
+        Returns two integers. The first one is the month when the quarter starts,
+        and is set as follows:
         
+        If self.is_a_year_bucket, then self.month_fiscal_year_starts
+
+        Else:
         self.quarter=1 ---> self.month_fiscal_year_starts
-        self.quarter=2 ---> self.month_fiscal_year_starts + 3
-        self.quarter=3 ---> self.month_fiscal_year_starts + 6
-        self.quarter=4 ---> self.month_fiscal_year_starts + 9
+        self.quarter=2 ---> self.month_fiscal_year_starts + 3 %12
+        self.quarter=3 ---> self.month_fiscal_year_starts + 6 %12
+        self.quarter=4 ---> self.month_fiscal_year_starts + 9 %12
         
-        The second integer is either 0 or -1, depending on whether the quarter starts in calendar year
+        The second integer is either 0 or -1, depending on whether the time bucket starts in calendar year
         self.fiscal_year or self.fiscal_year-1
         '''
-        months_since_new_year = (self.month_fiscal_year_starts -1) + self.quarter*3 -2
+        if self.is_a_year_bucket:
+            months_since_new_year = self.month_fiscal_year_starts
+        else:
+            months_since_new_year = (self.month_fiscal_year_starts -1) + self.quarter*3 -2
         return (months_since_new_year-1) % 12+1, int((months_since_new_year-1)/12) -1
     
     def _ends_on_month(self):
         '''
         Helper method to compute the calendar month when the quarter ends. 
         Returns two integers. The first one is the month when the quarter ends:
+
+        If self.is_a_year_bucket, then self.month_fiscal_year_starts - 1
         
-        self.quarter=1 ---> self.month_fiscal_year_starts + 2
-        self.quarter=2 ---> self.month_fiscal_year_starts + 5
-        self.quarter=3 ---> self.month_fiscal_year_starts + 8
-        self.quarter=4 ---> self.month_fiscal_year_starts + 11
+        self.quarter=1 ---> self.month_fiscal_year_starts + 2 %12
+        self.quarter=2 ---> self.month_fiscal_year_starts + 5 %12
+        self.quarter=3 ---> self.month_fiscal_year_starts + 8 %12
+        self.quarter=4 ---> self.month_fiscal_year_starts + 11 %12
         
         The second integer is either 0 or -1, depending on whether the quarter ends in calendar year
         self.fiscal_year or self.fiscal_year-1
         '''
-        months_since_new_year = (self.month_fiscal_year_starts - 1) + self.quarter*3
+        if self.is_a_year_bucket:
+            months_since_new_year = (self.month_fiscal_year_starts - 1) + 12
+        else:
+            months_since_new_year = (self.month_fiscal_year_starts - 1) + self.quarter*3
         return (months_since_new_year -1) % 12 + 1, int((months_since_new_year-1)/12) -1

@@ -1,4 +1,6 @@
 
+import pandas                                                   as _pd
+
 from apodeixi.text_layout.excel_layout                          import Palette
 
 from apodeixi.util.a6i_error                                    import ApodeixiError
@@ -7,7 +9,7 @@ from apodeixi.util.time_buckets                                 import FY_Quarte
 
 class ReportWriterUtils():
     '''
-    Utility class aiming to provide common methods for writing Ecel reports
+    Utility class aiming to provide common methods for writing Excel reports
     '''
     def __init__(self):
 
@@ -181,6 +183,9 @@ class ReportWriterUtils():
                                     data = {"x": str(x), "y": str(y), "val": str(val), "error": str(ex)})
 
 
+
+
+
     def to_timebucket_columns(self, parent_trace, a6i_config, df):
         '''
         Returns a DataFrame, identical to df except that columns are modified as follows:
@@ -197,18 +202,28 @@ class ReportWriterUtils():
         '''
         original_columns                = list(df.columns)
 
-        my_trace                        = parent_trace.doing("Flattening (<Quarter>, <Fiscal Year>) column tuples")
         unsorted_flattened_columns      = []
         # As we flatten columns in the loop below, we also partition the columns into intervals, where each interval
         # either consists only of FY_Quarter objects, or only of strings which don't represent time buckets.
-        # So intervals is a list of pairs: first member is the type for the interval (str or FY_Quarter), and second
-        # member is the elements of the interval (as a list)
-        intervals                       = []
-        current_typed_interval          = None # A pair of (type, list)
-        current_type                    = None # In the loop, this is either str or FY_Quarter
-        month_fiscal_year_starts        = a6i_config.getMonthFiscalYearStarts(my_trace)
+        #
+        # So intervals is a list of triples: 
+        #  1. a boolean tag T that determines whether the interval is for columns containing time buckets (True)
+        #  2. a list X of for columns (possibly tuples) that comprise the interval
+        #  3. a list Y such that:
+        #       a) len(Y)  == len(X)
+        #       b) For each idx in range, Y[idx] is either None or a FY_Quarter object
+        #       c) If tag T is False, then Y[idx] == None for all idx
+        #       d) if tag T is True, then Y[idx] is a FY_Quarter object for all idx, corresponding to the timebucket
+        #           that appears in X[idx] in string form
+        # .
+        # 
+        intervals                               = []
 
-        def _add_flattened_col(val):
+        # A pair of (boolean, list), where the boolean is true if this interval is for columns containing time buckets
+        current_interval                        = None
+        current_interval_is_timebuckets         = False
+
+        def _add_flattened_col(val, timebucket):
             '''
             Helper method to handle all the "state management" of the loop when a new flattened column is added.
             This means:
@@ -216,54 +231,449 @@ class ReportWriterUtils():
             * Determining if we are entering a new interval, and if so create it
             * Append to the current interval
             '''
-            nonlocal current_type
-            nonlocal current_typed_interval
+            nonlocal current_interval_is_timebuckets
+            nonlocal current_interval
             nonlocal intervals
             nonlocal unsorted_flattened_columns
-            if type(val) == FY_Quarter:
-                unsorted_flattened_columns.append(val.display())
-            else:
-                unsorted_flattened_columns.append(val)
-            if type(val) != current_type:
-                # We are entering a new interval
-                current_type            = type(val)
-                current_typed_interval  = [type(val), []]
-                intervals.append(current_typed_interval)
+
+            unsorted_flattened_columns.append(val)
+
+            val_is_a_timebucket                 = type(timebucket) == FY_Quarter # A boolean
+
+            if current_interval_is_timebuckets != val_is_a_timebucket:
+                # We toggled, so are entering a new interval
+                current_interval_is_timebuckets = val_is_a_timebucket
+                current_interval                = [val_is_a_timebucket, [], []]
+                intervals.append(current_interval)
+            elif current_interval == None: # This only happens in first cycle of loop and if first column is not a timebucket
+                current_interval                = [False, [], []]
+                intervals.append(current_interval)
+
             # Add to current interval
-            current_typed_interval[1].append(val)
-            # Initialize for next cycle of loop
-            
+            current_interval[1].append(val)
+            current_interval[2].append(timebucket)
+           
+        # This is used to ensure that we have consistency across the columns in terms of where the
+        # timebucket columns get collapsed, if they get collapsed. 
+        # It can be inferred when we encounter the first column that is a timebucket, which means we will have to
+        # a preparatory pass through the columns, just to figure out the collapsing_info.
+        #
+        # Once we have it, we loop again throught the columns, this time doing the real work, enforcing consistency
+        # as per that expected collapsing info
+        # 
+        my_trace                                = parent_trace.doing("Preparatory loop to determine the common_collapsing_info")
+        if True:
+            common_collapsing_info                  = None
+            for idx in range(len(original_columns)):
+                col                                 = original_columns[idx]
+                loop_trace                          = my_trace.doing("Searcing for common_collapsing info from column " + str(col))
+                flattened_col, timebucket, collapsed_indices   = self.standardize_timebucket_column(loop_trace, 
+                                                                            raw_col                     = col, 
+                                                                            a6i_config                  = a6i_config,
+                                                                            expected_collapsing_info    = None)
 
-        for col in original_columns:
-            loop_trace                  = my_trace.doing("Considering to create a FY_Quarter for " + str(col))
-            if type(col) == tuple:
-                flattened_col           = " ".join([str(elt) for elt in col]).strip()
-                try:
-                    timebucket              = FY_Quarter.build_FY_Quarter(loop_trace, flattened_col, month_fiscal_year_starts)
-                except ApodeixiError as ex:
-                    # This column is not a timebucket, so "leave flattening as is"
-                    _add_flattened_col(flattened_col)
-                    continue
-                # If we get here, then there is a real timebucket, so add its formatted representation
-                _add_flattened_col(timebucket)
-            else:
-                # Column is not a tuple, so leave it "as is"
-                _add_flattened_col(col)
+                if timebucket != None: # Found it! Initialize the collapsing expection we can then apply to process cols
+                    if type(flattened_col) == str:
+                        final_size              = 1
+                    else: # flattened_col is a tuple
+                        final_size              = len(flattened_col)
+                    if type(col) == str:
+                        initial_size            = 1
+                    else: # col is a tuple
+                        initial_size            = len(col)
+                    common_collapsing_info      = self._CollapsingInfo(loop_trace, 
+                                                                initial_size            = initial_size, 
+                                                                final_size              = final_size, 
+                                                                collapsed_indices      = collapsed_indices)
+                    break
 
-        unsorted_df                     = df.copy()
-        unsorted_df.columns             = unsorted_flattened_columns
 
-        # Now sort and concatenate the intervals
-        sorted_columns                  = []
-        for typed_interval in intervals:
-            if typed_interval[0] == FY_Quarter:
-                unsorted_timebuckets    = typed_interval[1]
-                # We sort by year first, then by quarter. A trick to accomplish this is to use a key where we multiply the year by 100,
-                # so quarters become the last significant digit modulo 100
-                sorted_timebuckets      = sorted(unsorted_timebuckets, key = lambda bucket: bucket.fiscal_year*100 + bucket.quarter)
-                sorted_columns.extend([bucket.display() for bucket in sorted_timebuckets])
-            else:
-                sorted_columns.extend(typed_interval[1])
+        my_trace                                = parent_trace.doing("Looping through the columns to flatten them")
+        if True:
+            for idx in range(len(original_columns)):
+                col                                 = original_columns[idx]
+                loop_trace                          = my_trace.doing("Considering to create a FY_Quarter for " + str(col))
+                flattened_col, timebucket, collapsed_indices   = self.standardize_timebucket_column(loop_trace, 
+                                                                            raw_col                     = col, 
+                                                                            a6i_config                  = a6i_config,
+                                                                            expected_collapsing_info    = common_collapsing_info)
 
-        sorted_df                       = unsorted_df[sorted_columns]
+                if timebucket == None and idx > 0 and current_interval_is_timebuckets and type(col) == tuple:
+                    # This column is not a timebucket, so we might do additional
+                    # cleaning of the tuple `flattened_col` because the preceding column was a timebucket
+                    # (since current_interval_is_timebuckets=True, and at this stage of the loop that boolean still
+                    # refers to the prior column, as we have not yet called _add_flattened_col)
+                    #
+                    # The following example illustrates the issue that needs cleaning:
+                    #
+                    # Example: supppose in Excel the column is a string like "Actuals", but is preceded by a
+                    #           multi-level column in Excel called ("Q4", "FY 24"). Then when the Excel is loaded in
+                    #       Pandas, all columns are treated as tuples, and empty tuple entries are taken from the
+                    #       predecessor column, so "Actuals" is turned into ("Q4", "Actuals") and flattened_col
+                    #       has the value "Q4 Actuals", which is wrong. 
+                    #       
+                    # To fix this, we check if the prior column was a time bucket, and if so we blank out any values
+                    # in col that come from that timebucket
+                    #
+                    prior_col       = original_columns[idx-1]
+                    # We need to re-flatten col because it was flattened incorrectly, with some elements of the tuple
+                    # that should be removed because Pandas just set them to be equal to the preceding column,
+                    # when in reality they probably where blanks in the Excel from where the DataFrame having
+                    # these columns was loaded
+                    cleaned_col     = tuple([col[idx] if col[idx] != prior_col[idx] else "" for idx in range(len(col))])
+                    
+                    flattened_col, timebucket, collapsed_indices   = self.standardize_timebucket_column(loop_trace, 
+                                                                            raw_col                     = cleaned_col, 
+                                                                            a6i_config                  = a6i_config,
+                                                                            expected_collapsing_info    = common_collapsing_info)
+
+    
+                _add_flattened_col(flattened_col, timebucket)
+
+        unsorted_df                             = df.copy()
+        unsorted_df.columns                     = self._disambiguate_duplicates(parent_trace, unsorted_flattened_columns)
+
+        my_trace                                = parent_trace.doing("Sort and concatenate intervals")
+        if True:
+            sorted_columns                      = []
+            for tagged_interval in intervals:
+                if tagged_interval[0]:
+                    unsorted_timebuckets        = tagged_interval[2]
+                    unsorted_interval_columns   = tagged_interval[1]
+                    # We want to sort the actual columns in the interval (which might be tuples) the same way 
+                    # we would sort the corresponding timebuckets.
+                    #
+                    # To accomplish this, we "join" the two lists in a temporary data structure of pairs, sort that
+                    # joined list, and then extract the part of the joined result that is columns
+                    #
+                    unsorted_joined_list        = [[unsorted_interval_columns[idx], unsorted_timebuckets[idx]] 
+                                                    for idx in range(len(unsorted_interval_columns))]
+
+                    # We sort by year first, then by quarter. A trick to accomplish this is to use a key where we multiply the year by 100,
+                    # so quarters become the last significant digit modulo 100
+                    sorted_joined_list          = sorted(unsorted_joined_list,
+                                                        key = lambda pair: pair[1].fiscal_year*100 + pair[1].quarter)
+
+                    sorted_interval_columns     = [pair[0] for pair in sorted_joined_list]
+                    sorted_columns.extend(sorted_interval_columns)
+                    '''
+                    sorted_timebuckets      = sorted(unsorted_timebuckets, 
+                                                        key = lambda bucket: bucket.fiscal_year*100 + bucket.quarter)
+                    sorted_columns.extend([bucket.display() for bucket in sorted_timebuckets])
+                    '''
+                else:
+                    sorted_columns.extend(tagged_interval[1])
+
+            sorted_df                       = unsorted_df[self._disambiguate_duplicates(parent_trace, sorted_columns)]
+
+            # If the columns of sorted_df are tuples, change them to MultiLevel index
+            if common_collapsing_info.final_size > 1:
+                tuple_cols                  = list(sorted_df.columns)
+                multi_level_cols            = _pd.MultiIndex.from_tuples(tuple_cols)
+                sorted_df.columns           = multi_level_cols
+
         return sorted_df
+
+    def standardize_timebucket_column(self, parent_trace, raw_col, a6i_config, expected_collapsing_info = None):
+        '''
+        Utility method used when a DataFrame has columns corresponding to timebuckets, used in the
+        context where the caller desires to re-name the DataFrame columns so that time buckets follow the
+        standard conventions of the FY_Quarter class.
+
+        This method returns three things:
+
+        * A "standardized" column that can be used to replace `raw_col`
+        * A FY_Quarter object that corresponds to that column. If None, that means the `raw_col` does not
+          correspond to a timebucket, and the first value returned is just `raw_col`
+        * A list of the integer indices in `raw_col` that were collapsed to a single value in the result, if that
+          collapsing occured (see below). If no collapsing occurred, the list is empty
+
+        The standardization provided by this method is quite general, and supports multi-level columns.
+        This is best illustraded with examples:
+
+        1. If raw_col is a string, then an attempt is made to parse it into a valid FY_Quarter object,
+           whose string display is then returned.
+
+            Example: if `raw_col` is "Q3 FY 2022", then this method creates a FY_Quarter object x
+                    for Q3 FY22, and returns the triple (x.display(), x, [])
+            Example: if `raw_col` is "Actuals", then this method returns the triple ("Actuals", None, [])
+
+        2. If raw_col is a tuple for a multi-level column, then this method aims to find the first level,
+            or first pair of consecutive levels, which are a timebucket, leaving the others "as is".
+            When two levels are needed to represent a timebucket, then they are collapsed.
+
+            Example: if `raw_col` is ("Q3 FY 2022", "Actuals"), then this method creates a FY_Quarter object
+                x from "Q3 FY 2022" and returns the triple ((x.display(), "Actuals"), x, [])
+
+            Example: if `raw_col` is ("Q3", "2024"), then this method creates an FY_Quarter x for Q3 FY24
+            and returns the triple (x.display(), x, [0,1]). In this case the tuple is collapsed to a string.
+
+            Example: if `raw_col` is ("Metrics", "Q3", "2024", "Actuals"), then this method creates an
+                FY_Quarter object for Q3 FY24 and returns the triple
+                
+                         (("Metrics", x.display(), "Actuals"), x, [1,2])
+
+                In this case the 4-tuple column is collapsed to a 3-typle.
+
+            Example: if `raw_col` is ("Geo", "Americas"), then this method returns the triple 
+                        (("Geo", "Americas"), None, [])
+
+        @param expected_collapsing_info An optional _CollapsingInfo object. 
+            If not None, then this method behaves as follows:
+
+            1. If this method's algoritm encounters a timebucket, then it must be collapsed exactly as
+                per the `expected_collapsing_info`. Otherwise, this method errors out
+
+            2. If this method's algorithm does not encounter a timebucket, then it will force
+                a collapse of the resulting column before returning.
+
+            3. If `raw_col` is not a tuple of a length as per the `expected_collapsing_info`, that is an error.
+        '''
+        if type(raw_col) != str and type(raw_col) != tuple:
+            raise ApodeixiError(parent_trace, "This kind of column can't have its timebuckets standardized: expected "
+                                                + "a string or a tuple, not a '" + str(type(raw_col)) + "'",
+                                                data = {"raw_col": str(raw_col)})
+
+        if type(raw_col) == tuple:
+            bad_elts                        = [elt for elt in raw_col if type(elt) != str and type(elt) != int]
+            if len(bad_elts) > 0:
+                raise ApodeixiError(parent_trace, "This kind of multi-level column can't have time buckets standardized: "
+                                                + str(len(bad_elts)) + " of its members are not strings or ints",
+                                                data = {"non-string elements": str(bad_elts),
+                                                        "raw_col": str(raw_col)})
+            if len(raw_col) == 0:
+                raise ApodeixiError(parent_trace, "An empty tuple is not a valid column to have time buckets standardized")
+
+            if expected_collapsing_info != None and len(raw_col) != expected_collapsing_info.initial_size:
+                raise ApodeixiError(parent_trace, "Bad column for standardization: it should be a tuple of length exactly "
+                                                        + str(expected_collapsing_info.initial_size) + " elements",
+                                                        data = {"raw_col": str(raw_col)})
+
+        def _singleton_to_timebucket(parent_trace, txt):
+            '''
+            Aims to convert the objet to a FY_Quarter object out of a string, and returns it. If it fails, it returns None.
+            '''
+            month_fiscal_year_starts        = a6i_config.getMonthFiscalYearStarts(parent_trace)
+            cleaned_txt                     = _strip_pandas_disambiguation(txt)
+            try:
+                timebucket          = FY_Quarter.build_FY_Quarter(parent_trace, cleaned_txt, month_fiscal_year_starts)
+                return timebucket
+            except ApodeixiError as ex:
+                return None
+
+        def _pair_to_timebucket(parent_trace, txt1, txt2):
+            '''
+            Aims to convert a pair of strings like "Q3", "FY 24" to a FY_Quarter object, and returns it. 
+            If it fails, it returns None.
+            '''
+            month_fiscal_year_starts        = a6i_config.getMonthFiscalYearStarts(parent_trace)
+            cleaned_txt1                    = _strip_pandas_disambiguation(txt1)
+            cleaned_txt2                    = _strip_pandas_disambiguation(txt2)
+
+            # It is possible that the caller passed `txt2` to be something like "23" instead of "FY 23".
+            # If so, add the "FY" prefix so that the FY_Quarter parser won't fail
+            if cleaned_txt2.isnumeric():
+                cleaned_txt2                = "FY" + cleaned_txt2
+            full_txt                        = cleaned_txt1 + " " + cleaned_txt2
+            try:
+                timebucket          = FY_Quarter.build_FY_Quarter(parent_trace, full_txt, month_fiscal_year_starts)
+                return timebucket
+            except ApodeixiError as ex:
+                return None
+
+        def _strip_pandas_disambiguation(txt):
+            '''
+            Helper method to prevent FY_Quarter parsing errors for column names that are modified by Pandas when
+            loading an Excel file.
+            For example, if the column name "Q3 FY24" appears in two different columns in Excel, when Pandas
+            loads the Excel it will re-name the second column as "Q3 FY24.1". This would fail to be parsed
+            by the FY_Quarter parser, so this method returns any portion of the column name that lies after
+            a period, and returns it.
+            '''
+            return txt.split(".")[0]
+
+        if type(raw_col) == str:
+            timebucket                      = _singleton_to_timebucket(parent_trace, raw_col)
+            if timebucket == None:
+                return raw_col, None, []
+            else:
+                return timebucket.display(), timebucket, []
+
+        # If we get this far, `raw_col` is a tuple, part of a multi-level column index
+        # We loop through the tuple trying to parse a timebucket, either for a single level or for two
+        # consecutive levels. At the first success we stop
+        result_list                         = []
+        timebucket                          = None
+        for idx in range(len(raw_col)):
+            loop_trace                      = parent_trace.doing("Processing column '" + str(raw_col) + "'")
+            collapsed_indices               = []
+            txt1                            = str(raw_col[idx])
+            # First parsing try: for a singleton
+            timebucket                      = _singleton_to_timebucket(loop_trace, txt1)
+            if timebucket != None: # Found it!
+                result_list.append(timebucket.display())
+                # For the remaining members of the tuple, take them as they are in raw_col
+                result_list                 = result_list + list(raw_col[idx + 1:])
+                break
+            # First parsing attempt failed, so try with a pair instead of a singleton:
+            if idx + 1 < len(raw_col):
+                txt2                        = str(raw_col[idx + 1])
+                timebucket                  = _pair_to_timebucket(loop_trace, txt1, txt2)
+                if timebucket != None: # Found it!
+                    result_list.append(timebucket.display())
+                    # For the remaining members of the tuple, take them as they are in raw_col
+                    result_list             = result_list + list(raw_col[idx + 2:])
+                    collapsed_indices       = [idx, idx + 1]
+                    break
+            # If we get here, both parsing attempts failed, so this element of the tuple is not part of
+            # a FY_Quarter. So just add it "as is" and try our luck in the next cycle of the loop
+            #
+            # But before we add it, we need to make a check to avoid adding something the user might have
+            # never intended as part of a column but which Pandas introduced.
+            # This arrises in this context:
+            #
+            # If this DataFrame was created by loading an Excel spreadsheet, then Pandas might have 
+            # "padded" empty cells in a multi-level with strings like "Unnamed: 1_level_0" in the tuple 
+            # to complete it. If so, don't include such frivolous strings as a valid part of the result_list
+            if not txt1.startswith("Unnamed:") and not "_level_" in txt1:            
+                result_list.append(txt1)
+            else:
+                result_list.append("")
+
+        my_trace                    = parent_trace.doing("Applying collapsing expectations")
+        if expected_collapsing_info != None:
+            if timebucket != None: # Check expectations were met
+                if len(result_list) != expected_collapsing_info.final_size:
+                    raise ApodeixiError(my_trace, "Column name standardization fails expectations: should have size "
+                                                        + str(expected_collapsing_info.final_size),
+                                                    data = {"result_list": str(result_list)})
+                if collapsed_indices != expected_collapsing_info.collapsed_indices:
+                    raise ApodeixiError(my_trace, "Column name standardization fails expectations: should have collapsed "
+                                                        "indices " + str(expected_collapsing_info.collapsed_indices),
+                                                    data = {"collapsed_indices": str(collapsed_indices)})
+            
+            else: # No timebucket, so we did no collapse, so should force one now
+                result_list         = self._collapse_if_needed(my_trace, result_list, expected_collapsing_info)
+ 
+        if len(result_list) != 1:
+            return tuple(result_list), timebucket, collapsed_indices
+        else:
+            return result_list[0], timebucket, collapsed_indices
+
+    def _collapse_if_needed(self, parent_trace, a_list, expected_collapsing_info):
+        '''
+        Subroutine used as part of collapsing tuple column names that have time buckets.
+        Will collapse `a_list` as per the `expected_collapsed_info`, if it hasn't already been collapsed,
+        and return the collapsed list
+
+        @param expected_collapsing_info A _CollapsingInfo object
+        '''
+        if len(a_list) == expected_collapsing_info.final_size: # List is already collapsed
+            return a_list
+        elif len(a_list) != expected_collapsing_info.initial_size:
+            raise ApodeixiError(parent_trace, "Can't collapse list because it should be of length " 
+                                                + str(expected_collapsing_info.initial_size),
+                                            data = {"len(a_list)":  str(len(a_list)),
+                                                    "a_list":       str(a_list)})
+        else:
+            idx1                = expected_collapsing_info.collapsed_indices[0]
+            idx2                = expected_collapsing_info.collapsed_indices[1]
+            if idx1 != idx2:
+                boundary_val    = a_list[idx1] + " " + a_list[idx2]
+                boundary_val    = boundary_val.strip()
+            else:
+                boundary_val    = a_list[idx1]
+            result_list         = a_list[:idx1] + [boundary_val] + a_list[idx2+1:]
+
+            return result_list
+
+    def _disambiguate_duplicates(self, parent_trace, raw_columns):
+        '''
+        Helper method to avoid a situation where we might use the same string as the name of two different
+        columns for a DataFrame.
+
+        It returns a list of columns, of same length as the input `raw_columns`, where each element is the same
+        as in `raw_columns` except possibly for a suffix ".1", ".2", etc that is added for duplicate column names
+
+        @param raw_columns A list of strings
+        '''
+        result                          = []
+        for col in raw_columns:
+            if col in result: # Means this is a duplicate. So look for the first integer that disambiguates it
+                idx                     = 1
+                if type(col) == tuple:
+                    duplicate_txt       = str(col[-1]).strip()
+                    # GOTCHA: Avoid empty strings, as regression tests would fail by causing the cell in Excel
+                    # to be ".1" which will be read as 0.1
+                    if len(duplicate_txt) == 0:
+                        duplicate_txt   = "_"
+                    candidate           = tuple(list(col[:-1]) + [duplicate_txt + "." + str(idx)])
+
+                else:
+                    duplicate_txt       = str(col).strip()
+                    # GOTCHA: Avoid empty strings, as regression tests would fail by causing the cell in Excel
+                    # to be ".1" which will be read as 0.1
+                    if len(duplicate_txt) == 0:
+                        duplicate_txt   = "_"
+                    candidate               = duplicate_txt + "." + str(idx)
+                LIMIT                   = 1000 # To avoid infinite loops if there is a bug, constrain unbounded search
+                while idx < LIMIT:
+                    if not candidate in result:
+                        result.append(candidate)
+                        break
+                    idx                 += 1
+            else:
+                result.append(col)
+
+        # Check our unbounded search didn't miss some column
+        if len(result) != len(raw_columns):
+            raise ApodeixiError(parent_trace, "Internal error in algorithm to disambiguate duplicate columns: result "
+                                                " should have been of exact same size as input",
+                                                data = {"input length":         str(len(raw_columns)),
+                                                        "result length":        str(len(result)),
+                                                        "input":                str(raw_columns),
+                                                        "result":               str(result)})
+
+        return result
+
+    class _CollapsingInfo():
+        '''
+        Helper class used when standardizing timebucket columns. It defines the expectations on all
+        columns before and after the standardization, in terms of sizes and in terms of the indices that are collapsed
+        
+        @param initial_size An int, corresponding to the original tuple length for a column name prior to standardization
+        @param final_size An int, corresponding to the final tuple length for a column name after standardization
+        @param collapsed_indices A list of either 0 or 2 consecutive integers, corresponding to the indices that
+                are collapsed in the column name's tuple, if any.
+        '''
+        def __init__(self, parent_trace, initial_size, final_size, collapsed_indices):
+            self.initial_size           = initial_size
+            self.final_size             = final_size
+
+            if type(collapsed_indices) != list:
+                raise ApodeixiError(parent_trace, "Bad collapsing indices: should be a list",
+                                                    data = {"type(collapsed_indices)": str(type(collapsed_indices))})
+            if len(collapsed_indices) != 0 and len(collapsed_indices) != 2:
+                raise ApodeixiError(parent_trace, "Bad collapsing indices: should be a list of size 0 or 2",
+                                                    data = {"collapsed_indices)": str(collapsed_indices)})  
+
+            if len([elt for elt in collapsed_indices if type(elt) != int]) > 0:
+                raise ApodeixiError(parent_trace, "Bad collapsing indices: should be a list of integers",
+                                                    data = {"collapsed_indices)": str(collapsed_indices)})  
+
+            if len(collapsed_indices) ==2:
+                first_idx               = collapsed_indices[0]
+                second_idx              = collapsed_indices[1]    
+                if first_idx > second_idx:
+                    raise ApodeixiError(parent_trace, "Bad collapsing indices: list is not sorted",
+                                                    data = {"collapsed_indices)": str(collapsed_indices)}) 
+                if first_idx < 0 or second_idx < 0:      
+                    raise ApodeixiError(parent_trace, "Bad collapsing indices: they should be non-negative",
+                                                    data = {"collapsed_indices)": str(collapsed_indices)})  
+
+                if first_idx >= initial_size or second_idx >= initial_size:      
+                    raise ApodeixiError(parent_trace, "Bad collapsing indices: they should be less than the initial size",
+                                                    data = {"intial_size":      str(initial_size),
+                                                            "collapsed_indices)": str(collapsed_indices)})   
+
+            self.collapsed_indices     = collapsed_indices

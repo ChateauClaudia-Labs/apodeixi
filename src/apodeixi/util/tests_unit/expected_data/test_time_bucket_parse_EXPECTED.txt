@@ -2,7 +2,7 @@
 'Q3 FY23' was parsed as:		Q3 FY23
 'Q3 FY 23' was parsed as:		Q3 FY23
 ' Q3 FY 23 ' was parsed as:		Q3 FY23
-'FY23' was parsed as:		Q4 FY23
-'FY 25' was parsed as:		Q4 FY25
-'FY 2026' was parsed as:		Q4 FY26
+'FY23' was parsed as:		FY23
+'FY 25' was parsed as:		FY25
+'FY 2026' was parsed as:		FY26
 'Q 4 FY 29' was parsed as:		Q4 FY29

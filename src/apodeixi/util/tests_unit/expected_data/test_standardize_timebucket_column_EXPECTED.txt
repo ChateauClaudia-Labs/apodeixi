@@ -1,0 +1,29 @@
+
+
+'Q3 FY23' was parsed as:...........................Q3 FY23 [] (a FY_Quarter)
+
+'Q3 FY 23' was parsed as:...........................Q3 FY23 [] (a FY_Quarter)
+
+'(' Q3 ', 'FY 23 ')' was parsed as:...........................Q3 FY23 [0, 1] (a FY_Quarter)
+
+'('Metrics', 'FY23')' was parsed as:...........................('Metrics', 'FY23') [] (a FY_Quarter) (a tuple)
+
+'('Perro', 'casa')' was parsed as:...........................('Perro', 'casa') [] (a tuple)
+
+'nata' was parsed as:...........................nata []
+
+'('FY 25', 'Actuals')' was parsed as:...........................('FY25', 'Actuals') [] (a FY_Quarter) (a tuple)
+
+'('Metrics', 'Q2', 'FY 2026', 'Target')' was parsed as:...........................('Metrics', 'Q2 FY26', 'Target') [1, 2] (a FY_Quarter) (a tuple)
+
+'('Q 4 ', ' FY 29')' was parsed as:...........................Q4 FY29 [0, 1] (a FY_Quarter)
+
+'2023' was parsed as:...........................(ApodeixiError(...), "This kind of column can't have its timebuckets standardized: expected a string or a tuple, not a '<class 'int'>'") []
+
+'Q3 FY23.1' was parsed as:...........................Q3 FY23 [] (a FY_Quarter)
+
+'(' Q3 ', 'FY 23.2 ')' was parsed as:...........................Q3 FY23 [0, 1] (a FY_Quarter)
+
+'('Metrics', 'Q2', 'FY 2026.3', 'Target.4')' was parsed as:...........................('Metrics', 'Q2 FY26', 'Target.4') [1, 2] (a FY_Quarter) (a tuple)
+
+'()' was parsed as:...........................(ApodeixiError(...), 'An empty tuple is not a valid column to have time buckets standardized') []

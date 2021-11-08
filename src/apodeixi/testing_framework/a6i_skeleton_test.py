@@ -73,14 +73,14 @@ class ApodeixiSkeletonTest(unittest.TestCase):
 
 
 
-    def load_csv(self, parent_trace, path):
+    def load_csv(self, parent_trace, path, header=0):
         '''
         Helper method to load a "clean DataFrame" from a CSV file, correcting for spurious columns and NAs
         '''
         try:
             # Important to set the encoding to "ISO-8859-1". Otherwise will get errors as explained in
             # https://stackoverflow.com/questions/19699367/for-line-in-results-in-unicodedecodeerror-utf-8-codec-cant-decode-byte
-            data_df             = _pd.read_csv(path, encoding = "ISO-8859-1")
+            data_df             = _pd.read_csv(path, encoding = "ISO-8859-1", header=header)
         except FileNotFoundError as ex:
             raise ApodeixiError(parent_trace, "Can't load CSV file because it doesn't exist",
                                     data = {'path':             path,
@@ -309,20 +309,36 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         OUTPUT_COLUMNS              = [col for col in output_df.columns if not col in columns_to_ignore] 
         output_df[OUTPUT_COLUMNS].to_csv(OUTPUT_FOLDER + '/' + OUTPUT_FILE)
 
+        if type(output_df.columns) == _pd.MultiIndex: # Will need headers to load properly
+            nb_levels               = len(output_df.columns.levels)
+            header                  = list(range(nb_levels))
+        else:
+            header                  = 0
+
         # Load the output we just saved, which we'll use for regression comparison since in Pandas the act of loading will
         # slightly change formats (e.g., strings for numbers become Numpy numbers) 
         # and we want to apply the same such changes as were applied to the expected output,
         # to avoid frivolous differences that don't deserve to cause this test to fail
-        loaded_output_df            = self.load_csv(parent_trace, OUTPUT_FOLDER + '/' + OUTPUT_FILE)
+        loaded_output_df            = self.load_csv(parent_trace, 
+                                            path        = OUTPUT_FOLDER + '/' + OUTPUT_FILE,
+                                            header      = header)
 
         # Retrieve expected output
-        expected_df                 = self.load_csv(parent_trace, EXPECTED_FOLDER + '/' + EXPECTED_FILE)
+        expected_df                 = self.load_csv(parent_trace, 
+                                            path        = EXPECTED_FOLDER + '/' + EXPECTED_FILE,
+                                            header      = header)
 
         EXPECTED_COLUMNS            = [col for col in expected_df.columns if not col in columns_to_ignore]  
 
+        # GOTCHA: 
+        # 
+        #   OUTPUT_COLUMNS may differ from LOADED_OUTPUT_COLUMNS in the case of MultiLevel indices because
+        # of padding introduced in the load. For example, a column like ('Comment', '') in OUTPUT_COLUMNS
+        # will become ('Comment', 'Unnamed: 1_leveL_1'). So to compare, we use the LOADED columns
+        LOADED_OUTPUT_COLUMNS       = [col for col in loaded_output_df.columns if not col in columns_to_ignore]
 
         my_trace                    = parent_trace.doing("Invoking the DataFrameComparator")
-        comparator                  = DataFrameComparator(  df1         = loaded_output_df[OUTPUT_COLUMNS], 
+        comparator                  = DataFrameComparator(  df1         = loaded_output_df[LOADED_OUTPUT_COLUMNS], 
                                                             df1_name    = "output",
                                                             df2         = expected_df[EXPECTED_COLUMNS], 
                                                             df2_name    = "expected",

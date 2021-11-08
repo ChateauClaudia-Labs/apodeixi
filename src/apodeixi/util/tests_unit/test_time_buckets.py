@@ -1,6 +1,5 @@
 import sys                                      as _sys
 import datetime                                 as _datetime
-#import pandas                                  as _pd
 
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
@@ -115,8 +114,6 @@ class Test_FY_Quarter(ApodeixiUnitTest):
                                         output_txt          = output, 
                                         test_output_name    = 'test_time_bucket_compare', 
                                         save_output_txt     = True)
-
-
 
 
 if __name__ == "__main__":
