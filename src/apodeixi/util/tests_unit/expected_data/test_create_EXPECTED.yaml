@@ -31,7 +31,7 @@ util:
     '
   formatting_utils.py: '
 
-    Size (in bytes):  18024
+    Size (in bytes):  18442
 
     '
   list_utils.py: '
@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  42122
+    Size (in bytes):  45622
 
     '
   tests_unit:
@@ -89,7 +89,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  3917
+        Size (in bytes):  4130
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -114,7 +114,7 @@ util:
         '
       test_standardize_timebucket_column_EXPECTED.txt: '
 
-        Size (in bytes):  1557
+        Size (in bytes):  1680
 
         '
       test_time_bucket_compare_EXPECTED.txt: '
@@ -143,6 +143,16 @@ util:
 
         '
       test_to_timebucket_columns_2_df_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  143
+
+        '
+      test_to_timebucket_columns_3_df_EXPECTED.csv: '
+
+        Size (in bytes):  367
+
+        '
+      test_to_timebucket_columns_3_df_comparison_EXPECTED.txt: '
 
         Size (in bytes):  143
 
@@ -178,9 +188,9 @@ util:
         Size (in bytes):  16782
 
         '
-      ~$test_to_timebucket_columns_2_df.xlsx: '
+      test_to_timebucket_columns_3_df.xlsx: '
 
-        Size (in bytes):  165
+        Size (in bytes):  16660
 
         '
     test_a6i_error.py: '
@@ -220,7 +230,7 @@ util:
       '
     test_reporting_utils.py: '
 
-      Size (in bytes):  4474
+      Size (in bytes):  4840
 
       '
     test_time_buckets.py: '

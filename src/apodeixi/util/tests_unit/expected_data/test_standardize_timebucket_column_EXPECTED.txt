@@ -6,13 +6,13 @@
 
 '(' Q3 ', 'FY 23 ')' was parsed as:...........................Q3 FY23 [0, 1] (a FY_Quarter)
 
-'('Metrics', 'FY23')' was parsed as:...........................('Metrics', 'FY23') [] (a FY_Quarter) (a tuple)
+'('Metrics', 'FY23')' was parsed as:...........................('Metrics', 'FY23') [1] (a FY_Quarter) (a tuple)
 
 '('Perro', 'casa')' was parsed as:...........................('Perro', 'casa') [] (a tuple)
 
 'nata' was parsed as:...........................nata []
 
-'('FY 25', 'Actuals')' was parsed as:...........................('FY25', 'Actuals') [] (a FY_Quarter) (a tuple)
+'('FY 25', 'Actuals')' was parsed as:...........................('FY25', 'Actuals') [0] (a FY_Quarter) (a tuple)
 
 '('Metrics', 'Q2', 'FY 2026', 'Target')' was parsed as:...........................('Metrics', 'Q2 FY26', 'Target') [1, 2] (a FY_Quarter) (a tuple)
 
@@ -27,3 +27,5 @@
 '('Metrics', 'Q2', 'FY 2026.3', 'Target.4')' was parsed as:...........................('Metrics', 'Q2 FY26', 'Target.4') [1, 2] (a FY_Quarter) (a tuple)
 
 '()' was parsed as:...........................(ApodeixiError(...), 'An empty tuple is not a valid column to have time buckets standardized') []
+
+'('Q1 FY24', 'Actuals')' was parsed as:...........................('Q1 FY24', 'Actuals') [0] (a FY_Quarter) (a tuple)

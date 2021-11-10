@@ -102,11 +102,19 @@ class StringUtils():
 
     def is_blank(self, txt):
         '''
-        Returns True if 'txt' is a string of just spaces. Else it returns False
+        Returns True if 'txt' is a string of just spaces, or a tuple of strings of empty spaces. Else it returns False
+
+        Tuples are supported since this method sometimes is called with DataFrame MultiIndex columns
         '''
         if type(txt)==str:
             stripped_txt = self.strip(txt)
             return len(stripped_txt)==0
+        elif type(txt)==tuple:
+            for elt in txt:
+                if not self.is_blank(elt):
+                    return False
+            # If we get this far, all of the tuple elements are blank, so we regard the tuple itself as blank
+            return True
         else:
             return False
 

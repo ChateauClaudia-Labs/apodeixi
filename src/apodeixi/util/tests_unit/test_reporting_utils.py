@@ -24,7 +24,7 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
         tests                   = ["Q3 FY23", ("Q3 FY 23"), (" Q3 ", "FY 23 "), ("Metrics", "FY23"), ("Perro", "casa"), "nata",
                                 ("FY 25", "Actuals"), ("Metrics", "Q2", "FY 2026", "Target"), ("Q 4 ", " FY 29"),
                                 2023, "Q3 FY23.1", (" Q3 ", "FY 23.2 "), ("Metrics", "Q2", "FY 2026.3", "Target.4"),
-                                (),
+                                (), ("Q1 FY24", "Actuals")
         ]
 
         output                      = ""
@@ -32,15 +32,15 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
             raw_col                 = tests[idx]
             timebucket              = None
             try:
-                col_result, timebucket, collapsed_indices = \
+                col_result, timebucket, timebucket_indices = \
                                     ReportWriterUtils().standardize_timebucket_column(root_trace, raw_col, a6i_config)
             except ApodeixiError as ex:
                 col_result          = str(ex)
                 timebucket          = None
-                collapsed_indices   = []
+                timebucket_indices   = []
 
             output                  += "\n\n'" + str(tests[idx]) + "' was parsed as:..........................." \
-                                                        + str(col_result) + " " + str(collapsed_indices)
+                                                        + str(col_result) + " " + str(timebucket_indices)
 
             if timebucket != None:
                 output      += " (a FY_Quarter)"
@@ -64,6 +64,14 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
 
         TEST_NAME           = "test_to_timebucket_columns_2_df"
         header              = [0,1,2]
+        index_col           = [0]
+
+        self._impl_test(TEST_NAME, header, index_col)
+
+    def test_to_timebucket_columns_3(self):
+
+        TEST_NAME           = "test_to_timebucket_columns_3_df"
+        header              = [0,1]
         index_col           = [0]
 
         self._impl_test(TEST_NAME, header, index_col)
@@ -98,5 +106,7 @@ if __name__ == "__main__":
             T.test_to_timebucket_columns_1()
         if what_to_do=="to_timebucket_columns_2":
             T.test_to_timebucket_columns_2()
+        if what_to_do=="to_timebucket_columns_3":
+            T.test_to_timebucket_columns_3()
 
     main(_sys.argv)

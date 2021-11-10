@@ -191,9 +191,15 @@ class ReportWriterUtils():
         Returns a DataFrame, identical to df except that columns are modified as follows:
 
         * Any column of form ("Q2", "FY23") - is mapped to a FY_Quarter object
-        * Any consecutive segment of FY_Quarter objects are sorted
+        * Any consecutive "consistent" segment of FY_Quarter objects are sorted - and two FY_Quarter objects are "consistent"
+          if they arise from columns whose higher-order levels (if any) are the same. 
+            Example: ("Sales", "Q2", "FY 23", "Actual") and ("Sales", "Q1", "2005", "Target") are consistent: level 0 is
+                    the same for both columns ("Sales")
+            Example: ("Actuals", "Q2", "FY 23") and ("Target", "Q1", "2005") are *not* consistent since level 0 has different
+                    values in the columns ("Actuals" vs "Target"), so they are viewed as belonging to different intervals, 
+                    for sorting purposes.
         * The returned DataFrame's columns are strings created from the FY_Quarter objects, for columns that are time buckets 
-        * Other columns are "left as is" unless they are tuples, in which case they are flattened to a string by concatenating
+        * Lower-level columns are "left as is" unless they are tuples, in which case they are flattened to a string by concatenating
           stringified tuple members
         * Columns that are not time buckets appear in the same location as in the original `df`
         * Columns that are time buckets are "locally sorted", meaning: each consecutive interval of time buckets is sorted, but
@@ -223,7 +229,7 @@ class ReportWriterUtils():
         current_interval                        = None
         current_interval_is_timebuckets         = False
 
-        def _add_flattened_col(val, timebucket):
+        def _add_flattened_col(val, timebucket, timebucket_indices):
             '''
             Helper method to handle all the "state management" of the loop when a new flattened column is added.
             This means:
@@ -240,7 +246,32 @@ class ReportWriterUtils():
 
             val_is_a_timebucket                 = type(timebucket) == FY_Quarter # A boolean
 
+
             if current_interval_is_timebuckets != val_is_a_timebucket:
+                # We toggled from/to having time buckets, so are entering a new interval since one has time buckets
+                # and the other does not, making them different intervals
+                entering_new_interval           = True
+            elif val_is_a_timebucket and type(val) ==tuple and current_interval != None:
+                # While both current and prior columns have time bickets, we need to check if they are
+                # "consistent", i.e., higher-level values of the multi level index are the same. If they are not
+                # then we should treat the prior and current columns as belonging to different intervals and not
+                # be sorted together.
+                #    Example: ("Sales", "Q2", "FY 23", "Actual") and ("Sales", "Q1", "2005", "Target") are consistent: level 0 is
+                #            the same for both columns ("Sales")
+                #    Example: ("Actuals", "Q2", "FY 23") and ("Target", "Q1", "2005") are *not* consistent since level 0 has different
+                #            values in the columns ("Actuals" vs "Target"), so they are viewed as belonging to different intervals, 
+                #            for sorting purposes.     
+                #            
+                prior_val                       = current_interval[1][-1] # We know this is a tuple and therefore timebucket_indices is not empty
+                timebucket_idx                  = timebucket_indices[0]
+                if prior_val[:timebucket_idx] == val[:timebucket_idx]:
+                    entering_new_interval       = False
+                else:
+                    entering_new_interval       = True
+            else:
+                entering_new_interval           = False
+
+            if entering_new_interval:
                 # We toggled, so are entering a new interval
                 current_interval_is_timebuckets = val_is_a_timebucket
                 current_interval                = [val_is_a_timebucket, [], []]
@@ -267,7 +298,7 @@ class ReportWriterUtils():
             for idx in range(len(original_columns)):
                 col                                 = original_columns[idx]
                 loop_trace                          = my_trace.doing("Searcing for common_collapsing info from column " + str(col))
-                flattened_col, timebucket, collapsed_indices   = self.standardize_timebucket_column(loop_trace, 
+                flattened_col, timebucket, timebucket_indices   = self.standardize_timebucket_column(loop_trace, 
                                                                             raw_col                     = col, 
                                                                             a6i_config                  = a6i_config,
                                                                             expected_collapsing_info    = None)
@@ -284,7 +315,7 @@ class ReportWriterUtils():
                     common_collapsing_info      = self._CollapsingInfo(loop_trace, 
                                                                 initial_size            = initial_size, 
                                                                 final_size              = final_size, 
-                                                                collapsed_indices      = collapsed_indices)
+                                                                timebucket_indices      = timebucket_indices)
                     break
 
 
@@ -293,7 +324,7 @@ class ReportWriterUtils():
             for idx in range(len(original_columns)):
                 col                                 = original_columns[idx]
                 loop_trace                          = my_trace.doing("Considering to create a FY_Quarter for " + str(col))
-                flattened_col, timebucket, collapsed_indices   = self.standardize_timebucket_column(loop_trace, 
+                flattened_col, timebucket, timebucket_indices   = self.standardize_timebucket_column(loop_trace, 
                                                                             raw_col                     = col, 
                                                                             a6i_config                  = a6i_config,
                                                                             expected_collapsing_info    = common_collapsing_info)
@@ -322,13 +353,13 @@ class ReportWriterUtils():
                     # these columns was loaded
                     cleaned_col     = tuple([col[idx] if col[idx] != prior_col[idx] else "" for idx in range(len(col))])
                     
-                    flattened_col, timebucket, collapsed_indices   = self.standardize_timebucket_column(loop_trace, 
+                    flattened_col, timebucket, timebucket_indices   = self.standardize_timebucket_column(loop_trace, 
                                                                             raw_col                     = cleaned_col, 
                                                                             a6i_config                  = a6i_config,
                                                                             expected_collapsing_info    = common_collapsing_info)
 
     
-                _add_flattened_col(flattened_col, timebucket)
+                _add_flattened_col(flattened_col, timebucket, timebucket_indices)
 
         unsorted_df                             = df.copy()
         unsorted_df.columns                     = self._disambiguate_duplicates(parent_trace, unsorted_flattened_columns)
@@ -356,11 +387,6 @@ class ReportWriterUtils():
 
                     sorted_interval_columns     = [pair[0] for pair in sorted_joined_list]
                     sorted_columns.extend(sorted_interval_columns)
-                    '''
-                    sorted_timebuckets      = sorted(unsorted_timebuckets, 
-                                                        key = lambda bucket: bucket.fiscal_year*100 + bucket.quarter)
-                    sorted_columns.extend([bucket.display() for bucket in sorted_timebuckets])
-                    '''
                 else:
                     sorted_columns.extend(tagged_interval[1])
 
@@ -368,7 +394,23 @@ class ReportWriterUtils():
 
             # If the columns of sorted_df are tuples, change them to MultiLevel index
             if common_collapsing_info.final_size > 1:
-                tuple_cols                  = list(sorted_df.columns)
+                
+                # GOTCHA
+                #   Some of the elements in sorted_df.columns may be strings instead of tuples. If so, we need to 
+                # create a tuple out of it of the correct size, applying padding if needed
+                # Otherwise, when we create the MultiIndex.from_tuples something bad happens. For example,
+                # if the columns were ['bigRock', ('FY 23', 'Actual')], the MultiLevel index created would
+                # treat 'bigRock' like a tuple of 7 elements (one per letter), and a horrible 7-level index would be created,
+                # like
+                #   ('b','i','g','R','o','c','k'), ('FY 23', 'Actual', nan, nan, nan, nan, nan)
+                tuple_cols                  = []
+                for sorted_col in sorted_df.columns:
+                    if type(sorted_col) == tuple:
+                        tuple_cols.append(sorted_col)
+                    else: 
+                        padded_col          = [""]*(common_collapsing_info.final_size-1) + [sorted_col]
+                        tuple_cols.append(tuple(padded_col))
+
                 multi_level_cols            = _pd.MultiIndex.from_tuples(tuple_cols)
                 sorted_df.columns           = multi_level_cols
 
@@ -385,8 +427,10 @@ class ReportWriterUtils():
         * A "standardized" column that can be used to replace `raw_col`
         * A FY_Quarter object that corresponds to that column. If None, that means the `raw_col` does not
           correspond to a timebucket, and the first value returned is just `raw_col`
-        * A list of the integer indices in `raw_col` that were collapsed to a single value in the result, if that
-          collapsing occured (see below). If no collapsing occurred, the list is empty
+        * A list of the integer indices in `raw_col` where the timebucket was found. It has length 2 if 
+            `raw_col` is a tuple and the timebucket 2 levels (that were collapsed); it has length 1 if `raw_col`
+            is a tuple and the timebucket in a single level of `raw_col`. Otherwise (i.e., there is timebucket
+            or `raw_col` is not a tuple) then the returned list is empty
 
         The standardization provided by this method is quite general, and supports multi-level columns.
         This is best illustraded with examples:
@@ -506,7 +550,7 @@ class ReportWriterUtils():
         timebucket                          = None
         for idx in range(len(raw_col)):
             loop_trace                      = parent_trace.doing("Processing column '" + str(raw_col) + "'")
-            collapsed_indices               = []
+            timebucket_indices              = []
             txt1                            = str(raw_col[idx])
             # First parsing try: for a singleton
             timebucket                      = _singleton_to_timebucket(loop_trace, txt1)
@@ -514,6 +558,7 @@ class ReportWriterUtils():
                 result_list.append(timebucket.display())
                 # For the remaining members of the tuple, take them as they are in raw_col
                 result_list                 = result_list + list(raw_col[idx + 1:])
+                timebucket_indices          = [idx]
                 break
             # First parsing attempt failed, so try with a pair instead of a singleton:
             if idx + 1 < len(raw_col):
@@ -523,7 +568,7 @@ class ReportWriterUtils():
                     result_list.append(timebucket.display())
                     # For the remaining members of the tuple, take them as they are in raw_col
                     result_list             = result_list + list(raw_col[idx + 2:])
-                    collapsed_indices       = [idx, idx + 1]
+                    timebucket_indices      = [idx, idx + 1]
                     break
             # If we get here, both parsing attempts failed, so this element of the tuple is not part of
             # a FY_Quarter. So just add it "as is" and try our luck in the next cycle of the loop
@@ -547,18 +592,18 @@ class ReportWriterUtils():
                     raise ApodeixiError(my_trace, "Column name standardization fails expectations: should have size "
                                                         + str(expected_collapsing_info.final_size),
                                                     data = {"result_list": str(result_list)})
-                if collapsed_indices != expected_collapsing_info.collapsed_indices:
-                    raise ApodeixiError(my_trace, "Column name standardization fails expectations: should have collapsed "
-                                                        "indices " + str(expected_collapsing_info.collapsed_indices),
-                                                    data = {"collapsed_indices": str(collapsed_indices)})
+                if timebucket_indices != expected_collapsing_info.timebucket_indices:
+                    raise ApodeixiError(my_trace, "Column name standardization fails expectations: should have timebucket "
+                                                        "indices " + str(expected_collapsing_info.timebucket_indices),
+                                                    data = {"timebucket_indices": str(timebucket_indices)})
             
             else: # No timebucket, so we did no collapse, so should force one now
                 result_list         = self._collapse_if_needed(my_trace, result_list, expected_collapsing_info)
  
         if len(result_list) != 1:
-            return tuple(result_list), timebucket, collapsed_indices
+            return tuple(result_list), timebucket, timebucket_indices
         else:
-            return result_list[0], timebucket, collapsed_indices
+            return result_list[0], timebucket, timebucket_indices
 
     def _collapse_if_needed(self, parent_trace, a_list, expected_collapsing_info):
         '''
@@ -576,8 +621,8 @@ class ReportWriterUtils():
                                             data = {"len(a_list)":  str(len(a_list)),
                                                     "a_list":       str(a_list)})
         else:
-            idx1                = expected_collapsing_info.collapsed_indices[0]
-            idx2                = expected_collapsing_info.collapsed_indices[1]
+            idx1                = expected_collapsing_info.timebucket_indices[0]
+            idx2                = expected_collapsing_info.timebucket_indices[1]
             if idx1 != idx2:
                 boundary_val    = a_list[idx1] + " " + a_list[idx2]
                 boundary_val    = boundary_val.strip()
@@ -643,37 +688,38 @@ class ReportWriterUtils():
         
         @param initial_size An int, corresponding to the original tuple length for a column name prior to standardization
         @param final_size An int, corresponding to the final tuple length for a column name after standardization
-        @param collapsed_indices A list of either 0 or 2 consecutive integers, corresponding to the indices that
-                are collapsed in the column name's tuple, if any.
+        @param timebucket_indices A list of either 0, 1 or 2 consecutive integers, corresponding to the indices that
+                contain a timebucket in the column name's tuple, if any.
         '''
-        def __init__(self, parent_trace, initial_size, final_size, collapsed_indices):
+        def __init__(self, parent_trace, initial_size, final_size, timebucket_indices):
             self.initial_size           = initial_size
             self.final_size             = final_size
 
-            if type(collapsed_indices) != list:
-                raise ApodeixiError(parent_trace, "Bad collapsing indices: should be a list",
-                                                    data = {"type(collapsed_indices)": str(type(collapsed_indices))})
-            if len(collapsed_indices) != 0 and len(collapsed_indices) != 2:
-                raise ApodeixiError(parent_trace, "Bad collapsing indices: should be a list of size 0 or 2",
-                                                    data = {"collapsed_indices)": str(collapsed_indices)})  
+            if type(timebucket_indices) != list:
+                raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list",
+                                                    data = {"type(timebucket_indices)": str(type(timebucket_indices))})
+            if not len(timebucket_indices) in [0,1,2]:
+                raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list of size 0, 1 or 2",
+                                                    data = {"timebucket_indices)": str(timebucket_indices)})  
 
-            if len([elt for elt in collapsed_indices if type(elt) != int]) > 0:
-                raise ApodeixiError(parent_trace, "Bad collapsing indices: should be a list of integers",
-                                                    data = {"collapsed_indices)": str(collapsed_indices)})  
+            if len([elt for elt in timebucket_indices if type(elt) != int]) > 0:
+                raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list of integers",
+                                                    data = {"timebucket_indices)": str(timebucket_indices)})  
 
-            if len(collapsed_indices) ==2:
-                first_idx               = collapsed_indices[0]
-                second_idx              = collapsed_indices[1]    
-                if first_idx > second_idx:
-                    raise ApodeixiError(parent_trace, "Bad collapsing indices: list is not sorted",
-                                                    data = {"collapsed_indices)": str(collapsed_indices)}) 
-                if first_idx < 0 or second_idx < 0:      
-                    raise ApodeixiError(parent_trace, "Bad collapsing indices: they should be non-negative",
-                                                    data = {"collapsed_indices)": str(collapsed_indices)})  
+            if len(timebucket_indices) ==2:
+                first_idx               = timebucket_indices[0]
+                second_idx              = timebucket_indices[1]    
+                if first_idx +1 != second_idx:
+                    raise ApodeixiError(parent_trace, "Bad timebucket indices: list should be consecutive integers",
+                                                    data = {"timebucket_indices)": str(timebucket_indices)}) 
+            for idx in timebucket_indices:
+                if idx < 0:      
+                    raise ApodeixiError(parent_trace, "Bad timebucket indices: they should be non-negative",
+                                                    data = {"timebucket_indices)": str(timebucket_indices)})  
 
-                if first_idx >= initial_size or second_idx >= initial_size:      
-                    raise ApodeixiError(parent_trace, "Bad collapsing indices: they should be less than the initial size",
+                if idx >= initial_size or idx >= initial_size:      
+                    raise ApodeixiError(parent_trace, "Bad timebucket indices: they should be less than the initial size",
                                                     data = {"intial_size":      str(initial_size),
-                                                            "collapsed_indices)": str(collapsed_indices)})   
+                                                            "timebucket_indices)": str(timebucket_indices)})   
 
-            self.collapsed_indices     = collapsed_indices
+            self.timebucket_indices     = timebucket_indices
