@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  45622
+    Size (in bytes):  47060
 
     '
   tests_unit:
@@ -89,7 +89,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  4130
+        Size (in bytes):  4131
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -112,7 +112,7 @@ util:
         Size (in bytes):  906
 
         '
-      test_standardize_timebucket_column_EXPECTED.txt: '
+      test_standardizeOneTimebucketColumn_EXPECTED.txt: '
 
         Size (in bytes):  1680
 
@@ -230,7 +230,7 @@ util:
       '
     test_reporting_utils.py: '
 
-      Size (in bytes):  4840
+      Size (in bytes):  4735
 
       '
     test_time_buckets.py: '

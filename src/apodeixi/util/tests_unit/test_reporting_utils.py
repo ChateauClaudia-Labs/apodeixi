@@ -1,21 +1,17 @@
 import sys                                      as _sys
-import datetime                                 as _datetime
-
 import pandas                                   as _pd
 
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.apodeixi_config              import ApodeixiConfig
-from apodeixi.util.reporting_utils              import ReportWriterUtils
-
-from apodeixi.util.time_buckets                 import FY_Quarter
+from apodeixi.util.reporting_utils              import TimebucketStandardizer
 
 class Test_Reporting_Utils(ApodeixiUnitTest):
 
     def setUp(self):
         super().setUp()
 
-    def test_standardize_timebucket_column(self):
+    def test_standardizeOneTimebucketColumn(self):
 
         root_trace              = FunctionalTrace(parent_trace=None, path_mask=self._path_mask)\
                                                                         .doing("Testing parser for quarter time buckets")
@@ -33,7 +29,7 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
             timebucket              = None
             try:
                 col_result, timebucket, timebucket_indices = \
-                                    ReportWriterUtils().standardize_timebucket_column(root_trace, raw_col, a6i_config)
+                                    TimebucketStandardizer().standardizeOneTimebucketColumn(root_trace, raw_col, a6i_config)
             except ApodeixiError as ex:
                 col_result          = str(ex)
                 timebucket          = None
@@ -49,7 +45,7 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
 
         self._compare_to_expected_txt(  parent_trace        = root_trace,
                                         output_txt          = output, 
-                                        test_output_name    = 'test_standardize_timebucket_column', 
+                                        test_output_name    = 'test_standardizeOneTimebucketColumn', 
                                         save_output_txt     = True)
 
     def test_to_timebucket_columns_1(self):
@@ -86,7 +82,7 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
 
             input_df            = _pd.read_excel(io=INPUT_FULL_PATH, header=HEADER, index_col=INDEX_COL)
 
-            output_df           = ReportWriterUtils().to_timebucket_columns(root_trace, a6i_config, input_df)
+            output_df, info     = TimebucketStandardizer().standardizeAllTimebucketColumns(root_trace, a6i_config, input_df)
 
             self._compare_to_expected_df(  parent_trace         = root_trace,
                                             output_df           = output_df, 

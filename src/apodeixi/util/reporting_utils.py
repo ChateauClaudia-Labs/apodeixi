@@ -182,13 +182,33 @@ class ReportWriterUtils():
             raise ApodeixiError(parent_trace, "Unable to write value to Excel",
                                     data = {"x": str(x), "y": str(y), "val": str(val), "error": str(ex)})
 
+class TimebucketStandardizer():
+    '''
+    Utility class to transform DataFrame columns with timebucket-like information into a standardized representation
+    for them.
+    Works with both MultiLevel or string columns in the original DataFrame.
 
+    Example: For a column like "2023", its standardized equivalent would be "FY23"
+    Example: For a column like 
+                ("Sales", "Q3", "2024", "Actuals"), 
+            its standardized equivalent would be
+                ("Sales", "Q3 FY24", "Actuals")
 
-
-
-    def to_timebucket_columns(self, parent_trace, a6i_config, df):
+    This class ensures consistency in how standardization is done across MultiLevel columns, in that
+    it validates that all columns with time bucket information contains that information at the same levels.
+    '''
+    def __init__(self):
         '''
-        Returns a DataFrame, identical to df except that columns are modified as follows:
+        '''
+        return
+
+    def standardizeAllTimebucketColumns(self, parent_trace, a6i_config, df):
+        '''
+        Returns two things:
+        
+        1. A DataFrame, identical to df except that columns are modified as per the list below
+        1. A TimebucketStandardizationInfo object, containing information on how the standardization was done (e.g.,
+            for multi-level columns, which level was the time bucket and which levels were collapsed, if any)
 
         * Any column of form ("Q2", "FY23") - is mapped to a FY_Quarter object
         * Any consecutive "consistent" segment of FY_Quarter objects are sorted - and two FY_Quarter objects are "consistent"
@@ -292,13 +312,13 @@ class ReportWriterUtils():
         # Once we have it, we loop again throught the columns, this time doing the real work, enforcing consistency
         # as per that expected collapsing info
         # 
-        my_trace                                = parent_trace.doing("Preparatory loop to determine the common_collapsing_info")
+        my_trace                                = parent_trace.doing("Preparatory loop to determine the standardization_info")
         if True:
-            common_collapsing_info                  = None
+            standardization_info                = None
             for idx in range(len(original_columns)):
-                col                                 = original_columns[idx]
-                loop_trace                          = my_trace.doing("Searcing for common_collapsing info from column " + str(col))
-                flattened_col, timebucket, timebucket_indices   = self.standardize_timebucket_column(loop_trace, 
+                col                             = original_columns[idx]
+                loop_trace                      = my_trace.doing("Searcing for common_collapsing info from column " + str(col))
+                flattened_col, timebucket, timebucket_indices   = self.standardizeOneTimebucketColumn(loop_trace, 
                                                                             raw_col                     = col, 
                                                                             a6i_config                  = a6i_config,
                                                                             expected_collapsing_info    = None)
@@ -312,22 +332,21 @@ class ReportWriterUtils():
                         initial_size            = 1
                     else: # col is a tuple
                         initial_size            = len(col)
-                    common_collapsing_info      = self._CollapsingInfo(loop_trace, 
+                    standardization_info      = TimebucketStandardizationInfo(loop_trace, 
                                                                 initial_size            = initial_size, 
                                                                 final_size              = final_size, 
                                                                 timebucket_indices      = timebucket_indices)
                     break
-
 
         my_trace                                = parent_trace.doing("Looping through the columns to flatten them")
         if True:
             for idx in range(len(original_columns)):
                 col                                 = original_columns[idx]
                 loop_trace                          = my_trace.doing("Considering to create a FY_Quarter for " + str(col))
-                flattened_col, timebucket, timebucket_indices   = self.standardize_timebucket_column(loop_trace, 
+                flattened_col, timebucket, timebucket_indices   = self.standardizeOneTimebucketColumn(loop_trace, 
                                                                             raw_col                     = col, 
                                                                             a6i_config                  = a6i_config,
-                                                                            expected_collapsing_info    = common_collapsing_info)
+                                                                            expected_collapsing_info    = standardization_info)
 
                 if timebucket == None and idx > 0 and current_interval_is_timebuckets and type(col) == tuple:
                     # This column is not a timebucket, so we might do additional
@@ -353,10 +372,10 @@ class ReportWriterUtils():
                     # these columns was loaded
                     cleaned_col     = tuple([col[idx] if col[idx] != prior_col[idx] else "" for idx in range(len(col))])
                     
-                    flattened_col, timebucket, timebucket_indices   = self.standardize_timebucket_column(loop_trace, 
+                    flattened_col, timebucket, timebucket_indices   = self.standardizeOneTimebucketColumn(loop_trace, 
                                                                             raw_col                     = cleaned_col, 
                                                                             a6i_config                  = a6i_config,
-                                                                            expected_collapsing_info    = common_collapsing_info)
+                                                                            expected_collapsing_info    = standardization_info)
 
     
                 _add_flattened_col(flattened_col, timebucket, timebucket_indices)
@@ -393,7 +412,7 @@ class ReportWriterUtils():
             sorted_df                       = unsorted_df[self._disambiguate_duplicates(parent_trace, sorted_columns)]
 
             # If the columns of sorted_df are tuples, change them to MultiLevel index
-            if common_collapsing_info.final_size > 1:
+            if standardization_info.final_size > 1:
                 
                 # GOTCHA
                 #   Some of the elements in sorted_df.columns may be strings instead of tuples. If so, we need to 
@@ -408,15 +427,15 @@ class ReportWriterUtils():
                     if type(sorted_col) == tuple:
                         tuple_cols.append(sorted_col)
                     else: 
-                        padded_col          = [""]*(common_collapsing_info.final_size-1) + [sorted_col]
+                        padded_col          = [""]*(standardization_info.final_size-1) + [sorted_col]
                         tuple_cols.append(tuple(padded_col))
 
                 multi_level_cols            = _pd.MultiIndex.from_tuples(tuple_cols)
                 sorted_df.columns           = multi_level_cols
 
-        return sorted_df
+        return sorted_df, standardization_info
 
-    def standardize_timebucket_column(self, parent_trace, raw_col, a6i_config, expected_collapsing_info = None):
+    def standardizeOneTimebucketColumn(self, parent_trace, raw_col, a6i_config, expected_collapsing_info = None):
         '''
         Utility method used when a DataFrame has columns corresponding to timebuckets, used in the
         context where the caller desires to re-name the DataFrame columns so that time buckets follow the
@@ -462,7 +481,7 @@ class ReportWriterUtils():
             Example: if `raw_col` is ("Geo", "Americas"), then this method returns the triple 
                         (("Geo", "Americas"), None, [])
 
-        @param expected_collapsing_info An optional _CollapsingInfo object. 
+        @param expected_collapsing_info An optional TimebucketStandardizationInfo object. 
             If not None, then this method behaves as follows:
 
             1. If this method's algoritm encounters a timebucket, then it must be collapsed exactly as
@@ -611,7 +630,7 @@ class ReportWriterUtils():
         Will collapse `a_list` as per the `expected_collapsed_info`, if it hasn't already been collapsed,
         and return the collapsed list
 
-        @param expected_collapsing_info A _CollapsingInfo object
+        @param expected_collapsing_info A TimebucketStandardizationInfo object
         '''
         if len(a_list) == expected_collapsing_info.final_size: # List is already collapsed
             return a_list
@@ -681,45 +700,51 @@ class ReportWriterUtils():
 
         return result
 
-    class _CollapsingInfo():
-        '''
-        Helper class used when standardizing timebucket columns. It defines the expectations on all
-        columns before and after the standardization, in terms of sizes and in terms of the indices that are collapsed
-        
-        @param initial_size An int, corresponding to the original tuple length for a column name prior to standardization
-        @param final_size An int, corresponding to the final tuple length for a column name after standardization
-        @param timebucket_indices A list of either 0, 1 or 2 consecutive integers, corresponding to the indices that
-                contain a timebucket in the column name's tuple, if any.
-        '''
-        def __init__(self, parent_trace, initial_size, final_size, timebucket_indices):
-            self.initial_size           = initial_size
-            self.final_size             = final_size
+class TimebucketStandardizationInfo():
+    '''
+    Helper class used when standardizing timebucket columns. It defines the expectations on all
+    columns before and after the standardization, in terms of sizes and in terms of the indices that are "collapsed"
+    i.e., levels in an original MultiLevel column that are collapsed to a single level. 
+    Example: For a column like ("Sales", "Q3", "2024", "Actuals"), its standardized equivalent would be
+            ("Sales", "Q3 FY24", "Actuals"). In that case, this object recalls that:
+            * Initial size of tuple was 4
+            * Final size of tuple was 3
+            * The timebucket was present and indices [1, 2] in the original
+    
+    @param initial_size An int, corresponding to the original tuple length for a column name prior to standardization
+    @param final_size An int, corresponding to the final tuple length for a column name after standardization
+    @param timebucket_indices A list of either 0, 1 or 2 consecutive integers, corresponding to the indices that
+            contain a timebucket in the column name's tuple, if any.
+    '''
+    def __init__(self, parent_trace, initial_size, final_size, timebucket_indices):
+        self.initial_size           = initial_size
+        self.final_size             = final_size
 
-            if type(timebucket_indices) != list:
-                raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list",
-                                                    data = {"type(timebucket_indices)": str(type(timebucket_indices))})
-            if not len(timebucket_indices) in [0,1,2]:
-                raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list of size 0, 1 or 2",
-                                                    data = {"timebucket_indices)": str(timebucket_indices)})  
+        if type(timebucket_indices) != list:
+            raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list",
+                                                data = {"type(timebucket_indices)": str(type(timebucket_indices))})
+        if not len(timebucket_indices) in [0,1,2]:
+            raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list of size 0, 1 or 2",
+                                                data = {"timebucket_indices)": str(timebucket_indices)})  
 
-            if len([elt for elt in timebucket_indices if type(elt) != int]) > 0:
-                raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list of integers",
-                                                    data = {"timebucket_indices)": str(timebucket_indices)})  
+        if len([elt for elt in timebucket_indices if type(elt) != int]) > 0:
+            raise ApodeixiError(parent_trace, "Bad timebucket indices: should be a list of integers",
+                                                data = {"timebucket_indices)": str(timebucket_indices)})  
 
-            if len(timebucket_indices) ==2:
-                first_idx               = timebucket_indices[0]
-                second_idx              = timebucket_indices[1]    
-                if first_idx +1 != second_idx:
-                    raise ApodeixiError(parent_trace, "Bad timebucket indices: list should be consecutive integers",
-                                                    data = {"timebucket_indices)": str(timebucket_indices)}) 
-            for idx in timebucket_indices:
-                if idx < 0:      
-                    raise ApodeixiError(parent_trace, "Bad timebucket indices: they should be non-negative",
-                                                    data = {"timebucket_indices)": str(timebucket_indices)})  
+        if len(timebucket_indices) ==2:
+            first_idx               = timebucket_indices[0]
+            second_idx              = timebucket_indices[1]    
+            if first_idx +1 != second_idx:
+                raise ApodeixiError(parent_trace, "Bad timebucket indices: list should be consecutive integers",
+                                                data = {"timebucket_indices)": str(timebucket_indices)}) 
+        for idx in timebucket_indices:
+            if idx < 0:      
+                raise ApodeixiError(parent_trace, "Bad timebucket indices: they should be non-negative",
+                                                data = {"timebucket_indices)": str(timebucket_indices)})  
 
-                if idx >= initial_size or idx >= initial_size:      
-                    raise ApodeixiError(parent_trace, "Bad timebucket indices: they should be less than the initial size",
-                                                    data = {"intial_size":      str(initial_size),
-                                                            "timebucket_indices)": str(timebucket_indices)})   
+            if idx >= initial_size or idx >= initial_size:      
+                raise ApodeixiError(parent_trace, "Bad timebucket indices: they should be less than the initial size",
+                                                data = {"intial_size":      str(initial_size),
+                                                        "timebucket_indices)": str(timebucket_indices)})   
 
-            self.timebucket_indices     = timebucket_indices
+        self.timebucket_indices     = timebucket_indices
