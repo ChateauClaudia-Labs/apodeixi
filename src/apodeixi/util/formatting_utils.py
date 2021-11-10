@@ -1,6 +1,7 @@
 import inspect                                  as _inspect
 import sys                                      as _sys
 import math                                     as _math
+import re                                       as _re
 
 import nbformat                                 as _nbformat
 from nbconvert.preprocessors                    import ExecutePreprocessor
@@ -135,6 +136,27 @@ class StringUtils():
         https://stackoverflow.com/questions/20078816/replace-non-ascii-characters-with-a-single-space
         '''
         return ''.join([i if ord(i) < 128 else ' ' for i in txt])
+
+    def mask_timestamp(self, txt):
+        '''
+        Helper method used mainly by the test harness to create deterministic test output by "masking"
+        timestamps. 
+
+        It returns a string, based on the input `txt`, by replacing any consecutive 6 digits by the string
+        "<MASKED>"
+
+        If input `txt` is not a string, then it just returns the input without attempting to change it.
+
+        Example: "210915 Some_report.xlsx" is masked as "<MASKED> Some_report.xlsx"
+
+        Example: "210917.072312 Some_report.xlsx" is masked as "<MASKED>.<MASKED> Some_report.xlsx        
+        '''
+        if not type(txt) == str:
+            return txt
+            
+        REGEX                   = "[0-9]{6}"
+        new_txt                 = _re.sub(REGEX, "<MASKED>", txt)
+        return new_txt
 
 class NotebookUtils():
     '''

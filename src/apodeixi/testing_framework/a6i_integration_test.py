@@ -8,6 +8,7 @@ from apodeixi.util.a6i_error                            import FunctionalTrace ,
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
 from apodeixi.util.path_utils                           import PathUtils
 from apodeixi.util.yaml_utils                           import YAML_Utils
+from apodeixi.util.formatting_utils                     import StringUtils
 
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
@@ -465,7 +466,6 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # or even "210917.072312 Some_report.xlsx" (if report was produced at 7:32:12 am). To mask such 
         # timestamps, we replace the occurrence of any 6 digits in a key by the string "<MASKED>"
         def mask_timestamps(a_dict):
-            REGEX                   = "[0-9]{6}"
             new_dict                = {}
             for key in a_dict:
                 raw_child           = a_dict[key]
@@ -473,7 +473,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                     new_child       = mask_timestamps(raw_child)
                 else:
                     new_child       = raw_child
-                new_key             = _re.sub(REGEX, "<MASKED>", key)
+                new_key             = StringUtils().mask_timestamp(key)
                 new_dict[new_key]   = new_child
             return new_dict
 
