@@ -30,7 +30,6 @@ class CLI_BigRocks_and_Milestones_Script():
     NAMESPACE                       = "NAMESPACE",
     SUB_NAMESPACE                   = "SUB_NAMESPACE"
 
-
     def run_script(self, parent_trace, SANDBOX_FUNC, cli_arguments_dict):
 
         _path_of                     = self.myTest.fullpath_of
@@ -67,7 +66,7 @@ class CLI_BigRocks_and_Milestones_Script():
             __environment           = None
             ENV_CHOICE              = None
 
-        COMMANDS                    = [
+        COMMANDS_1                  = [
                                         # Initialize static data
                                         ['post',                    __dry_run,                 '--timestamp', "_CLI__1", 
                                             _path_of(_args[_s.PRODUCT_FILE])],
@@ -83,6 +82,22 @@ class CLI_BigRocks_and_Milestones_Script():
                                             _args[_s.BIG_MILESTONES_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__6", 
                                             _path_of(_args[_s.BIG_MILESTONES_v1_FILE])],
+
+        ]
+
+        self.myTest.skeleton_test(  parent_trace                = my_trace,
+                                    cli_command_list            = COMMANDS_1,
+                                    output_cleanining_lambda    = MASK_COMBINED,
+                                    when_to_check_environment   = CLI_Test_Skeleton.NEVER)
+
+        # Check that manifest is as expected
+        NAME                    = "experimental.march-2021.turbotax.iot-experiment"
+        NAMESPACE               = "intuit.innovations"
+        self.myTest.check_manifest(my_trace, 'delivery-planning.journeys.a6i.io', NAMESPACE, NAME, 'big-rock')
+        self.myTest.check_manifest(my_trace, 'delivery-planning.journeys.a6i.io', NAMESPACE, NAME, 'big-rock-estimate')
+        self.myTest.check_manifest(my_trace, 'delivery-planning.journeys.a6i.io', NAMESPACE, NAME, 'modernization-milestone')
+
+        COMMANDS_2                  = [
                                         # First try to update big rocks v2 - should fail due to foreign key constraints
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__7", 
                                             _args[_s.BIG_ROCKS_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
@@ -97,6 +112,19 @@ class CLI_BigRocks_and_Milestones_Script():
                                         # milestones v2 to the rocks that were removed in v2
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__11", 
                                             _path_of(_args[_s.BIG_ROCKS_v2_FILE])],
+        ]
+
+        self.myTest.skeleton_test(  parent_trace                = my_trace,
+                                    cli_command_list            = COMMANDS_2,
+                                    output_cleanining_lambda    = MASK_COMBINED,
+                                    when_to_check_environment   = CLI_Test_Skeleton.NEVER)
+
+        # Check that manifest is as expected
+        self.myTest.check_manifest(my_trace, 'delivery-planning.journeys.a6i.io', NAMESPACE, NAME, 'big-rock')
+        self.myTest.check_manifest(my_trace, 'delivery-planning.journeys.a6i.io', NAMESPACE, NAME, 'big-rock-estimate')
+        self.myTest.check_manifest(my_trace, 'delivery-planning.journeys.a6i.io', NAMESPACE, NAME, 'modernization-milestone')
+
+        COMMANDS_3                  = [
                                         # Get final forms
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__12", 
                                             _args[_s.BIG_ROCKS_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
@@ -107,8 +135,8 @@ class CLI_BigRocks_and_Milestones_Script():
                                     
                                     ]
 
-        self.myTest.skeleton_test(  parent_trace                = parent_trace,
-                                    cli_command_list            = COMMANDS,
+        self.myTest.skeleton_test(  parent_trace                = my_trace,
+                                    cli_command_list            = COMMANDS_3,
                                     output_cleanining_lambda    = MASK_COMBINED,
                                     when_to_check_environment   = CLI_Test_Skeleton.ONLY_AT_END)
                                                    

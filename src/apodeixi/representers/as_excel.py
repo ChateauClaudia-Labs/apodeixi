@@ -159,7 +159,8 @@ class ManifestRepresenter:
                 referenced_manifest_info        = self.manifestInfo_dict[xlw_config.referenced_manifest_name]
                 referenced_df                   = referenced_manifest_info.getManifestContents(parent_trace)
 
-                y_1             = max(y_1, len(referenced_df.index))
+                # The "-1" is because y_0 was one of the rows, so count one less row
+                y_1             = max(y_1, y_0 + len(referenced_df.index) - 1)
                 
             # Make room for the headers by adding extra columns.
             # We know that the number of header will be xlw_config.nb_header_levels, and that
@@ -403,15 +404,27 @@ class ManifestRepresenter:
             # such as a sum over the column, because the formula logic might involve DataFrame sums, and that
             # will error out if Pandas is asked to add a blank (i.e., an empty string) to a number. So turn
             # blanks into 0 for numerical columns
+            #
+            # GOTCHA: We might have a hybrid situation where some columns are strings and others are tuples
+            #           In such cases, Pandas does not work well when doing an assignment via labels, like
+            #
+            #               displayable_df.loc[row[0], ("Q1 FY22", "Actuals")] = 0
+            #
+            #   In such situations, Pandas "misbehaves" and adds a new column "Q1 FY22" instead of modifying
+            #   the column ("Q1 FY22", "Actuals").
+            #   So instead we use iloc, not loc, which is why we need to get the column indices
             for row in displayable_df.iterrows():
-                for col in displayable_df.columns:
+                for jdx in range(len(displayable_df.columns)):
+                #for col in displayable_df.columns:
+                    col                 = displayable_df.columns[jdx]
                     if col in xlw_config.num_formats.keys():
                         num_format      = xlw_config.num_formats[col]
                         if num_format == NumFormats.INT or num_format == NumFormats.DOUBLE:
 
                             val             = row[1][col]
                             if type(val) == str and len(val.strip()) == 0:
-                                displayable_df.loc[row[0],col] = 0
+                                #displayable_df.loc[row[0],col] = 0
+                                displayable_df.iloc[row[0],jdx] = 0
 
 
             layout.validate(my_trace)
@@ -683,12 +696,24 @@ class ManifestRepresenter:
                                                                             df_row_number           = y_0,
                                                                             df_col_number           = x_0,
                                                                             representer             = self)
+
                     excel_row_1, excel_col_1, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
                                                                             parent_trace            = my_trace,
                                                                             displayable_df          = displayable_df, 
                                                                             df_row_number           = y_1,
                                                                             df_col_number           = x_1,
                                                                             representer             = self)
+                    if xlw_config.layout.is_transposed == False and y_1 == len(displayable_df.index) -1:
+                        # GOTCHA
+                        #   We are supposed to add the dropdown to all rows in Excel that show displayable_df, 
+                        #   but we can't rely on the excel_col_1 computed above.
+                        #   Reason: Excel rows may not be ordered the same way as the displayable_df rows they correspond to.
+                        #   For example, if this manifest is joined to another one, then its rows will
+                        #   re-arrange to keep aligned with the referenced manifest, whose rows might re-sort due to 
+                        #   the way UIDs are sorted.
+                        # That means that the last row in displayble_df might not be displayed at the last row in Excel,
+                        # so we would rather take the last_row_excel as the row to use
+                        excel_row_1         = last_excel_row
 
                 my_trace            = parent_trace.doing("Adding dropdown '" + str(dropdown_params.name) + "'",
                                                             data = {"first Excel row": str(excel_row_0),

@@ -304,3 +304,17 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                                         output_txt          = cli_output,
                                         test_output_name    = self.next_cli_output(cli_command), 
                                         save_output_txt     = True)
+
+    def check_manifest(self, parent_trace, manifest_api_name, namespace, name, kind):
+        '''
+        '''
+        manifest_dict, path     = self.stack().store().findLatestVersionManifest(
+                                                            parent_trace                = parent_trace, 
+                                                            manifest_api_name           = manifest_api_name, 
+                                                            namespace                   = namespace, 
+                                                            name                        = name,
+                                                            kind                        = kind)
+        self._compare_to_expected_yaml( parent_trace            = parent_trace, 
+                                        output_dict             = manifest_dict, 
+                                        test_output_name        = self.next_manifest(kind), 
+                                        save_output_dict        = True)
