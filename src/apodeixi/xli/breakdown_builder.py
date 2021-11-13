@@ -4,7 +4,8 @@ import pandas
 from apodeixi.util.a6i_error                    import ApodeixiError
 from apodeixi.util.formatting_utils             import StringUtils
 from apodeixi.xli.interval                      import IntervalUtils, Interval
-from apodeixi.xli.uid_store                     import UID_Store, UID_Utils
+from apodeixi.xli.uid_store                     import UID_Utils
+from apodeixi.xli.update_policy                 import InferReferenceUIDsPolicy
 from apodeixi.util.dataframe_utils              import DataFrameUtils
 
 class BreakdownTree():
@@ -131,187 +132,207 @@ class BreakdownTree():
                             user's postings includes UIDs already (e.g., as when the user updates instead of create). Or as
                             another example, how to handle a situation where there is a need to put a referential link
                             the UIDs in branches of another previously generated manifest.
+
         @returns The full UID of the new _EntityInstance node that was added as a child to this tree, or None if no node was added.
         ''' 
-        my_trace                            = parent_trace.doing("Preprocessing before parsing an Excel row fragment")
-        interval, row                       = xlr_config.preprocessReadFragment(parent_trace        = my_trace, 
-                                                                                interval            = interval, 
-                                                                                dataframe_row       = row)
+        try:
+            my_trace                            = parent_trace.doing("Preprocessing before parsing an Excel row fragment")
+            interval, row                       = xlr_config.preprocessReadFragment(parent_trace        = my_trace, 
+                                                                                    interval            = interval, 
+                                                                                    dataframe_row       = row)
 
-        encountered_new_entity              = False
-        entity_column_idx                   = None
-        known_entity_types                  = list(self.last_path.keys())
-        my_trace                            = parent_trace.doing("Validating inputs are well-formed",
-                                                    data = {    'known_entity_types': known_entity_types},
-                                                    origination = {
-                                                                'signaled_from': __file__})
-        if True:
-            # Check against nulls
-            if interval         ==  None:
-                raise ApodeixiError(my_trace, "Null interval of columns was given.")
-            if type(interval)   !=  Interval:
-                raise ApodeixiError(my_trace, "Wrong type of input. Expected an Interval and instead got a " + str(type(interval)))
-
-            # Check we got a real Dataframe row
-            if row==None or type(row)!=tuple or len(row)!=2 or type(row[1])!=pandas.core.series.Series:
-                raise ApodeixiError(my_trace, "Didn't get a real Pandas row")   
-
-            # Check there is something to do at all - if all fields are blank, return since there's nothing to do
-            blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
-            if len(blank_cols) == len(interval.columns):
-                return # Nothing to do
-
-            # Check interval and row are consistent
-            columns                     = list(row[1].index)
-
-            if len(interval.columns)==0:
-                raise ApodeixiError(my_trace, "Empty interval of columns was given.")
-
-            if not interval.is_subset(set(columns)):
-                raise ApodeixiError(my_trace, "Interval's non-UID columns are not a subset of the row's columns.",
-                                            data = {'interval': interval.columns, 'columns': columns})
-
-            # Check entity appears in exactly one column. 
-            def _matches_entity(idx):
-                '''
-                Returns a boolean if the column at index `idx` is the same as the interval's entity name
-
-                If the user entered two columns with the same name, such as "Account", Pandas will re-name the second
-                one to be "Account.1". But that is still a user error for an entity, so we will strip the ".1" suffix
-                for purposes of validating that the user did not enter duplicate entity column names.
-                Also, if the user put comments to itself in the form of parenthesis, we remove that
-                '''
-                GIST_OF                     = IntervalUtils().without_comments_in_parenthesis # Abbreviation for readability
-                FMT                         = StringUtils().format_as_yaml_fieldname
-                raw_col                     = columns[idx]
-                no_parenthesis_col          = GIST_OF(my_trace, raw_col)
-                if type(no_parenthesis_col) == tuple:
-                    # This is a boundary case where a MultiLevel index is used for the columns of the DataFrame.
-                    # In that case the entity, if there is one at all, is expected to be the first member of the tuple
-                    column_main_value       = no_parenthesis_col[0]
-                else:
-                    column_main_value       = no_parenthesis_col
-                REGEX                       = "(\.[0-9]+)$"
-                suffix_search               =  _re.search(REGEX, column_main_value)
-                if suffix_search == None:
-                    cleaned_col_main_value  = column_main_value
-                else:
-                    suffix                  = suffix_search.group(0)
-                    cleaned_len             = len(column_main_value) - len(suffix)
-                    cleaned_col_main_value  = column_main_value[:cleaned_len]
-                return FMT(cleaned_col_main_value) == FMT(interval.entity_name) # Format as yaml fieldname to avoid spurious differences due to e.g. upper/lower case
-
-            idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
-            if len(idxs)>1:
-                raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
-            elif len(idxs)==0:
-                raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' missing in given row. Should appear exactly once.")
-            entity_column_idx           = idxs[0]
-
-            # We say that we "encountered a new entity" if the entity column for the interval is not blank.
-            # That is because if it is blank, then presumably it is because this row is using the same entity
-            # (for this interval) as prior rows.
-            # To justify the inferance that we are simply adding more detail to a prior row's entity, we
-            # need to validate that the full interval is blank, since this interval is for properties
-            # of the entity that was (presumably) entered in a prior row. In theory, in such a case
-            # this row should only have data *after* this interval.
-            # So make the first validation: check that if interval's entity is blank, all of interval is bank
-            
-            encountered_new_entity      = not interval.entity_name in blank_cols
-            if self._keep_user_provided_UID(my_trace, xlr_config=xlr_config, user_provided_data=row[1][interval.columns]):
-                # The user-provided UID might skip acronyms. For example, it might be 4.2 instead
-                # BR4.C2 for previty when using joins. In those cases Pandas might have thought that the
-                # UID was a number, so force conversion to string "4.2" to prevent problems.
-                uid_column              = self._identify_uid_column(parent_trace, interval.columns)
-                uid_raw                 = row[1][uid_column]
-                uid_to_overwrite        = str(uid_raw)
-
-                uid_to_overwrite        = UID_Utils().unabbreviate_uid(     parent_trace        = parent_trace, 
-                                                                            uid                 = uid_to_overwrite, 
-                                                                            acronym_schema      = acronym_schema)
-                
-            else:
-                uid_to_overwrite        = None # This will be used later when looking for a docking UID
-            
-            non_uid_cols                = [col for col in interval.columns \
-                                            if not IntervalUtils().is_a_UID_column(my_trace, col)]
-            if not encountered_new_entity and len(blank_cols) < len(non_uid_cols):
-                # This normally is a user error, because it means that the interval has non-blanks somewhere,
-                # yet the entity column is blank. That is "inconsistent user-provided data" because if the
-                # entity column is blank that should mean that this row is adding sub-entities to an entity 
-                # seen in a prior row. That prior row would have all the entity scalar attributes, which is why
-                # this row shouldn't, i.e., th interval should be all blank.
-                # But from the check just mande, that is not the case, so looks like something is inconsistent.
-                # Before raising an error, attempt to recover: perhaps user entered the entity_name in the previous
-                # row, left the rest of that previous row blank, and then moved to this one. If so, pretend that
-                # the user actually entered that entity_name in the current row
-                # If inference falis, then raise the error
-                
-                if self._can_infer_entity_from_prior_row(my_trace, interval.entity_name, row, all_rows):
-                    encountered_new_entity  = True # Reverse prior impression so we dock values onto the tree
-                    instance_to_overwrite   = self.last_path[interval.entity_name]
-                    uid_to_overwrite        = instance_to_overwrite.UID
-
-                else:
-                    # Create a friendly error message 
-                    excel_row_nb            = xlr_config.excel_row_nb(my_trace, row[0])
-                    excel_sheet             = xlr_config.excel_sheet(my_trace)
-                    non_black_cols          = [col for col in interval.columns if not col in blank_cols]
-                    raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
-                                                    + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
-                                                    + "\nIt is the entity for the interval "
-                                                    + str(interval.columns)
-                                                    +",\n so you can't leave it blank unless you also "
-                                                    + " clear data you wrote "
-                                                    + " in row " + str(excel_row_nb) + " for these " 
-                                                    + str(len(non_black_cols)) + " columns:\n['"
-                                                    + "', '".join(non_black_cols) + "']"
-                                                    + "\n\n=> Alternatively, consider changing the range in the Posting Label to "
-                                                    + "exclude such rows.\n")
-
-            # Check that interval itself has no subentities (as any subentity should be *after* the interval)
-            # Remember to not count interval.entity_name as "illegal", since it is clearly an entity and not a sub-entity
-            illegal_sub_entities        = set(known_entity_types).intersection(interval.non_entity_cols())    #set(interval[1:])) 
-            if len(illegal_sub_entities) > 0:
-                raise ApodeixiError(my_trace, "There shouldn't be subentities inside the interval, but found some: " 
-                                                + str(illegal_sub_entities))
-
-        columns                             = list(row[1].index)            
-        
-        my_trace                            = parent_trace.doing("Discovering parent entity",
-                                                                    origination = {'signaled_from': __file__})
-        if encountered_new_entity: 
-            my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval.entity_name + "'.",
-                                                                    origination = {'signaled_from': __file__})
+            encountered_new_entity              = False
+            entity_column_idx                   = None
+            known_entity_types                  = list(self.last_path.keys())
+            my_trace                            = parent_trace.doing("Validating inputs are well-formed",
+                                                        data = {    'known_entity_types': known_entity_types},
+                                                        origination = {
+                                                                    'signaled_from': __file__})
             if True:
-                docking_uid                 = self._discover_docking_uid(   parent_trace        = my_trace, 
-                                                                            interval            = interval,
-                                                                            entity_column_idx   = entity_column_idx,
-                                                                            original_row_nb     = row[0], 
-                                                                            current_row_nb      = row[0], 
-                                                                            all_rows            = all_rows, 
-                                                                            xlr_config          = xlr_config)
+                # Check against nulls
+                if interval         ==  None:
+                    raise ApodeixiError(my_trace, "Null interval of columns was given.")
+                if type(interval)   !=  Interval:
+                    raise ApodeixiError(my_trace, "Wrong type of input. Expected an Interval and instead got a " + str(type(interval)))
 
-            my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
-                                                                    + "' below docking_uid '" + str(docking_uid) + "'",
-                                                                    origination = {'signaled_from': __file__})
-            # GOTCHA: When passing the entity type to self.dockEntityData, don't use interval.entity_name 
-            #           since due to lower/upper case differences it may not
-            #           match the actual column name in the DataFrame and that will trigger a key error. 
-            #           Instead, actually use the column name of the DataFrame, which we previously checked
-            #           that is "equivalent" to interval.entity_name when converted to a YAML field
-            entity_type                     = columns[entity_column_idx]                                                       
-            subtree_full_uid                = self.dockEntityData(  parent_trace        = my_trace,
-                                                                    full_docking_uid    = docking_uid, 
-                                                                    entity_type         = entity_type, 
-                                                                    data_to_attach      = row[1][interval.columns],
-                                                                    uid_to_overwrite    = uid_to_overwrite,
-                                                                    xlr_config          = xlr_config,
-                                                                    acronym_schema      = acronym_schema)
-            return subtree_full_uid
+                # Check we got a real Dataframe row
+                if row==None or type(row)!=tuple or len(row)!=2 or type(row[1])!=pandas.core.series.Series:
+                    raise ApodeixiError(my_trace, "Didn't get a real Pandas row")   
+
+                # Check there is something to do at all - if all fields are blank, return since there's nothing to do
+                blank_cols                  = [col for col in interval.columns if IntervalUtils().is_blank(row[1][col])]
+                if len(blank_cols) == len(interval.columns):
+                    return # Nothing to do
+
+                # Check interval and row are consistent
+                columns                     = list(row[1].index)
+
+                if len(interval.columns)==0:
+                    raise ApodeixiError(my_trace, "Empty interval of columns was given.")
+
+                if not interval.is_subset(set(columns)):
+                    raise ApodeixiError(my_trace, "Interval's non-UID columns are not a subset of the row's columns.",
+                                                data = {'interval': interval.columns, 'columns': columns})
+
+                # Check entity appears in exactly one column. 
+                def _matches_entity(idx):
+                    '''
+                    Returns a boolean if the column at index `idx` is the same as the interval's entity name
+
+                    If the user entered two columns with the same name, such as "Account", Pandas will re-name the second
+                    one to be "Account.1". But that is still a user error for an entity, so we will strip the ".1" suffix
+                    for purposes of validating that the user did not enter duplicate entity column names.
+                    Also, if the user put comments to itself in the form of parenthesis, we remove that
+                    '''
+                    GIST_OF                     = IntervalUtils().without_comments_in_parenthesis # Abbreviation for readability
+                    FMT                         = StringUtils().format_as_yaml_fieldname
+                    raw_col                     = columns[idx]
+                    no_parenthesis_col          = GIST_OF(my_trace, raw_col)
+                    if type(no_parenthesis_col) == tuple:
+                        # This is a boundary case where a MultiLevel index is used for the columns of the DataFrame.
+                        # In that case the entity, if there is one at all, is expected to be the first member of the tuple
+                        column_main_value       = no_parenthesis_col[0]
+                    else:
+                        column_main_value       = no_parenthesis_col
+                    REGEX                       = "(\.[0-9]+)$"
+                    suffix_search               =  _re.search(REGEX, column_main_value)
+                    if suffix_search == None:
+                        cleaned_col_main_value  = column_main_value
+                    else:
+                        suffix                  = suffix_search.group(0)
+                        cleaned_len             = len(column_main_value) - len(suffix)
+                        cleaned_col_main_value  = column_main_value[:cleaned_len]
+                    return FMT(cleaned_col_main_value) == FMT(interval.entity_name) # Format as yaml fieldname to avoid spurious differences due to e.g. upper/lower case
+
+                idxs                        = [idx for idx in range(len(columns)) if _matches_entity(idx)]
+                if len(idxs)>1:
+                    raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' appears in multiple columns. Should appear only once.")
+                elif len(idxs)==0:
+                    raise ApodeixiError(my_trace, "Entity '" + interval.entity_name + "' missing in given row. Should appear exactly once.")
+                entity_column_idx           = idxs[0]
+
+                # We say that we "encountered a new entity" if the entity column for the interval is not blank.
+                # That is because if it is blank, then presumably it is because this row is using the same entity
+                # (for this interval) as prior rows.
+                # To justify the inferance that we are simply adding more detail to a prior row's entity, we
+                # need to validate that the full interval is blank, since this interval is for properties
+                # of the entity that was (presumably) entered in a prior row. In theory, in such a case
+                # this row should only have data *after* this interval.
+                # So make the first validation: check that if interval's entity is blank, all of interval is bank
+                
+                encountered_new_entity      = not interval.entity_name in blank_cols
+                if self._keep_user_provided_UID(my_trace, xlr_config=xlr_config, user_provided_data=row[1][interval.columns]):
+                    # The user-provided UID might skip acronyms. For example, it might be 4.2 instead
+                    # BR4.C2 for previty when using joins. In those cases Pandas might have thought that the
+                    # UID was a number, so force conversion to string "4.2" to prevent problems.
+                    uid_column              = self._identify_uid_column(parent_trace, interval.columns)
+                    uid_raw                 = row[1][uid_column]
+                    uid_to_overwrite        = str(uid_raw)
+
+                    uid_to_overwrite        = UID_Utils().unabbreviate_uid(     parent_trace        = parent_trace, 
+                                                                                uid                 = uid_to_overwrite, 
+                                                                                acronym_schema      = acronym_schema)
+                    
+                else:
+                    uid_to_overwrite        = None # This will be used later when looking for a docking UID
+                
+                non_uid_cols                = [col for col in interval.columns \
+                                                if not IntervalUtils().is_a_UID_column(my_trace, col)]
+                if not encountered_new_entity and len(blank_cols) < len(non_uid_cols):
+                    # This normally is a user error, because it means that the interval has non-blanks somewhere,
+                    # yet the entity column is blank. That is "inconsistent user-provided data" because if the
+                    # entity column is blank that should mean that this row is adding sub-entities to an entity 
+                    # seen in a prior row. That prior row would have all the entity scalar attributes, which is why
+                    # this row shouldn't, i.e., th interval should be all blank.
+                    # But from the check just mande, that is not the case, so looks like something is inconsistent.
+                    # Before raising an error, attempt to recover: perhaps user entered the entity_name in the previous
+                    # row, left the rest of that previous row blank, and then moved to this one. If so, pretend that
+                    # the user actually entered that entity_name in the current row
+                    # If inference falis, then raise the error
+                    
+                    if self._can_infer_entity_from_prior_row(my_trace, interval.entity_name, row, all_rows):
+                        encountered_new_entity  = True # Reverse prior impression so we dock values onto the tree
+                        instance_to_overwrite   = self.last_path[interval.entity_name]
+                        uid_to_overwrite        = instance_to_overwrite.UID
+
+                    else:
+                        # Create a friendly error message 
+                        excel_row_nb            = xlr_config.excel_row_nb(my_trace, row[0])
+                        excel_sheet             = xlr_config.excel_sheet(my_trace)
+                        non_black_cols          = [col for col in interval.columns if not col in blank_cols]
+                        raise ApodeixiError(my_trace, "Did you forget to set '" + interval.entity_name 
+                                                        + "' in excel row " + str(excel_row_nb) + " of worksheet '" + excel_sheet + "'?"
+                                                        + "\nIt is the entity for the interval "
+                                                        + str(interval.columns)
+                                                        +",\n so you can't leave it blank unless you also "
+                                                        + " clear data you wrote "
+                                                        + " in row " + str(excel_row_nb) + " for these " 
+                                                        + str(len(non_black_cols)) + " columns:\n['"
+                                                        + "', '".join(non_black_cols) + "']"
+                                                        + "\n\n=> Alternatively, consider changing the range in the Posting Label to "
+                                                        + "exclude such rows.\n")
+
+                # If we get this far and the uid_to_overwrite is still null, check if we are in one of those cases
+                # where the UID is not passed in the posting form Excel, even on updates, and the expectation is that
+                # we infer it by looking at another manifest that is referenced by the manifest we are trying to build here
+                #
+                if uid_to_overwrite == None and type(xlr_config.update_policy) == InferReferenceUIDsPolicy:
+                    inner_trace                 = my_trace.doing("Restoring UIDs from prior manifest")
+                    uid_to_overwrite            = xlr_config.controller.restoreReferenceManifestUIDs(inner_trace, 
+                                                                                            xlr_config, 
+                                                                                            row_number      = row[0])
+
+                # Check that interval itself has no subentities (as any subentity should be *after* the interval)
+                # Remember to not count interval.entity_name as "illegal", since it is clearly an entity and not a sub-entity
+                illegal_sub_entities        = set(known_entity_types).intersection(interval.non_entity_cols())    #set(interval[1:])) 
+                if len(illegal_sub_entities) > 0:
+                    raise ApodeixiError(my_trace, "There shouldn't be subentities inside the interval, but found some: " 
+                                                    + str(illegal_sub_entities))
+
+            columns                             = list(row[1].index)            
             
-        else: # Didn't encounter a new entity - so nothing to do for this interval
-            return None
+            my_trace                            = parent_trace.doing("Discovering parent entity",
+                                                                        origination = {'signaled_from': __file__})
+            if encountered_new_entity: 
+                my_trace                        = parent_trace.doing("Figuring out docking coordinates for '" + interval.entity_name + "'.",
+                                                                        origination = {'signaled_from': __file__})
+                if True:
+                    docking_uid                 = self._discover_docking_uid(   parent_trace        = my_trace, 
+                                                                                interval            = interval,
+                                                                                entity_column_idx   = entity_column_idx,
+                                                                                original_row_nb     = row[0], 
+                                                                                current_row_nb      = row[0], 
+                                                                                all_rows            = all_rows, 
+                                                                                xlr_config          = xlr_config)
+
+                my_trace                        = parent_trace.doing("Docking a new '" + interval.entity_name 
+                                                                        + "' below docking_uid '" + str(docking_uid) + "'",
+                                                                        origination = {'signaled_from': __file__})
+                # GOTCHA: When passing the entity type to self.dockEntityData, don't use interval.entity_name 
+                #           since due to lower/upper case differences it may not
+                #           match the actual column name in the DataFrame and that will trigger a key error. 
+                #           Instead, actually use the column name of the DataFrame, which we previously checked
+                #           that is "equivalent" to interval.entity_name when converted to a YAML field
+                entity_type                     = columns[entity_column_idx]                                                       
+                subtree_full_uid                = self.dockEntityData(  parent_trace        = my_trace,
+                                                                        full_docking_uid    = docking_uid, 
+                                                                        entity_type         = entity_type, 
+                                                                        data_to_attach      = row[1][interval.columns],
+                                                                        uid_to_overwrite    = uid_to_overwrite,
+                                                                        xlr_config          = xlr_config,
+                                                                        acronym_schema      = acronym_schema)
+                return subtree_full_uid
+                
+            else: # Didn't encounter a new entity - so nothing to do for this interval
+                return None
+        except Exception as ex:
+            if type(ex) == ApodeixiError:
+                raise ex # Just propagate exception, retaining its friendly FunctionalTrace
+            else:
+                raise ApodeixiError(parent_trace, "Parser found a problem when with one of the rows",
+                                                    data = {"error": str(ex),
+                                                    "DataFrame row": str(row[0]),
+                                                    "interval": str(interval.columns)})
 
     def _keep_user_provided_UID(self, parent_trace, xlr_config, user_provided_data):
         '''

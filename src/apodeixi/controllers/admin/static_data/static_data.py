@@ -6,7 +6,8 @@ from apodeixi.controllers.util.skeleton_controller              import SkeletonC
 from apodeixi.controllers.admin.static_data.static_data_coords  import StaticDataFilingCoordinates
 
 from apodeixi.util.formatting_utils                             import StringUtils
-from apodeixi.xli.posting_controller_utils                      import UpdatePolicy, PostingConfig
+from apodeixi.xli.update_policy                                 import UpdatePolicy
+from apodeixi.xli.posting_controller_utils                      import PostingConfig
 from apodeixi.xli.interval                                      import GreedyIntervalSpec
 
 class StaticData_Controller(SkeletonController):

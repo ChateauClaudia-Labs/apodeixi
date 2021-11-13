@@ -4,7 +4,8 @@ from apodeixi.util.formatting_utils                 import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 
-from apodeixi.xli                                   import UpdatePolicy, PostingController, PostingConfig
+from apodeixi.xli.update_policy                     import UpdatePolicy
+from apodeixi.xli.posting_controller_utils          import PostingConfig
 from apodeixi.xli.interval                          import ClosedOpenIntervalSpec
 
 class CapabilityHierarchy_Controller(SkeletonController):

@@ -6,7 +6,6 @@ from apodeixi.util.formatting_utils                                         impo
 from apodeixi.util.dataframe_utils                                          import DataFrameUtils
 
 from apodeixi.controllers.util.skeleton_controller                          import SkeletonController
-from apodeixi.controllers.admin.static_data.static_data_validator           import StaticDataValidator
 from apodeixi.controllers.journeys.delivery_planning.journeys_posting_label  import JourneysPostingLabel
 from apodeixi.controllers.journeys.delivery_planning.journeys_controller     import JourneysController
 
@@ -18,7 +17,8 @@ from apodeixi.text_layout.excel_layout                                      impo
 
 from apodeixi.xli.interval                                                  import IntervalUtils, GreedyIntervalSpec, \
                                                                                 MinimalistIntervalSpec, Interval
-from apodeixi.xli.posting_controller_utils                                  import PostingConfig, UpdatePolicy
+from apodeixi.xli.posting_controller_utils                                  import PostingConfig
+from apodeixi.xli.update_policy                                             import UpdatePolicy
 
 class BigRocksEstimate_Controller(JourneysController):
     '''

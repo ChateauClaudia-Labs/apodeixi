@@ -21,7 +21,7 @@ from apodeixi.util.formatting_utils                                         impo
 
 from apodeixi.xli.interval                                                  import GreedyIntervalSpec
 from apodeixi.xli.posting_controller_utils                                  import PostingConfig
-from apodeixi.xli                                                           import UpdatePolicy
+from apodeixi.xli.update_policy                                             import UpdatePolicy
 
 
 class MilestonesController(JourneysController):

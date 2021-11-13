@@ -7,9 +7,11 @@ from apodeixi.testing_framework.mock_kb_store               import UnitTest_Know
 
 from apodeixi.util.a6i_error                                import ApodeixiError, FunctionalTrace
 
-from apodeixi.xli.breakdown_builder                         import BreakdownTree, UID_Store, Interval
+from apodeixi.xli.breakdown_builder                         import BreakdownTree
+from apodeixi.xli.interval                                  import Interval
+from apodeixi.xli.uid_store                                 import UID_Store
 from apodeixi.xli.posting_controller_utils                  import PostingConfig
-from apodeixi.xli                                           import UpdatePolicy
+from apodeixi.xli.update_policy                             import UpdatePolicy
 from apodeixi.xli.uid_acronym_schema                        import UID_Acronym_Schema, AcronymInfo
 
 class Test_BreakoutTree(ApodeixiUnitTest):

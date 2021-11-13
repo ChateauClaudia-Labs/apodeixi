@@ -1,10 +1,9 @@
 
-from apodeixi.xli import uid_store
 import pandas                           as _pd
 
 from apodeixi.util.a6i_error            import ApodeixiError
-from apodeixi.util.yaml_utils import YAML_Utils
-from apodeixi.xli                       import Interval
+from apodeixi.util.yaml_utils       import YAML_Utils
+from apodeixi.xli.interval              import Interval
 from apodeixi.xli.uid_store             import UID_Utils
 from apodeixi.xli.uid_acronym_schema    import UID_Acronym_Schema
 

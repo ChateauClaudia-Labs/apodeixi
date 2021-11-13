@@ -4,9 +4,10 @@ from apodeixi.util.formatting_utils                 import StringUtils
 
 from apodeixi.controllers.util.skeleton_controller  import SkeletonController
 from apodeixi.knowledge_base.filing_coordinates     import InitiativesFilingCoordinates
-from apodeixi.xli.interval                          import IntervalUtils, GreedyIntervalSpec, ClosedOpenIntervalSpec
+from apodeixi.xli.interval                          import GreedyIntervalSpec, ClosedOpenIntervalSpec
 
-from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
+from apodeixi.xli.posting_controller_utils          import PostingConfig
+from apodeixi.xli.update_policy                     import UpdatePolicy
 
 class Workstream_Controller(SkeletonController):
     '''

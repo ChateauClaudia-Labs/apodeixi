@@ -4,6 +4,7 @@ import pandas                                           as _pd
 from apodeixi.util.a6i_error                            import ApodeixiError, FunctionalTrace
 
 from apodeixi.xli.posting_controller_utils              import PostingController, PostingLabel
+from apodeixi.xli.update_policy                         import InferReferenceUIDsPolicy
 from apodeixi.xli.uid_store                             import UID_Store
 from apodeixi.xli.xlimporter                            import ExcelTableReader, SchemaUtils
 from apodeixi.xli.interval                              import Interval
@@ -700,6 +701,17 @@ class SkeletonController(PostingController):
                     next_version        = prior_version 
                 else:  # we are updating, so increase the version number
                     next_version        = prior_version + 1
+
+                    # Logic added on November 12, 2021. 
+                    if type(xlr_config.update_policy) == InferReferenceUIDsPolicy and next_version > 1:
+                        prior_manifest_dict, path   = self.store.findLatestVersionManifest(
+                                                                parent_trace            = my_trace,
+                                                                manifest_api_name       = self.getManifestAPI().apiName(),
+                                                                namespace               = namespace,
+                                                                name                    = manifest_name,
+                                                                kind                    = kind)
+                        xlr_config.update_policy.prior_manifest_dict = prior_manifest_dict
+
             else: # There is no prior version, so this must be the first version
                 next_version        = 1
 
@@ -916,6 +928,91 @@ class SkeletonController(PostingController):
             manifest_df[Interval.UID]   = manifest_df.apply(lambda row: _clean_UIDs(row), axis=1)
 
         return manifest_df
+
+    def restoreReferenceManifestUIDs(self, parent_trace, xlr_config, row_number):
+        '''
+        Utility method that derived classes may choose to call.
+        Intended to avoid "frivolous" diffs that can arise when referencing manifests are updated.
+
+        Such "frivolous" diffs arise because reference manifests usually hide their UID field in Excel.
+        Instead, they rely on a link field (usually also hidden) to align with the rows of a referenced
+        manifest.
+
+        For example, when the 'big-rock-estimate' referencing manifest is rendered on Excel, the manifest's
+            'bigRock' field is used to align with Excel rows for a corresponding 'big-rock' entity.
+
+        The problem with this is that when the Excel file is re-posted as an update, then the controller
+        won't be receiving from Excel the UIDs for the 'big-rock-estimate' entities, so it will simply
+        generate new ones.
+        
+        That gives the fall impression that all 'big-rock-estimate' entities changed, which is inaccurate.
+
+        To avoid such situation, this (optional) method takes a referencing `manifest_dict` (for example, for
+        'big-rock-estimate') and adds a UID column with the UIDs of the previuosly persisted 'big-rock-estimate'
+        manifest.
+        This "UID defaulting" is done for any entity in `manifest_dict` that was present in the previous version.
+        This determination is made using the `linkField` to map entities in `manifest_dict` to the a referenced
+        manifest and to entities in the prior versio of the referencing manifest.
+
+        GOTCHA: This method must be called *after* self.linkReferenceManifest (usually done in 
+            the concrete class's implementation of self._buildAllManifests()) since that link is relied upon.
+
+        @param xlr_config   The PostingConfig we are using to process a posting to create a manifest.
+        @param row_number An int, corresponding to the index in the DataFrame for the referencing manifest.
+                Counts start at 0.
+        '''
+        referencing_uid                 = None
+        if type(xlr_config.update_policy) == InferReferenceUIDsPolicy:
+            try:
+
+                referenced_kind             = xlr_config.update_policy.referenced_kind
+                link_field                  = xlr_config.update_policy.link_field
+                referenced_uid              = self.link_table.uid_from_row(parent_trace, referenced_kind, row_number)
+
+                prior_manifest_dict         = xlr_config.update_policy.prior_manifest_dict
+
+                entity                      = xlr_config.entity_as_yaml_fieldname()
+                if prior_manifest_dict != None:
+
+                    prior_content_dict      = DictionaryUtils().get_val(
+                                                        parent_trace    = parent_trace,
+                                                        root_dict       = prior_manifest_dict,
+                                                        root_dict_name  = "Manifest dict for '" + str(referenced_kind) +"'",
+                                                        path_list       = ["assertion", entity],
+                                                        valid_types     = ["dict"])
+                    rep                     = AsDataframe_Representer()
+                    prior_manifest_df       = rep.dict_2_df(
+                                                        parent_trace    = parent_trace,
+                                                        content_dict    = prior_content_dict,
+                                                        contents_path   = "assertion." + entity,
+                                                        sparse          = False,
+                                                        abbreviated_uids= False)
+                    
+
+                    if not link_field in prior_manifest_df.columns:
+                        raise ApodeixiError(parent_trace, "The link field provided is not a valid column in the "
+                                                            + "DataFrame for the manifest's prior version",
+                                                        data = {"link_field":       str(link_field),
+                                                                "DataFrame columns": str(prior_manifest_df.columns),
+                                                                "DataFrame row":    str(row_number),
+                                                                "referenced_kind":  str(referenced_kind)})
+                    filtered_df             = prior_manifest_df[prior_manifest_df[link_field]==referenced_uid]
+                    if len(filtered_df.index) > 1:
+                        raise ApodeixiError(parent_trace, "Corrupted referencing - should have at most one reference")
+                    elif len(filtered_df.index) == 1:
+                        referencing_uid     = filtered_df.iloc[0][Interval.UID]
+
+            
+            except Exception as ex:
+                if type(ex) == ApodeixiError:
+                    raise ex # Just propagate exception, retaining its friendly FunctionalTrace
+                else:
+                    raise ApodeixiError(parent_trace, "Found a problem retrieving UID from manifest's prior version",
+                                                        data = {"error":    str(ex),
+                                                        "DataFrame row":    str(row_number),
+                                                        "referenced_kind":  str(referenced_kind),
+                                                        "link_field":       str(link_field)})        
+            return referencing_uid 
 
     def _get_referenced_manifest_boundaries(self, parent_trace, refKind):
         '''

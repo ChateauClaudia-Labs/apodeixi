@@ -8,7 +8,8 @@ from apodeixi.xli.interval                          import IntervalUtils, \
                                                             ClosedOpenIntervalSpec, \
                                                             MinimalistIntervalSpec
 
-from apodeixi.xli.posting_controller_utils          import PostingConfig, PostingController, UpdatePolicy
+from apodeixi.xli.posting_controller_utils          import PostingConfig
+from apodeixi.xli.update_policy                     import UpdatePolicy
 
 class Mock_Controller(SkeletonController):
     '''
