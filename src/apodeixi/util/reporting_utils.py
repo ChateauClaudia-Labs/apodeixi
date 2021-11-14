@@ -202,6 +202,22 @@ class TimebucketStandardizer():
         '''
         return
 
+    def is_a_timebucket_column(self, parent_trace, raw_col, a6i_config):
+        '''
+        Returns a boolean stating if `raw_col` is for a timebucket column.
+
+        @raw_col A string or a tuple of strings.
+        '''
+        standarized_col, timebucket, timebucket_indices = self.standardizeOneTimebucketColumn(
+                                                                    parent_trace                = parent_trace, 
+                                                                    raw_col                     = raw_col, 
+                                                                    a6i_config                  = a6i_config, 
+                                                                    expected_collapsing_info    = None)
+        if timebucket != None:
+            return True
+        else:
+            return False
+
     def standardizeAllTimebucketColumns(self, parent_trace, a6i_config, df):
         '''
         Returns two things:

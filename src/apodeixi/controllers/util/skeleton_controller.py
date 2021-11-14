@@ -313,26 +313,17 @@ class SkeletonController(PostingController):
             Returns a DataFrame, corresponding to the manifest's contents of
             '''
             self._abort_if_null_manifest(parent_trace)
-
-            kind                            = self._manifest_dict['kind']
-            manifest_nb                     = int(self._key.split('.')[1])
             
             assertion_dict                  = self._manifest_dict['assertion']
             DF_KEY                          = SkeletonController._ManifestInfo.TEMPLATE_DF
             if DF_KEY in assertion_dict.keys(): # This is not a real manifest - we have content as a DataFrame template
                 contents_df                 = assertion_dict[DF_KEY]
             else: # This is a real manifest that we parsed, so need to convert parsed tree to a DataFrame
-                posting_config                  = self._controller.getPostingConfig(parent_trace, 
-                                                                        kind, 
-                                                                        manifest_nb) 
-                entity                          = posting_config.entity_as_yaml_fieldname()
+                contents_df                 = self._controller._loaded_manifest_dict_2_df(
+                                                                                parent_trace, 
+                                                                                manifest_dict       = self._manifest_dict, 
+                                                                                manifest_id         = self._key)
 
-                content_dict                    = assertion_dict[entity]
-                rep                             = AsDataframe_Representer()
-                contents_path                   = 'assertion.' + entity
-                contents_df, uid_info_list      = rep.dict_2_df(parent_trace, content_dict, contents_path, 
-                                                                    sparse=True, abbreviate_uids=True)
-            
             return contents_df
 
         def _abort_if_null_manifest(self, parent_trace):
@@ -340,6 +331,71 @@ class SkeletonController(PostingController):
                 raise ApodeixiError(parent_trace, "_ManifestInfo has a null manifest - did you forget to retrieve it "
                                                 + "ahead of this point in the processing?",
                                                 data = {"manifest key": str(self._key)})
+
+    def _loaded_manifest_dict_2_df(self, parent_trace, manifest_dict, manifest_id):
+        '''
+        Helper method invoked to construct and return a DataFrame out of a manifest dictionary that has been just loaded 
+        from the store.
+
+        This method is used in the context of generating forms, which requires retrieving previously saved manifest content 
+        which will later be displayed in an Excel form.
+
+        This method is a refactoring of a bit of logic inside _ManifestInfo's logic to build the manifest content.
+        This refactoring was done so that concrete classes can overwrite this method if needed.
+
+        A typical use case for why a concrete class may need to overwrite this method is "embedded reference columns":
+
+        For example, the Excel display for an indicator actual's manifest becomes more user-friendly if, in addition to
+        columns like 
+        
+                ("Q1 FY22", "Actual"), ("Q2 FY22", "Actual")
+
+        it instead displayed "embedded" columns for the targets, read from some other manifest for indicator targets
+        side-by-side with the actuals, aligning by timebucket.
+        That means the display would have columns like 
+
+                ("Q1 FY22", "Target"), ("Q1 FY22", "Actual"), ("Q2 FY22", "Target"), ("Q2 FY22", "Actual")
+
+        The content under the "Target" columns is really owned by a different manifest, so even if the indicator actuals
+        manifest has "field" for the "targets", they are just "copies" of what resides in the indicator target manifest.
+
+        As a result of that, the "copy" may become stale if the reference manifest (e.g., indicator targets) is updated,
+        so when generating a form for the referencing manifest (e.g., indicator actuals) we should "refresh" the targets
+        copies that we retrieved from the store inside the indicator actual manifest.
+
+        In the example, this means loading the indicator targets manifest and using its values to replace the values of
+        the "Target" columns in the DataFrame returned by this method before returning it.
+
+        The above was an example of the kind of logic that a concrete class might want to do when overwriting this method.
+
+        For this parent-class default implementation, the logic is straightforward: the content DataFrame is simply built
+        out of the manifest dictionary without any enrichments.
+
+        @param manifest_dict A dict object, representing the full data of a manifest that has just been retrieved from
+                                the KnowledgeStore
+        @param manifest_id A string, that uniquely identifies a manifest within this controller object. For example,
+                                'big-rock.0'. It is expected to be in the form of <kind>.<int>
+        '''
+        kind                            = manifest_dict['kind']
+        manifest_nb                     = int(manifest_id.split('.')[1])
+        posting_config                  = self.getPostingConfig(parent_trace, 
+                                                                kind, 
+                                                                manifest_nb) 
+        entity                          = posting_config.entity_as_yaml_fieldname()
+
+        content_dict                            = DictionaryUtils().get_val(
+                                                                    parent_trace        = parent_trace, 
+                                                                    root_dict           = manifest_dict,
+                                                                    root_dict_name      = str(manifest_id),
+                                                                    path_list           = ["assertion", str(entity)],
+                                                                    valid_types         = [dict])
+
+        rep                             = AsDataframe_Representer()
+        contents_path                   = 'assertion.' + entity
+        contents_df, uid_info_list      = rep.dict_2_df(parent_trace, content_dict, contents_path, 
+                                                            sparse=True, abbreviate_uids=True)
+        return contents_df
+            
 
     def _manifests_in_scope(self, parent_trace, form_request):
         '''
@@ -604,6 +660,10 @@ class SkeletonController(PostingController):
         * DataFrame with the contents of the most recent manifest identified by the parameters.
         * A dict object for the full manifest (i.e., including metadata)
         * A list of UID_Info objects, one per row in the DataFrame returned
+
+        This method is typically used in the context of reports, to get data sets that are input to the report.
+        For that reason, the DataFrame that is returned is "not sparse" and has "unabbreviated" UIDs, so that joins
+        can easily be done with other datasets also returned by this method.
 
         If no such manifest exists, it returns None, None
 
@@ -981,13 +1041,13 @@ class SkeletonController(PostingController):
                                                         path_list       = ["assertion", entity],
                                                         valid_types     = ["dict"])
                     rep                     = AsDataframe_Representer()
-                    prior_manifest_df       = rep.dict_2_df(
-                                                        parent_trace    = parent_trace,
-                                                        content_dict    = prior_content_dict,
-                                                        contents_path   = "assertion." + entity,
-                                                        sparse          = False,
-                                                        abbreviated_uids= False)
-                    
+                    prior_manifest_df, uid_info_list    = rep.dict_2_df(
+                                                                        parent_trace    = parent_trace,
+                                                                        content_dict    = prior_content_dict,
+                                                                        contents_path   = "assertion." + entity,
+                                                                        sparse          = False,
+                                                                        abbreviate_uids = False)
+                                    
 
                     if not link_field in prior_manifest_df.columns:
                         raise ApodeixiError(parent_trace, "The link field provided is not a valid column in the "

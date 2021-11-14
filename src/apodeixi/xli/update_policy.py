@@ -42,7 +42,7 @@ class InferReferenceUIDsPolicy(UpdatePolicy):
 
     This class contains the parameters for such logic.
     '''
-    def _init__(self, referenced_kind, link_field):
+    def __init__(self, referenced_kind, link_field):
         self.referenced_kind    = referenced_kind
         self.link_field         = link_field
         self.reuse_uids         = True
