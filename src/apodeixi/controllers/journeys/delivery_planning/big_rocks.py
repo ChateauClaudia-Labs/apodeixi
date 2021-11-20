@@ -18,7 +18,7 @@ from apodeixi.text_layout.excel_layout                                      impo
 from apodeixi.xli.interval                                                  import IntervalUtils, GreedyIntervalSpec, \
                                                                                 MinimalistIntervalSpec, Interval
 from apodeixi.xli.posting_controller_utils                                  import PostingConfig
-from apodeixi.xli.update_policy                                             import UpdatePolicy
+from apodeixi.xli.update_policy                                             import UpdatePolicy, InferReferenceUIDsPolicy
 
 class BigRocksEstimate_Controller(JourneysController):
     '''
@@ -78,7 +78,11 @@ class BigRocksEstimate_Controller(JourneysController):
                                                                         manifest_nb     = manifest_nb,
                                                                         controller      = self)
         elif kind == 'big-rock-estimate':
-            update_policy               = UpdatePolicy(reuse_uids=False, merge=False)
+            # This manifest's UIDs will have to be inferred during an update, and the names of the refereced_kind
+            # and link_field should match exactly the strings used to link big-rock-estimate to big rocks in
+            # self._buildAllManfests
+            update_policy               = InferReferenceUIDsPolicy(referenced_kind='big-rock', link_field='bigRock') 
+            
             xlr_config                  = ME._BigRocksEstimatesConfig(  kind            = kind, 
                                                                         update_policy   = update_policy, 
                                                                         manifest_nb     = manifest_nb,

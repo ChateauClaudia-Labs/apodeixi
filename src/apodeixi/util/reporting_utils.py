@@ -165,6 +165,16 @@ class ReportWriterUtils():
                         fmt_dict                    |= {'bg_color': Palette.LIGHT_BLUE}
                     fmt                             = workbook.add_format(fmt_dict)
                      
+                    # GOTCHA
+                    # 
+                    #   For some reports (e.g., diffs of manifests), the clean_val might be a "field name", i.e., the column in 
+                    # a DataFrame's column for a manifest being diff-ed.
+                    # In such cases, clean_val might be a tuple if it is a MultiLevel column in the manifest's DataFrame. 
+                    # If so, covert it to a string to avoid errors writing it out.
+                    #
+                    if type(clean_val) == tuple:
+                        clean_val                   = str(clean_val)
+
                     self._write_val(    parent_trace    = my_trace, 
                                         ws              = report_ws, 
                                         x               = jdx + x_offset + 1, 
