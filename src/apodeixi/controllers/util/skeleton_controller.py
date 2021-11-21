@@ -762,15 +762,19 @@ class SkeletonController(PostingController):
                 else:  # we are updating, so increase the version number
                     next_version        = prior_version + 1
 
-                    # Logic added on November 12, 2021. 
-                    if type(xlr_config.update_policy) == InferReferenceUIDsPolicy and next_version > 1:
-                        prior_manifest_dict, path   = self.store.findLatestVersionManifest(
-                                                                parent_trace            = my_trace,
-                                                                manifest_api_name       = self.getManifestAPI().apiName(),
-                                                                namespace               = namespace,
-                                                                name                    = manifest_name,
-                                                                kind                    = kind)
-                        xlr_config.update_policy.prior_manifest_dict = prior_manifest_dict
+                # Logic added on November 21, 2021. 
+                # This also applies even for read-only manifests. For example,
+                # a read-only manifest A may in turn be linked to another read-only manifest B, so
+                # need A's prior version in the xlr_config.update_policy even though A is read-only.
+                # 
+                if type(xlr_config.update_policy) == InferReferenceUIDsPolicy and prior_version > 0:
+                    prior_manifest_dict, path   = self.store.findLatestVersionManifest(
+                                                            parent_trace            = my_trace,
+                                                            manifest_api_name       = self.getManifestAPI().apiName(),
+                                                            namespace               = namespace,
+                                                            name                    = manifest_name,
+                                                            kind                    = kind)
+                    xlr_config.update_policy.prior_manifest_dict = prior_manifest_dict
 
             else: # There is no prior version, so this must be the first version
                 next_version        = 1
