@@ -194,6 +194,12 @@ class ManifestUtils():
                                                                             namespace           = namespace, 
                                                                             name                = name, 
                                                                             kind                = kind)
+                if manifest_dict2 == None:
+                    raise ApodeixiError(my_trace, "Unable to do diff because there is no manifest was found in the KnowledgeBase with these characteristics",
+                                            data = {"Manifest API":         str(manifest_api_name),
+                                                    "namespace":            str(namespace),
+                                                    "name":                 str(name),
+                                                    "kind":                 str(kind)})
                 version2                = self.get_manifest_version(my_trace, manifest_dict2)
             else:
                 manifest_handle2        = kb_utils.ManifestHandle(          manifest_api        = manifest_api_name, 
@@ -204,6 +210,13 @@ class ManifestUtils():
                 manifest_dict2, manifest_path2 \
                                         = store.retrieveManifest(           parent_trace        = my_trace, 
                                                                             manifest_handle     = manifest_handle2)
+                if manifest_dict2 == None:
+                    raise ApodeixiError(my_trace, "Unable to do diff because there is no manifest was found in the KnowledgeBase with these characteristics",
+                                            data = {"Manifest API":         str(manifest_api_name),
+                                                    "namespace":            str(namespace),
+                                                    "name":                 str(name),
+                                                    "kind":                 str(kind)})
+
             manifest_file2              = _os.path.split(manifest_path2)[1]
             if version1 == None:
                 version1                        = version2 - 1
