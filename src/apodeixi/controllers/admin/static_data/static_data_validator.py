@@ -136,7 +136,7 @@ class StaticDataValidator():
             alleged_journey         = tokens[0]
             subproduct              = tokens[1]
         else:
-            raise ApodeixiError("'" + str(subnamespace) +"' is invalid subnamespace. "
+            raise ApodeixiError(parent_trace, "'" + str(subnamespace) +"' is invalid subnamespace. "
                                 "Should have at most token separated by '.', like 'Cloud' or 'Cloud.PTG'")
         if subproduct != None:
             # Check it is a valid subproduct

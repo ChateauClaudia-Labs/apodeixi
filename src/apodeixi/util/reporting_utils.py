@@ -6,6 +6,7 @@ from apodeixi.text_layout.excel_layout                          import Palette
 from apodeixi.util.a6i_error                                    import ApodeixiError
 from apodeixi.util.dataframe_utils                              import DataFrameUtils
 from apodeixi.util.time_buckets                                 import FY_Quarter
+from apodeixi.util.formatting_utils                             import StringUtils
 
 class ReportWriterUtils():
     '''
@@ -192,6 +193,580 @@ class ReportWriterUtils():
             raise ApodeixiError(parent_trace, "Unable to write value to Excel",
                                     data = {"x": str(x), "y": str(y), "val": str(val), "error": str(ex)})
 
+class TimebucketDataFrameJoiner():
+    '''
+    Utility class to join DataFrames so that timebuckets are grouped together and sorted, and return the resulting
+    DataFrame
+
+    For example, imagine having three DataFrames:
+        * A DataFrame of sales regions - columns are strings like "Region", "Country"
+        * A DataFrame of sales targets for 2 years - columns are tuples for timebuckets, like ("Q1", "FY23"), ...., ("Q4", "FY24)
+        * A DataFrame of sales actuals for 3 quarters- columns are tuples like ("Q1", "FY23"), ..., ("Q3", "FY23")
+
+    Morever, assume that the DataFrames for sales targets and actuals either have the same index as the DataFrame for sales regions,
+    or else have a foreign key pointing to the sales regions (as a not necessarily injection, i.e., some regions may lack 
+    a sales target or actual)
+
+    Then this class provides functionality to "merge" all these 3 DataFrames into 1 DataFrame with columns that are
+    2-level tuples, returning someting that looks like this:
+
+                         | Q1 FY23          | Q2 FY23          | Q3 FY23          | Q4 FY23 | Q1 FY24 | Q2 FY24 | Q3 FY24 | Q4 FY24 
+        Region | Country | Target  | Actual | Target  | Actual | Target  | Actual | Target  | Target  | Target  | Target  | Target  
+        =============================================================================================================================
+               |         |         |        |         |        |         |        |         |         |         |         |
+
+    In particular:
+     
+    * Timebuckets are standardized. If they are provided as tuples, they are turned into strings
+    * A lower level (like "Target" and "Actual") can be introduced by the caller. The caller can also introduce "higher levels"
+      and the standard grouping semantics are enforced: lower-levels are grouped within the same time bucket, whereas time buckets
+      are grouped per higher level value, if higher levels are provided.
+    * Timebuckets may be provided as size-2 tuples or as size-1 tuples or as strings
+    * The non-timebucket columns are made to appear to the left, as the first columns
+
+    @param reference_df A DataFrame none of whose columns are for a timebucket. All columns must be strings.
+    @param link_field May be None. If not null, must be a column of `reference_df` (i.e., a string) such that 
+            "could be used as an index", in the sense that all rows of `reference_df` have a different value for this column.
+    @param timebucket_df_list A list of DataFrames all of which have only timebucket columns. A "timebucket column" can be
+            either a string or a tuple whole last 1 or 2 levels can be parsed as a FY_Quarter object. Valid examples:
+            "Q2 FY23", "FY 2025", ("Q2", "FY 24"), ("Q2 FY22").
+            The index for all these DataFrames must be the same (or a subset) of the index of `reference_df`, or else
+            must contain a column whose name equals the `link_field` parameter, and which has unique values per row.
+    @param timebucket_df_lower_tags May be None. If not null, must be a list of the same length as `timebucket_df_list`,
+            all of it strings or all of it tuples of strings of the same size.
+    @param timebucket_df_upper_tags May be None. If not null, must be a list of the same length as `timebucket_df_list`,
+            all of it strings or all of it tuples of strings of the same size.
+    @param a6i_config Apodeixi configuration.
+
+    @return A DataFrame
+    '''
+    def __init__(self, parent_trace, reference_df, link_field, timebucket_df_list, 
+                        timebucket_df_lower_tags, timebucket_df_upper_tags, a6i_config):
+
+        standardizer                    = TimebucketStandardizer()
+        my_trace                        = parent_trace.doing("Validating inputs provided to TimebucketDataFrameJoiner")
+        if True:
+            # Check reference_df is a DataFrame
+            if not type(reference_df) == _pd.DataFrame:
+                raise ApodeixiError(my_trace, "Bad reference_df provided: it should be a DataFrame, not a '" 
+                                                + str(type(reference_df)) + "'")
+            # Check no column of reference_df is a timebucket
+            bad_cols                    = [col for col in reference_df.columns if standardizer.is_a_timebucket_column(my_trace, 
+                                                                                                                        col, 
+                                                                                                                        a6i_config)]
+            if len(bad_cols) > 0:
+                raise ApodeixiError(my_trace, "Invalid reference DataFrame provided: it contains some timebucket columns, but it "
+                                                + "shouldn't",
+                                                data = {"ts_cols": str(bad_cols)})
+
+            # Check every column of reference_df is a string
+            bad_cols                    = [col for col in reference_df.columns if not type(col)==str]
+            if len(bad_cols) > 0:
+                raise ApodeixiError(my_trace, "Invalid reference DataFrame provided: it contains some non-string columns, but it "
+                                                + "shouldn't",
+                                                data = {"ts_cols": str(bad_cols)})
+
+            # Check link_field is either null or is a valid column of reference_df
+            if link_field != None and not link_field in reference_df.columns:
+                raise ApodeixiError(my_trace, "Invalid link field provided: it should be a column in reference DataFrame ",
+                                                data = {"link_field": str(link_field),
+                                                        "reference_df.columns": str(reference_df.columns)}) 
+            # Check timebucket_df_list is a list
+            if type(timebucket_df_list) != list:
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_list provided: should be a list, not a '" 
+                                                    + str(type(timebucket_df_list)) + "'")
+
+            # Check timebucket_df_list is not empty list
+            if len(timebucket_df_list) == 0:
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_list provided: it is emtpy, and it shouldn't")
+
+            # Check timebucket_df_lower_tags is a list
+            if timebucket_df_lower_tags !=None and type(timebucket_df_lower_tags) != list:
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_lower_tags provided: should be a list, not a '" 
+                                                    + str(type(timebucket_df_lower_tags)) + "'")
+            # Check timebucket_df_upper_tags is a list
+            if timebucket_df_upper_tags != None and type(timebucket_df_upper_tags) != list:
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_upper_tags provided: should be a list, not a '" 
+                                                    + str(type(timebucket_df_upper_tags)) + "'")
+
+            # Check timebucket_df_lower_tags are unique
+            if timebucket_df_lower_tags !=None and len(timebucket_df_lower_tags) != len(set(timebucket_df_lower_tags)):
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_lower_tags provided: it has duplicates, and shouldn't: '" 
+                                                    + str(timebucket_df_lower_tags) + "'")
+            # Check timebucket_df_upper_tags are unique
+            if timebucket_df_upper_tags !=None and len(timebucket_df_upper_tags) != len(set(timebucket_df_upper_tags)):
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_upper_tags provided: it has duplicates, and shouldn't: '" 
+                                                    + str(timebucket_df_upper_tags) + "'")
+
+            # Check all members of timebucket_df_list are DataFrames
+            bad_list                    = [elt for elt in timebucket_df_list if type(elt) != _pd.DataFrame]
+            if len(bad_list) > 0:
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_list provided: some elements are not DataFrames. "
+                                                + "Instead they are " + ", ".join([str(type(elt)) for elt in bad_list]))
+            # Check all columns for members of timebucket_df_list are timebuckets, except for the linkfield, if it exists
+            for df in timebucket_df_list:
+                for col in df.columns:
+                    if self._is_a_link_column(col, link_field):                  
+                        # Skip if col "is" the linkfield, where "is" must be tuple-sensitive (i.e., maybe the last level of col
+                        # is the link_field)
+                        continue
+
+                    flattened_col, timebucket, timebucket_indices   = standardizer.standardizeOneTimebucketColumn(my_trace, 
+                                                                            raw_col                     = col, 
+                                                                            a6i_config                  = a6i_config,
+                                                                            expected_collapsing_info    = None)
+
+                    if timebucket == None:
+                        raise ApodeixiError(my_trace, "Invalid timebucket_df_list: all columns of all DataFrames should be "
+                                                        + "timebuckets, but at least one column is not: '" + str(col) + "'")
+                    if type(flattened_col) == tuple and max(timebucket_indices) < len(flattened_col) - 1:
+                        raise ApodeixiError(my_trace, "Invalid timebucket_df_list: at least 1 DataFrame has a column "
+                                                        + "has lower levels below the timebucket levels: '" + str(col) + "'")
+
+            # Check all members of timebucket_df_list contain the link_field, if it is set
+            if link_field != None:
+                for df in timebucket_df_list:
+                    if len([col for col in df.columns if self._is_a_link_column(col, link_field)]) == 0:
+                        raise ApodeixiError(my_trace, "Invalid link_field '" + str(link_field) + "' : it is not present "
+                                            + "as a column in at least some of the input dataframes supposed to join on that field",
+                                            data = {"dataframe columns": str(df.columns)})
+                    if len([col for col in df.columns if self._is_a_link_column(col, link_field)]) > 1:
+                        raise ApodeixiError(my_trace, "Invalid link_field '" + str(link_field) + "' : it present "
+                                            + "in multiple columns in at least some of the input dataframes supposed to join "
+                                            + "on that field (should be present in exactly 1 column",
+                                            data = {"dataframe columns": str(df.columns)})
+
+            # Check tags lists (if not null) are of the right length
+            if timebucket_df_lower_tags != None and len(timebucket_df_lower_tags) != len(timebucket_df_list):
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_lower_tags: size does not match that of timebucket_df_list",
+                                                data = {"len(timebucket_df_lower_tags)": str(len(timebucket_df_lower_tags)),
+                                                        "len(timebucket_df_list)": str(len(timebucket_df_list))})
+            if timebucket_df_upper_tags != None and len(timebucket_df_upper_tags) != len(timebucket_df_list):
+                raise ApodeixiError(my_trace, "Invalid timebucket_df_upper_tags: size does not match that of timebucket_df_list",
+                                                data = {"len(timebucket_df_upper_tags)": str(len(timebucket_df_upper_tags)),
+                                                        "len(timebucket_df_list)": str(len(timebucket_df_list))})
+            # Check tag lists (if not null) are of the same number of MultiIndex levels
+            if timebucket_df_lower_tags != None:
+                tag_lengths             = [len(tag) if type(tag)==tuple else 0 for tag in timebucket_df_lower_tags]
+                tag_lengths             = list(set(tag_lengths)) # Remove duplicates
+                if len(tag_lengths) != 1:
+                    raise ApodeixiError(my_trace, "Invalid timebucket_df_lower_tags: there are tags of various lengths",
+                                                data = {"tag_lengths": str(tag_lengths)})
+            if timebucket_df_upper_tags != None:
+                tag_lengths             = [len(tag) if type(tag)==tuple else 0 for tag in timebucket_df_upper_tags]
+                tag_lengths             = list(set(tag_lengths)) # Remove duplicates
+                if len(tag_lengths) != 1:
+                    raise ApodeixiError(my_trace, "Invalid timebucket_df_upper_tags: there are tags of various lengths",
+                                                data = {"tag_lengths": str(tag_lengths)})
+
+        self.reference_df               = reference_df
+        self.link_field                 = link_field
+        self.timebucket_df_list         = timebucket_df_list
+        self.timebucket_df_lower_tags   = timebucket_df_lower_tags
+        self.timebucket_df_upper_tags   = timebucket_df_upper_tags
+        self.a6i_config                 = a6i_config
+
+    def _is_a_link_column(self, col, link_field):
+        '''
+        Helper method that returns a boolean, determining if a DataFrame's column `col` "is" the link_field, where "is linke field" is 
+        interpreted in a tuple-sensitive way: ie, a column `col` is considered to be the `link_field` if either
+        * col == link_field
+        * or col is a tuple and link_field is col's last level
+
+        @param col A DataFrame's column
+        @param link_field A string
+        '''
+        if col==link_field or (type(col)==tuple and col[-1]==link_field):
+            return True
+        else:
+            return False
+
+    def _untuple_link_column(self, parent_trace, df):
+        '''
+        Returns a DataFrame almost identical to the input `df`, except that it might rename "the link_field column" of df, if
+        self.link_field is not null, so that it is a string in the event it is a tuple.
+
+        Example: Suppose the link_field is "Country". Because of how Pandas reads Excel into DataFrames such as `df`, it is
+                possible that in `df` the column is held as a tuple, like ("", "", Country).
+                In that case, that thuple column is replaced by a string column "Country"
+        '''
+        if self.link_field == None: # Nothing to do
+            return df
+
+        matching_columns        = [col for col in df.columns if self._is_a_link_column(col, self.link_field)]
+        if len(matching_columns) == 0: # No column to rename
+            return df
+        elif len(matching_columns) > 1:
+            raise ApodeixiError(parent_trace, "Invalid DataFrame provided: multiple columns can be considered to have "
+                                    + "the link field '" + self.link_field + "'",
+                                    data = {"df columns":   str(df.columns)})
+
+        original_link_field_col     = matching_columns[0]
+        # Now replace the column of df from possibly ("", "Country") to "Country" (see comments in Example above)
+        cleaned_df                  = df.copy()
+        cleaned_df.columns          = [col if col != original_link_field_col else self.link_field for col in df.columns]
+        return cleaned_df
+
+    def enrich_with_tb_binary_operation(self, parent_trace, a_ltag, b_ltag, c_ltag, func):
+        '''
+        Used to compute derived DataFrames.
+
+        Example use case: suppose that self.timebucket_df_list has two DataFrames, with lower tags called
+                        "Sales Target", "Sales Actual". Then this methoc can be used to derive a third DataFrame
+                        which the caller (via the c_ltag) can choose to tag as "% Target Achieved", computed
+                        (via the `func` function parameter) as the ration of actuals to targets, row-by-row.
+
+        More generally:
+
+        This method enlarges self.timebucket_df_list by adding 1 additional DataFrame C_df, derived from two of the 
+        pre-existing DataFrames A_df, B_df already in self.timebucket_df_list, so that the following holds true:
+
+        1) A_df is the unique member self.timebucket_df_list[idx] such that a_ltag = self.timebucket_df_lower_tags[idx]
+        2) Same as 1), but for B_df and b_ltag
+        3) For each timebucket column col in both A_df, and B_df, C_df[col] = func(A_df[col], B_df[col])
+        4) If self.link_field is not null, then C_df[link_field] = A_df[link_field]
+        5) If A_df and B_df don't have the "same rows", then the above hold true with A_df, B_df replaced by the intersection
+           of rows both in A_df and B_df. By "same rows" we mean: rows where A_df, B_df have the same value for 
+           self.link_field or, if self._link_field is null, rows with the same index value.
+
+        It also enriches self.timebucket_df_lower_tags by adding c_ltag for C_df
+        
+        @param a_ltag A string, which must belong to self.timebucket_df_lower_tags, and the latter must not be null
+        @param b_ltag A string, which must belong to self.timebucket_df_lower_tags, and the latter must not be null
+        @param c_ltag A string that should be used as a lower tag for the result. It must not already exist in 
+                self.timebucket_df_lower_tags, and it is appended to the latter, increasing its size by 1.
+        @func A function that takes 3 arguments: a FunctionalTrace object, and two Pandas series, and returns a third series.
+                The function may assume that both input series have the same index.
+        '''
+        my_trace                        = parent_trace.doing("Checking if a_ltag is valid")
+        if True:
+            if not a_ltag in self.timebucket_df_lower_tags:
+                raise ApodeixiError(my_trace, "Can't use tag '" + str(a_ltag) + "' to identify which DataFrame to use as an "
+                                            + " enrichment input because "
+                                            + "tag is not in valid list of tags",
+                                            data = {"allowed tags": str(self.timebucket_df_lower_tags)})
+ 
+        my_trace                        = parent_trace.doing("Identifying a_df")
+        if True:
+            a_idx                       = self.timebucket_df_lower_tags.index(a_ltag)
+            a_df                        = self.timebucket_df_list[a_idx]
+
+        self._enrich_with_tb_operation(parent_trace,    a_df            = a_df, 
+                                                        b_ltag          = b_ltag, 
+                                                        c_ltag          = c_ltag, 
+                                                        func            = func, 
+                                                        binary          = True, 
+                                                        ref_column      = None)
+        return
+
+    def enrich_with_tb_unary_operation(self, parent_trace, ref_column, b_ltag, c_ltag, func):
+        '''
+        Used to compute derived DataFrames.
+
+        Example use case: suppose that self.reference_df has a column called "Journey Target", to represent
+                        how many modernization tasks to do over the course of a multi-year modernization program.
+                        And suppose self.timebucket_df_list contains a DataFrame (identified by lower tag b_ltag)
+                        with quarterly targets for such tasks.
+                        Then this this methoc can be used to derive another DataFrame corresponding 
+                        to "% Target Achieved", computed
+                        (via the `func` function parameter) as the ration of actuals to targets, row-by-row.
+                        This derived DataFrame would get a lower tag given by c_ltag.
+
+        More generally:
+
+        This method enlarges self.timebucket_df_list by adding 1 additional DataFrame C_df, derived from 
+        self.reference_df and from a pre-existing DataFrame ref_df, B_df already in self.timebucket_df, 
+        so that the following holds true:
+
+        1) ref_column is a column in self.reference_df
+        2) B_df is the unique member self.timebucket_df_list[idx] such that b_ltag = self.timebucket_df_lower_tags[idx]
+        3) For each timebucket column col in B_df, C_df[col] = func(self.reference_df[ref_column], B_df[col])
+        4) If self.link_field is not null, then C_df[link_field] = A_df[link_field]
+        5) If self.reference_df and B_df don't have the "same rows", then the above hold true with 
+            self.reference_df, B_df replaced by the intersection
+           of rows both in self.reference_df and B_df. By "same rows" we mean: rows where self.reference_df, 
+           B_df have the same value for self.link_field or, if self._link_field is null, rows with the same index value.
+
+        It also enriches self.timebucket_df_lower_tags by adding c_ltag for C_df
+        
+        @param ref_column A string, which must be a column in self.reference_df
+        @param b_ltag A string, which must belong to self.timebucket_df_lower_tags, and the latter must not be null
+        @param c_ltag A string that should be used as a lower tag for the result. It must not already exist in 
+                self.timebucket_df_lower_tags, and it is appended to the latter, increasing its size by 1.
+        @func A function that takes 3 arguments: a FunctionalTrace object, and two Pandas series, and returns a third series.
+                The function may assume that both input series have the same index.
+        '''
+        if not ref_column in self.reference_df.columns:
+            raise ApodeixiError(parent_trace, "Can't apply unary operation to enrich DataFrames list because '" 
+                                                + str(ref_column) + "' is not a valid column for self.reference_df",
+                                                data = {"valid columns": str(self.reference_df.columns)})
+
+        self._enrich_with_tb_operation(parent_trace,    a_df            = self.reference_df, 
+                                                        b_ltag          = b_ltag, 
+                                                        c_ltag          = c_ltag, 
+                                                        func            = func, 
+                                                        binary          = False, 
+                                                        ref_column      = ref_column)
+
+    def _enrich_with_tb_operation(self, parent_trace, a_df, b_ltag, c_ltag, func, binary, ref_column):  
+        '''
+        '''
+        my_trace                        = parent_trace.doing("Validate inputs to enrich_with_binary_operation method")
+        if True:
+            if self.timebucket_df_lower_tags == None:
+                raise ApodeixiError(my_trace, "Can't use enrich list of DataFrames to join unless lower tags are provided")
+            if c_ltag in self.timebucket_df_lower_tags:
+                raise ApodeixiError(my_trace, "Can't use tag '" + str(c_ltag) + "' to enrich list of DataFrames because "
+                                            + "tag is already used by another DataFrame in the list",
+                                            data = {"tags already used": str(self.timebucket_df_lower_tags)})
+            if not b_ltag in self.timebucket_df_lower_tags:
+                raise ApodeixiError(my_trace, "Can't use tag '" + str(b_ltag) + "' to identify which DataFrame to use as an "
+                                            + " enrichment input because "
+                                            + "tag is not in valid list of tags",
+                                            data = {"allowed tags": str(self.timebucket_df_lower_tags)})
+
+        my_trace                        = parent_trace.doing("Combining DataFrames as preparation to applying binary operation")
+        if True:
+            LEFT_SUFFIX                 = "_left"
+            RIGHT_SUFFIX                = "_right"
+            b_idx                       = self.timebucket_df_lower_tags.index(b_ltag)
+            b_df                        = self.timebucket_df_list[b_idx]
+            left_df                     = a_df.copy()
+            right_df                    = b_df.copy()
+            if self.link_field != None:
+                left_df                 = self._untuple_link_column(my_trace, left_df) # Need to untuple before setting index
+                right_df                = self._untuple_link_column(my_trace, right_df) # Need to untuple before setting index
+                right_df                = right_df.set_index(self.link_field)
+                joined_df               = left_df.join(right_df, on=self.link_field, how="inner", 
+                                                                lsuffix=LEFT_SUFFIX, rsuffix=RIGHT_SUFFIX)
+            else:
+                joined_df               = left_df.join(right_df, how="inner", 
+                                                                lsuffix=LEFT_SUFFIX, rsuffix=RIGHT_SUFFIX)
+
+        my_trace                        = parent_trace.doing("Populating derived DataFrame")
+        if True:
+            derived_df                  = _pd.DataFrame({})
+            if self.link_field != None:
+                derived_df[self.link_field] = joined_df[self.link_field]
+            if binary:
+                common_columns          = [col for col in left_df.columns if col in right_df.columns]
+                for col in common_columns:
+                    derived_df[col]     = func(my_trace, joined_df[str(col) + LEFT_SUFFIX], 
+                                                        joined_df[str(col) + RIGHT_SUFFIX])
+            else:
+                for col in right_df.columns:
+                    derived_df[col]     = func(my_trace, joined_df[ref_column], 
+                                                        joined_df[col])
+
+        my_trace                        = parent_trace.doing("Extending self's list of DataFrames and lower tags")
+        if True:
+            self.timebucket_df_list.append(derived_df)
+            self.timebucket_df_lower_tags.append(c_ltag)
+            if self.timebucket_df_upper_tags != None:
+                # Need to add upper tag for the newly derived DataFrame. Should match what we used for b_df,
+                # since they should be grouped together
+                upper_tag               = self.timebucket_df_upper_tags[b_idx]
+                self.timebucket_df_upper_tags.append(upper_tag)
+
+        return
+
+    def join_dataframes(self, parent_trace):
+        standardizer                    = TimebucketStandardizer()
+
+        my_trace                        = parent_trace.doing("Build reference portion of result")
+        if True:
+            result_df                   = self.reference_df.copy()
+
+        post_standardization_info       = None # Will be set when we loop through DataFrames to standardize
+        my_trace                        = parent_trace.doing("Validating all non-reference DataFrame inputs will standardize the same way")
+        for idx in range(len(self.timebucket_df_list)):
+            loop_trace                  = my_trace.doing("Validating dataframe #" + str(idx))
+            df_tmp_1                    = self.timebucket_df_list[idx]
+            inner_trace                 = loop_trace.doing("Figure out standardization info, for later use")
+            if True:
+                df_tmp_2, info          = standardizer.standardizeAllTimebucketColumns(inner_trace, 
+                                                                                        a6i_config      = self.a6i_config, 
+                                                                                        df              = df_tmp_1, 
+                                                                                        lower_level_key = None) 
+
+                if post_standardization_info == None: # This must be the first cycle of the loop, so initialise it
+                    post_standardization_info   = info
+                else: # This cycle of the loop must be consistent with prior cycles in this regard
+                    if post_standardization_info != info:
+                        raise ApodeixiError(inner_trace, "Can't join DataFrames because they don't all standardize the same "
+                                                        + "way in terms of which levels are collapsed",
+                                                        data = {'One DFs way':      str(post_standardization_info),
+                                                                "Another DF's way": str(info)})
+
+        my_trace                        = parent_trace.doing("Determining the number of levels that result should have")
+        if True:
+            # This is the # of levels in the non-reference DataFrame inputs before tags get added
+            result_nb_levels            = post_standardization_info.final_size 
+            
+            if self.timebucket_df_lower_tags != None:
+                # Add additional levels, for each tag. Because of constructor's validation, we know all have same number of levels and at
+                # least one exists
+                typical_tag             = self.timebucket_df_lower_tags[0]
+                if type(type) == tuple:
+                    result_nb_levels    += len(typical_tag)
+                else:
+                    result_nb_levels    += 1 # Tags are probably strings, so they only take 1 level
+            if self.timebucket_df_upper_tags != None:
+                # Add additional levels, for each tag. Because of constructor's validation, we know all have same number of levels and at
+                # least one exists
+                typical_tag             = self.timebucket_df_upper_tags[0]
+                if type(type) == tuple:
+                    result_nb_levels    += len(typical_tag)
+                else:
+                    result_nb_levels    += 1 # Tags are probably strings, so they only take 1 level
+
+        my_trace                        = parent_trace.doing("Append timebucket dataframes to result")
+        for idx in range(len(self.timebucket_df_list)):
+            loop_trace                  = my_trace.doing("Appending dataframe #" + str(idx))
+            df1                         = self.timebucket_df_list[idx]
+            inner_trace                 = loop_trace.doing("Standardizing timebuckets")
+            if True:
+                df2, info               = standardizer.standardizeAllTimebucketColumns(inner_trace, 
+                                                                                        a6i_config      = self.a6i_config, 
+                                                                                        df              = df1, 
+                                                                                        lower_level_key = None) 
+
+            inner_trace                 = loop_trace.doing("Setting dataframe's index to be the linked_field, as preparation for the join")
+            if self.link_field != None:
+
+                # We need to do some cleanup with the columns of df2 before we reset the index. 
+                # Example: perhaps the link_field is "Country", and it is a valid column in self.reference_df, whereas in
+                #           df2 it might be a tuple like ("", "Country").
+                #       In that case, change that particular column of df2 to be "Country"
+                #
+                df2                     = self._untuple_link_column(my_trace, df2)
+
+                # Now do what this was all about: setting index to be the link_field as preparation for the join we will
+                # do later with self.reference_df
+                try:
+                    df2                 = df2.set_index(self.link_field)
+                except Exception as ex:
+                    raise ApodeixiError(inner_trace, "Unable to use '" + self.link_field 
+                                                    + "' as the index for the join in the reference DataFrame. Is it a valid column?",
+                                            data = {"dataframe columns": str(df2.columns)} )
+
+            inner_trace                 = loop_trace.doing("Adding tags, if any")   
+            if True:
+                # Because of the validations we made in the constructor, we know that at this point the 
+                # columns of df2 are tuples of size 1 or strings (since the timebucket_df_list's columns have no level
+                # other than timebucket level)
+                #       
+                df3                     = df2.copy()   
+                if result_nb_levels > 1: # In this case, any string column and tag must become a tuple
+                    df3.columns         = [(col,)   if type(col) != tuple and not self._is_a_link_column(col, self.link_field)
+                                                    else col
+                                                    for col in df3.columns]  
+
+                if self.timebucket_df_upper_tags != None:
+                    utags               = self.timebucket_df_upper_tags.copy()
+                    # First ensure any string column and tag must become a tuple
+                    utags               = [(tag,)  for tag in utags if type(tag) != tuple]
+                    # By now we know all columns and all tags are tuples. So we can use tuple addition to append
+                    # tags 
+                    df3.columns         = [utags[idx] + col
+                                                    if not self._is_a_link_column(col, self.link_field)
+                                                    else col
+                                                    for col in df3.columns] 
+
+                if self.timebucket_df_lower_tags != None:
+                    ltags               = self.timebucket_df_lower_tags.copy() 
+                    # First ensure any string column and tag must become a tuple
+                    ltags               = [(tag,)  for tag in ltags if type(tag) != tuple]
+                    # By now we know all columns and all tags are tuples. So we can use tuple addition to append
+                    # tags
+                    df3.columns         = [col + ltags[idx] 
+                                                    if not self._is_a_link_column(col, self.link_field)
+                                                    else col
+                                                    for col in df3.columns] 
+
+            inner_trace                 = loop_trace.doing("Joining next DataFrame into result")
+            if True:
+                try:
+                    if self.link_field != None:
+                        # In this case, the index of df3 is a foreign key to the link_field
+                        result_df       = result_df.join(df3, on=self.link_field)
+                    else:
+                        # In this case the index of df3 is required to be (subset of) the index of self.reference_df,
+                        # hence of result_df
+                        result_df       = result_df.join(df3)
+                except Exception as ex:
+                    raise ApodeixiError(inner_trace, "Encountered problem joining DataFrame into result: " + str(ex))
+                    
+        my_trace                        = parent_trace.doing("Sorting the result")
+        if True:
+            # First we need to sort by the "upper levels" above the timebuckets, to ensure that the result
+            # is grouped by such "upper levels", if any. 
+            # Example: Say inputs are dataframes A_df and B_df, and each of them has upper levels called
+            #               "Sales", "Profit". If we had lower tags called "Target" (for A_df) and "Actual" (for B_df)
+            #               then this first pass ast sorting is to move from columns like
+            #
+            #       Sales   | Sales   | Profit  | Profit  | Sales   | Sales   | Profit  | Profit  |
+            #       Q1 FY22 | Q2 FY22 | Q1 FY22 | Q2 FY22 | Q1 FY22 | Q2 FY22 | Q1 FY22 | Q2 FY22 |
+            #       Target  | Target  | Target  | Target  | Actual  | Actual  | Actual  | Actual  |
+            #
+            # to something that groups the upper levels, like:
+            #
+            #       Sales   | Sales   | Sales   | Sales   | Profit  | Profit   | Profit  | Profit  |
+            #       Q1 FY22 | Q2 FY22 | Q1 FY22 | Q2 FY22 | Q1 FY22 | Q2 FY22 | Q1 FY22 | Q2 FY22 |
+            #       Target  | Target  | Actual  | Actual  | Target  | Target  | Actual  | Actual  |
+            #
+            # Then on the second pass of the sorting, we realy on the standardizer to get a grouping by timebucket, like:
+            #
+            #       Sales   | Sales   | Sales  | Sales    | Profit  | Profit  | Profit  | Profit  |
+            #       Q1 FY22 | Q1 FY22 | Q2 FY22 | Q2 FY22 | Q1 FY22 | Q1 FY22 | Q2 FY22 | Q2 FY22 |
+            #       Target  | Actual  | Target  | Actual  | Target  | Actual  | Actual  | Actual  |
+
+            if result_nb_levels > 1:
+                # We use the "pairing trick" to sort: create a pair where one member is the item on which
+                # we sort, the the second member is the item that must be in the sorted result. By glueing them
+                # like this we can re-use the generic sort function for lists
+                #
+                # To use this trick, we first have to determine the cutoff for the upper levels
+                #
+                upper_level_cutoff      = result_nb_levels - 1 # Subtract 1 for the time buckets, a string taking 1 level
+                ltags                   = self.timebucket_df_lower_tags
+                if ltags != None:
+                    a_random_tag        = ltags[0] # All tags have the same number of levels, so we can look at any
+                    if type(a_random_tag) == tuple:
+                        upper_level_cutoff  -= len(a_random_tag)
+                    else:
+                        upper_level_cutoff  -= 1 # Tag only consumes 1 level if it is a string
+                    
+                # We know result_df.colums are tuples since result_nb_levels > 1, except for reference columns
+                # For which it is a string
+                unsorted_pairs_l        = [[col[:upper_level_cutoff], col] 
+                                                if type(col) == tuple
+                                                else [col, col]
+                                                for col in result_df.columns]
+
+                # Not 100% proof, but to get unique hashcode for a tuple we will use this "weird string"
+                # to join tuple's levels into a single string, hoping that since it is so weird then the
+                # hash code of different tuples will be different.
+                # We also make it so that it should (hopefully) be sorted after any "reference" string column
+                DELIM                   = "ZZZ@#!"
+                
+                sorted_pairs_l          = sorted(unsorted_pairs_l,
+                                                key = lambda pair: DELIM + DELIM.join(pair[0])
+                                                                    if type(pair[1]) == tuple
+                                                                    else pair[0])
+                
+                sorted_columns          = [pair[1] for pair in sorted_pairs_l]
+                result_df               = result_df[sorted_columns]
+
+            # Now the second pass, to sort so that lower levels are grouped by timebucket
+            result_df, info             = standardizer.standardizeAllTimebucketColumns(inner_trace, 
+                                                                                        a6i_config      = self.a6i_config, 
+                                                                                        df              = result_df, 
+                                                                                        lower_level_key = None) 
+
+        return result_df
+    
+
 class TimebucketStandardizer():
     '''
     Utility class to transform DataFrame columns with timebucket-like information into a standardized representation
@@ -228,15 +803,23 @@ class TimebucketStandardizer():
         else:
             return False
 
-    def standardizeAllTimebucketColumns(self, parent_trace, a6i_config, df):
+    def standardizeAllTimebucketColumns(self, parent_trace, a6i_config, df, lower_level_key=None):
         '''
         Returns two things:
         
-        1. A DataFrame, identical to df except that columns are modified as per the list below
-        1. A TimebucketStandardizationInfo object, containing information on how the standardization was done (e.g.,
+        1. A DataFrame, identical to df except that columns are modified as per the description below
+        2. A TimebucketStandardizationInfo object, containing information on how the standardization was done (e.g.,
             for multi-level columns, which level was the time bucket and which levels were collapsed, if any)
 
-        * Any column of form ("Q2", "FY23") - is mapped to a FY_Quarter object
+        The modifications to the columns is done as follows:
+
+        * What we call "timebucket columns" might be a string column (like "FY23") or tuples, where 1 or 2 consecutive
+          levels represent a timebucket. 
+            Example: ("Sales", "Q2", "FY23", "Actual"), in which levels [1,2] represent the timebucket
+            Example: ("Sales", "Q2 FY23", "Actual"), in which level [1] represents the tiebucket
+            Example: ("Q2", "FY23")
+            Example: ("Q1 FY2024", "Sales")
+        * Any "timebucket column" is mapped to a FY_Quarter object
         * Any consecutive "consistent" segment of FY_Quarter objects are sorted - and two FY_Quarter objects are "consistent"
           if they arise from columns whose higher-order levels (if any) are the same. 
             Example: ("Sales", "Q2", "FY 23", "Actual") and ("Sales", "Q1", "2005", "Target") are consistent: level 0 is
@@ -251,12 +834,25 @@ class TimebucketStandardizer():
         * Columns that are time buckets are "locally sorted", meaning: each consecutive interval of time buckets is sorted, but
           time buckets from different intervals are not compared in sorting ("different intervals" as in: there is a non-time bucket
           column between the intervals)
+        * In the time bucket sorting, an optional "key" may be provided for sorting lower-order levels below the time buckets, if any.
+            Example: if the columns are ("Q2 FY 23", "Actual") and ("Q2 FY 23", "Target"), then if we want "Target" columns to be
+                    to the left of "Actual" columns, we can pass a key that acts on the lower levels [("Actual"), ("Target")]
+                    to sort them so that ("Q2 FY 23", "Target") appears first and ("Q2 FY 23", "Actual") appears afterwards.
+                    The "key"
+
+        @param lower_level_key Optional parameter, defaults to None. If not null, it should be a lambda that acts on tuples
+            and returns a positive decimal, i.e., a number x such that 0 < x < 1. This restriction is important to guarantee
+            that the sorting algorithm works.
+            This returned value is used as a key to sort tuples. The tuples it acts on are sub-tuples of the columns of the
+            DataFrame being built, corresponding to levels below the timebuckets, if any. 
+            For example, if the resulting DataFrame has columns ("Q2 FY 23", "Actual") and ("Q2 FY 23", "Target"), then the
+            `lower_level_key` is a function that acts on tuples ("Actual") and ("Target") and sorts them.
         '''
         original_columns                = list(df.columns)
 
         unsorted_flattened_columns      = []
         # As we flatten columns in the loop below, we also partition the columns into intervals, where each interval
-        # either consists only of FY_Quarter objects, or only of strings which don't represent time buckets.
+        # either consists only of columns with FY_Quarter objects, or only of strings which don't represent time buckets.
         #
         # So intervals is a list of triples: 
         #  1. a boolean tag T that determines whether the interval is for columns containing time buckets (True)
@@ -419,16 +1015,48 @@ class TimebucketStandardizer():
                     # We want to sort the actual columns in the interval (which might be tuples) the same way 
                     # we would sort the corresponding timebuckets.
                     #
-                    # To accomplish this, we "join" the two lists in a temporary data structure of pairs, sort that
-                    # joined list, and then extract the part of the joined result that is columns
+                    # The sorting happens at 2-3 levels:
+                    #   * First by year
+                    #   * Then by quarter
+                    #   * Finally, if lower levels exist in a multi-level index an if `lower_level_key` != None,
+                    #     by `lower_level_key`.
+                    #
+                    # The algorithm works because we know quarters are between 1 and 4, and any lower level key is
+                    # less than 1. 
+                    #
+                    def _sorting_aggregate_key(column, timebucket):
+                        year                    = timebucket.fiscal_year
+                        quarter                 = timebucket.quarter
+                        # quarter < 10, so by multiplying by 100 we make quarter the least significant digit, guaranteeing key is unique
+                        # (i.e, can have different timebuckets with the same key)
+                        key                     = year*100 + quarter 
+                        if type(column) == tuple and len(standardization_info.timebucket_indices) > 0 \
+                                                and len(column) > standardization_info.timebucket_indices[0] + 1 \
+                                                and lower_level_key != None:
+                            # In this case we have lower levels in the column, below the timebucket, and we are expected
+                            # to sort them with the caller-provided key function
+                            cutoff              = standardization_info.timebucket_indices[0]
+                            lower_levels        = column[cutoff+1:]
+                            extra_key           = lower_level_key(lower_levels)
+                            if type(extra_key) != float or extra_key <= 0 or extra_key >= 1:
+                                raise ApodeixiError(my_trace, "Bad sorting key provided: should return a value bigger than 0 "
+                                                                + "and less than 1",
+                                                                data = {"returned key":             str(extra_key),
+                                                                        "key applies to column":    str(column),
+                                                                        "key is for sub-tuple":     str(lower_levels)})
+                            key                 += extra_key
+                        return key
+                            
+                    # To sort the columns, we create this bigger data structure to "join" all the data needed for sorting.
+                    # After we sort this bigger structure we will extract the sorted columns as a sub-structure
                     #
                     unsorted_joined_list        = [[unsorted_interval_columns[idx], unsorted_timebuckets[idx]] 
                                                     for idx in range(len(unsorted_interval_columns))]
 
-                    # We sort by year first, then by quarter. A trick to accomplish this is to use a key where we multiply the year by 100,
-                    # so quarters become the last significant digit modulo 100
+                    # Sort by key, using the aggregated key function above that combines sorting by year, by quarter, and
+                    # (optionally) by lower levels using a caller-provided key
                     sorted_joined_list          = sorted(unsorted_joined_list,
-                                                        key = lambda pair: pair[1].fiscal_year*100 + pair[1].quarter)
+                                                        key = lambda pair: _sorting_aggregate_key(pair[0], pair[1]))
 
                     sorted_interval_columns     = [pair[0] for pair in sorted_joined_list]
                     sorted_columns.extend(sorted_interval_columns)
@@ -732,7 +1360,7 @@ class TimebucketStandardizationInfo():
     columns before and after the standardization, in terms of sizes and in terms of the indices that are "collapsed"
     i.e., levels in an original MultiLevel column that are collapsed to a single level. 
     Example: For a column like ("Sales", "Q3", "2024", "Actuals"), its standardized equivalent would be
-            ("Sales", "Q3 FY24", "Actuals"). In that case, this object recalls that:
+            ("Sales", "Q3 FY24", "Actuals"). In that case, this object records that:
             * Initial size of tuple was 4
             * Final size of tuple was 3
             * The timebucket was present and indices [1, 2] in the original
@@ -774,3 +1402,9 @@ class TimebucketStandardizationInfo():
                                                         "timebucket_indices)": str(timebucket_indices)})   
 
         self.timebucket_indices     = timebucket_indices
+
+    def __eq__(self, other):
+        if isinstance(other, TimebucketStandardizationInfo):
+            return self.timebucket_indices == other.timebucket_indices and self.final_size == other.final_size
+
+        return False

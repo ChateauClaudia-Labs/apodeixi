@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  48535
+    Size (in bytes):  94486
 
     '
   tests_unit:
@@ -89,7 +89,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  4131
+        Size (in bytes):  5780
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -157,6 +157,46 @@ util:
         Size (in bytes):  143
 
         '
+      test_to_timebucket_columns_4_df_EXPECTED.csv: '
+
+        Size (in bytes):  372
+
+        '
+      test_to_timebucket_columns_4_df_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  143
+
+        '
+      ts_join_1_EXPECTED.csv: '
+
+        Size (in bytes):  320
+
+        '
+      ts_join_1_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  143
+
+        '
+      ts_join_2_EXPECTED.csv: '
+
+        Size (in bytes):  827
+
+        '
+      ts_join_2_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  143
+
+        '
+      ts_join_3_EXPECTED.csv: '
+
+        Size (in bytes):  764
+
+        '
+      ts_join_3_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  143
+
+        '
     input_data:
       test_compare_dataframes_df1_INPUT.csv: '
 
@@ -191,6 +231,66 @@ util:
       test_to_timebucket_columns_3_df.xlsx: '
 
         Size (in bytes):  16660
+
+        '
+      test_to_timebucket_columns_4_df.xlsx: '
+
+        Size (in bytes):  14466
+
+        '
+      ts_join_1_a.xlsx: '
+
+        Size (in bytes):  13908
+
+        '
+      ts_join_1_b.xlsx: '
+
+        Size (in bytes):  13823
+
+        '
+      ts_join_1_ref.xlsx: '
+
+        Size (in bytes):  13451
+
+        '
+      ts_join_2_a.xlsx: '
+
+        Size (in bytes):  13908
+
+        '
+      ts_join_2_b.xlsx: '
+
+        Size (in bytes):  13823
+
+        '
+      ts_join_2_ref.xlsx: '
+
+        Size (in bytes):  13466
+
+        '
+      ts_join_3_a.xlsx: '
+
+        Size (in bytes):  13973
+
+        '
+      ts_join_3_b.xlsx: '
+
+        Size (in bytes):  13933
+
+        '
+      ts_join_3_ref.xlsx: '
+
+        Size (in bytes):  13451
+
+        '
+      ~$ts_join_2_a.xlsx: '
+
+        Size (in bytes):  165
+
+        '
+      ~$ts_join_2_ref.xlsx: '
+
+        Size (in bytes):  165
 
         '
     test_a6i_error.py: '
@@ -230,7 +330,7 @@ util:
       '
     test_reporting_utils.py: '
 
-      Size (in bytes):  4735
+      Size (in bytes):  10901
 
       '
     test_time_buckets.py: '
