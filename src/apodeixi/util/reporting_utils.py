@@ -366,6 +366,10 @@ class TimebucketDataFrameJoiner():
         self.timebucket_df_upper_tags   = timebucket_df_upper_tags
         self.a6i_config                 = a6i_config
 
+    BINARY_OPERATION            = "BINARY_OPERATION"
+    UNARY_OPERATION             = "UNARY_OPERATION"
+    CUMULATIVE_OPERATION        = "CUMULATIVE_OPERATION"
+
     def _is_a_link_column(self, col, link_field):
         '''
         Helper method that returns a boolean, determining if a DataFrame's column `col` "is" the link_field, where "is linke field" is 
@@ -455,7 +459,7 @@ class TimebucketDataFrameJoiner():
                                                         b_ltag          = b_ltag, 
                                                         c_ltag          = c_ltag, 
                                                         func            = func, 
-                                                        binary          = True, 
+                                                        operation_type  = self.BINARY_OPERATION, 
                                                         ref_column      = None)
         return
 
@@ -505,11 +509,50 @@ class TimebucketDataFrameJoiner():
                                                         b_ltag          = b_ltag, 
                                                         c_ltag          = c_ltag, 
                                                         func            = func, 
-                                                        binary          = False, 
+                                                        operation_type  = self.UNARY_OPERATION, 
                                                         ref_column      = ref_column)
 
-    def _enrich_with_tb_operation(self, parent_trace, a_df, b_ltag, c_ltag, func, binary, ref_column):  
+    def enrich_with_tb_cumulative_operation(self, parent_trace, b_ltag, c_ltag, func):
         '''
+        Used to compute derived DataFrames.
+
+        Example use case: suppose that self.reference_df has a column called "Sales", to represent
+                        sales per quarter, and you would like to have an additional column "Cum Sales" for
+                        the accumulated sales for all prior quarters, up to the current quarter.
+                        Then this this methoc can be used to derive another DataFrame corresponding 
+                        to "Cum Sales", computed
+                        (via the `func` function parameter) as the accumulation of quarterly sales, row-by-row.
+                        This derived DataFrame would get a lower tag given by c_ltag.
+
+        More generally:
+
+        This method enlarges self.timebucket_df_list by adding 1 additional DataFrame C_df, derived from 
+        a pre-existing DataFrame ref_df, B_df already in self.timebucket_df, 
+        so that the following holds true:
+
+        1) B_df is the unique member self.timebucket_df_list[idx] such that b_ltag = self.timebucket_df_lower_tags[idx]
+        2) For each timebucket column col in B_df, C_df[col] = func(C_df[col-], B_df[col]) where col- is the column
+           in C_df preceding col, unless col is the first row in C_df, in whic case C_df[col-] = None
+        3) If self.link_field is not null, then C_df[link_field] = A_df[link_field]
+
+        It also enriches self.timebucket_df_lower_tags by adding c_ltag for C_df
+        
+        @param b_ltag A string, which must belong to self.timebucket_df_lower_tags, and the latter must not be null
+        @param c_ltag A string that should be used as a lower tag for the result. It must not already exist in 
+                self.timebucket_df_lower_tags, and it is appended to the latter, increasing its size by 1.
+        @func A function that takes 3 arguments: a FunctionalTrace object, and two Pandas Series.
+            It returns a third series. The function may assume that both input series have the same index.
+        '''
+        self._enrich_with_tb_operation(parent_trace,    a_df            = None, 
+                                                        b_ltag          = b_ltag, 
+                                                        c_ltag          = c_ltag, 
+                                                        func            = func, 
+                                                        operation_type  = self.CUMULATIVE_OPERATION, 
+                                                        ref_column      = None)
+
+    def _enrich_with_tb_operation(self, parent_trace, a_df, b_ltag, c_ltag, func, operation_type, ref_column):  
+        '''
+        @param operation_type A string, which must be one of: self.BINARY_OPERATION, self.UNARY_OPERATION, self.CUMULATIVE_OPERATION
         '''
         my_trace                        = parent_trace.doing("Validate inputs to enrich_with_binary_operation method")
         if True:
@@ -524,6 +567,9 @@ class TimebucketDataFrameJoiner():
                                             + " enrichment input because "
                                             + "tag is not in valid list of tags",
                                             data = {"allowed tags": str(self.timebucket_df_lower_tags)})
+            if not operation_type in [self.BINARY_OPERATION, self.UNARY_OPERATION, self.CUMULATIVE_OPERATION]:
+                raise ApodeixiError(my_trace, "Invalid operation type '" + str(operation_type) + "': should be one of: "
+                                            + str([self.BINARY_OPERATION, self.UNARY_OPERATION, self.CUMULATIVE_OPERATION]))
 
         my_trace                        = parent_trace.doing("Combining DataFrames as preparation to applying binary operation")
         if True:
@@ -531,32 +577,62 @@ class TimebucketDataFrameJoiner():
             RIGHT_SUFFIX                = "_right"
             b_idx                       = self.timebucket_df_lower_tags.index(b_ltag)
             b_df                        = self.timebucket_df_list[b_idx]
-            left_df                     = a_df.copy()
-            right_df                    = b_df.copy()
-            if self.link_field != None:
-                left_df                 = self._untuple_link_column(my_trace, left_df) # Need to untuple before setting index
-                right_df                = self._untuple_link_column(my_trace, right_df) # Need to untuple before setting index
-                right_df                = right_df.set_index(self.link_field)
-                joined_df               = left_df.join(right_df, on=self.link_field, how="inner", 
-                                                                lsuffix=LEFT_SUFFIX, rsuffix=RIGHT_SUFFIX)
+            if operation_type in [self.BINARY_OPERATION, self.UNARY_OPERATION]:
+                left_df                 = a_df.copy()
+                right_df                = b_df.copy()
+                if self.link_field != None:
+                    left_df             = self._untuple_link_column(my_trace, left_df) # Need to untuple before setting index
+                    right_df            = self._untuple_link_column(my_trace, right_df) # Need to untuple before setting index
+                    right_df            = right_df.set_index(self.link_field)
+                    joined_df           = left_df.join(right_df, on=self.link_field, how="inner", 
+                                                                    lsuffix=LEFT_SUFFIX, rsuffix=RIGHT_SUFFIX)
+                else:
+                    joined_df           = left_df.join(right_df, how="inner", 
+                                                                    lsuffix=LEFT_SUFFIX, rsuffix=RIGHT_SUFFIX)
             else:
-                joined_df               = left_df.join(right_df, how="inner", 
-                                                                lsuffix=LEFT_SUFFIX, rsuffix=RIGHT_SUFFIX)
+                # b_df might not have columns sorted by timebucket, but we need to sort them before we start doing the cumulative
+                # operation, since cumulative operations are order dependent
+                standardizer            = TimebucketStandardizer()
+                joined_df, info         = standardizer.standardizeAllTimebucketColumns(my_trace, 
+                                                                                        a6i_config      = self.a6i_config, 
+                                                                                        df              = b_df, 
+                                                                                        lower_level_key = None)
 
         my_trace                        = parent_trace.doing("Populating derived DataFrame")
         if True:
             derived_df                  = _pd.DataFrame({})
             if self.link_field != None:
-                derived_df[self.link_field] = joined_df[self.link_field]
-            if binary:
+                # Find the (possible tuple) column corresponding to link_field
+                matches                 = [col for col in joined_df.columns if self._is_a_link_column(col, self.link_field)]
+                if len(matches) == 0:
+                    raise ApodeixiError(my_trace, "Invalid link_field '" + str(self.link_field) + "' : it is not present "
+                                        + "as a column in at least some of the input dataframes supposed to join on that field",
+                                        data = {"dataframe columns": str(joined_df.columns)}) 
+                link_col                = matches[0]               
+                derived_df[link_col]    = joined_df[link_col]
+            
+            if operation_type == self.BINARY_OPERATION:
                 common_columns          = [col for col in left_df.columns if col in right_df.columns]
                 for col in common_columns:
                     derived_df[col]     = func(my_trace, joined_df[str(col) + LEFT_SUFFIX], 
                                                         joined_df[str(col) + RIGHT_SUFFIX])
-            else:
+            elif operation_type == self.UNARY_OPERATION:
                 for col in right_df.columns:
                     derived_df[col]     = func(my_trace, joined_df[ref_column], 
                                                         joined_df[col])
+            elif operation_type == self.CUMULATIVE_OPERATION:
+                tb_columns              = [col for col in joined_df.columns if not self._is_a_link_column(col, self.link_field)]
+                for idx in range(len(tb_columns)):
+                    col                 = tb_columns[idx]
+                    if idx == 0:
+                        prior_derived_s = None
+                    else:
+                        prior_col       = tb_columns[idx-1]
+                        prior_derived_s = derived_df[prior_col]
+                    derived_df[col]     = func(my_trace, prior_derived_s, joined_df[col])
+            else:
+                raise ApodeixiError(my_trace, "Invalid operation type '" + str(operation_type) + "': should be one of: "
+                                            + str([self.BINARY_OPERATION, self.UNARY_OPERATION, self.CUMULATIVE_OPERATION]))
 
         my_trace                        = parent_trace.doing("Extending self's list of DataFrames and lower tags")
         if True:
@@ -571,13 +647,20 @@ class TimebucketDataFrameJoiner():
         return
 
     def join_dataframes(self, parent_trace):
+        '''
+        Returns a DataFrame, resulting from joining this class's inputs (as set in the constructor, possibly
+        enriched via the self.enrich... methods). The join adheres to this class' semantics, in terms of:
+        - Adding lower/upper tags if they are provided
+        - Sorting the results by upper tag, time bucket, and lower tag, in that order
+        - Ensuring reference columns appear first, before timebucket columns
+        '''
         standardizer                    = TimebucketStandardizer()
 
         my_trace                        = parent_trace.doing("Build reference portion of result")
         if True:
             result_df                   = self.reference_df.copy()
 
-        post_standardization_info       = None # Will be set when we loop through DataFrames to standardize
+        post_standardization_size       = None # Will be set when we loop through DataFrames to standardize
         my_trace                        = parent_trace.doing("Validating all non-reference DataFrame inputs will standardize the same way")
         for idx in range(len(self.timebucket_df_list)):
             loop_trace                  = my_trace.doing("Validating dataframe #" + str(idx))
@@ -589,19 +672,19 @@ class TimebucketDataFrameJoiner():
                                                                                         df              = df_tmp_1, 
                                                                                         lower_level_key = None) 
 
-                if post_standardization_info == None: # This must be the first cycle of the loop, so initialise it
-                    post_standardization_info   = info
+                if post_standardization_size == None: # This must be the first cycle of the loop, so initialise it
+                    post_standardization_size   = info.final_size
                 else: # This cycle of the loop must be consistent with prior cycles in this regard
-                    if post_standardization_info != info:
+                    if post_standardization_size != info.final_size:
                         raise ApodeixiError(inner_trace, "Can't join DataFrames because they don't all standardize the same "
-                                                        + "way in terms of which levels are collapsed",
-                                                        data = {'One DFs way':      str(post_standardization_info),
-                                                                "Another DF's way": str(info)})
+                                                        + "way in terms the final zise to which levels are collapsed",
+                                                        data = {'One DFs final size':      str(post_standardization_size),
+                                                                "Another DF's final size": str(info.final_size)})
 
         my_trace                        = parent_trace.doing("Determining the number of levels that result should have")
         if True:
             # This is the # of levels in the non-reference DataFrame inputs before tags get added
-            result_nb_levels            = post_standardization_info.final_size 
+            result_nb_levels            = post_standardization_size 
             
             if self.timebucket_df_lower_tags != None:
                 # Add additional levels, for each tag. Because of constructor's validation, we know all have same number of levels and at
@@ -726,6 +809,9 @@ class TimebucketDataFrameJoiner():
                 # we sort, the the second member is the item that must be in the sorted result. By glueing them
                 # like this we can re-use the generic sort function for lists
                 #
+                # To ensure that reference columns stay "in relative order", for them the first member of the pair
+                # will be the original index location for such reference colum.
+                #
                 # To use this trick, we first have to determine the cutoff for the upper levels
                 #
                 upper_level_cutoff      = result_nb_levels - 1 # Subtract 1 for the time buckets, a string taking 1 level
@@ -739,16 +825,24 @@ class TimebucketDataFrameJoiner():
                     
                 # We know result_df.colums are tuples since result_nb_levels > 1, except for reference columns
                 # For which it is a string
-                unsorted_pairs_l        = [[col[:upper_level_cutoff], col] 
-                                                if type(col) == tuple
-                                                else [col, col]
-                                                for col in result_df.columns]
+                originals               = result_df.columns
+                unsorted_pairs_l        = [[originals[idx][:upper_level_cutoff], originals[idx]] 
+                                                if type(originals[idx]) == tuple
+                                                else [str(idx), originals[idx]]
+                                                for idx in range(len(originals))]
 
-                # Not 100% proof, but to get unique hashcode for a tuple we will use this "weird string"
+                # Not 100% proof, but to get unique hashcode for a tuple we will use the "weird string" DELIM below
                 # to join tuple's levels into a single string, hoping that since it is so weird then the
                 # hash code of different tuples will be different.
                 # We also make it so that it should (hopefully) be sorted after any "reference" string column
-                DELIM                   = "ZZZ@#!"
+                # We take into account that when sorting strings, this holds true:
+                #   "!" < "#" < "9" < "@" < "A" < "Z" < "a" < "z"
+                #
+                # In other words, we need our "weird string" to start with lower case "z" we want it to go last.
+                # To ensure it is after any other valid column that starts with "z", with put multiple "z"'s at the start
+                # of the "weird string", hopefully ensuring any valid column is an English word not starting with multiple "z"'s
+                # 
+                DELIM                   = "zzz@#!"
                 
                 sorted_pairs_l          = sorted(unsorted_pairs_l,
                                                 key = lambda pair: DELIM + DELIM.join(pair[0])
@@ -1027,6 +1121,14 @@ class TimebucketStandardizer():
                     def _sorting_aggregate_key(column, timebucket):
                         year                    = timebucket.fiscal_year
                         quarter                 = timebucket.quarter
+
+                        # GOTCHA: 
+                        #   If the timebucket is for a full year, we want it to appear *after* any other timebucket for the
+                        #   same year, so artificially make a "5th" quarter is it is sorted after Q4
+                        #
+                        if timebucket.is_a_year_bucket:
+                            quarter             = 5
+
                         # quarter < 10, so by multiplying by 100 we make quarter the least significant digit, guaranteeing key is unique
                         # (i.e, can have different timebuckets with the same key)
                         key                     = year*100 + quarter 

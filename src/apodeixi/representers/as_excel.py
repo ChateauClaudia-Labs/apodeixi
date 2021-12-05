@@ -690,6 +690,56 @@ class ManifestRepresenter:
                 my_trace            = parent_trace.doing("Determining dropdown range for '" 
                                                             + str(dropdown_params.name) + "'")
                 if True:
+                    # We need to compute the first and last Excel row/column that correspond to what in
+                    # layout space is the real-estate from (x0, y0) to (y1, y1).
+                    #
+                    # Unfortunately, we can't reliably just check what Excel coordinates correspond to
+                    # the endpoints (x0, y0) and (x1, y1) because in some cases the manifest rows will be re-ordered.
+                    #   For example, if this manifest is joined to another one, then its rows will
+                    #   re-arrange to keep aligned with the referenced manifest, whose rows might re-sort due to 
+                    #   the way UIDs are sorted.
+                    #
+                    # So we must do this "the hard way": loop through every point in layout space and pick the 
+                    # min/max Excel coordinates
+                    #
+                    excel_row_0     = None # Will be minimized
+                    excel_col_0     = None # Will be minimized 
+
+                    excel_row_1     = None # Will be maxmized
+                    excel_col_1     = None # Will be maxmized
+                    for x in range(x_0, x_1 + 1):
+                        for y in range(y_0, y_1 + 1):
+                            row, col, last_row, last_col    = xlw_config.df_xy_2_excel_xy(
+                                                                            parent_trace            = my_trace,
+                                                                            displayable_df          = displayable_df, 
+                                                                            df_row_number           = y,
+                                                                            df_col_number           = x,
+                                                                            representer             = self)
+                            # Minimize row
+                            if excel_row_0 == None:
+                                excel_row_0 = row
+                            else:
+                                excel_row_0 = min(excel_row_0, row)
+
+                            # Minimize column
+                            if excel_col_0 == None:
+                                excel_col_0 = col
+                            else:
+                                excel_col_0 = min(excel_col_0, col)
+
+                            # Maximise row
+                            if excel_row_1 == None:
+                                excel_row_1 = row
+                            else:
+                                excel_row_1 = max(excel_row_1, row)  
+
+                            # Maximize column
+                            if excel_col_1 == None:
+                                excel_col_1 = col
+                            else:
+                                excel_col_1 = max(excel_col_1, col)                          
+
+                    '''
                     excel_row_0, excel_col_0, last_excel_row, last_excel_col    = xlw_config.df_xy_2_excel_xy(
                                                                             parent_trace            = my_trace,
                                                                             displayable_df          = displayable_df, 
@@ -704,6 +754,7 @@ class ManifestRepresenter:
                                                                             df_col_number           = x_1,
                                                                             representer             = self)
                     if xlw_config.layout.is_transposed == False and y_1 == len(displayable_df.index) -1:
+                    
                         # GOTCHA
                         #   We are supposed to add the dropdown to all rows in Excel that show displayable_df, 
                         #   but we can't rely on the excel_col_1 computed above.
@@ -714,6 +765,7 @@ class ManifestRepresenter:
                         # That means that the last row in displayble_df might not be displayed at the last row in Excel,
                         # so we would rather take the last_row_excel as the row to use
                         excel_row_1         = last_excel_row
+                    '''
 
                 my_trace            = parent_trace.doing("Adding dropdown '" + str(dropdown_params.name) + "'",
                                                             data = {"first Excel row": str(excel_row_0),

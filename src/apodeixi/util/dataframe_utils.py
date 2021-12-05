@@ -358,9 +358,9 @@ class DataFrameComparator():
         missing_in_2.sort()
 
         if len(missing_in_1) > 0:
-            cols_diff_dict[self.df1_name + ' missing columns']  = '\n'.join(missing_in_1)
+            cols_diff_dict[self.df1_name + ' missing columns']  = '\n'.join([str(col) for col in missing_in_1])
         if len(missing_in_2) > 0:
-            cols_diff_dict[self.df2_name + ' missing columns']  = '\n'.join(missing_in_2)
+            cols_diff_dict[self.df2_name + ' missing columns']  = '\n'.join([str(col) for col in missing_in_2])
 
         return common_cols, cols_diff_dict
 

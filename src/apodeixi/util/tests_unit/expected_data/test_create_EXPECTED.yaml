@@ -16,7 +16,7 @@ util:
     '
   dataframe_utils.py: '
 
-    Size (in bytes):  24664
+    Size (in bytes):  24708
 
     '
   dictionary_utils.py: '
@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  94486
+    Size (in bytes):  102146
 
     '
   tests_unit:
@@ -89,7 +89,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  5780
+        Size (in bytes):  5950
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -197,6 +197,16 @@ util:
         Size (in bytes):  143
 
         '
+      ts_join_4_EXPECTED.csv: '
+
+        Size (in bytes):  252
+
+        '
+      ts_join_4_comparison_EXPECTED.txt: '
+
+        Size (in bytes):  143
+
+        '
     input_data:
       test_compare_dataframes_df1_INPUT.csv: '
 
@@ -283,14 +293,14 @@ util:
         Size (in bytes):  13451
 
         '
-      ~$ts_join_2_a.xlsx: '
+      ts_join_4_b.xlsx: '
 
-        Size (in bytes):  165
+        Size (in bytes):  13823
 
         '
-      ~$ts_join_2_ref.xlsx: '
+      ts_join_4_ref.xlsx: '
 
-        Size (in bytes):  165
+        Size (in bytes):  13466
 
         '
     test_a6i_error.py: '
@@ -330,7 +340,7 @@ util:
       '
     test_reporting_utils.py: '
 
-      Size (in bytes):  10901
+      Size (in bytes):  13016
 
       '
     test_time_buckets.py: '

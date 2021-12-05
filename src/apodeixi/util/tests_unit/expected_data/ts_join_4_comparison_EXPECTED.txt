@@ -1,0 +1,5 @@
+output shape		(2, 10)
+expected shape		(2, 10)
+only in output		[]
+only in expected		[]
+Result of elt-by-elt comparison		Everything matches

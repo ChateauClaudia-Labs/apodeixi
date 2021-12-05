@@ -118,6 +118,17 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
             result[idx] = float(series2[idx])/float(series1[idx])
         return result
 
+    def _cum_sum(parent_trace, series1, series2):
+        # series1 is the accumulated sum so far; series2 is the next DataFrame column to add to the accumulated sum
+        # Therefore, series1 is null for the first cycle in loop calling this, which is why we need to check for that
+        result = _pd.Series(data=[0.0]*len(series2.index), index=series2.index) # Ensure index is of right type
+        for idx in series2.index:
+            if series1 is not None: 
+                result[idx] = float(series2[idx]) + float(series1[idx])
+            else:
+                result[idx] = float(series2[idx])
+        return result
+
     def test_timebucket_joins_1(self):
 
         TEST_NAME           = "ts_join_1"
@@ -127,7 +138,7 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
 
         self._impl_ts_join_test(TEST_NAME, header, LOWER_TAGS, UPPER_TAGS, 
                                     func            = None, 
-                                    binary          = None, 
+                                    operation_type  = None,  
                                     ref_column      = None) 
 
     def test_timebucket_joins_2(self):
@@ -140,7 +151,7 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
 
         self._impl_ts_join_test(TEST_NAME, header, LOWER_TAGS, UPPER_TAGS, 
                                     func            = Test_Reporting_Utils._percent, 
-                                    binary          = False, 
+                                    operation_type  = TimebucketDataFrameJoiner.UNARY_OPERATION,
                                     ref_column      = 'Multi-year') 
 
     def test_timebucket_joins_3(self):
@@ -153,12 +164,24 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
 
         self._impl_ts_join_test(TEST_NAME, header, LOWER_TAGS, UPPER_TAGS, 
                                     func            = Test_Reporting_Utils._percent, 
-                                    binary          = True, 
+                                    operation_type  = TimebucketDataFrameJoiner.BINARY_OPERATION, 
                                     ref_column      = None) 
 
+    def test_timebucket_joins_4(self):
+
+        TEST_NAME           = "ts_join_4"
+        header              = [0,1]
+
+        LOWER_TAGS          = ['Target']
+        UPPER_TAGS          = None
+
+        self._impl_ts_join_test(TEST_NAME, header, LOWER_TAGS, UPPER_TAGS, 
+                                    func            = Test_Reporting_Utils._cum_sum, 
+                                    operation_type  = TimebucketDataFrameJoiner.CUMULATIVE_OPERATION, 
+                                    ref_column      = None)
 
 
-    def _impl_ts_join_test(self, TEST_NAME, HEADER, LOWER_TAGS, UPPER_TAGS, func, binary, ref_column):
+    def _impl_ts_join_test(self, TEST_NAME, HEADER, LOWER_TAGS, UPPER_TAGS, func, operation_type, ref_column):
         '''
         '''
         try:
@@ -168,32 +191,43 @@ class Test_Reporting_Utils(ApodeixiUnitTest):
             REF_FULL_PATH       = self.input_data + "/" + TEST_NAME + "_ref.xlsx"
             reference_df        = _pd.read_excel(io=REF_FULL_PATH)
 
-            DF_A_FULL_PATH       = self.input_data + "/" + TEST_NAME + "_a.xlsx"
-            a_df                = _pd.read_excel(io=DF_A_FULL_PATH, header=HEADER)
-
-            DF_B_FULL_PATH       = self.input_data + "/" + TEST_NAME + "_b.xlsx"
+            DF_B_FULL_PATH      = self.input_data + "/" + TEST_NAME + "_b.xlsx"
             b_df                = _pd.read_excel(io=DF_B_FULL_PATH, header=HEADER)
+
+            if operation_type != TimebucketDataFrameJoiner.CUMULATIVE_OPERATION:
+                DF_A_FULL_PATH  = self.input_data + "/" + TEST_NAME + "_a.xlsx"
+                a_df            = _pd.read_excel(io=DF_A_FULL_PATH, header=HEADER)
+                timebucket_df_list  = [a_df, b_df]
+            else:
+                timebucket_df_list  = [b_df]
+
+
 
             joiner              = TimebucketDataFrameJoiner(root_trace, 
                                                     reference_df                = reference_df, 
                                                     link_field                  = 'Country', 
-                                                    timebucket_df_list          = [a_df, b_df], 
+                                                    timebucket_df_list          = timebucket_df_list, 
                                                     timebucket_df_lower_tags    = LOWER_TAGS, 
                                                     timebucket_df_upper_tags    = UPPER_TAGS, 
                                                     a6i_config                  = a6i_config)
 
             if func != None:
-                if binary:
+                if operation_type == TimebucketDataFrameJoiner.BINARY_OPERATION:
                     joiner.enrich_with_tb_binary_operation(root_trace, 
                                                             a_ltag              = LOWER_TAGS[0], 
                                                             b_ltag              = LOWER_TAGS[1], 
                                                             c_ltag              = "% Target", 
                                                             func                = func)
-                else:
+                elif operation_type == TimebucketDataFrameJoiner.UNARY_OPERATION:
                     joiner.enrich_with_tb_unary_operation(root_trace, 
                                                             ref_column          = ref_column, 
                                                             b_ltag              = LOWER_TAGS[0], 
                                                             c_ltag              = "% Target", 
+                                                            func                = func)
+                elif operation_type == TimebucketDataFrameJoiner.CUMULATIVE_OPERATION:
+                    joiner.enrich_with_tb_cumulative_operation(root_trace, 
+                                                            b_ltag              = LOWER_TAGS[0], 
+                                                            c_ltag              = "Cum Target", 
                                                             func                = func)
 
             output_df           = joiner.join_dataframes(root_trace)
@@ -226,5 +260,7 @@ if __name__ == "__main__":
             T.test_timebucket_joins_2()
         if what_to_do=="timebucket_joins_3":
             T.test_timebucket_joins_3()
+        if what_to_do=="timebucket_joins_4":
+            T.test_timebucket_joins_4()
 
     main(_sys.argv)
