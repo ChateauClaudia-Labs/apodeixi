@@ -326,7 +326,7 @@ class DataFrameComparator():
                 val2                                                    = row2[col]
                 if val1 != val2:
                     check                                               = False
-                    coords                                              = '[' + col + '][' + str(row_idx) + "]"
+                    coords                                              = '[' + str(col) + '][' + str(row_idx) + "]"
                     types_differ                                    = type(val1) != type(val2)
 
                     cell_dict[coords] = {self.df1_name: str(val1), self.df2_name: str(val2)}

@@ -16,7 +16,7 @@ util:
     '
   dataframe_utils.py: '
 
-    Size (in bytes):  24708
+    Size (in bytes):  24713
 
     '
   dictionary_utils.py: '
@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  102146
+    Size (in bytes):  102731
 
     '
   tests_unit:

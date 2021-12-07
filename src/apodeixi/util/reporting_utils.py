@@ -942,7 +942,14 @@ class TimebucketStandardizer():
             For example, if the resulting DataFrame has columns ("Q2 FY 23", "Actual") and ("Q2 FY 23", "Target"), then the
             `lower_level_key` is a function that acts on tuples ("Actual") and ("Target") and sorts them.
         '''
+        if df is None or len(df.columns)==0 or len(df.index)==0:
+            raise ApodeixiError(parent_trace, "Invalid DataFrame provided to TimebucketStandardizer: DataFrame is empty")
+
         original_columns                = list(df.columns)
+
+        if len([col for col in original_columns if self.is_a_timebucket_column(parent_trace, col, a6i_config)])==0:
+            raise ApodeixiError(parent_trace,  "Invalid DataFrame provided to TimebucketStandardizer: it lacks any timebucket columns - should at least have 1",
+                                            data = {"df.columns": str([str(col) for col in original_columns])})
 
         unsorted_flattened_columns      = []
         # As we flatten columns in the loop below, we also partition the columns into intervals, where each interval
