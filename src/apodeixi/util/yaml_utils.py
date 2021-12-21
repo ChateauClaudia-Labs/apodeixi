@@ -31,7 +31,7 @@ class YAML_Utils():
 
                     loaded_dict             = _yaml.load(file, Loader=_yaml.FullLoader)
 
-                    WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path)
+                    WarningUtils().handle_warnings(parent_trace, warning_list=w)
                     return loaded_dict
         except Exception as ex:
             raise ApodeixiError(parent_trace, "Found a problem loading YAML file",
@@ -60,7 +60,7 @@ class YAML_Utils():
 
                 _yaml.dump(data_dict, file) #, Dumper=YAML_DUMPER)
             
-                WarningUtils().handle_yaml_warnings(parent_trace, warning_list=w, path=path)           
+                WarningUtils().handle_warnings(parent_trace, warning_list=w)           
 
     def dict_to_yaml_string(self, parent_trace, data_dict):
         '''

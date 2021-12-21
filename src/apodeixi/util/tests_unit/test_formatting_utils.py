@@ -4,7 +4,7 @@ import unittest                                     as _unittest
 
 from apodeixi.testing_framework.a6i_unit_test       import ApodeixiUnitTest
 from apodeixi.util.a6i_error                        import ApodeixiError, FunctionalTrace
-from apodeixi.util.formatting_utils                 import DictionaryFormatter, NotebookUtils
+from apodeixi.util.formatting_utils                 import NotebookUtils
 from apodeixi.util.dictionary_utils                 import DictionaryUtils 
 from apodeixi.util.path_utils                       import PathUtils
 
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         T = Test_NotebookUtils()
         T.setUp()
         what_to_do = args[1]
-        if what_to_do=='notebook_run':
+        if what_to_do=="notebook_run":
             T.test_notebook_run()
         T.tearDown()
         

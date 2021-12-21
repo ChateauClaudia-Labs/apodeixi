@@ -13,7 +13,6 @@ from apodeixi.util.formatting_utils                     import StringUtils
 from apodeixi.knowledge_base.knowledge_base             import KnowledgeBase
 from apodeixi.knowledge_base.knowledge_base_store       import KnowledgeBaseStore
 from apodeixi.knowledge_base.shutil_kb_store            import Shutil_KBStore_Impl
-from apodeixi.knowledge_base.git_kb_store               import GIT_KBStore_Impl
 from apodeixi.knowledge_base.kb_environment             import KB_Environment_Config
 
 class IntegrationTestStack():
@@ -90,50 +89,6 @@ class ShutilStoreTestStack(IntegrationTestStack):
         the regression output of integration tests using this stack
         '''
         ME                  = ShutilStoreTestStack
-        return ME.MY_NAME
-
-    def store(self):
-        '''
-        Returns the KnowledgeBaseStore instance provisioned as part of this stack.
-        '''
-        return self._store
-
-    def kb(self):
-        '''
-        Returns the KnowledgeBase instance provisioned as part of this stack.
-        '''
-        return self._kb
-
-class GITStoreTestStack(IntegrationTestStack):
-    '''
-    Helper class to represent the stack used by an ApodeixiIntegrationTest, when the stack choice made is
-    for a GIT_KBStore_Impl
-    '''
-    def __init__(self, parent_trace, a6i_config):
-        super().__init__(parent_trace)
-        self.a6i_config              = a6i_config
-
-        my_trace                      = parent_trace.doing("Initializing GIT-based stack",
-                                                            origination = {'signaled_from': __file__})
-        self._kb_rootdir                = self.a6i_config.get_KB_RootFolder(my_trace)
-        self._clientURL                 = self.a6i_config.get_ExternalCollaborationFolder(my_trace) 
-
-        store_impl                      = GIT_KBStore_Impl(   parent_trace        = my_trace,
-                                                                    kb_rootdir          = self._kb_rootdir,
-                                                                    clientURL           = self._clientURL,
-                                                                    remote              = None)
-
-        self._store                     = KnowledgeBaseStore(my_trace, store_impl)
-        my_trace                        = parent_trace.doing("Starting KnowledgeBase")
-        self._kb                        = KnowledgeBase(my_trace, self._store, a6i_config=self.a6i_config)
-
-    MY_NAME                             = "git_store"
-    def name(self, parent_trace):
-        '''
-        Returns a string used to identify this stack, used in the filing structure for
-        the regression output of integration tests using this stack
-        '''
-        ME                  = GITStoreTestStack
         return ME.MY_NAME
 
     def store(self):
