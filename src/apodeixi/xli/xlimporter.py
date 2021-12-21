@@ -400,7 +400,7 @@ class ExcelTableReader:
             # So we would rather have an exception be thrown so that we know of where in the Apodeixi code base a code
             # construct needs to be made future-proof. That is why we use the warnings context manager here
             with warnings.catch_warnings(record=True) as w:
-                traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
+                WarningUtils().turn_traceback_on(parent_trace, warnings_list=w)
 
                 # We have two cases:
                 #   1. header_list is a singleton - this is the "normal" case, and we can use the `usecols` parameter
@@ -459,7 +459,7 @@ class ExcelTableReader:
                                                         data = {"path": str(self.excel_fullpath), 
                                                                 "sheet_name": str(self.sheet_name),
                                                                 "range": str(self.excel_range)})   
-                WarningUtils().handle_warnings(parent_trace, warning_list=w, traceback_stream=traceback_stream)
+                WarningUtils().handle_warnings(parent_trace, warning_list=w)
 
         except PermissionError as ex:
             raise ApodeixiError(my_trace, "Was not allowed to access excel file. Perhaps you have it open?",

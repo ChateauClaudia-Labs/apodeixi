@@ -177,7 +177,10 @@ class BreakdownTree():
                 # Check entity appears in exactly one column. 
                 def _matches_entity(idx):
                     '''
-                    Returns a boolean if the column at index `idx` is the same as the interval's entity name
+                    Returns a boolean if the column at index `idx` is the "same" as the interval's entity name.
+                    By being the "same" we mean that either:
+                    1. The column at index idx is a string identical to the interval's entity_name
+                    2. The column at index idx is a tuple and its first member is identical to the interval's entity_name
 
                     If the user entered two columns with the same name, such as "Account", Pandas will re-name the second
                     one to be "Account.1". But that is still a user error for an entity, so we will strip the ".1" suffix
@@ -313,7 +316,15 @@ class BreakdownTree():
                 #           match the actual column name in the DataFrame and that will trigger a key error. 
                 #           Instead, actually use the column name of the DataFrame, which we previously checked
                 #           that is "equivalent" to interval.entity_name when converted to a YAML field
-                entity_type                     = columns[entity_column_idx]                                                       
+                #
+                # ANOTHER GOTCHA: The column containing the entity might be a tuple, like ("Effort", "", ""), as opposed
+                #               to a string, which would have been the "normal" case.
+                #           So check for this
+                #                   
+                entity_type                     = columns[entity_column_idx] 
+                if type(entity_type)==tuple: # Must be something like ("Effort", "", "")
+                    entity_type                 = entity_type[0]
+
                 subtree_full_uid                = self.dockEntityData(  parent_trace        = my_trace,
                                                                         full_docking_uid    = docking_uid, 
                                                                         entity_type         = entity_type, 
@@ -592,13 +603,25 @@ class BreakdownTree():
             full_uid                = uid_to_overwrite
             leaf_uid                = full_uid.split('.')[-1]
 
+        # GOTCHA: The entity_type is a string, like "Effort", but the DataFrame columns might be tuples
+        #           like ("Effort", "") - for example, in case there are subproducts
+        # So check for that.
+        # We use the first column as a proxy
+        #
+        if type(data_to_attach.index[0])==tuple:
+            nb_levels           = len(data_to_attach.index[0])
+            entity_column       = (entity_type,) + ("",)*(nb_levels-1)
+        else:
+            entity_column       = entity_type
+
+        
         new_node                = BreakdownTree._EntityInstance(    uid_store   = self.uid_store, 
-                                                                    name        = data_to_attach[entity_type],
+                                                                    name        = data_to_attach[entity_column],
                                                                     uid         = full_uid,
                                                                     leaf_uid    = leaf_uid)
 
         my_trace                = parent_trace.doing("Populating new node to attach",
-                                                    data = {"node name": data_to_attach[entity_type], 
+                                                    data = {"node name": data_to_attach[entity_column], 
                                                             "full_uid": full_uid})
         for idx in data_to_attach.index:
             property_name       = idx
@@ -619,7 +642,7 @@ class BreakdownTree():
                                                                         uid                 = str(val), 
                                                                         acronym_schema      = acronym_schema)
 
-            if property_name != entity_type: # Don't attach entity_type as a property, since we already put it in as 'name
+            if property_name != entity_column: # Don't attach entity_type as a property, since we already put it in as 'name
                 
                 # Get rid of nan, bad dates, NaT, etc
                 cleaned_val     = xlr_config.cleanFragmentValue(parent_trace        = loop_trace, 

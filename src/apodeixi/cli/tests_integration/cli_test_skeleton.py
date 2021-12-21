@@ -194,11 +194,11 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
                     #   triggered
                     #
                     with warnings.catch_warnings(record=True) as w:
-                        traceback_stream            = WarningUtils().turn_traceback_on(parent_trace)
+                        WarningUtils().turn_traceback_on(parent_trace, warnings_list=w)
 
                         result                      = runner.invoke(self.cli, command_argv)
 
-                        WarningUtils().handle_warnings(parent_trace, warning_list=w, traceback_stream=traceback_stream)
+                        WarningUtils().handle_warnings(parent_trace, warning_list=w)
 
                     if result.exit_code != 0:
                         raise ApodeixiError(loop_trace, "CLI command failed",

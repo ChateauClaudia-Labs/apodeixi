@@ -6,7 +6,7 @@ util:
     '
   a6i_error.py: '
 
-    Size (in bytes):  11650
+    Size (in bytes):  13553
 
     '
   apodeixi_config.py: '
@@ -16,7 +16,7 @@ util:
     '
   dataframe_utils.py: '
 
-    Size (in bytes):  24713
+    Size (in bytes):  28900
 
     '
   dictionary_utils.py: '
@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  102731
+    Size (in bytes):  106253
 
     '
   tests_unit:
@@ -89,7 +89,7 @@ util:
         '
       test_create_EXPECTED.yaml: '
 
-        Size (in bytes):  5950
+        Size (in bytes):  6112
 
         '
       test_fy_quarter_EXPECTED.txt: '
@@ -165,6 +165,11 @@ util:
       test_to_timebucket_columns_4_df_comparison_EXPECTED.txt: '
 
         Size (in bytes):  143
+
+        '
+      test_warning_utils_EXPECTED.txt: '
+
+        Size (in bytes):  4328
 
         '
       ts_join_1_EXPECTED.csv: '
@@ -348,6 +353,11 @@ util:
       Size (in bytes):  7870
 
       '
+    test_warning_utils.py: '
+
+      Size (in bytes):  1950
+
+      '
   time_buckets.py: '
 
     Size (in bytes):  10560
@@ -355,11 +365,11 @@ util:
     '
   warning_utils.py: '
 
-    Size (in bytes):  3704
+    Size (in bytes):  6745
 
     '
   yaml_utils.py: '
 
-    Size (in bytes):  3700
+    Size (in bytes):  3612
 
     '

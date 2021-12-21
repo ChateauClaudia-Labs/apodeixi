@@ -103,7 +103,7 @@ class CLI_BigRocks_and_Milestones_Script():
                                             _args[_s.BIG_ROCKS_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__8", 
                                             _path_of(_args[_s.BIG_ROCKS_v2_FILE])],
-                                        # Update milestones v2 - should remove the reference that cuased big rocks v2 to fail
+                                        # Update milestones v2 - should remove the reference that caused big rocks v2 to fail
                                         ['get', 'form',                 __environment, ENV_CHOICE,  '--timestamp', "_CLI__9", 
                                             _args[_s.BIG_MILESTONES_API], _args[_s.NAMESPACE], _args[_s.SUB_NAMESPACE]],
                                         ['post',                        __environment, ENV_CHOICE,  '--timestamp', "_CLI__10", 

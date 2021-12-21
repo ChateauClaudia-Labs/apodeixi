@@ -681,23 +681,11 @@ class BigRocksEstimate_Controller(JourneysController):
             non_blank_cols                  = [col for col in interval.columns \
                                                     if not IntervalUtils().is_blank(dataframe_row[1][col])]
             if self.controller.variant ==  CTRL.VARIANT_EXPLAINED and len(non_blank_cols) > 0:
-                # Force the row to have a column called "Effort"
-                enrichment                  = _pd.Series(["DERIVED"], index=[ME._ENTITY_NAME])
-                row_nb                      = dataframe_row[0]
-                row_series                  = dataframe_row[1]
-
-                # The enriched row and interval must be consistent with regards to the columns. So make
-                # sure the first column is the entity being added as an enrichment, followed by the
-                # columns of the input dataframe_row, in that order. Same for the interval
-                enriched_series             = enrichment.append(row_series)
-                enriched_interval_columns   = [ME._ENTITY_NAME]
-                enriched_interval_columns.extend(interval.columns)
-                enriched_interval           = Interval( parent_trace        = parent_trace, 
-                                                        columns             = enriched_interval_columns, 
-                                                        entity_name         = ME._ENTITY_NAME)
-
-                # Make sure to return a tuple for the row, not a list, to make it look like a Pandas row
-                enriched_row                = (row_nb, enriched_series) 
+                
+                enriched_interval, enriched_row  = self.add_derived_entity_name(parent_trace, 
+                                                                                entity_name     = ME._ENTITY_NAME, 
+                                                                                interval        = interval, 
+                                                                                dataframe_row   = dataframe_row)
 
                 return enriched_interval, enriched_row
             else:

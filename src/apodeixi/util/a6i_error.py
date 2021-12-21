@@ -160,13 +160,23 @@ class ApodeixiError (Exception):
     '''
     Error class recommended in Apodeixi. It extends ValueError with a FunctionalTrace object to make troubleshooting
     easier.
+
+    @param external_stacktrace A string, containing the stacktrace for a component external to Apodeixi which
+        resulted in failure. The component is "external" in the logical sense - it may well be in-process with
+        Apodeixi. What makes it "external" is that it is code to which Apodeixi cedes control as a "black box",
+        and if the "black box" fails Apodeixi raises a new ApodeixiError from the point at which the "black box"
+        was invoked by Apodeixi.
+        Thus, the ApodeixiError's stack trace only can tell us when Apodeixi knew something went wrong, but not
+        the root cause of the problem within the external code. To assist debugging such problems, the construction
+        of an ApodeixiError allows for attaching the external code's stack trace as an optional string. 
     '''
-    def __init__(self, functional_trace, msg, data={}, origination={}):
+    def __init__(self, functional_trace, msg, data={}, origination={}, external_stacktrace=None):
         super().__init__(self, msg)
         self.functional_trace           = functional_trace
         self.msg                        = msg
         self.data                       = data
         self.origination                = origination
+        self.external_stacktrace        = external_stacktrace
 
     def trace_message(self, exclude_stack_trace=False):
 
@@ -187,8 +197,13 @@ class ApodeixiError (Exception):
 
         advertisement_for_stack_trace = ''
         if not exclude_stack_trace:
-            advertisement_for_stack_trace = ' (stack trace at the bottom)'
-
+            if self.external_stacktrace == None:
+                advertisement_for_stack_trace = ' (stack trace at the bottom)'
+            else:
+                advertisement_for_stack_trace = '\n(failure occurred in an external component. So 2 strack traces are '\
+                                    + 'provided at the bottom: '\
+                                    + '\n\t-one originating from Apodeixi\'s invocation of the external component, '\
+                                    + '\n\t-and one for the external component itself)'
         trace_msg               = '\n\n******** Functional Trace ********\n\n' + 'Problem:\t' + self.msg + data_msg \
                                     + '\nHere are the functional activities that led to the problem' \
                                     +  advertisement_for_stack_trace + ':' \
@@ -198,11 +213,18 @@ class ApodeixiError (Exception):
                                     + '\n'   
         if not exclude_stack_trace:
             traceback_stream        = StringIO()
-            trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace\n\n'
             _traceback.print_exc(file = traceback_stream)
-            trace_msg           += traceback_stream.getvalue()
-            trace_msg           += "\n" + "-"*60  
-
+            if self.external_stacktrace == None:
+                trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace\n\n'            
+                trace_msg           += traceback_stream.getvalue()
+                trace_msg           += "\n" + "-"*60  
+            else:
+                trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace 1 of 2 (in external component)\n\n' 
+                trace_msg           += self.external_stacktrace
+                trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace 2 of 2 (within Apodeixi)\n\n' 
+                trace_msg           += traceback_stream.getvalue()
+                trace_msg           += "\n" + "-"*60  
+            
         return trace_msg
 
     

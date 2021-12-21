@@ -15,7 +15,7 @@ from apodeixi.xli.uid_store                                     import UID_Utils
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
 from apodeixi.util.formatting_utils                             import StringUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError
-from apodeixi.util.dataframe_utils                              import DataFrameUtils
+from apodeixi.util.dataframe_utils                              import DataFrameUtils, TupleColumnUtils
 
 class ManifestUtils():
     def __init__(self):
@@ -582,6 +582,16 @@ class ManifestUtils():
 
         rows_df1                        = contents_df1[contents_df1[UID_COL] == entity_uid]
         rows_df2                        = contents_df2[contents_df2[UID_COL] == entity_uid]
+
+        # GOTCHA: when there are subproducts, some columns may be tuples, but the UID and
+        #           entity columns are strings. This will cause Pandas to complain with hard-to-understand
+        #           warnings, so to prevent that convert all columns to tuples
+        rows_df1.columns                = TupleColumnUtils().homogenize_columns(parent_trace, 
+                                                                                heterogeneous_columns   = rows_df1.columns)
+        rows_df2.columns                = TupleColumnUtils().homogenize_columns(parent_trace, 
+                                                                                heterogeneous_columns   = rows_df2.columns)
+        common_fields                   = TupleColumnUtils().homogenize_columns(parent_trace, 
+                                                                                heterogeneous_columns   = common_fields)
 
         vals1                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df1[common_fields])
         vals2                           = DataFrameUtils().safely_drop_duplicates(parent_trace, rows_df2[common_fields])

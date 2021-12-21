@@ -1,19 +1,20 @@
 import re                                       as _re
 import math                                     as _math
+import pandas                                   as _pd
 from collections                                import Counter
 import datetime                                 as _datetime
 from apodeixi.xli.uid_acronym_schema            import UID_Acronym_Schema
 
 from apodeixi.xli.xlimporter                    import SchemaUtils, ExcelTableReader, ManifestXLReadConfig
 from apodeixi.xli.breakdown_builder             import BreakdownTree
-from apodeixi.xli.interval                      import IntervalUtils
+from apodeixi.xli.interval                      import IntervalUtils, Interval
 
 from apodeixi.controllers.util.manifest_api     import ManifestAPIVersion
 
 from apodeixi.tree_math.link_table              import LinkTable
 
 from apodeixi.util.dictionary_utils             import DictionaryUtils
-from apodeixi.util.dataframe_utils              import DataFrameUtils
+from apodeixi.util.dataframe_utils              import DataFrameUtils, TupleColumnUtils
 from apodeixi.util.a6i_error                    import ApodeixiError
 
 class PostingController():
@@ -738,6 +739,82 @@ class PostingConfig(ManifestXLReadConfig):
         @returns                A pair: 1) an Interval object, and 2) tuple `(idx, series)` that may pass for a Pandas row
         '''
         return interval, dataframe_row
+
+    def add_derived_entity_name(self, parent_trace, entity_name, interval, dataframe_row):
+        '''
+        Helper method, often called by concrete classes as part of their implementation of preprocessReadFragment.
+
+        It creates and returns "enriched" versions of the `interval` and of the `dataframe_row` parameters.
+
+        This is used in the context of parsing an Excel posting. Sometimes, the Excel file does not contain the
+        entity name for a manifest (happens for usability reasons, typically in join situations where the manifest
+        in question links to another manifest and the user gets the illusion that the two are part of the same dataset).
+
+        An example of where such "enriching" functionality is needed:
+        some posting APIs choose to present the users with an Excel template that hides some information
+        from the user. An example is the API for posting big rocks estimates: the "Effort" column is not included
+        in the Excel spreadsheet in cases where the user chose the "explained" variant, since in that case the "Effort"
+        is "implied" from the entries at multiple time buckets. Such examples make the Excel spreadsheet more user
+        friendly but cause a side-effect problem for the parser: if it does not see a column like "Effort" in the
+        row, which is mandatory since it is the "entity" for that row, the parser would raise an error. To address 
+        this, the concrete PostingConfig class for the big rocks controller can take advantage of this method
+        and implement it to "enrich" the `dataframe_row` with a synthetic "Effort" property that was not present 
+        in the Excel input provided by the user.
+
+        @param entity_name      A string, that should be the name of the entity as it should be represented in manifests.
+
+        @param interval         An Interval object, corresponding to the columns in `row` that pertain to an entity being 
+                                processed in readDataframeFragment
+        @param dataframe_row    A tuple `(idx, series)` representing a row in a larger Pandas Dataframe as yielded by
+                                the Dataframe `iterrows()` iterator.
+        @returns                A pair: 1) an Interval object, and 2) tuple `(idx, series)` that may pass for a Pandas row
+        '''
+        nb_levels               = TupleColumnUtils().validate_homogeneity(parent_trace, interval.columns)
+
+        # GOTCHA:
+        #   To avoid warnings like this one:
+        #
+        #       \numpy\core\_asarray.py:102: VisibleDeprecationWarning: Creating an ndarray from ragged nested 
+        #                                       sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays 
+        #                                       with different lengths or shapes) is deprecated. If you meant to do 
+        #                                       this, you must specify 'dtype=object' when creating the ndarray.
+        #
+        # we must avoid heterogeneous columns, where some are tuples and others are strings.
+        #
+        #   Since we are to add a new column, whhich normally would be the string ME._ENTITY_NAME, we must
+        # first check if prior columns are tuples, and if so, wrap the string ME._ENTITY_NAME into a tuple
+        # whose other levels are empty strings.
+        #
+        # We use the first non-blank column as a proxy to test if columns are tuples or not.
+        #
+        # The expectation in the parser is that if the entity name appears in a tuple, it must be the
+        # first level in the tuple
+        #
+        if nb_levels > 0:
+            entity_column_to_add    = (entity_name,) + ("",)*(nb_levels-1)
+        else:
+            entity_column_to_add    = entity_name
+
+        # Force the row to have a column called "Effort"
+        enrichment                  = _pd.Series(["DERIVED"], index=[entity_column_to_add])
+        row_nb                      = dataframe_row[0]
+        row_series                  = dataframe_row[1]
+
+        # The enriched row and interval must be consistent with regards to the columns. So make
+        # sure the first column is the entity being added as an enrichment, followed by the
+        # columns of the input dataframe_row, in that order. Same for the interval
+        enriched_series             = enrichment.append(row_series)
+        enriched_interval_columns   = [entity_column_to_add]
+        enriched_interval_columns.extend(interval.columns)
+        enriched_interval           = Interval( parent_trace        = parent_trace, 
+                                                columns             = enriched_interval_columns, 
+                                                entity_name         = entity_name)
+
+        # Make sure to return a tuple for the row, not a list, to make it look like a Pandas row
+        enriched_row                = (row_nb, enriched_series) 
+
+        return enriched_interval, enriched_row
+
 
     def cleanFragmentValue(self, parent_trace, field_name, raw_value, data_series):
         '''

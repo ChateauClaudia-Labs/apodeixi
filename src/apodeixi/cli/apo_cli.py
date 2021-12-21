@@ -392,7 +392,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
     try:
         # Catch warnings and handle them so that we avoid spurious noise in the CLI due to noisy 3rd party libraries
         with warnings.catch_warnings(record=True) as w:
-            traceback_stream            = WarningUtils().turn_traceback_on(root_trace)        
+            WarningUtils().turn_traceback_on(root_trace, warnings_list=w)        
             if environment != None:
                 kb_session.store.activate(parent_trace = root_trace, environment_name = environment)
                 click.echo(CLI_Utils().sandox_announcement(environment))
@@ -436,7 +436,7 @@ def form(kb_session, posting_api, namespace, subnamespace, dry_run, environment,
             click.echo(output)
             click.echo(timer.elapsed_time_message())
 
-            WarningUtils().handle_warnings(root_trace, warning_list=w, traceback_stream=traceback_stream)
+            WarningUtils().handle_warnings(root_trace, warning_list=w)
 
     except ApodeixiError as ex:
         error_msg                           = CLI_ErrorReporting(kb_session).report_a6i_error( 

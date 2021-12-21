@@ -204,7 +204,7 @@ class DataFrameUtils():
         @param categories_list A list of hashable objects, such as strings or ints
         '''
         with warnings.catch_warnings(record=True) as w:
-            traceback_stream        = WarningUtils().turn_traceback_on(parent_trace)
+            WarningUtils().turn_traceback_on(parent_trace, warnings_list=w)
             
             dfs_dict                = {}
             for category in categories_list:
@@ -212,7 +212,7 @@ class DataFrameUtils():
             
             replicas_df             = _pd.concat(dfs_dict, axis=1)
             
-            WarningUtils().handle_warnings(parent_trace, warning_list=w, traceback_stream=traceback_stream)
+            WarningUtils().handle_warnings(parent_trace, warning_list=w)
 
             return replicas_df
 
@@ -252,6 +252,85 @@ class DataFrameUtils():
 
         df3                 = df2.drop(INDEX_COLUMN, axis=1)
         return df3
+
+class TupleColumnUtils():
+    '''
+    Utility methods to deal with situations when a DataFrame uses tuples for (some or all) of its columns
+    '''
+    def __init__(self):
+        return
+
+    def homogenize_columns(self, parent_trace, heterogeneous_columns):
+        '''
+        Used for situations when a DataFrame has a mix of string and tuple columns.
+        In that case, this method creates and returns a new set of columns all of which are tuples of the same length,
+        and returns it as a list.
+
+        This method's processing of a particular column X is as follows:
+        * If X is a tuple, it must have the same length as all other columns that are tuples
+        * If X is a string, then it will be replaced by the tuple  (X, "", "", ..., "",)
+        '''
+        # Validate inputs are as expected
+        bad_columns         = [col for col in heterogeneous_columns if type(col) != tuple and type(col) != str]
+        if len(bad_columns) > 0:
+            raise ApodeixiError(parent_trace, "Can't homogenize columns because not all members are tuples or strings",
+                                            data = {"bad columns": str([str(col) for col in bad_columns])})
+        nb_levels_l             = list(set([len(col) for col in heterogeneous_columns if type(col)==tuple]))
+        if len(nb_levels_l) == 0: # This happens if no column is a tuple. If so, just return unmodified input
+            return heterogeneous_columns
+        elif len(nb_levels_l) > 1:
+            raise ApodeixiError(parent_trace, "Can't homogenize columns because not all tuples are of the same length",
+                                                data = {"tuple lengths": str([str(nb) for nb in nb_levels_l])})
+
+        # If we get this far, there is a unique level, which is what we expected
+        nb_levels           = nb_levels_l[0]
+
+        def _homogenize_one_column(col):
+            if type(col)==tuple:
+                return col
+            else:
+                return (col,) + ("",)*(nb_levels-1)
+
+        homogenized_columns     = [_homogenize_one_column(col) for col in heterogeneous_columns]
+        return homogenized_columns
+
+    def validate_homogeneity(self, parent_trace, columns):
+        '''
+        Helper method to validate that all columns are homogeneous, i.e., either all columns are strings or
+        else all columns are tuples of the same length.
+
+        If the columns are not homogenous, it raises an exception.
+        If they are homogeneous, then it returns an integer:
+
+        * Returns 0 if all columns are strings
+        * Returns N if all columns are tuples, where N is the common length of all tuple columns
+        '''
+        ALL_COLUMNS_ARE_STRINGS = 0
+        bad_columns         = [col for col in columns if type(col) != tuple and type(col) != str]
+        if len(bad_columns) > 0:
+            raise ApodeixiError(parent_trace, "Columns are not homogeneous: not all members are tuples or strings",
+                                            data = {"bad columns": str([str(col) for col in bad_columns])})
+
+        string_columns          = [col for col in columns if type(col) == str] 
+        tuple_columns           = [col for col in columns if type(col) == tuple] 
+
+        if len(string_columns) > 0 and len(tuple_columns) > 0:
+            raise ApodeixiError(parent_trace, "Columns are not homogeneous: there is a mix of string and tuple columns")
+
+        if len(string_columns) == len(columns): # all columns are strings, so return that
+            return ALL_COLUMNS_ARE_STRINGS
+        
+        # If we get this far, all columns are tuples. Check they have the same length
+        nb_levels_l             = list(set([len(col) for col in tuple_columns]))
+        if len(nb_levels_l) > 1:
+            raise ApodeixiError(parent_trace, "Columns are not homogeneous: not all tuples are of the same length",
+                                                data = {"tuple lengths": str([str(nb) for nb in nb_levels_l])})
+
+        # All is good, in that all columns are tuples of the same size. So return that size
+        nb_levels               = nb_levels_l[0]
+        return nb_levels
+
+
 
 class DataFrameComparator():
     '''

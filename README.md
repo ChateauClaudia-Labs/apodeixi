@@ -28,8 +28,29 @@ export SANDBOX="210902.164354_sandbox"
 
 apo get form --environment ${SANDBOX} big-rocks.journeys.a6i my-corp.production
 
+# Sizing up the project
+
+You can use pygcount to get a sense of how much Python code there is. Here is an example of usage:
+
+    aleja@CC-Labs-2 MINGW64 ~/Documents/Code/chateauclaudia-labs/apodeixi/project/src (dev)
+    $ pygount --format=summary ./
+    Language     Files    %     Code     %     Comment    %
+    -------------  -----  ------  -----  ------  -------  ------
+    Python           108   27.41  16929   51.27    10977   99.98
+    Text only         42   10.66  13605   41.20        0    0.00
+    YAML              31    7.87   2474    7.49        0    0.00
+    TOML               1    0.25     13    0.04        2    0.02
+    __unknown__       35    8.88      0    0.00        0    0.00
+    __empty__         40   10.15      0    0.00        0    0.00
+    __duplicate__    102   25.89      0    0.00        0    0.00
+    __binary__        35    8.88      0    0.00        0    0.00
+    -------------  -----  ------  -----  ------  -------  ------
+    Sum total        394          33021            10979
+    (a6i-env)
+
 
 # Running the tests
+
 At the root of the project, run `python -m unittest -v` (you may ommit the `-v` option to avoid seeing the results for each individual test case).
 
 *Example*:
