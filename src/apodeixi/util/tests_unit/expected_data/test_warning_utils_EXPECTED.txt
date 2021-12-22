@@ -44,7 +44,7 @@ Problem:	A dependency issued 1 warning(s)
     warnings.warn("Test warning for Warning Utils", DeprecationWarning)
   File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\warnings.py", line 109, in _showwarnmsg
     sw(msg.message, msg.category, msg.filename, msg.lineno,
-<APODEIXI INSTALLATION>/apodeixi\util\warning_utils.py", line 47, in _warn_with_traceback
+<APODEIXI INSTALLATION>/apodeixi\util\warning_utils.py", line 48, in _warn_with_traceback
     traceback.print_stack(file=log)
 <APODEIXI INSTALLATION>/apodeixi\util\tests_unit\test_warning_utils.py:24: DeprecationWarning: Test warning for Warning Utils
   warnings.warn("Test warning for Warning Utils", DeprecationWarning)
@@ -64,7 +64,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 Traceback (most recent call last):
   File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\tests_unit\test_warning_utils.py", line 26, in test_warning_utils
     WarningUtils().handle_warnings(my_trace, warning_list=w)
-  File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\warning_utils.py", line 122, in handle_warnings
+  File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\warning_utils.py", line 134, in handle_warnings
     raise ApodeixiError(parent_trace, "A dependency issued " + str(len(warning_list)) + " warning(s)",
 apodeixi.util.a6i_error.ApodeixiError: (ApodeixiError(...), 'A dependency issued 1 warning(s)')
 
