@@ -467,7 +467,7 @@ class TimebucketDataFrameJoiner():
                                                             operation_type  = self.BINARY_OPERATION, 
                                                             ref_column      = None)
 
-        WarningUtils().handle_warnings(parent_trace, warning_list=w)
+            WarningUtils().handle_warnings(parent_trace, warning_list=w)
         
         return
 
@@ -523,7 +523,7 @@ class TimebucketDataFrameJoiner():
                                                             operation_type  = self.UNARY_OPERATION, 
                                                             ref_column      = ref_column)
 
-        WarningUtils().handle_warnings(parent_trace, warning_list=w)
+            WarningUtils().handle_warnings(parent_trace, warning_list=w)
  
 
     def enrich_with_tb_cumulative_operation(self, parent_trace, b_ltag, c_ltag, func):
@@ -567,7 +567,7 @@ class TimebucketDataFrameJoiner():
                                                             operation_type  = self.CUMULATIVE_OPERATION, 
                                                             ref_column      = None)
 
-        WarningUtils().handle_warnings(parent_trace, warning_list=w)
+            WarningUtils().handle_warnings(parent_trace, warning_list=w)
 
     def _enrich_with_tb_operation(self, parent_trace, a_df, b_ltag, c_ltag, func, operation_type, ref_column):  
         '''

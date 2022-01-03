@@ -31,7 +31,7 @@ util:
     '
   formatting_utils.py: '
 
-    Size (in bytes):  19331
+    Size (in bytes):  19932
 
     '
   list_utils.py: '
@@ -51,7 +51,7 @@ util:
     '
   reporting_utils.py: '
 
-    Size (in bytes):  106253
+    Size (in bytes):  106265
 
     '
   tests_unit:
@@ -365,7 +365,7 @@ util:
     '
   warning_utils.py: '
 
-    Size (in bytes):  7796
+    Size (in bytes):  8917
 
     '
   yaml_utils.py: '

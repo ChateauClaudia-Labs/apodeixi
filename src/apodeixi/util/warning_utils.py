@@ -104,6 +104,20 @@ class WarningUtils():
             # Pandas generates this when we group by a column that is not a tuple when other columns are tuples
             # So ignore it - our reporting routinely does such group-by operations
             return True
+        elif a_warning.category == ResourceWarning and str(a_warning.message).startswith("unclosed context <zmq.asyncio.Context()"):
+            # Jupyter notebooks seem to trigger these warnings from the lower-level message queue library ZMQ
+            # (apparently it is used for the Jupyter client to talk to the Jupyter kernel asynchronously).
+            # I run into this warning while running this test involving programmatic execution of Jupyter notebooks"
+            #
+            #       apodeixi.util.tests_unit.test_formatting_utils.Test_NotebookUtils.test_notebook_run
+            #
+            # but mysteriously the resource warning did nor arise when running the same test program 
+            # in the debugger.
+            # This warning started happening after January 2nd, 2021, when I upgraded Apodeixi's packages 
+            # using "conda update --all" in the Apodeixi development Conda environment. This updated
+            # in particular the "notebook" package from 6.4.2 to 6.4.6. Perhaps that introduced this
+            # seemingly spurious warning.
+            return True
         else:
             return False
 

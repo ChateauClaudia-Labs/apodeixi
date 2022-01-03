@@ -4,9 +4,11 @@ import math                                     as _math
 import re                                       as _re
 
 import nbformat                                 as _nbformat
+import warnings
 from nbconvert.preprocessors                    import ExecutePreprocessor
 
 from apodeixi.util.a6i_error                    import ApodeixiError
+from apodeixi.util.warning_utils                    import WarningUtils
 
 # As documented in https://www.gitmemory.com/issue/zeromq/pyzmq/1521/824694187, need to change the Windows default event loop
 # policy for asyncio (used indirectly by nbconvert, in turn used by NotebookUtils) to work
@@ -169,48 +171,56 @@ class NotebookUtils():
         self.destination_filename       = destination_filename
     
     def run(self, parent_trace):
-        # As documented in https://nbconvert.readthedocs.io/en/latest/execute_api.html
-        #
-        # May get an error like this unless we explicity use UTF8 encoding:
-        #
-        #   File "C:\Alex\CodeImages\technos\anaconda3\envs\ea-journeys-env\lib\encodings\cp1252.py", line 19, in encode
-        #   return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-        #   UnicodeEncodeError: 'charmap' codec can't encode character '\u2610' in position 61874: character maps to <undefined>
-        #     
-        my_trace                        = parent_trace.doing("Attempting to load notebook")
-        try:
-            with open(self.src_folder + '/' + self.src_filename, encoding="utf8") as f:
-                nb = _nbformat.read(f, as_version=4)
-        except Exception as ex:
-            raise ApodeixiError("Encountered this error while loading notebook: " + str(ex),
-                                data    = { 'src_folder':           self.src_folder,
-                                            'src_filename':         self.src_filename})
+        # Catch warnings and handle them so that we avoid spurious noise in the CLI due to noisy 3rd party libraries
+        with warnings.catch_warnings(record=True) as w:
+            WarningUtils().turn_traceback_on(parent_trace, warnings_list=w) 
+
+            # As documented in https://nbconvert.readthedocs.io/en/latest/execute_api.html
+            #
+            # May get an error like this unless we explicity use UTF8 encoding:
+            #
+            #   File "C:\Alex\CodeImages\technos\anaconda3\envs\ea-journeys-env\lib\encodings\cp1252.py", line 19, in encode
+            #   return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+            #   UnicodeEncodeError: 'charmap' codec can't encode character '\u2610' in position 61874: character maps to <undefined>
+            #     
+            my_trace                        = parent_trace.doing("Attempting to load notebook")
+            try:
+                with open(self.src_folder + '/' + self.src_filename, encoding="utf8") as f:
+                    nb = _nbformat.read(f, as_version=4)
+            except Exception as ex:
+                raise ApodeixiError("Encountered this error while loading notebook: " + str(ex),
+                                    data    = { 'src_folder':           self.src_folder,
+                                                'src_filename':         self.src_filename})
 
 
-        my_trace                        = parent_trace.doing("Attempting to execute notebook")
-        try:
-            #ep = ExecutePreprocessor(timeout=600, kernel_name='python3') 
-            ep = ExecutePreprocessor(timeout=600) # Use virtual-env's kernel, so don't specify: kernel_name='python3'
+            my_trace                        = parent_trace.doing("Attempting to execute notebook")
+            try:
+                #ep = ExecutePreprocessor(timeout=600, kernel_name='python3') 
+                ep = ExecutePreprocessor(timeout=600) # Use virtual-env's kernel, so don't specify: kernel_name='python3'
 
-            ep.preprocess(nb, {'metadata': {'path': self.destination_folder + '/'}}) # notebook executes in the directory specified by the 'path' metadata field
-        except Exception as ex:
-            raise ApodeixiError(my_trace, "Encountered this error while executing notebook: " + str(ex),
-                                data    = { 'src_folder':           self.src_folder,
-                                            'src_filename':         self.src_filename})
+                ep.preprocess(nb, {'metadata': {'path': self.destination_folder + '/'}}) # notebook executes in the directory specified by the 'path' metadata field
+            except Exception as ex:
+                raise ApodeixiError(my_trace, "Encountered this error while executing notebook: " + str(ex),
+                                    data    = { 'src_folder':           self.src_folder,
+                                                'src_filename':         self.src_filename})
 
 
-        my_trace                        = parent_trace.doing("Attempting to save notebook")
-        try:
-            if self.destination_folder != None and self.destination_filename != None:
-                with open(self.destination_folder + '/' + self.destination_filename, 'w', encoding='utf-8') as f:
-                    _nbformat.write(nb, f)
-        except Exception as ex:
-            raise ApodeixiError("Encountered this error while executing notebook: " + str(ex),
-                                data    = { 'destination_folder':           self.destination_folder,
-                                            'destination_filename':         self.destination_filename})
+            my_trace                        = parent_trace.doing("Attempting to save notebook")
+            try:
+                if self.destination_folder != None and self.destination_filename != None:
+                    with open(self.destination_folder + '/' + self.destination_filename, 'w', encoding='utf-8') as f:
+                        _nbformat.write(nb, f)
+            except Exception as ex:
+                raise ApodeixiError("Encountered this error while executing notebook: " + str(ex),
+                                    data    = { 'destination_folder':           self.destination_folder,
+                                                'destination_filename':         self.destination_filename})
 
-        my_trace                        = parent_trace.doing("Converting notebook to dictionary after executing it")
-        return NotebookUtils._val_to_dict(my_trace, nb) 
+            WarningUtils().handle_warnings(parent_trace, warning_list=w)
+            
+            my_trace                        = parent_trace.doing("Converting notebook to dictionary after executing it")
+            return NotebookUtils._val_to_dict(my_trace, nb) 
+        
+            
 
     def _val_to_dict(parent_trace, val):
         try:
