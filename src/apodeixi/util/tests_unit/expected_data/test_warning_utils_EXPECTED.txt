@@ -64,7 +64,7 @@ Here are the functional activities that led to the problem (stack trace at the b
 Traceback (most recent call last):
   File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\tests_unit\test_warning_utils.py", line 26, in test_warning_utils
     WarningUtils().handle_warnings(my_trace, warning_list=w)
-  File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\warning_utils.py", line 148, in handle_warnings
+  File "c:\users\aleja\documents\code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\warning_utils.py", line 148, in handle_warnings
     raise ApodeixiError(parent_trace, "A dependency issued " + str(len(warning_list)) + " warning(s)",
 apodeixi.util.a6i_error.ApodeixiError: (ApodeixiError(...), 'A dependency issued 1 warning(s)')
 
