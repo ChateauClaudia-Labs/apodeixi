@@ -16,7 +16,7 @@ requirements:
     - openpyxl >=3.0.9
     - pyyaml >=6.0
     - xlsxwriter >=3.0.2
-    - nltk >=3.6.5
+    - nltk ==3.6.3 # Avoid version 3.6.5: distribution has inconsistent Python versions in egg-info vs package's pycache, so setuptools fails when creating an Apodeixi distribution
     - setuptools >=58.0.4
     - jinja2 >=2.11.3
     - wheel >=0.37.0
@@ -24,7 +24,7 @@ requirements:
     - notebook >=6.4.6
     - conda-build >=3.21.7
     - toml >=0.10.2
-    - click >=8.0.3
+    - click ==8.0.1 # Avoid version 8.0.3: distribution has inconsistent Python versions in egg-info vs package's pycache, so setuptools fails when creating an Apodeixi distribution
     - tabulate >=0.8.9
 
   run: # Include any dependencies that the user should be prompted to also install when installing our package
@@ -34,10 +34,10 @@ requirements:
     - pyyaml >=6.0
     - xlsxwriter >=3.0.2
     - jinja2 >=2.11.3
-    - nltk >=3.6.5
+    - nltk ==3.6.3 # Avoid version 3.6.5: distribution has inconsistent Python versions in egg-info vs package's pycache, so setuptools fails when creating an Apodeixi distribution
     - notebook >=6.4.6
     - toml >=0.10.2
-    - click >=8.0.3
+    - click ==8.0.1 # Avoid version 8.0.3: distribution has inconsistent Python versions in egg-info vs package's pycache, so setuptools fails when creating an Apodeixi distribution
     - tabulate >=0.8.9
     
 
