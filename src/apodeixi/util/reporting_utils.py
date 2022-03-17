@@ -1475,23 +1475,24 @@ class TimebucketStandardizer():
         for col in raw_columns:
             if col in result: # Means this is a duplicate. So look for the first integer that disambiguates it
                 idx                     = 1
-                if type(col) == tuple:
-                    duplicate_txt       = str(col[-1]).strip()
-                    # GOTCHA: Avoid empty strings, as regression tests would fail by causing the cell in Excel
-                    # to be ".1" which will be read as 0.1
-                    if len(duplicate_txt) == 0:
-                        duplicate_txt   = "_"
-                    candidate           = tuple(list(col[:-1]) + [duplicate_txt + "." + str(idx)])
-
-                else:
-                    duplicate_txt       = str(col).strip()
-                    # GOTCHA: Avoid empty strings, as regression tests would fail by causing the cell in Excel
-                    # to be ".1" which will be read as 0.1
-                    if len(duplicate_txt) == 0:
-                        duplicate_txt   = "_"
-                    candidate               = duplicate_txt + "." + str(idx)
                 LIMIT                   = 1000 # To avoid infinite loops if there is a bug, constrain unbounded search
                 while idx < LIMIT:
+                    if type(col) == tuple:
+                        duplicate_txt       = str(col[-1]).strip()
+                        # GOTCHA: Avoid empty strings, as regression tests would fail by causing the cell in Excel
+                        # to be ".1" which will be read as 0.1
+                        if len(duplicate_txt) == 0:
+                            duplicate_txt   = "_"
+                        candidate           = tuple(list(col[:-1]) + [duplicate_txt + "." + str(idx)])
+
+                    else:
+                        duplicate_txt       = str(col).strip()
+                        # GOTCHA: Avoid empty strings, as regression tests would fail by causing the cell in Excel
+                        # to be ".1" which will be read as 0.1
+                        if len(duplicate_txt) == 0:
+                            duplicate_txt   = "_"
+                        candidate               = duplicate_txt + "." + str(idx)
+
                     if not candidate in result:
                         result.append(candidate)
                         break
