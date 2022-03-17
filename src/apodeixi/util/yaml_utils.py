@@ -9,6 +9,19 @@ from apodeixi.util.warning_utils            import WarningUtils
 #YAML_LOADER                         = _yaml.FullLoader
 #YAML_DUMPER                         = _yaml.SafeDumper
 
+'''
+This cache was added as part of Apodeixi performance improvements made in March 2022. It was found that early adopters encountered
+a performance degradation in production, which seemed to become worse as time went by. Initial profiling suggested that the
+Apodeixi function `isolation_kb_store.py:_getMatchingManifests` was making a call to load every YAML file in the system
+as a way to find if manifests already exist matching a particular manifest handle. Thus, to load a single manifest we
+were in effect loading the entire database of manifests. And this was being done multiple times, as many times as there
+were manifests to load.
+As an initial low-hanging fruit, this cache was introduced so that we only load (and therefore de-serialize) a manifest once.
+
+The cache has paths as keys and dictionaries as values.
+'''
+_YAML_CACHE = {}
+
 class YAML_Utils():
     '''
     Utility class to robustly access YAML functionality, such as loading YAML files.
@@ -22,6 +35,8 @@ class YAML_Utils():
         '''
         Returns a dictionary, corresponding to the loaded representation of the YAML file in the given `path`
         '''
+        if path in _YAML_CACHE.keys():
+            return _YAML_CACHE[path]
         try:
             with open(path, 'r', encoding="utf8") as file:
                 # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
@@ -60,6 +75,7 @@ class YAML_Utils():
 
                 _yaml.dump(data_dict, file) #, Dumper=YAML_DUMPER)
             
+                _YAML_CACHE[path] = data_dict
                 WarningUtils().handle_warnings(parent_trace, warning_list=w)           
 
     def dict_to_yaml_string(self, parent_trace, data_dict):

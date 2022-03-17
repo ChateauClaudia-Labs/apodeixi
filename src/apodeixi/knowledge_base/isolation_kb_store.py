@@ -968,15 +968,29 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
 
         # Two areas where to search for manifests: input area, and output area. First the input area
         for filename in self._getFilenames(parent_trace, folder):
-            my_trace            = parent_trace.doing("Loading manifest from file",
+            loop_trace            = parent_trace.doing("Loading manifest from file",
                                                         data = {'filename':         filename,
                                                                 'folder':           folder},
                                                         origination = {
                                                                 'concrete class':   str(self.__class__.__name__), 
                                                                 'signaled_from':    __file__})
-            manifest_dict   = YAML_Utils().load(my_trace, folder + '/' + filename)
             
-            inferred_handle     = ManifestUtils().inferHandle(my_trace, manifest_dict)
+            # Example: filename might be 'big-rock.2.yaml' so tokens becomes ['big-rock', '2', 'yaml']
+            tokens                                  = filename.split(".") 
+            
+            if len(tokens) != 3:
+                raise ApodeixiError(loop_trace, "Encountered unrecognized YAML in manifests' area of Knowledge Base store",
+                                                    data = {"bad filename":     str(filename),
+                                                            "expected structure":   "<kind>.<version nb>.yaml"})
+            if tokens[0] != manifest_handle.kind: # This file is a manifest for a different kind
+                continue
+            version_found                           = int(tokens[1])
+            if version_found != manifest_handle.version: # This file is a manifest for the right kind, but wrong version
+                continue
+
+            manifest_dict   = YAML_Utils().load(loop_trace, folder + '/' + filename)
+            
+            inferred_handle     = ManifestUtils().inferHandle(loop_trace, manifest_dict)
             #if inferred_handle == manifest_handle: # This looks wrong as it will fail if later we change API version
             if inferred_handle == manifest_handle:
                 matching_filenames.append(filename)
