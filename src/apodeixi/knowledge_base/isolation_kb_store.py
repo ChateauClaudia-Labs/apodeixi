@@ -633,9 +633,23 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
         PathUtils().create_path_if_needed(parent_trace=parent_trace, path=manifest_dir)
         version                             = 1
         FOREIGN_KEY_FILE                    = "foreign_key_contraints." + str(version) + ".yaml"
+
+        # GOTCHA: Don't use the YAML Cache for foreign key constraints, because the current quirky implementation never
+        #       increases the version number, which causes "data loss" during transaction commits: while commits will
+        #       correctly "copy" the foreign key constraints from a sub-environment to the parent-environment, the
+        #       YAML Cache doesn't know that. This wouldn't be a problem except that it seems that the parent environment's
+        #       foreign key constraints where previously set in the cache to an empty dictionary. Since foreign key constraints
+        #       don't increase version number, the YAML Cache incorrectly believes that the parent environment's integrity
+        #       constraints are an empty dictionary, since the key in the YAML Cache is the same (as version is always 1)
+        #       for foreign key constraints).
+        #
+        #   Bottom line: don't use the YAML Cache for integrity constraints until integrity constraints subsystem is
+        #   properly re-designed.
+        # 
         YAML_Utils().save(  parent_trace, 
                             data_dict       = foreign_key_constraints_dict, 
-                            path            = manifest_dir + "/" + FOREIGN_KEY_FILE)
+                            path            = manifest_dir + "/" + FOREIGN_KEY_FILE,
+                            use_cache       = False)
 
     def loadForeignKeyConstraints(self, parent_trace):
         '''
@@ -656,7 +670,19 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
             # There is are no pre-existing constraints to load, so just create an empty registry and return
             return None, full_path
 
-        loaded_dict                         = YAML_Utils().load(parent_trace, path = full_path)
+        # GOTCHA: Don't use the YAML Cache for foreign key constraints, because the current quirky implementation never
+        #       increases the version number, which causes "data loss" during transaction commits: while commits will
+        #       correctly "copy" the foreign key constraints from a sub-environment to the parent-environment, the
+        #       YAML Cache doesn't know that. This wouldn't be a problem except that it seems that the parent environment's
+        #       foreign key constraints where previously set in the cache to an empty dictionary. Since foreign key constraints
+        #       don't increase version number, the YAML Cache incorrectly believes that the parent environment's integrity
+        #       constraints are an empty dictionary, since the key in the YAML Cache is the same (as version is always 1)
+        #       for foreign key constraints).
+        #
+        #   Bottom line: don't use the YAML Cache for integrity constraints until integrity constraints subsystem is
+        #   properly re-designed.
+        # 
+        loaded_dict                         = YAML_Utils().load(parent_trace, path = full_path, use_cache=False)
 
         foreign_key_constraints             = ForeignKeyConstraintsRegistry.from_persisted_dict(
                                                                             parent_trace, 

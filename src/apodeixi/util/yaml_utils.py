@@ -31,12 +31,13 @@ class YAML_Utils():
     def __init__(self):
         pass
 
-    def load(self, parent_trace, path):
+    def load(self, parent_trace, path, use_cache=True):
         '''
         Returns a dictionary, corresponding to the loaded representation of the YAML file in the given `path`
         '''
-        if path in _YAML_CACHE.keys():
+        if use_cache and path in _YAML_CACHE.keys():
             return _YAML_CACHE[path]
+
         try:
             with open(path, 'r', encoding="utf8") as file:
                 # YAML invokes asyncio.base_events.py, that is noisy and issues spurious ResourceWarnings. So catch and suppress
@@ -45,6 +46,8 @@ class YAML_Utils():
                     WarningUtils().turn_traceback_on(parent_trace, warnings_list=w)
 
                     loaded_dict             = _yaml.load(file, Loader=_yaml.FullLoader)
+                    if use_cache:
+                        _YAML_CACHE[path]       = loaded_dict
 
                     WarningUtils().handle_warnings(parent_trace, warning_list=w)
                     return loaded_dict
@@ -53,7 +56,7 @@ class YAML_Utils():
                                  data = {"path":        str(path),
                                         "error":        str(ex)})
 
-    def save(self, parent_trace, data_dict, path):
+    def save(self, parent_trace, data_dict, path, use_cache=True):
         '''
         '''
         # As documented in https://nbconvert.readthedocs.io/en/latest/execute_api.html
@@ -75,7 +78,8 @@ class YAML_Utils():
 
                 _yaml.dump(data_dict, file) #, Dumper=YAML_DUMPER)
             
-                _YAML_CACHE[path] = data_dict
+                if use_cache:
+                    _YAML_CACHE[path] = data_dict
                 WarningUtils().handle_warnings(parent_trace, warning_list=w)           
 
     def dict_to_yaml_string(self, parent_trace, data_dict):
