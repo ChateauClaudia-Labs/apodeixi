@@ -301,8 +301,12 @@ class ForeignKeyLink():
                 the referencing_handle. This path must have a value that is either a UID or a list of UIDs.
     @param store A KnowledgeBaseStore instance, giving access to the store in which the referencing_handle is a valid
                 identifier for a a manifest.
+    @param referenced_uids Optional parameter: a list of the UIDs in the referenced manifest that this link points to.
+        If not set, then a lookup will be done to load the referencing manifest from the store and read out the UIDs 
+        of the referenced manifest that it points to. For performance reasons, it is better to pass this parameter if it is
+        available to the caller.
     '''
-    def __init__(self, parent_trace, referencing_handle, referencing_path, store):
+    def __init__(self, parent_trace, referencing_handle, referencing_path, store, referenced_uids=None):
 
         # First validation link is well-formed: types are right
         if type(referencing_handle) != ManifestHandle:
@@ -321,7 +325,8 @@ class ForeignKeyLink():
 
         # Second validation link is well-formed: the path is valid and it points to UIDs, and remember those UIDs
         my_trace                            = parent_trace.doing("Getting the UIDs referenced by referencing manifest")
-        referenced_uids                     = self._retrieve_referenced_uids(my_trace)
+        if referenced_uids == None:
+            referenced_uids                     = self._retrieve_referenced_uids(my_trace)
 
         self.referenced_uids                = referenced_uids
 
@@ -373,8 +378,10 @@ class ForeignKeyLink():
         '''
         referencing_handle                  = persisted_dict["referencing_handle"]
         referencing_path                    = persisted_dict["referencing_path"] 
+        referenced_uids                     = persisted_dict["referenced_uids"]
 
-        result                              = ForeignKeyLink(parent_trace, referencing_handle, referencing_path, store)
+        result                              = ForeignKeyLink(parent_trace, referencing_handle, referencing_path, store,
+                                                                referenced_uids = referenced_uids)
     
         return result
     

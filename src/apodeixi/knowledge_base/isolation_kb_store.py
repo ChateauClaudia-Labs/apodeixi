@@ -1,5 +1,4 @@
 import os                                               as _os
-from pathlib import Path
 import shutil                                           as _shutil
 from apodeixi.util.formatting_utils import StringUtils
 
@@ -745,46 +744,47 @@ class Isolation_KBStore_Impl(File_KBStore_Impl):
                                                                     + namespace + '/' + name
         result_dict                                 = None
         result_path                                 = None
-        result_api_version_suffix                   = None
-        latest_version                              = -1 # Will overwrite as we find higher versions in the loop
-        for filename in self._getFilenames(parent_trace, folder):
-            loop_trace                              = my_trace.doing("Considering filename candidate",
-                                                                data = {'filename':         filename,
-                                                                        'folder':           folder},
-                                                                origination = {
-                                                                        'concrete class':   str(self.__class__.__name__), 
-                                                                        'signaled_from':    __file__})
+        
+        candidates                                  = self._getFilenames(parent_trace, folder)
+        candidates                                  = [file for file in candidates if len(file.split("."))==3] # of form <kind>.<version nb>.yaml
+        candidates                                  = [file for file in candidates if file.split(".")[0]==kind]
+        pairs                                       = [(file, int(file.split(".")[1])) for file in candidates] # List be version number
+        if len(pairs) == 0:
+            return None, None
 
-            # Example: filename might be 'big-rock.2.yaml' so tokens becomes ['big-rock', '2', 'yaml']
-            tokens                                  = filename.split(".") 
-            
-            if len(tokens) != 3:
-                raise ApodeixiError(loop_trace, "Encountered unrecognized YAML in manifests' area of Knowledge Base store",
-                                                    data = {"bad filename":     str(filename),
-                                                            "expected structure":   "<kind>.<version nb>.yaml"})
-            if tokens[0] != kind: # This file is a manifest for a different kind
-                continue
-            version_found                           = int(tokens[1])
-            if version_found <= latest_version:
-                continue
-            # So far so good. But check API just in case different manifest APIs have the same 'kind' in 
-            # their schemas
-            manifest_dict                       = YAML_Utils().load(parent_trace, path = folder + '/' + filename)
-            # We will look inside the manifest to make some consistency checks:
-            if not self._check_manifest_matches(parent_trace, 
-                                                manifest_filename       = filename,
-                                                manifest_dict           = manifest_dict, 
-                                                manifest_api_name       = manifest_api_name, 
-                                                namespace               = namespace, 
-                                                name                    = name, 
-                                                kind                    = kind,
-                                                minimal_version         = latest_version + 1):
-                continue
-            # If we get this far then this is a bona fide manifest matching our search criteria and also
-            # of a more recent version than anything we found previously
-            result_dict                         = manifest_dict
-            result_path                         = folder + '/' + filename
-            latest_version                      = version_found # increase latest_version for next cycle of loop
+        latest_version                              = max([pair[1] for pair in pairs])
+        candidates                                  = [pair[0] for pair in pairs if pair[1]==latest_version]
+
+        if len(candidates) > 1:
+            raise ApodeixiError(parent_trace, "There is more than 1 possible candidate as the latest manifest. KnowledgeBase sees corrupted",
+                                                data = {'folder':       folder,
+                                                        'candidates':   str(candidates)})
+        filename                                    = candidates[0]
+
+        # So far so good. But check API just in case different manifest APIs have the same 'kind' in 
+        # their schemas
+        manifest_dict                       = YAML_Utils().load(parent_trace, path = folder + '/' + filename)
+        # We will look inside the manifest to make some consistency checks:
+        if not self._check_manifest_matches(parent_trace, 
+                                            manifest_filename       = filename,
+                                            manifest_dict           = manifest_dict, 
+                                            manifest_api_name       = manifest_api_name, 
+                                            namespace               = namespace, 
+                                            name                    = name, 
+                                            kind                    = kind,
+                                            minimal_version         = latest_version):
+            #continue
+            raise ApodeixiError(parent_trace, "Manifest in KnowledgeBase does not match expected manifest api name (modulo version)",
+                                            data = {'folder':           folder,
+                                                    'filename':         filename,
+                                                    'expected API':     manifest_api_name,
+                                                    'API in manifest':  manifest_dict['apiVersion']})
+
+        # If we get this far then this is a bona fide manifest matching our search criteria and also
+        # of a more recent version than anything we found previously
+        result_dict                         = manifest_dict
+        result_path                         = folder + '/' + filename
+        #latest_version                      = version_found # increase latest_version for next cycle of loop
                 
         return result_dict, result_path
     
