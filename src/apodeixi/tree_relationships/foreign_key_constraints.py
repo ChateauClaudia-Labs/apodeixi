@@ -1,3 +1,4 @@
+import itertools                                                    as _itertools
 
 from apodeixi.knowledge_base.knowledge_base_util                    import ManifestHandle
 from apodeixi.knowledge_base.knowledge_base_store                   import KnowledgeBaseStore
@@ -116,32 +117,48 @@ class ForeignKeyConstraintsRegistry():
         if handle.version == 0:
             return # This is a create, not an update, so nothing to check
 
-        prior_handle                                = handle.copy()
-        prior_handle.version                        = handle.version -1
-
-        if not prior_handle in self.registry.keys():
-            return # There are no constraints registered against this manifest
+        pertinent_constraints                       = [(h, fkc_entries) for (h, fkc_entries) in self.registry.items() 
+                                                                if h.getManifestType() == handle.getManifestType() ]
+        if len(pertinent_constraints) == 0:
+            return # There are no constraints registered against this manifest type
         
         manifest_uids                               = ManifestUtils().get_manifest_uids(parent_trace, manifest_dict)
 
-        prior_dict, prior_path                      = self.store.retrieveManifest(parent_trace, prior_handle)
-        prior_uids                                  = ManifestUtils().get_manifest_uids(parent_trace, prior_dict)
-
-        deleted_uids                                = [uid for uid in prior_uids if not uid in manifest_uids]
-        
-        constraint_entries                          = self.registry[prior_handle]
-
-        # Filter the links in the constraint_entries to be the latest version of each referencing manifest
         if True:
-            handle_types                                = [link.referencing_handle.getManifestType() 
-                                                                for link in constraint_entries.links]
+            # Take the union of all links across all of the pertinent constraints
+            all_links                               = list(_itertools.chain(*[fck_entries.links 
+                                                            for (h, fck_entries) in pertinent_constraints]))
+
+            # Take the union of all referencing types across all links across all pertinent_constraints
+            referencing_handle_types                = [link.referencing_handle.getManifestType() for link in all_links]
+
             #Remove duplicates
-            handle_types                                = list(set(handle_types))
+            referencing_handle_types                = list(set(referencing_handle_types))
 
             filtered_links                              = []
-            for ht in handle_types:
-                matching_links                          = [link for link in constraint_entries.links if
+            for ht in referencing_handle_types:
+                # Each referencing handle type may appear in multiple pertinent constraints.
+                # For example, consider the case of milestones manifests that reference big-rocks manifests.
+                #
+                # In that example, suppose that there is a constraint under big-rock's version 2, which contains
+                # links for milestones' version 2, say. Imagine that big-rocks are posted a few times, elevating
+                # the big-rock version to version 8. Meanwhile, milestones is still at version 2. If milestones is
+                # then posted, the milestone's version changes to 3, and since it points to version 8 of big-rocks, that
+                # leads to a new ForeignKeyConstraintEntries constraint created (for big-rock version 8) under which
+                # there would be a list of links for milestone (version 3)
+                #
+                # Thus, if we have to check constraints for referencing handle type ht=milestones, then we would have
+                # multiple big-rock entries in the constraints data structure, each of them with milestones links.
+                #
+                # Of these multiple links, we only care about the ones for which the milestone version is highest.
+                #
+                # Hence we need to search for the highest version of the referencing manifest in the links,
+                # and then only enforce those links when checking constraints.
+                # 
+                # 
+                matching_links                          = [link for link in all_links if 
                                                             link.referencing_handle.getManifestType()== ht]
+
                 latest_version                          = max([link.referencing_handle.version for link in matching_links])
                 latest_links                            = [link for link in matching_links if
                                                             link.referencing_handle.version == latest_version]
@@ -156,7 +173,7 @@ class ForeignKeyConstraintsRegistry():
         violations                                  = {}
         for link in filtered_links: #constraint_entries.links:
             referenced_uids                         = link.referenced_uids
-            link_violations                         = [uid for uid in deleted_uids if uid in referenced_uids]
+            link_violations                         = [uid for uid in referenced_uids if not uid in manifest_uids]
             if len(link_violations)  > 0:
                 violations[link.referencing_handle] = link_violations
 
@@ -227,6 +244,11 @@ class ForeignKeyConstraintEntries():
         self.links                          = [] # A list of ForeignKeyLinks
         self.store                          = store
 
+        '''
+        As part of performance improvements in March, 2022, the block of text below was removed.
+        See a comment in self.addLink that explains why this can be removed safely as part of those performance improvements.
+
+
         # Load and remember the manifest. It will never go stale even if the user "updates" the manifest, since
         # manifests are immutable in the store: an update from the user would create a new YAML object in the store, with
         # a higher version number, which would not be the one referenced by the version number of
@@ -234,6 +256,7 @@ class ForeignKeyConstraintEntries():
         # self.referenced_handle points to
         #
         self.referenced_dict, ref_path      = self.store.retrieveManifest(parent_trace, self.referenced_handle)
+        '''
 
     def addLink(self, parent_trace, link):
         '''
@@ -244,6 +267,17 @@ class ForeignKeyConstraintEntries():
                                                 data = {"type of link":     str(type(link))})
             
         referenced_uids                     = link.referenced_uids
+
+        '''
+        As part of performance improvements in March, 2022, the block of text below was removed.
+        During that performance analysis it was found that in practice, the only callers to addLink already have access to
+        the referenced manifest as a dictionary in memory and have ensured that the UIDs in the link that point to entities in
+        the referenced manifest are valid. Therefore there is no need for this check, which in turn relieves the need
+        for this class's constructor to retrieve the referenced manifest from disk. This is a performance improvement since 
+        otherwise the act of doing a single big-rocks post for product X to the KnowledgeBase would force validating all UIDs in all integrity
+        constraints across all products, not just product X, causing again and again a re-loading of all big rock manifests
+        (i.e., loading YAML from disk and de-serializing it). That's a performance drag for something that is not really needed,
+        it seems: validate the link's UIDs against the referenced manifest.
 
         # Validate that referenced_uids are UIDs that exist in the referenced manifest
         my_trace                            = parent_trace.doing("Validating that referenced UIDs point to real UIDs")
@@ -257,6 +291,7 @@ class ForeignKeyConstraintEntries():
         # If we get this far, then the link is "good": it references UIDs that do exist in the referenced manifest.
         # So now we can safely add the link
         #
+        '''
         self.links.append(link)
 
     def merge(self, parent_trace, other_entries):
