@@ -204,7 +204,7 @@ class ColumnWidthCalculator:
             processor = TextProcessor(proposed_width)
             text      = ' '.join(word_list)
             processor.processText(parent_trace=parent_trace, text=text)
-            nb_lines_list.append(len(processor.lines))
+            nb_lines_list.append(processor.nb_lines)
 
         # So in the event that column is set to a width of `width`, the maximal number of lines in
         # a row of data_df as a result of such a decision is this max:
@@ -461,7 +461,7 @@ class _ScenarioGenerator():
                 # Find how many lines this used to take
                 processor                        = TextProcessor(prior_width)
                 processor.processText(parent_trace=self.parent_trace, text=text)
-                prior_nb_lines                   = len(processor.lines)
+                prior_nb_lines                   = processor.nb_lines
                 
                 if prior_nb_lines >= self.row_height_limit:
                     explanations.append(EXPLANATION_PREFIX 
@@ -541,7 +541,7 @@ class _ScenarioGenerator():
             next_what_if_width    = what_if_width - 1
             processor             = TextProcessor(next_what_if_width)
             processor.processText(parent_trace=self.parent_trace, text=text)
-            next_what_if_nb_lines = len(processor.lines)
+            next_what_if_nb_lines = processor.nb_lines
             if next_what_if_nb_lines > prior_nb_lines + 1: 
                 # Reached an invalid option - grew line nb too much, so exit loop and use last what if
                 # Unless this was the first cycle of loop, in which case we need an explanation for

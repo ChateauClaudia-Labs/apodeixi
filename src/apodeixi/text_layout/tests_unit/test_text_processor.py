@@ -29,7 +29,7 @@ class Test_TextProcessor(ApodeixiUnitTest):
                 my_trace            = root_trace.doing("Invoking text processonr for width=" + str(w))
                 processor           = TextProcessor(line_width=w)
                 processor           .processText(parent_trace=my_trace, text=TEXT)
-                outputs[w]          = '\n'.join(processor.lines)
+                outputs[w]          = '\n'.join(processor._lines)
                 with open(self.output_data + '/'  'test_small_text_' + str(w) + '_OUTPUT.txt', 'w') as file:
                     file            .write(outputs[w])
                 with open(self.expected_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'r') as file:
