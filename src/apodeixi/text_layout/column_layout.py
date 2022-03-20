@@ -291,7 +291,10 @@ class ColumnWidthCalculator:
             loop_trace = parent_trace.doing("Computing the width for a row",
                                             data = {"column":   str(column),
                                                     "row number in dataset": str(row[0]),
-                                                    "row data": str(row[1])})
+                                                    # GOTCHA: There is a bit performance penalty of doing
+                                                    #           str(row[1]) because __repr__ for Pandas Series is slow.
+                                                    #           So instead we extract the values first, then stringify
+                                                    "row data": str(row[1].values)})
             # We format the row data so that we measure its length the way it would be displayed in Excel
             # to the user. That way our width computations match the width the user would experience
             width       = len(formatter(loop_trace, row[1][column]))

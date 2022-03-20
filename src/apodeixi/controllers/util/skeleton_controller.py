@@ -541,6 +541,19 @@ class SkeletonController(PostingController):
         for data_handle in self.getDataHandles(parent_trace, posting_label_handle):
             kind                            = data_handle.kind
             manifest_nb                     = data_handle.manifest_nb
+
+            # GOTCHA
+            #       We must process *ALL* manifests, even the read-only ones, because only by parsing them (through
+            #       the call to self._buildOneManifest) would we know the Excel row numbers for aligning the various
+            #       manifests in the same Excel posting (some might be read-only, others would be new manifests to be saved)
+            #
+            #       This has a suboptimal performance impact, since in the case of read-only manifests
+            #       we effectively have to parse data from Excel that
+            #       (other than for row numbers) we already have on disk. On a misguided attempt to make things faster,
+            #       I tried skip processing for read-only manifests (loading them from disk instead), but that broke
+            #       Apodeixi because the row linkage was not available to tell the parser for non-read-only manifests
+            #       what UIDs to reference in the read-only manifest.
+
             excel_range                     = data_handle.excel_range
             
             my_trace                        = parent_trace.doing("Parsing data for 1 manifest", 
