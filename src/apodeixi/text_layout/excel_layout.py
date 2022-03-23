@@ -170,8 +170,13 @@ class NumFormats():
                     x = 0
                 return "{:,.0f}".format(float(x)) # Render 4500 as 4,500
             except Exception as ex:
-                raise ApodeixiError(parent_trace, "Formatter failed when converting '" + str(x) + "' to float",
-                                    data = {"error": str(ex)})
+                # Change made in March 2022: turns out some humans are putting characters like "?" in columns for
+                # numbers, when they don't know what it is. To avoid an exception that prevents generating a form for such
+                # a manifest, enter "-1" and have the human fix it, instead of raising an exception and failing to
+                # get an Excel form generated.
+                return "-1"
+                #raise ApodeixiError(parent_trace, "Formatter failed when converting '" + str(x) + "' to float",
+                #                    data = {"error": str(ex)})
         def _format_as_double(parent_trace, x):
             try:
                 # Avoid casting problems to float if x is blank, so make it a 0 if needed

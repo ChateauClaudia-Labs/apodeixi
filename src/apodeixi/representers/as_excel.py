@@ -801,7 +801,19 @@ class ManifestRepresenter:
             my_trace                    = parent_trace.doing("Adjusting column width so totals will fit")
             if True:
                 # To know the width, compute the total and format it to count how much space it needs
-                total                   = data_df[column].sum()
+
+                # Fix on March, 2022: turns out that some humans put things like "?" in numerical columns
+                # in Excel, then post to a manifest. So when we get here we may get an exception if some
+                # entry in data_df[column] is not a number. So fix that by avoiding
+                #           
+                #           total = data_df[column].sum()
+                #
+                # and instead adding a temporary copy of that column that "ignores" non-numbers (exclude them
+                # from sum)
+                tmp_series              = _pd.to_numeric(data_df[column], errors='coerce')
+                tmp_series              = tmp_series.fillna(0)
+
+                total                   = tmp_series.sum()
                 column_formatters       = NumFormats.xl_to_txt_formatters(config.num_formats)
                 if column in column_formatters.keys():
                     formatter           = column_formatters[column]
