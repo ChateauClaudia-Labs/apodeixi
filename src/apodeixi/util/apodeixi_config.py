@@ -63,8 +63,8 @@ class ApodeixiConfig():
                                                 + "figure out from which folder to load the Apodeixi configuration")
 
         if not _os.path.isdir(APODEIXI_CONFIG_DIRECTORY):
-            raise ApodeixiError(parent_trace, "Environment variable $APODEIXI_CONFIG_DIRECTORY does not point to a valid directory",
-                                                data = {'$APODEIXI_CONFIG_DIRECTORY': str(APODEIXI_CONFIG_DIRECTORY)})
+            raise ApodeixiError(parent_trace, "Environment variable $APODEIXI_CONFIG_DIRECTORY does not point to a valid directory: '"
+                                                + str(APODEIXI_CONFIG_DIRECTORY) + "'")
 
         return APODEIXI_CONFIG_DIRECTORY
 
