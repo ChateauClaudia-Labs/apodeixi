@@ -79,7 +79,7 @@ util:
           '
       test_a6i_config_EXPECTED.txt: '
 
-        Size (in bytes):  708
+        Size (in bytes):  716
 
         '
       test_compare_dataframes_comparison_EXPECTED.txt: '

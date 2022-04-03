@@ -46,7 +46,8 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Here we want the location of this class, not its concrete derived class,
         # since the location of the Apodexei config to be used for tests is globally unique
         # So we use __file__ 
-        _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), 'config') 
+        #_os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), 'config') 
+        _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), '../../../../test_db') 
 
         func_trace              = FunctionalTrace(  parent_trace    = None, 
                                                     path_mask       = None) # path_mask has not been set yet as an attribute

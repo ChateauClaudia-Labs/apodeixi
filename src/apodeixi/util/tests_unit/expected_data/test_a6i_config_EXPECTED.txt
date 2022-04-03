@@ -1,4 +1,4 @@
-secrets.folder		C:/Alex/Code/ea-journeys/secrets
+secrets.folder		<APODEIXI INSTALLATION>/apodeixi/secrets
 knowledge-base.knowledge-base-root-folder		<KNOWLEDGE BASE ROOT>
 knowledge-base.external-collaboration-folder		<EXTERNAL COLLABORATION FOLDER>
 organization-settings.month-fiscal-year-starts		6

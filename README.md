@@ -6,10 +6,10 @@ Proof-oriented, reverse Conway domain model for human organizations
 Apodeixi relies on an environment variable called APODEIXI_CONFIG_DIRECTORY that should be set to a folder containing 
 the Apodeixi configuration file to use. The configuration file must be called ApodeixiConfig.toml
 
-An example configuration (for testing purposes) is included in the distribution, referencing a test database external
-to the distribution. This example illustrates setting of the environment variable to that sample configuration:
+An example configuration (for testing purposes) is included in the test distribution (a separate GIT project), 
+referencing a test database external to the distribution. This example illustrates setting of the environment variable to that sample configuration:
 
-export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/project/src/apodeixi/testing_framework/config"
+export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db"
 
 For interactive testing, it is sometimes convenient to set up a UAT environment, with its dedicated configuration
 file, and point Apodeixi to it, as in this example:
