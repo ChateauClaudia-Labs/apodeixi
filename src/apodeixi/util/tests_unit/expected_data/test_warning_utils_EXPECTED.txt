@@ -10,39 +10,39 @@ Problem:	A dependency issued 1 warning(s)
             Stack Trace         : 
 ------------------------------------------------------------	Warnings Stack Trace
 
-<PYTHON MODULE>/runpy.py", line 197, in _run_module_as_main
+  File "<PYTHON MODULE>/runpy.py", line <HIDDEN>, in _run_module_as_main
     return _run_code(code, main_globals, None,
-<PYTHON MODULE>/runpy.py", line 87, in _run_code
+  File "<PYTHON MODULE>/runpy.py", line <HIDDEN>, in _run_code
     exec(code, run_globals)
-<PYTHON MODULE>/unittest/__main__.py", line 18, in <module>
+  File "<PYTHON MODULE>/unittest/__main__.py", line <HIDDEN>, in <module>
     main(module=None)
-<PYTHON MODULE>/unittest/main.py", line 101, in __init__
+  File "<PYTHON MODULE>/unittest/main.py", line <HIDDEN>, in __init__
     self.runTests()
-<PYTHON MODULE>/unittest/main.py", line 271, in runTests
+  File "<PYTHON MODULE>/unittest/main.py", line <HIDDEN>, in runTests
     self.result = testRunner.run(self.test)
-<PYTHON MODULE>/unittest/runner.py", line 176, in run
+  File "<PYTHON MODULE>/unittest/runner.py", line <HIDDEN>, in run
     test(result)
-<PYTHON MODULE>/unittest/suite.py", line 84, in __call__
+  File "<PYTHON MODULE>/unittest/suite.py", line <HIDDEN>, in __call__
     return self.run(*args, **kwds)
-<PYTHON MODULE>/unittest/suite.py", line 122, in run
+  File "<PYTHON MODULE>/unittest/suite.py", line <HIDDEN>, in run
     test(result)
-<PYTHON MODULE>/unittest/suite.py", line 84, in __call__
+  File "<PYTHON MODULE>/unittest/suite.py", line <HIDDEN>, in __call__
     return self.run(*args, **kwds)
-<PYTHON MODULE>/unittest/suite.py", line 122, in run
+  File "<PYTHON MODULE>/unittest/suite.py", line <HIDDEN>, in run
     test(result)
-<PYTHON MODULE>/unittest/suite.py", line 84, in __call__
+  File "<PYTHON MODULE>/unittest/suite.py", line <HIDDEN>, in __call__
     return self.run(*args, **kwds)
-<PYTHON MODULE>/unittest/suite.py", line 122, in run
+  File "<PYTHON MODULE>/unittest/suite.py", line <HIDDEN>, in run
     test(result)
-<PYTHON MODULE>/unittest/case.py", line 651, in __call__
+  File "<PYTHON MODULE>/unittest/case.py", line <HIDDEN>, in __call__
     return self.run(*args, **kwds)
-<PYTHON MODULE>/unittest/case.py", line 592, in run
+  File "<PYTHON MODULE>/unittest/case.py", line <HIDDEN>, in run
     self._callTestMethod(testMethod)
-<PYTHON MODULE>/unittest/case.py", line 550, in _callTestMethod
+  File "<PYTHON MODULE>/unittest/case.py", line <HIDDEN>, in _callTestMethod
     method()
 <APODEIXI INSTALLATION>/apodeixi/util/tests_unit/test_warning_utils.py", line 24, in test_warning_utils
     warnings.warn("Test warning for Warning Utils", DeprecationWarning)
-<PYTHON MODULE>/warnings.py", line 109, in _showwarnmsg
+  File "<PYTHON MODULE>/warnings.py", line <HIDDEN>, in _showwarnmsg
     sw(msg.message, msg.category, msg.filename, msg.lineno,
 <APODEIXI INSTALLATION>/apodeixi/util/warning_utils.py", line 49, in _warn_with_traceback
     traceback.print_stack(file=log)

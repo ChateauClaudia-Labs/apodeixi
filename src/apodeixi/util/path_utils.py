@@ -220,6 +220,7 @@ class PathUtils():
                 return raw_txt
             lines                                                   = raw_txt.split("\n")
             cleaned_lines                                           = []
+            LINE_NB_REGEX                                           = _re.compile(r'line [0-9]+')
             for line in lines:
                 linux_line                                          = self.to_linux(line)
                 if TEST_DB_ROOT != None and self.is_parent(parent_trace, parent_dir=TEST_DB_ROOT, path=line):
@@ -246,8 +247,22 @@ class PathUtils():
                 else:
                     module_path                                     = _match_sys_path(line)
                     if not module_path is None:
+                        '''
+                        masked_path                                 = _re.sub(module_path.replace("\\", "/"), 
+                                                                                '<PYTHON MODULE>', 
+                                                                                line)
+                        '''
                         tokens                                      = line.split(module_path)
-                        masked_path                                 = '<PYTHON MODULE>' + tokens[-1]
+                        if len(tokens) > 1:
+                            prefix                                  = tokens[0]
+                        else:
+                            prefix                                  = ""
+                        masked_path                                 = prefix + '<PYTHON MODULE>' + tokens[-1]
+
+                        # In case we are using a different minor version of Python, in a test run vs when regression test
+                        # output was created, don't want line numbers to cause spurious regression test failures
+                        masked_path                                 = _re.sub(LINE_NB_REGEX, 'line <HIDDEN>', masked_path)
+
                         cleaned_lines.append(masked_path)
                     else:
                         cleaned_lines.append(line)

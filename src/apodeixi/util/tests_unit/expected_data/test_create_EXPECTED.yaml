@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  30451
+    Size (in bytes):  31513
 
     '
   performance_utils.py: '
@@ -169,7 +169,7 @@ util:
         '
       test_warning_utils_EXPECTED.txt: '
 
-        Size (in bytes):  3234
+        Size (in bytes):  3447
 
         '
       ts_join_1_EXPECTED.csv: '

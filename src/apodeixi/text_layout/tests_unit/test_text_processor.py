@@ -30,10 +30,14 @@ class Test_TextProcessor(ApodeixiUnitTest):
                 processor           = TextProcessor(line_width=w)
                 processor           .processText(parent_trace=my_trace, text=TEXT)
                 outputs[w]          = '\n'.join(processor._lines)
-                with open(self.output_data + '/'  'test_small_text_' + str(w) + '_OUTPUT.txt', 'w') as file:
-                    file            .write(outputs[w])
-                with open(self.expected_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'r') as file:
-                    expected[w]     = file.read()
+                
+                # GOTCHA: For this to work both in Windows and Linux, encode explictly as UTF-8 bytes
+                with open(self.output_data + '/'  'test_small_text_' + str(w) + '_OUTPUT.txt', 'wb') as file:
+                    file            .write(outputs[w].encode('utf-8'))
+                with open(self.expected_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'rb') as file:
+                    raw             = file.read()
+                    expected[w]     = raw.decode('utf-8')
+
         except ApodeixiError as ex:
             print(ex.trace_message())
             self.assertTrue(1==2)                                                                                        
