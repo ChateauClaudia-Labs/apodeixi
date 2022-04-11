@@ -82,12 +82,20 @@ class Test_PathUtils(ApodeixiUnitTest):
             output_txt                      += '\n\n============ Testing tokenize_path ================\n'
 
             relative_path                   = "/visions\\ideas\\problems/corrections"
-            val                             = PathUtils().tokenizePath(my_trace, relative_path)
+            val                             = PathUtils().tokenizePath(my_trace, relative_path, absolute = False)
             output_txt                      += "\ntokenizePath(" + relative_path + ") = \n\t\t" + str(val)
                                                 
-            absolute_path                   = "C:/visions\\ideas\\problems/corrections"
+            # To test tokenization of an absolute path, we must be sensitive to whether we are in Windows or Linux in order
+            # to produce deterministic regression output. This means:
+            #   1. The absolute path should start with "C:\" in windows and "/C/" in Linux.
+            #   2. Don't display the drive in the regression test output (i.e., don't print the first token)
+            if _os.name == "nt":
+                absolute_path               = "C:\\visions\\ideas\\problems/corrections"
+            else:
+                absolute_path               = "/C/visions\\ideas\\problems/corrections"
+
             val                             = PathUtils().tokenizePath(my_trace, absolute_path)
-            output_txt                      += "\n\ntokenizePath(" + absolute_path + ") = \n\t\t" + str(val)
+            output_txt                      += "\n\ntokenizePath(" + "C:\\visions\\ideas\\problems/corrections" + ")[1:] = \n\t\t" + str(val[1:])
 
             self._compare_to_expected_txt(  parent_trace        = my_trace,
                                             output_txt          = output_txt,

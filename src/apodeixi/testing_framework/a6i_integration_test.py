@@ -204,6 +204,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
         # so the test case accepts accept whatever byte size is displayed for log files when displaying environment contents.
         self.ignore_log_files_byte_size                 = False
 
+
     def tearDown(self):
         super().tearDown()
 
@@ -465,7 +466,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
             KnowledgeBaseStore needs to load from disk the information about environments created from prior
             CLI commands, and that is what "METADATA.yaml" is for.
             Bottom line: no masking can go inside "METADATA.yaml", so its size in bytes will change if one
-            reloates the test DB, since its location appears inside "METADATA.yaml". So we "accept" whatever
+            relocates the test DB, since its location appears inside "METADATA.yaml". So we "accept" whatever
             byte size it has.
 
             3. Log output files like "POST_EVENT_LOG.txt" are normally masked in test output, so we want
@@ -478,19 +479,26 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
 
             '''
             if type(key) == str and key.endswith(".xlsx"): # This is an Excel file, apply tolerance
+
+                # If we are running in Linux and doing regression tests, then 
+                # we must "inflate" the tolerance because Linux and Windows zip files differently, which results
+                # in different sizes for Excel files (since an Excel file is just a set of XML files zipped up)
+                if _os.name !="nt":
+                    ADDITIONAL_TOLERANCE = 75
+                else:
+                    ADDITIONAL_TOLERANCE = 0
+
                 output_bytes        = _extract_bytes(output_val)
                 expected_bytes      = _extract_bytes(expected_val)
                 if output_bytes == None or expected_bytes == None: # Default to default comparison
                     return output_val == expected_val
                 else:
-                    return abs(output_bytes - expected_bytes) <= TOLERANCE
+                    return abs(output_bytes - expected_bytes) <= TOLERANCE + ADDITIONAL_TOLERANCE
             elif key == "METADATA.yaml":
                 return True # Just accept whatever number of bytes are shown, as per method documentation above
             elif self.ignore_log_files_byte_size == True and \
                         (key == "POST_EVENT_LOG.txt" or key == "FORM_REQUEST_EVENT_LOG.txt"):
                 return True # Just accept whatever number of bytes are shown, as per method documentation above.
-
-
 
             # If we get this far we were unable to detect the conditions for which tolerance applies, so
             # do a straight compare

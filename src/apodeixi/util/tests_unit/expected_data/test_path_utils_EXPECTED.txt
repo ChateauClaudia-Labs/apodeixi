@@ -23,5 +23,5 @@ relativize(< ... >, < ... >/input_data/test_path_utils_NOT_REAL.foo) =
 tokenizePath(/visions\ideas\problems/corrections) = 
 		['visions', 'ideas', 'problems', 'corrections']
 
-tokenizePath(C:/visions\ideas\problems/corrections) = 
-		['C:/', 'visions', 'ideas', 'problems', 'corrections']
+tokenizePath(C:\visions\ideas\problems/corrections)[1:] = 
+		['visions', 'ideas', 'problems', 'corrections']

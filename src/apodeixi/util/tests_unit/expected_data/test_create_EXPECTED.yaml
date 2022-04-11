@@ -6,12 +6,12 @@ util:
     '
   a6i_error.py: '
 
-    Size (in bytes):  13553
+    Size (in bytes):  15463
 
     '
   apodeixi_config.py: '
 
-    Size (in bytes):  13391
+    Size (in bytes):  13620
 
     '
   dataframe_utils.py: '
@@ -41,7 +41,7 @@ util:
     '
   path_utils.py: '
 
-    Size (in bytes):  24557
+    Size (in bytes):  30451
 
     '
   performance_utils.py: '
@@ -79,7 +79,7 @@ util:
           '
       test_a6i_config_EXPECTED.txt: '
 
-        Size (in bytes):  716
+        Size (in bytes):  703
 
         '
       test_compare_dataframes_comparison_EXPECTED.txt: '
@@ -109,7 +109,7 @@ util:
         '
       test_path_utils_EXPECTED.txt: '
 
-        Size (in bytes):  906
+        Size (in bytes):  903
 
         '
       test_standardizeOneTimebucketColumn_EXPECTED.txt: '
@@ -169,7 +169,7 @@ util:
         '
       test_warning_utils_EXPECTED.txt: '
 
-        Size (in bytes):  4328
+        Size (in bytes):  3234
 
         '
       ts_join_1_EXPECTED.csv: '
@@ -340,7 +340,7 @@ util:
       '
     test_path_utils.py: '
 
-      Size (in bytes):  5992
+      Size (in bytes):  6591
 
       '
     test_reporting_utils.py: '
@@ -365,7 +365,7 @@ util:
     '
   warning_utils.py: '
 
-    Size (in bytes):  8917
+    Size (in bytes):  9013
 
     '
   yaml_utils.py: '

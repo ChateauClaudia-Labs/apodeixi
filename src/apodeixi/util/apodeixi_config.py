@@ -96,7 +96,8 @@ class ApodeixiConfig():
         if not check:
             raise ApodeixiError(my_trace, "Can't locate secrets' folder: " + explanation)
         
-        return self.config_dict['secrets']['folder']      
+        # Expand any environment variables in the path
+        return _os.path.expandvars(self.config_dict['secrets']['folder'])    
 
     def get_KB_RootFolder(self, parent_trace): 
         my_trace            = parent_trace.doing("Retrieving Knowledge Base's root folder from the Apodeixi Configuration ")
@@ -110,7 +111,8 @@ class ApodeixiConfig():
         if not check:
             raise ApodeixiError(my_trace, "Can't locate root folder for Knowledge Base: " + explanation)
         
-        return self.config_dict[KB][ROOT_FOLDER]
+        # Expand any environment variables in the path
+        return _os.path.expandvars(self.config_dict[KB][ROOT_FOLDER])
 
     def get_ExternalCollaborationFolder(self, parent_trace):
         my_trace            = parent_trace.doing("Retrieving external collaboration root folder from the "
@@ -125,7 +127,8 @@ class ApodeixiConfig():
         if not check:
             raise ApodeixiError(my_trace, "Can't locate external collaboration folder: " + explanation)
         
-        return self.config_dict[KB][EXTERNAL_FOLDER]
+        # Expand any environment variables in the path
+        return _os.path.expandvars(self.config_dict[KB][EXTERNAL_FOLDER])
 
     def getMonthFiscalYearStarts(self, parent_trace):
         my_trace            = parent_trace.doing("Retrieving Knowledge Base's fiscal year start from the Apodeixi Configuration ")

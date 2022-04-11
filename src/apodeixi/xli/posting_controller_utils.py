@@ -781,7 +781,7 @@ class PostingConfig(ManifestXLReadConfig):
         #
         # we must avoid heterogeneous columns, where some are tuples and others are strings.
         #
-        #   Since we are to add a new column, whhich normally would be the string ME._ENTITY_NAME, we must
+        #   Since we are to add a new column, which normally would be the string ME._ENTITY_NAME, we must
         # first check if prior columns are tuples, and if so, wrap the string ME._ENTITY_NAME into a tuple
         # whose other levels are empty strings.
         #
@@ -803,7 +803,8 @@ class PostingConfig(ManifestXLReadConfig):
         # The enriched row and interval must be consistent with regards to the columns. So make
         # sure the first column is the entity being added as an enrichment, followed by the
         # columns of the input dataframe_row, in that order. Same for the interval
-        enriched_series             = enrichment.append(row_series)
+        # Pandas has deprecated `append`, must use `pandas.concat` instead - original implementtation: enriched_series             = enrichment.append(row_series)
+        enriched_series             = _pd.concat([enrichment, row_series])
         enriched_interval_columns   = [entity_column_to_add]
         enriched_interval_columns.extend(interval.columns)
         enriched_interval           = Interval( parent_trace        = parent_trace, 

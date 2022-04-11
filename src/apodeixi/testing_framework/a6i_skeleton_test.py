@@ -35,6 +35,15 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         '''
         return 'APODEIXI_CONFIG_DIRECTORY'
 
+    '''
+    Name of environment variable that should be set in the runtime environment of the tests, if the test run should
+    be referencing an externally injected configuration directory.
+    Example use case: CI/CD pipelines running in a Docker container, which should not use the hard-coded auto-discovery
+    of a config directory in self.activateTestConfig, but an externally provided directory that has been appropriately
+    provisioned in the Docker container.
+    '''
+    INJECTED_CONFIG_DIRECTORY = "INJECTED_CONFIG_DIRECTORY"
+
     def activateTestConfig(self):
         '''
         Modifies environment variables to ensure that Apodeixi uses a configuration specific for tests.
@@ -46,8 +55,21 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         # Here we want the location of this class, not its concrete derived class,
         # since the location of the Apodexei config to be used for tests is globally unique
         # So we use __file__ 
-        #_os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), 'config') 
-        _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), '../../../../test_db') 
+        #
+        # MODIFICATION ON APRIL, 2022: As part of adding tests in CI/CD, we made it possible for a CI/CD pipeline
+        #       to specify a location for the Apodeixi config directory that should be used for integration tests.
+        #       As a result, we only hard-code such config directory if we are not running in an environment where that
+        #       has been already set. This enables:
+        #       1) Preservation of traditional Apodeixi feature for developers, whereby tests will "auto discover"
+        #       the test_db to use even if the environment variable for the Apodeixi CONFIG_DIRECTORY is not set
+        #       2) Enablement of new use case for CI/CD: externally injected configuration of which config directory to use
+        
+        if not self.INJECTED_CONFIG_DIRECTORY in _os.environ.keys():
+            # Use case: developer runs tests locally
+            _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), '../../../../test_db')
+        else: 
+            # Use case: CI/CD pipeline runs tests in a Docker container
+            _os.environ[self.CONFIG_DIRECTORY()]    = _os.environ[self.INJECTED_CONFIG_DIRECTORY]
 
         func_trace              = FunctionalTrace(  parent_trace    = None, 
                                                     path_mask       = None) # path_mask has not been set yet as an attribute

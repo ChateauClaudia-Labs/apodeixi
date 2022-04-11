@@ -5,6 +5,7 @@ import traceback
 from io                                                 import StringIO
 
 from apodeixi.util.a6i_error                            import ApodeixiError
+from apodeixi.util.path_utils                           import PathUtils
 
 class ApodeixiWarningMessage(warnings.WarningMessage):
     '''
@@ -136,7 +137,7 @@ class WarningUtils():
                     continue
 
                 warning_dict['Warning ' + str(idx)]     = str(a_warning.message)
-                warning_dict['... from']                = str(a_warning.filename)
+                warning_dict['... from']                = PathUtils().to_linux(str(a_warning.filename))
                 warning_dict['... at line']             = str(a_warning.lineno)
 
                 trace_msg                               = "\n" + "-"*60 + "\tWarnings Stack Trace\n\n"

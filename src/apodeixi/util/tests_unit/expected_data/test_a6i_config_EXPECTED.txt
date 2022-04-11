@@ -1,4 +1,4 @@
-secrets.folder		<APODEIXI INSTALLATION>/apodeixi/secrets
+secrets.folder		<APODEIXI DATABASE>/secrets
 knowledge-base.knowledge-base-root-folder		<KNOWLEDGE BASE ROOT>
 knowledge-base.external-collaboration-folder		<EXTERNAL COLLABORATION FOLDER>
 organization-settings.month-fiscal-year-starts		6

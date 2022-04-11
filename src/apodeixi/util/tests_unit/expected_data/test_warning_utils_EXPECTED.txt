@@ -5,48 +5,48 @@
 Problem:	A dependency issued 1 warning(s)
 
             Warning 0           : Test warning for Warning Utils
-            ... from            : <APODEIXI INSTALLATION>/apodeixi\util\tests_unit\test_warning_utils.py
+            ... from            : <APODEIXI INSTALLATION>/apodeixi/util/tests_unit/test_warning_utils.py
             ... at line         : 24
             Stack Trace         : 
 ------------------------------------------------------------	Warnings Stack Trace
 
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\runpy.py", line 197, in _run_module_as_main
+<PYTHON MODULE>/runpy.py", line 197, in _run_module_as_main
     return _run_code(code, main_globals, None,
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\runpy.py", line 87, in _run_code
+<PYTHON MODULE>/runpy.py", line 87, in _run_code
     exec(code, run_globals)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\__main__.py", line 18, in <module>
+<PYTHON MODULE>/unittest/__main__.py", line 18, in <module>
     main(module=None)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\main.py", line 101, in __init__
+<PYTHON MODULE>/unittest/main.py", line 101, in __init__
     self.runTests()
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\main.py", line 271, in runTests
+<PYTHON MODULE>/unittest/main.py", line 271, in runTests
     self.result = testRunner.run(self.test)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\runner.py", line 176, in run
+<PYTHON MODULE>/unittest/runner.py", line 176, in run
     test(result)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\suite.py", line 84, in __call__
+<PYTHON MODULE>/unittest/suite.py", line 84, in __call__
     return self.run(*args, **kwds)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\suite.py", line 122, in run
+<PYTHON MODULE>/unittest/suite.py", line 122, in run
     test(result)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\suite.py", line 84, in __call__
+<PYTHON MODULE>/unittest/suite.py", line 84, in __call__
     return self.run(*args, **kwds)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\suite.py", line 122, in run
+<PYTHON MODULE>/unittest/suite.py", line 122, in run
     test(result)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\suite.py", line 84, in __call__
+<PYTHON MODULE>/unittest/suite.py", line 84, in __call__
     return self.run(*args, **kwds)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\suite.py", line 122, in run
+<PYTHON MODULE>/unittest/suite.py", line 122, in run
     test(result)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\case.py", line 651, in __call__
+<PYTHON MODULE>/unittest/case.py", line 651, in __call__
     return self.run(*args, **kwds)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\case.py", line 592, in run
+<PYTHON MODULE>/unittest/case.py", line 592, in run
     self._callTestMethod(testMethod)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\unittest\case.py", line 550, in _callTestMethod
+<PYTHON MODULE>/unittest/case.py", line 550, in _callTestMethod
     method()
-<APODEIXI INSTALLATION>/apodeixi\util\tests_unit\test_warning_utils.py", line 24, in test_warning_utils
+<APODEIXI INSTALLATION>/apodeixi/util/tests_unit/test_warning_utils.py", line 24, in test_warning_utils
     warnings.warn("Test warning for Warning Utils", DeprecationWarning)
-  File "C:\Users\aleja\Documents\CodeImages\Technos\Anaconda3\envs\a6i-env\lib\warnings.py", line 109, in _showwarnmsg
+<PYTHON MODULE>/warnings.py", line 109, in _showwarnmsg
     sw(msg.message, msg.category, msg.filename, msg.lineno,
-<APODEIXI INSTALLATION>/apodeixi\util\warning_utils.py", line 48, in _warn_with_traceback
+<APODEIXI INSTALLATION>/apodeixi/util/warning_utils.py", line 49, in _warn_with_traceback
     traceback.print_stack(file=log)
-<APODEIXI INSTALLATION>/apodeixi\util\tests_unit\test_warning_utils.py:24: DeprecationWarning: Test warning for Warning Utils
+<APODEIXI INSTALLATION>/apodeixi/util/tests_unit/test_warning_utils.py:24: DeprecationWarning: Test warning for Warning Utils
   warnings.warn("Test warning for Warning Utils", DeprecationWarning)
 
 ------------------------------------------------------------
@@ -62,10 +62,10 @@ Here are the functional activities that led to the problem (stack trace at the b
 ------------------------------------------------------------	Technical Stack Trace
 
 Traceback (most recent call last):
-  File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\tests_unit\test_warning_utils.py", line 26, in test_warning_utils
+<APODEIXI INSTALLATION>/apodeixi/util/tests_unit/test_warning_utils.py", line 26, in test_warning_utils
     WarningUtils().handle_warnings(my_trace, warning_list=w)
-  File "C:\Users\aleja\Documents\Code\chateauclaudia-labs\apodeixi\project\src\apodeixi\util\warning_utils.py", line 148, in handle_warnings
+<APODEIXI INSTALLATION>/apodeixi/util/warning_utils.py", line 149, in handle_warnings
     raise ApodeixiError(parent_trace, "A dependency issued " + str(len(warning_list)) + " warning(s)",
-apodeixi.util.a6i_error.ApodeixiError: (ApodeixiError(...), 'A dependency issued 1 warning(s)')
+<APODEIXI INSTALLATION>/apodeixi.util.a6i_error.ApodeixiError: (ApodeixiError(...), 'A dependency issued 1 warning(s)')
 
 ------------------------------------------------------------

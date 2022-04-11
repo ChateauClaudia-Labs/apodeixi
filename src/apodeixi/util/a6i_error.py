@@ -2,6 +2,28 @@ import sys                                              as _sys
 import traceback                                        as _traceback
 from io                                                 import StringIO
 
+# LINUX vs WINDOWS "compatibility" added in March 2022 as part of supporting CI/CD tests in Docker containers:
+# 
+# 1) There is a habit in the Apodeixi code to print the location of the Python code where the error came
+# from, by adding a construct like 
+#                                   `origination = {'signaled_from': __file__}`
+# Problem is:
+#           This causes regression test output to differ in Windows vs Linux, since `__file__` is
+#       displayed with '\' in Windows and '/' in Linux. To avoid this, we invoke a function
+#       LX_PATH to convert to a linux path for the 'signaled_from' cases
+#
+# 2) Similarly, we convert anything that "looks like a path" to Linux style. By "looking like a path" we
+# mean that the key ends in the word "path"
+# 3) Similarly, for warnings that display the stack trace as part of the functional trace, we must
+#   remove the non-determinism in the paths displayed in the stack trace. This happens when the key is
+#   'Stack Trace' (see the function warning_utils.py::handle_warnings, which inserts a stack trace text on such a key)
+#
+def LX_PATH(key, path):
+    if key != 'signaled_from' and not key.lower().endswith("path") and key !='Stack Trace':
+        return path
+    else:
+        return path.replace("\\", "/")
+
 class FunctionalTrace():
     '''
     Data structure used to record useful information about errors. This can be thought as the functional analogue of
@@ -136,12 +158,12 @@ class FunctionalTrace():
                                     + MSK(self.functional_purpose[FunctionalTrace.FLOW_STAGE])
         data                    = self.functional_purpose[FunctionalTrace.DATA]
         for k in data.keys():
-            result              += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(data[k]))
+            result              += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + LX_PATH(k, MSK(str(data[k])))
 
         origination             = self.functional_purpose[FunctionalTrace.ORIGINATION]
         if not exclude_origination:
             for k in origination.keys():
-                result      += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(origination[k]))
+                result      += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + LX_PATH(k, MSK(str(origination[k])))
         return result
 
     def _ins(txt):
@@ -178,20 +200,28 @@ class ApodeixiError (Exception):
         self.origination                = origination
         self.external_stacktrace        = external_stacktrace
 
-    def trace_message(self, exclude_stack_trace=False):
+    def trace_message(self, exclude_stack_trace=False, ignore_mask=False):
+        '''
+        @param ignore_mask A boolean, used to overwrite the setting `self.functional_trace.path_mask` when we want
+                exception information to be printed out fully, without masks modifying paths that are printed out
+                as part of the exception information, even if a mask was previously set (masks are usually used to
+                ensure test regression output is deterministic)
+        '''
 
         def MSK(txt): # Abbreviation for the masking logic
-            if self.functional_trace.path_mask != None:
+            if self.functional_trace.path_mask != None and not ignore_mask:
                 return self.functional_trace.path_mask(txt)
             else:
                 return txt
 
         data_msg                    = ''
         for k in self.data.keys():
-            data_msg                += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(self.data[k]))
+            data_msg                += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + LX_PATH(k, MSK(str(self.data[k])))
         if not exclude_stack_trace:
             for k in self.origination.keys():
-                data_msg            += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + MSK(str(self.origination[k]))
+
+
+                data_msg            += '\n' + MSK(FunctionalTrace._ins(k)) + ': ' + LX_PATH(k, MSK(str(self.origination[k])))
         if len(data_msg) > 0:
             data_msg                = '\n' + data_msg + '\n'
 
@@ -216,13 +246,13 @@ class ApodeixiError (Exception):
             _traceback.print_exc(file = traceback_stream)
             if self.external_stacktrace == None:
                 trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace\n\n'            
-                trace_msg           += traceback_stream.getvalue()
+                trace_msg           += LX_PATH('Stack Trace', MSK(traceback_stream.getvalue()))
                 trace_msg           += "\n" + "-"*60  
             else:
                 trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace 1 of 2 (in external component)\n\n' 
-                trace_msg           += self.external_stacktrace
+                trace_msg           += LX_PATH('Stack Trace', MSK(self.external_stacktrace))
                 trace_msg           += "\n" + "-"*60 + '\tTechnical Stack Trace 2 of 2 (within Apodeixi)\n\n' 
-                trace_msg           += traceback_stream.getvalue()
+                trace_msg           += LX_PATH('Stack Trace', MSK(traceback_stream.getvalue()))
                 trace_msg           += "\n" + "-"*60  
             
         return trace_msg

@@ -193,7 +193,8 @@ class File_KBStore_Impl():
         to determine the FilingCoordinates to put into the posting handle.
         '''
         path_tokens                     = PathUtils().tokenizePath( parent_trace    = parent_trace,
-                                                                    path   = relative_path) 
+                                                                    path            = relative_path,
+                                                                    absolute        = False) 
 
         my_trace                        = parent_trace.doing("Looking up filing class for given posting API",
                                                                 data = {'posting_api': posting_api})               

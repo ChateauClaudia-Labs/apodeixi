@@ -1,4 +1,5 @@
 import os                                           as _os
+import sys                                          as _sys
 import shutil                                       as _shutil
 from pathlib                                        import Path
 import time                                         as _time
@@ -6,6 +7,7 @@ import re                                           as _re
 
 import traceback                                    as _traceback
 from io                                             import StringIO
+from unittest.util import _MAX_LENGTH
 
 from apodeixi.util.a6i_error                        import ApodeixiError
 from apodeixi.util.dictionary_utils                 import DictionaryUtils
@@ -103,7 +105,7 @@ class PathUtils():
 
         return [pair[0], pair[1]]
 
-    def tokenizePath(self, parent_trace, path):
+    def tokenizePath(self, parent_trace, path, absolute=True):
         '''
         Helper method suggested in  https://stackoverflow.com/questions/3167154/how-to-split-a-dos-path-into-its-components-in-python.
         It tokenizes relative paths to make it easier to construct FilingCoordinates from them
@@ -114,11 +116,34 @@ class PathUtils():
         it returns a list
 
                 ['FY 22', 'LIQ', 'MTP']
+
+        @param absolute A boolean, which is true by default. If True, then the `path` is first expanded to an
+                        absolute path, and the linux equivalent is returned. Otherwise, the `path` is treated as a
+                        relative path and a linux equivalent relative path is returned.
+
         '''
         folders             = []
         SPURIOUS_FOLDERS    = ["\\", "/"] # This might be added in Windows by some _os / split manipulations. If so, ignore it
         LIMIT               = 1000 # Maximum path length to handle. As a precaution to avoid infinte loops
         idx                 = 0
+
+        # Added in March, 2022 to support Linux in addition to Windows, especially in situations when the CI/CD pipeline
+        # runs tests in a Linux container. In that case, to avoid regression and functional errors we must make sure
+        # that `path` is Linux path, i.e., folders are delimted by '/' and not `\`, since otherwise the tokenization
+        # will be wrong. For example, tokenizing
+        #
+        #                  /visions\ideas\problems/corrections
+        #
+        # would result in 
+        #
+        #                   		['visions\\ideas\\problems', 'corrections']
+        # instead of
+        #                           ['visions', 'ideas', 'problems', 'corrections']
+        # 
+        # unless we did this check
+        #
+        if _os.name != "nt":
+            path = self.to_linux(path, absolute=absolute)
 
         while idx < LIMIT: # This could have been "while True", but placed a limit out of caution
             path, folder = _os.path.split(path)
@@ -174,6 +199,20 @@ class PathUtils():
         KB_ROOT                                                     = a6i_config.get_KB_RootFolder(parent_trace)
         COLLAB_ROOT                                                 = a6i_config.get_ExternalCollaborationFolder(parent_trace)
         A6I_DB                                                      = _os.path.dirname(KB_ROOT)
+
+        # In case we print the paths for Python modules (e.g., as in stack traces), we want to mask the location of
+        # the module so that regression test output does not depend on where Python modules get installed.
+        # For that we use this helper function to locate such substrings
+        #
+        def _match_sys_path(line):
+            matches     = [(len(folder.strip()), folder) for folder in _sys.path if len(folder.strip()) > 0 and folder in line]
+            if len(matches) > 0:
+                max_length      = max([pair[0] for pair in matches])
+                best_match      = [pair[1] for pair in matches if pair[0]==max_length][0]
+                return best_match
+            else:
+                return None
+                
         def _path_mask(raw_txt):
             '''
             '''
@@ -205,20 +244,34 @@ class PathUtils():
                     masked_path                                     = '<APODEIXI INSTALLATION>/apodeixi' + tokens[-1]
                     cleaned_lines.append(masked_path)
                 else:
-                    cleaned_lines.append(line)
+                    module_path                                     = _match_sys_path(line)
+                    if not module_path is None:
+                        tokens                                      = line.split(module_path)
+                        masked_path                                 = '<PYTHON MODULE>' + tokens[-1]
+                        cleaned_lines.append(masked_path)
+                    else:
+                        cleaned_lines.append(line)
+
+
 
             cleaned_txt                     = "\n".join(cleaned_lines)
             return cleaned_txt
 
         return _path_mask
 
-    def to_linux(self, path):
+    def to_linux(self, path, absolute=True):
         '''
         Takes a path that might be a Windows or Linux path, and returns a linux path
+
+        @param path A string
+        @param absolute A boolean, which is true by default. If True, then the `path` is first expanded to an
+                        absolute path, and the linux equivalent is returned. Otherwise, the `path` is treated as a
+                        relative path and a linux equivalent relative path is returned.
         '''
-        abs_path            = _os.path.abspath(path)
+        if absolute:
+            path            = _os.path.abspath(path)
         # The following line does not change the input if we are Linux, but will if we are Windows
-        linux_path          = abs_path.replace("\\", "/")
+        linux_path          = path.replace("\\", "/")
         return linux_path
 
     def copy_file(self, parent_trace, from_path, to_dir):
@@ -297,7 +350,13 @@ class FileMetadata():
 
     @param filename A string, corresponding to the name of the file (without any parent directories)
 
-    @param file_size An int, corresponding to the number of bytes that the file uses
+    @param file_size An int, corresponding to the number of bytes that the file uses. 
+                    GOTCHA: The number of bytes is computed in "Windows" style, not "Linux" style, even
+                    if Apodeixi is running under Windows. That means that the number of bytes is computed
+                    as if each line ended in "\r\n" (Windows convention) even if the file is a Linux
+                    file with lines ending in just "\n". This is done for historical reasons to avoid breaking
+                    regression tests, since regression output is created by developers (working in Windows)
+                    but sometimes the test harness is run in Linux (e.g., as part of CI/CD pipelines)
 
     @param created_on A float, corresponding to the number of seconds from the start of the epoch
                 (in most systems, January 1, 1970 00:00:00 UTC) to the moment the file was created. 
@@ -391,7 +450,8 @@ class FolderHierarchy():
                     if filter == None or filter(a_file):
                         loop_trace              = parent_trace.doing("Adding file '" + a_file + "'")
                         relative_path           = PathUtils().relativize(loop_trace, path_to_parent, currentdir)
-                        branch_tokens           = PathUtils().tokenizePath(loop_trace, relative_path[0] + "/" + a_file)
+                        branch_tokens           = PathUtils().tokenizePath(loop_trace, relative_path[0] + "/" + a_file,
+                                                                            absolute = False)
 
                         # If we cleaned timestamps from parent folder, also clean them from the path to the file
                         # we are looking at
@@ -408,6 +468,28 @@ class FolderHierarchy():
                             access_time             = None
                             modification_time       = None
                         file_size               = _os.path.getsize(full_path)
+
+                        nb_lines                = FolderHierarchy._count_lines(full_path)
+
+                        # If we are running in Linux and doing regression tests, then 
+                        # we must "inflate" the size of the output file because Linux uses
+                        # "\n" to end a line, whereas the expected file was created in Windows that adds an extra byte per line, 
+                        # since Windows uses "\r\n" to end each line
+                        #
+                        # GOTCHA: it is possible that a file was not created by the test suite, but "copied" from some
+                        #       input area under source control. Example: 
+                        #
+                        #        test_db/knowledge-base/envs/1501_ENV/kb/manifests/my-corp.production/kb/manifests/line-of-business.1.yaml
+                        #
+                        # In that case, even when using Linux, such a file would contains the extra "\r" character per line,
+                        # since it was created by a developer in Windows, committed to source control, and the Linux test
+                        # harness simply copied it.
+                        # THEREFORE: we don't "inflate" the size for files that were not created by this test run.
+                        #           We can tell that if the file was created more than (say) a minute ago
+                        epoch_time              = int(_time.time())
+                        if _os.name !="nt" and abs(epoch_time - _os.path.getmtime(full_path)) < 60:
+                            file_size += nb_lines
+
                         file_meta               = FileMetadata(     filename                = a_file, 
                                                                     file_size               = file_size, 
                                                                     created_on              = creation_time, 
@@ -438,6 +520,23 @@ class FolderHierarchy():
                 
         hierarchy                   = FolderHierarchy(hierarchy_dict)
         return hierarchy
+
+    def _count_lines(full_path):
+        '''
+        Internal method used to quickly count number of lines in a file. Taken from one of the samples in 
+        https://pynative.com/python-count-number-of-lines-in-file/
+        '''
+        def _count_generator(reader):
+            b = reader(1024 * 1024)
+            while b:
+                yield b
+                b = reader(1024 * 1024)
+
+        with open(full_path, 'rb') as fp:
+            c_generator = _count_generator(fp.raw.read)
+            # count each \n
+            count = sum(buffer.count(b'\n') for buffer in c_generator)
+            return count
 
     def to_dict(self):
         result_dict                 = {}

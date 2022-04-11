@@ -17,6 +17,8 @@ Abstract class intended as parent for concrete test cases test the Apodeixi CLI
 '''
 class CLI_Test_Skeleton(ApodeixiIntegrationTest):
 
+    TEST_DB_DIR         = "TEST_DB_DIR"
+
     def setUp(self):
         super().setUp()
 
@@ -53,7 +55,7 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
           variable, since it was used in super().setUp() to initialize self.a6i_config and other properties, and
           that is as it should be. 
 
-        * Therefore, the modification in this method to Aself.CONFIG_DIRECTORY() is not going to impact this
+        * Therefore, the modification in this method to self.CONFIG_DIRECTORY() is not going to impact this
           test object. Instead, it will impact other objects that use it. There is no such object in Apodeixi itself,
           but there is one in the CLI: the KB_Session class.
 
@@ -80,6 +82,25 @@ class CLI_Test_Skeleton(ApodeixiIntegrationTest):
         # OK, we start the context switch here.
         # For this test case, we want the CLI to use a config file that is in the input folder
         _os.environ[self.CONFIG_DIRECTORY()]    = self.input_data + "/" + self.scenario() 
+
+        # Each CLI test has a dedicated folder containing the test environment for it, i.e., an entire
+        # test database (knowledge base folder, collaboration area folder) just for that test. 
+        # These folders are referenced in a test-specific apodeixi_config.toml. 
+        # In order to make the folders thus referenced not depend on the installation folder for the Apodeixi
+        # test database, we introduce the environment variable ${TEST_DB_DIR} that should be used in all these
+        # CLI-test-specific apodeixi_config.toml.
+        #
+        # Example: for CLI test for subproducts with id #1011, in the folder ...../test_db/input_data/1011/cli.subproducts,
+        #   the apodeixi_config.toml should have a line like
+        #       knowledge-base-root-folder = "${TEST_DB_DIR}/knowledge-base/envs/1011_ENV/kb"
+        #   instead of
+        #       knowledge-base-root-folder = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db/knowledge-base/envs/1011_ENV/kb"
+        #
+        #  Such practice ensures that the test harness continues to work no matter where it is installed (for example,
+        # in a Docker container).
+        # To make this approach work, we hereby set that environment variable, whose value will be consulted by the
+        # ApodeixiConfig constructor when we do the context switch a few lines further below
+        _os.environ[self.TEST_DB_DIR]               = self.test_db_dir
 
         # Now overwrite parent's notion of self.a6i_config and of the self.test_config_dict
         self.a6i_config                             = ApodeixiConfig(parent_trace)

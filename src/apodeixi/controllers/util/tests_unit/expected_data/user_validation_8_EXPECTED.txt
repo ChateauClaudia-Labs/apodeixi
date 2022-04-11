@@ -31,5 +31,5 @@ Here are the functional activities that led to the problem:
 
 ---->	activity	Loading Excel spreadsheet
 
-            excel_fullpath      : <APODEIXI INSTALLATION>/apodeixi\controllers\util\tests_unit/input_data/user_validation_8_INPUT.xlsx
+            excel_fullpath      : <APODEIXI INSTALLATION>/apodeixi/controllers/util/tests_unit/input_data/user_validation_8_INPUT.xlsx
             excel sheet         : Bar
