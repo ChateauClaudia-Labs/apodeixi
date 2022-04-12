@@ -1,5 +1,6 @@
 import sys                                          as _sys
 import os                                           as _os
+import re                                           as _re
 import unittest                                     as _unittest
 
 from apodeixi.testing_framework.a6i_unit_test       import ApodeixiUnitTest
@@ -42,19 +43,47 @@ class Test_NotebookUtils(ApodeixiUnitTest):
                                                                                 path_list               = ['cells', '*', 'metadata', 'execution','*'], 
                                                                                 replacement_lambda      = hide_timestamps)
             my_trace                        = root_trace.doing("Hiding user_folders printed as output")
-            def _hide_user_folders(val):
-                folder_hints                = ['apodeixi\\util', 'apodeixi\\\\util']
+            def _hide_root_folder(val):
+                '''
+                1) Hides root directory for paths displayed in output
+                2) Converts displayed paths to Linux format, so we get same output in Windows and Linux
+
+                @param val A string; normally the value of an entry in a dictionary
+                '''              
+                folder_hints                = ['apodeixi\\util', 'apodeixi\\\\util', 'apodeixi/util']
                 result                      = val
                 for hint in folder_hints:
                     if hint in val: # val is a path, keep only what comes after 'src/apodeixi'.
                         result              = '<Root directory hidden in test output>' + hint + val.split(hint)[1]
+                        if _os.name == "nt": # Display in Linux style
+                            result          = result.replace("\\\\", "/")
                         return result
+
                 return result
+            def _hide_version_nb(val):
+                '''
+                1) Hides root directory for paths displayed in output
+                2) Converts displayed paths to Linux format, so we get same output in Windows and Linux
+                3) Masks Python version numbers so that output does not depend on what version of Python is used to run tests
+
+                @param val A string; normally the value of an entry in a dictionary
+                '''
+                # First mask Python version numbers for vals like: "    version: 3.9.7"
+                VERSION_NB_REGEX            = _re.compile(r'[0-9]+.[0-9]+.[0-9]+')
+                result                      = _re.sub(VERSION_NB_REGEX, '<VERSION NB>', val)
+
+                return result
+
             cleaned_dict                    = DictionaryUtils().replace_path(   parent_trace            = my_trace, 
                                                                                 root_dict               = cleaned_dict, 
                                                                                 root_dict_name          = 'aha_configurer_result_dict', 
                                                                                 path_list               = ['cells', '*', 'outputs', '*','data', 'text/plain'], 
-                                                                                replacement_lambda      = _hide_user_folders)
+                                                                                replacement_lambda      = _hide_root_folder)
+            cleaned_dict                    = DictionaryUtils().replace_path(   parent_trace            = my_trace, 
+                                                                                root_dict               = cleaned_dict, 
+                                                                                root_dict_name          = 'aha_configurer_result_dict', 
+                                                                                path_list               = ['metadata','language_info', 'version'], 
+                                                                                replacement_lambda      = _hide_version_nb)
 
             self._compare_to_expected_yaml( parent_trace        = my_trace,
                                             output_dict         = cleaned_dict, 

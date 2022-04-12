@@ -36,7 +36,11 @@ class Test_TextProcessor(ApodeixiUnitTest):
                     file            .write(outputs[w].encode('utf-8'))
                 with open(self.expected_data + '/'  'test_small_text_' + str(w) + '_EXPECTED.txt', 'rb') as file:
                     raw             = file.read()
-                    expected[w]     = raw.decode('utf-8')
+                    expected[w]     = raw.decode('utf-8').replace("\r\n", "\n")
+                # To ensure this test passes in both Linux and Windows:
+                #   replace carriage returns "\r" used in Windows, since Linux doesn't use them
+                outputs[w]           = outputs[w].replace("\r\n", "\n")
+                expected[w]          = expected[w].replace("\r\n", "\n")
 
         except ApodeixiError as ex:
             print(ex.trace_message())

@@ -119,6 +119,23 @@ class WarningUtils():
             # in particular the "notebook" package from 6.4.2 to 6.4.6. Perhaps that introduced this
             # seemingly spurious warning.
             return True
+        elif a_warning.category == DeprecationWarning and str(a_warning.message).startswith("Passing a schema to Validator.iter_errors is deprecated and will be removed in a future release. Call validator.evolve(schema=new_schema).iter_errors(...) instead."):
+            # This warning is thrown by a stack trace ending like this:
+            #
+            #   File "<PYTHON MODULE>/nbformat/validator.py", line <HIDDEN>, in iter_validate for error in errors:
+            #   File "<PYTHON MODULE>/jsonschema/validators.py", line <HIDDEN>, in iter_errors
+            #
+            # while running the test
+            #
+            #       apodeixi.util.tests_unit.test_formatting_utils.Test_NotebookUtils.test_notebook_run
+            #
+            # Thus, it is not raised by code directly called by Apodeixi, but by independent dependencies (Apodeixi calls
+            # the `nbconvert` module, which triggersa call to deeper dependencies like `nbformat` that makes a deprecated call to
+            # the `jsonschema` module). So the real fix would be for `nbformat` developers to remove the deprecated call.
+            # Since Apodeixi can do nothing about that (it is up to the `nbformat` developers, not Apodeixi's), we deliberately
+            # ignore this warning to avoid failures in Apodeixi's code.
+            #  
+            return True
         else:
             return False
 
