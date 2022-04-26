@@ -66,7 +66,7 @@ class ApodeixiSkeletonTest(unittest.TestCase):
         
         if not self.INJECTED_CONFIG_DIRECTORY in _os.environ.keys():
             # Use case: developer runs tests locally
-            _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), '../../../../test_db')
+            _os.environ[self.CONFIG_DIRECTORY()]    = _os.path.join(_os.path.dirname(__file__), '../../../../apodeixi-testdb')
         else: 
             # Use case: CI/CD pipeline runs tests in a Docker container
             _os.environ[self.CONFIG_DIRECTORY()]    = _os.environ[self.INJECTED_CONFIG_DIRECTORY]
