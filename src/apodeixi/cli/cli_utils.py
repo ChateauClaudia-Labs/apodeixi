@@ -604,6 +604,13 @@ class CLI_Utils():
 
                 description_table.append([kind, version, estimated_on, recorded_by,  namespace, name, env_name])
             
+        # To ensure output to be predictable (e.g., for regression tests) we sort the description table. We found that
+        # otherwise some tests that pass in Windows will fail when run in a Linux container.
+        #
+        KIND_IDX                    = 0
+        VERSION_IDX                 = 1
+        description_table           = sorted(description_table, key=lambda entry: entry[KIND_IDX] + str(entry[VERSION_IDX]))
+
         kb_session.store.activate(parent_trace, original_env_name)
 
         description                     = "\n\n"
