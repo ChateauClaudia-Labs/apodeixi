@@ -484,7 +484,7 @@ class ApodeixiIntegrationTest(ApodeixiSkeletonTest):
                 # we must "inflate" the tolerance because Linux and Windows zip files differently, which results
                 # in different sizes for Excel files (since an Excel file is just a set of XML files zipped up)
                 if _os.name !="nt":
-                    ADDITIONAL_TOLERANCE = 75
+                    ADDITIONAL_TOLERANCE = 100
                 else:
                     ADDITIONAL_TOLERANCE = 0
 
