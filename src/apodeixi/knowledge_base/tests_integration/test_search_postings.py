@@ -106,6 +106,10 @@ class Test_SearchPostings(ApodeixiIntegrationTest):
                                                                     posting_api                 = posting_api, 
                                                                     filing_coordinates_filter   = _coords_filter)
 
+            # To ensure that regression test output is deterministic across Windows and Linux/Containers, sort the scanned 
+            # handles before going further
+            scanned_handles             = sorted(scanned_handles, key=lambda handle: format(handle.filing_coords))
+
             stringified_coords_dict     = {}    # Keys in coords_dict are objects, need to turn them into strings to print test output
 
             idx = 1

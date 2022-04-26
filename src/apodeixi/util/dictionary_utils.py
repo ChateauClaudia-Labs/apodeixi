@@ -294,8 +294,10 @@ class DictionaryUtils():
 
     def compare(self, parent_trace, left_dict, right_dict, tolerance_lambda=None):
         '''
-        Compares two dictionaries, left_dict and right_dict, and returns a boolean if they are equal
+        Compares two dictionaries, left_dict and right_dict, and returns a a pair (boolean, string),
+        where the boolean is True iff the two dictionaries are equal
         or, at least, "within tolerance", if the tolerance_lambda is provided.
+        The 2nd returned value is an "explanation" string to explain what is different.
 
         The tolerance_lambda is function that takes three parameters and returns a boolean:
 
@@ -340,7 +342,7 @@ class DictionaryUtils():
         right_keys.sort()
 
         if left_keys != right_keys:
-            return False
+            return False, "Dictionaries have different keys"
 
         for key in left_keys:
             my_trace                    = parent_trace.doing("Comparing sub-dictionaries for key = '" + key + "'")
@@ -348,19 +350,19 @@ class DictionaryUtils():
             right_val                   = right_dict[key]
 
             if type(left_val) != type(right_val):
-                return False
+                return False, "Dictionary values have different types for key '" + str(key) +"'"
             
             if type(left_val) == dict: # Recursion
-                subtree_comparison_b    = self.compare(my_trace, left_val, right_val, tolerance_lambda)
+                subtree_comparison_b, subtree_explain = self.compare(my_trace, left_val, right_val, tolerance_lambda)
                 if subtree_comparison_b == False:
-                    return False
+                    return False, "Subtrees don't match for key '" + str(key) + "': {" + subtree_explain + "}"
             elif tolerance_lambda == None:
                 if left_val != right_val:
-                    return False
+                    return False, "Values don't match for key '" + str(key) + "': '" + str(left_val) + "' != '" + str(right_val)
             else: # apply tolerance function
                 if tolerance_lambda(key, left_val, right_val) == False:
-                    return False
+                    return False, "Values aren't  within tolerance for key '" + str(key) + "': '" + str(left_val) + "' not close to '" + str(right_val)
 
         # If we get this far, we checked all the children recursively and have not yet found a difference
         # outside of tolerance. So accept by returning True
-        return True
+        return True, ""

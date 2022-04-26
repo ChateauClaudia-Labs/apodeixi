@@ -34,6 +34,11 @@ class WorkstreamAggregator():
                                                                     posting_api                     = POSTING_API,
                                                                     filing_coordinates_filter       = None)
 
+        # To ensure that regression test output is deterministic across Windows and Linux/Containers, sort the 
+        # handle_list before going further
+        handle_list                             = sorted(handle_list, key=lambda handle: format(handle.filing_coords))
+
+
         my_trace                                = parent_trace.doing("Posting " + str(len(handle_list)) + " handles in batch")
         successes, errors                       = self.kb.postInBatch(my_trace, handle_list)
 

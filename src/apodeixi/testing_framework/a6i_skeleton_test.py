@@ -258,10 +258,12 @@ class ApodeixiSkeletonTest(unittest.TestCase):
                                                                         expected_data_dir   = expected_data_dir, 
                                                                         save_output_dict    = save_output_dict)
 
-        self.assertTrue(DictionaryUtils().compare(  parent_trace        = parent_trace, 
+        check, explain = DictionaryUtils().compare(  parent_trace        = parent_trace, 
                                                     left_dict           = output_dict, 
                                                     right_dict          = expected_dict, 
-                                                    tolerance_lambda    = tolerance_lambda))
+                                                    tolerance_lambda    = tolerance_lambda)
+
+        self.assertTrue(check, msg=explain)
         
 
     def _compare_to_expected_txt(self, parent_trace, output_txt, test_output_name, 
