@@ -136,6 +136,23 @@ class WarningUtils():
             # ignore this warning to avoid failures in Apodeixi's code.
             #  
             return True
+        elif a_warning.category == DeprecationWarning and str(a_warning.message).startswith("There is no current event loop"):
+            # This started being thrown in Python 3.10.
+            # In the Apodeixi code base, this came up in the test case 
+            #           util.tests_unit.test_formatting_utils.Test_NotebookUtils.test_notebook_run
+            #
+            # and was raised by lower-level dependencies with a stack trace ending like this:
+            #
+            #        File "<PYTHON MODULE>/jupyter_client/session.py", line <HIDDEN>, in send
+            #            stream.send_multipart(to_send, copy=copy)
+            #        File "<PYTHON MODULE>/zmq/_future.py", line <HIDDEN>, in send_multipart
+            #            return self._add_send_event('send_multipart', msg=msg, kwargs=kwargs)
+            #        File "<PYTHON MODULE>/zmq/_future.py", line <HIDDEN>, in _add_send_event
+            #            f = future or self._Future()
+            #        File "<PYTHON MODULE>/warnings.py", line <HIDDEN>, in _showwarnmsg
+            #            sw(msg.message, msg.category, msg.filename, msg.lineno,
+            #
+            return True
         else:
             return False
 
