@@ -153,6 +153,17 @@ class WarningUtils():
             #            sw(msg.message, msg.category, msg.filename, msg.lineno,
             #
             return True
+        elif a_warning.category == DeprecationWarning and str(a_warning.message).startswith("getargs: The 'u' format is deprecated. Use 'U' instead"):
+            #   This started being thrown in Python 3.10.x on Windows platforms (at least since 3.10.4)
+            #   In the Apodeixi code base, this came up in the test case
+            #           util.tests_unit.test_formatting_utils.Test_NotebookUtils.test_notebook_run
+            #
+            #   It causes warnings like these:
+            #        File "<PYTHON MODULE>/pywintypes.py", line <HIDDEN>, in __import_pywin32_system_module__
+            #            found = _win32sysloader.LoadModule(filename)
+            #        <PYTHON MODULE>/pywintypes.py:65: DeprecationWarning: getargs: The 'u' format is deprecated. Use 'U' instead.
+            #    
+            return True       
         else:
             return False
 
