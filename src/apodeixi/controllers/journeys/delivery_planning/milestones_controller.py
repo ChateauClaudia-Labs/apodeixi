@@ -18,6 +18,7 @@ from apodeixi.tree_relationships.foreign_key_constraints                    impo
 
 from apodeixi.util.a6i_error                                                import ApodeixiError
 from apodeixi.util.formatting_utils                                         import StringUtils
+from apodeixi.util.time_buckets                                             import FY_Quarter
 
 from apodeixi.xli.interval                                                  import GreedyIntervalSpec
 from apodeixi.xli.posting_controller_utils                                  import PostingConfig
@@ -50,6 +51,12 @@ class MilestonesController(JourneysController):
 
     MY_KIND                             = 'modernization-milestone'
     REFERENCED_KIND                     = 'big-rock'
+
+    # These are used in self.createTemplate and also in self._build_manifestsXLWriteconfig to indicate what columns to
+    # sorte milestones by.
+    # We need consistency of what strings are used on both methods, which is why we define these statics
+    DATE_COLUMN_WITHOUT_SUBPRODUCTS     = "Date"
+    DATE_COLUMN_PREFIX_WITH_SUBPRODUCTS = "Date for "
 
     def getSupportedVersions(self):
         return self.SUPPORTED_VERSIONS 
@@ -153,6 +160,49 @@ class MilestonesController(JourneysController):
                 x_offset                    = 1
                 y_offset                    = original_x_offset
 
+                # We pass this key to the constructor of the MappedManifestXLWriteConfig to ensure that milestones
+                # are displayed sorted by date, as opposed to by UIDs.
+                # This is to avoid situations where users over time create additional intermediate milestones, for which
+                # the system will assign a higher UID number, and if milestones are sorted by UID then one gets
+                # a non human-friendly display where some intermediate milestones appear to the right of later milestones,
+                # instead of before them as they should.
+                def _sort_key_for_date_columns(value_series):
+                    
+                    keys                        = []
+                    month_fiscal_year_starts    = self.a6i_config.getMonthFiscalYearStarts(parent_trace)
+                    for index, value in value_series.items():
+                    # We first check if value can be read as a TimeBucket
+                        try:
+                            timebucket          = FY_Quarter.build_FY_Quarter(parent_trace, value, month_fiscal_year_starts)
+                        except ApodeixiError as ex:
+                            timebucket          = None
+                        if timebucket != None:
+                            keys.append(timebucket.last_day())
+                        # No luck parsing a timebucket, so use whatever value the user entered
+                        # Hopefully it is already a well-entered date ot string. We just do a bit of "cleanup" in that
+                        # users may not be consistent around case and also if they enter "TBD" we should regard that
+                        # as milestones to put at the end
+                        elif type(value)==str:
+                            if value.strip().upper()=="TBD": 
+                                # In this case, return something after all alphanumeric characters. From trial and
+                                # error found that lower case letters come after upper case letters, numerals, and special characters
+                                keys.append("zzzz") # Hopefully forces data to the end
+                            else: # remove case sensitivity to the sorting
+                                keys.append(value.strip().upper())
+                        else:
+                            keys.append(value) 
+
+                    key_series                  = _pd.Series(data=keys, index=value_series.index)
+                    return key_series
+
+                def _sort_by_filter_for_date_columns(candidate_column):
+                    if self.DATE_COLUMN_WITHOUT_SUBPRODUCTS == candidate_column:
+                        return True
+                    elif type(candidate_column)==str and candidate_column.startswith(self.DATE_COLUMN_PREFIX_WITH_SUBPRODUCTS):
+                        return True
+                    else:
+                        return False
+
                 # We use a specialized XL Write Config class, one that understands mappings
                 xlw_config  = MappedManifestXLWriteConfig( 
                                             sheet                           = SkeletonController.GENERATED_FORM_WORKSHEET,
@@ -161,7 +211,11 @@ class MilestonesController(JourneysController):
                                             referenced_manifest_name_list   = ['big-rock.0'],
                                             my_entity                       = "milestone", 
                                             mapped_entities_list            = ["big-rock"],
-                                            is_transposed                   = is_transposed,    
+                                            is_transposed                   = is_transposed, 
+                                            # For the sort_by, we must be consistent with how the template was set in
+                                            # self.createTemplate
+                                            sort_by                         = _sort_by_filter_for_date_columns,
+                                            sort_key                        = _sort_key_for_date_columns,
                                             viewport_width                  = 100,  
                                             viewport_height                 = 40,   
                                             max_word_length                 = 20, 
@@ -273,11 +327,12 @@ class MilestonesController(JourneysController):
             d_list                      = ["Q3 FY20", "Q1 FY21", "Q4 FY21", "Q4 FY22"]
 
             content_dict                = {"Milestone": m_list, "Theme": t_list}
+            
             if len(sub_products) == 0:
-                content_dict            = content_dict | {'Date': d_list}
+                content_dict            = content_dict | {self.DATE_COLUMN_WITHOUT_SUBPRODUCTS: d_list}
             else:
                 for sub_prod in sub_products:
-                    content_dict            = content_dict | {'Date for ' + str(sub_prod): d_list.copy()}
+                    content_dict            = content_dict | {self.DATE_COLUMN_PREFIX_WITH_SUBPRODUCTS + str(sub_prod): d_list.copy()}
             template_df             = _pd.DataFrame(content_dict)
         else:
             raise ApodeixiError(parent_trace, "Invalid domain object '" + kind + "' - should be one of "

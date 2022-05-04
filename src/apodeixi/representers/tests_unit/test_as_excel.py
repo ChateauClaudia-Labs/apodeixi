@@ -101,6 +101,7 @@ class Test_ManifestRepresenter(ApodeixiUnitTest):
 
             my_trace            = root_trace.doing("Displaying the content in Excel")
             rep                 = ManifestRepresenter(  parent_trace        = my_trace,
+                                                        a6i_config          = None,
                                                         xlw_config_table    = xlw_config_table,
                                                         label_ctx           = label_dict,
                                                         manifestInfo_dict   = {MANIFEST_NAME: dummy_manifest_info},)

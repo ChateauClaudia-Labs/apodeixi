@@ -78,3 +78,12 @@ OK
 To run all tests except a particularly slow test such as `test_aha_importer`, set the `SMOKE_TESTS_ONLY` environment variable:
 
 `SMOKE_TESTS_ONLY=True python -m unittest -v`
+
+# To build a local development distribution
+
+In the project root folder, modify `__init__.py` if needed so that the version is set to `dev` or `dev.1` or something like that
+(don't want to create a distribution with an official release name if it is for development purposes)
+
+`python setup.py bdist_wheel`
+
+The resulting distribution will be in the `dist` folder.

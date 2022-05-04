@@ -13,11 +13,12 @@ from apodeixi.cli.apo_cli                               import apo_cli
 BR_FILENAME                                 = "Astrea.modernization.big-rocks.journeys.a6i.xlsx"
 
 COMMAND                                     = ["post", BR_FILENAME]
+COMMAND                                     = ["get", "form", "milestone.journeys.a6i", "cicloquimica.production", "modernization"]
 CLI                                         = apo_cli
 
 # Select the environment you want to troubleshoot
 #
-APODEIXI_ROOT                               = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/"
+APODEIXI_ROOT                               = "C:/Users/aleja/Documents/Code/chateauclaudia-labs/a6i_repos/"
 _os.environ["APODEIXI_CONFIG_DIRECTORY"]    = APODEIXI_ROOT + "/UAT_ENV"
 
 # Select the working folder where you want to work

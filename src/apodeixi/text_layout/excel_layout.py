@@ -3,6 +3,8 @@ import datetime                         as _datetime
 from apodeixi.util.a6i_error            import ApodeixiError
 from apodeixi.util.formatting_utils     import StringUtils
 from apodeixi.util.dataframe_utils      import DataFrameUtils
+from apodeixi.util.time_buckets         import TimebucketStandardizer
+
 
 
 class Excel_Block():
@@ -703,6 +705,8 @@ class ManifestXLWriteConfig(AsExcel_Config):
           class from this one (ManifestXLWriteConfig) to handle that. A common use case is for many-to-many
           mappings between two manifests rendered in the same Excel posting. That is handled by derived
           class MappedManifestXLWriteConfig
+        * If `content_df` has columns with time buckets, then the returned DataFrame will sort them as long
+          as the caller has passed a `representer` object with a valid attribute representer.a6i_config
 
         Additionally, it takes this opportunity to build the layout for self.
 
@@ -711,6 +715,22 @@ class ManifestXLWriteConfig(AsExcel_Config):
         '''
         displayable_cols    = [col for col in content_df.columns if not col in self.hidden_cols]
         displayable_df      = content_df[displayable_cols]
+
+        # Feature added in May 2022:
+        # By default, we want to ensure that any time-bucket columns in displayable_df appear in order. Hence we rely on the 
+        # Apodeixi utility for sorting DataFrame columns by timebucket.
+        # For backward compatibility, we only do so if the caller has "expressed" a desire for this by setting a non-None
+        # value for representer.a6i_config, since the Apodeixi time bucket utility requires it
+        if representer.a6i_config != None:
+             
+            standardizer                = TimebucketStandardizer()
+            # TimebucketStandardizer errors out if passed a DataFrame without timebuckets, so only invoke it if indeed
+            # we have timebuckets in the displayable_df's columns
+            if standardizer.containsTimebucketColumns(parent_trace, representer.a6i_config, displayable_df):
+                displayable_df, info    = standardizer.standardizeAllTimebucketColumns(parent_trace,
+                                                                                a6i_config      = representer.a6i_config, 
+                                                                                df              = displayable_df, 
+                                                                                lower_level_key = None)         
         
         # To avoid Pandas warnings when we later mutate some values in displayable_df as part of cleaning
         # up blanks, make sure to reset the index. Else Pandas warns about "SetttingWithCopyWarning"
@@ -802,9 +822,38 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
     It requires the referenced manifest to also appear in the same Excel worksheet, and for it to be displayed
     at 90 degrees relative to this referencing manifest, so that the mapping can be expressed by a tabular map
     where an "x" indicates a mapping between UIDs from the two manifests.
+
+    It optionally supports sorting the content of the manifest. Because we display the content at 90 degrees,
+    we allow sorting the content's rows as a way to ensure that the (90 degree rotated) columns that are displayed
+    will be sorted as desired. For example, if a manifest has a column called "Date", then it might be desirable
+    to ensure that the display will have columns sorted by "Date".
+
+    @param sort_by Used to sort the rows of a DataFrame passed to self.build_displayble_df. It is null by default
+                    (which implies no sorting). It should be set to either a column (or list of columns) of such DataFrame 
+                    whose values should be used to sort the DataFrame, or a callable that will act on the DataFrame columns 
+                    to select which ones to sort by.
+                    * Example1: If "Date" is a column, then we can use `sort_by="Date"`
+                    * Example2: If the DataFrame will have columns of the form 
+                    
+                            ["Date for subproduct Foo", "Date for subproduct Bar"]
+
+                        then it can't be predicted at construction time what the full column names will be (as the
+                        subproducts "Foo" and "Bar" would only be known later)
+                        In that case, we can use `sort_by=lambda col: col.startswith("Date for")`
+                            
+    @param sort_key Used to sort the rows of a DataFrame passed to self.build_displayable_df. It is null by default
+                    (which implies no sorting), and is only used if the `sort_by` paramenter is not null. It should
+                    act on a Pandas Series that represents the values of a column being sorted by, and should return
+                    another Pandas Series of same shape/index whose values are the keys for sorting.
+                    Refer to the documentation for Pandas 
+                    https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.sort_values.html
+
+    that this instance will process. It is
+                        null by default. If non-null, the 
     '''
     def __init__(self, manifest_name,  read_only, referenced_manifest_name_list, my_entity, mapped_entities_list, 
                                 is_transposed, sheet,  
+                                sort_by = None, sort_key = None,
                                 viewport_width  = 100,  viewport_height     = 40,   max_word_length = 20, 
                                 editable_cols   = [],   hidden_cols = [], num_formats = {}, editable_headers    = [], 
                                 excel_formulas  = None,  excel_dropdowns = None,
@@ -820,6 +869,9 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         self.my_entity                          = my_entity
         self.referenced_manifest_name_list      = referenced_manifest_name_list
         self.mapped_entities_list               = mapped_entities_list
+
+        self.sort_by                            = sort_by
+        self.sort_key                           = sort_key
 
         self.original_content_df        = None # Will be the original manifest content, as it is in the YAML manifest
 
@@ -852,6 +904,8 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
 
                 Otherwise, we set displayable_df[A][idx] = ""
     
+        7. Potentially, the columns of `displayable_df` come from sorting the rows of `content_df`, if self.sort_by
+           is not null and if it a column name in `content_df`
 
         @param representer A ManifestRepresenter instance that has the context for the process that is
                         displaying possibly multiple manifests onto the same Excel workbook.
@@ -861,6 +915,17 @@ class MappedManifestXLWriteConfig(ManifestXLWriteConfig):
         self.original_content_df        = content_df
 
         enriched_df                     = content_df.copy()
+
+        if self.sort_by != None:
+            if callable(self.sort_by):
+                sorting_columns         = [col for col in enriched_df.columns if self.sort_by(col)==True]
+            elif self.sort_by in enriched_df.columns:
+                sorting_columns         = self.sort_by
+            else: # No luck, so we won't sort. Express that by setting sorting_columns to null
+                sorting_columns        = None
+            if sorting_columns != None:
+                enriched_df             = enriched_df.sort_values(by=sorting_columns, key=self.sort_key, axis=0, ascending=True)
+
         foreign_key_col_list            = []
         for idx in range(len(self.mapped_entities_list)):
             

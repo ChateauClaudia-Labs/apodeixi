@@ -4,7 +4,7 @@ import pandas                                   as _pd
 from apodeixi.testing_framework.a6i_unit_test   import ApodeixiUnitTest
 from apodeixi.util.a6i_error                    import ApodeixiError, FunctionalTrace
 from apodeixi.util.apodeixi_config              import ApodeixiConfig
-from apodeixi.util.reporting_utils              import TimebucketStandardizer, TimebucketDataFrameJoiner
+from apodeixi.util.time_buckets                 import TimebucketStandardizer, TimebucketDataFrameJoiner
 
 class Test_Reporting_Utils(ApodeixiUnitTest):
 

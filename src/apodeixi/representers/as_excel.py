@@ -21,13 +21,17 @@ class ManifestRepresenter:
     '''
     Class that can represent an Apodeixi manifest as an Excel spreadsheet
 
-    @param config_table An AsExcel_Config_Table object
+    @param a6i_config An ApodeixiConfig object. May be null. If not null, it will be consulted to 
+                sort out displays by time buckets in situations where timebucket columns exist.
+    @param xlw_config_table An AsExcel_Config_Table object
     @param manifestInfo_dict A dictionary where the keys are the string identifiers of the manifests,
                 and the values are ManifestInfo object, containing a lot of information about manifests
                 (a dictionary representation, a DataFrame representation, etc).
     @param label_ctx A dictionary representing the key-value pairs representing the content of a PostingLabel
     '''
-    def __init__(self, parent_trace, xlw_config_table, label_ctx, manifestInfo_dict):
+    def __init__(self, parent_trace, a6i_config, xlw_config_table, label_ctx, manifestInfo_dict):
+
+        self.a6i_config         = a6i_config
         self.xlw_config_table   = xlw_config_table
         self.label_ctx          = label_ctx
 
