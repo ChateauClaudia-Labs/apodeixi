@@ -22,6 +22,7 @@ from apodeixi.representers.as_excel                     import ManifestRepresent
 from apodeixi.text_layout.excel_layout                  import AsExcel_Config_Table, ManifestXLWriteConfig, PostingLabelXLWriteConfig
 from apodeixi.util.formatting_utils                     import StringUtils
 from apodeixi.util.dictionary_utils                     import DictionaryUtils
+from apodeixi.util.rollover_utils                       import RolloverUtils
 
 
 class SkeletonController(PostingController):
@@ -448,8 +449,26 @@ class SkeletonController(PostingController):
                                                                             name                = name, 
                                                                             kind                = kind)
 
-                # TODO ROLLOVER- implement rollover functionality. For example, if not found in FY 23 but self (concrete class)
-                # supports rollover, then get the "name_to_rollover" and try again to find the latest for it.
+                # GOTCHA
+                # See detailed comments in rollover_utils.py for RolloverUtils.POST_ROLL_FROM_NAME as to why
+                # we need to do this "label switching".
+                # Basically it is to remove rollover hints in cases where a rollover already happened, so that we
+                # inhibit it from happening again and causing errors
+                #
+                manifest_dict                   = RolloverUtils().switch_to_post_rollover(loop_trace, manifest_dict)
+
+                if manifest_dict == None:
+                    # Didn't find any manifest, but before giving up, check if we might be in a rollover situation.
+                    # For example, perhaps we have manifests for FY 22 and we are just moving into FY 23, in which case
+                    # the first manifest for FY23 should be based on the last manifest for FY 22
+
+                    manifest_dict               = self.rollover(            parent_trace        = loop_trace, 
+                                                                            manifest_api_name   = manifest_api_name, 
+                                                                            namespace           = namespace, 
+                                                                            roll_to_name        = name,
+                                                                            subnamespace        = subnamespace, 
+                                                                            coords              = coords, 
+                                                                            kind                = kind)
 
                 # If we did find something (i.e., manifest-dict isn't null), check this manifest is for an API version we support.
                 # This call returns something like ("delivery-planning.journeys.a6i.io", "v1a")
@@ -644,7 +663,30 @@ class SkeletonController(PostingController):
         '''
         raise ApodeixiError(parent_trace, "Someone forgot to implement abstract method 'manifestNameFromCoords' in concrete class",
                                                 origination = {'concrete class': str(self.__class__.__name__), 
-                                                                'signaled_from': __file__}) 
+                                                                'signaled_from': __file__})
+                                                                
+    def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, subnamespace, coords, kind):        
+        '''
+        Helper method used in rollover situations, usually used in the context of generating forms. 
+        
+        This is when we are switching fiscal years, such as from FY22 to FY23,
+        and need the name of the previous fiscal year's manifest consistent with the parameters.
+        
+        This makes it possible that when callers ask for "the most recent manifest to update in FY23", and no such manifests
+        exists in FY23, then the get "the last manifest from FY 22" so that their first FY23 update is a continuation of
+        the history of changes in FY22.
+
+        It is up to each concrete controller class to decide if/how it supports rollover.
+
+        If rollover functionality is not supported, then None is returned. This is the default implementation in the parent
+        class.
+        
+        For classes that support rollover, this method will return returns a dictionary corresponding to the most recent 
+        manifest meeting the given characteristics, except that its metadata is mutated to reflect the post-rollover
+        state. For example, if scoring cycles are used, the most recent "FY 22" scoring cycle label would be modified
+        to "FY 23" when rolling over from FY 22 to FY 23. 
+        '''
+        return None
 
     def manifestLabelsFromCoords(self, parent_trace, subnamespace, coords):
         '''
@@ -819,6 +861,14 @@ class SkeletonController(PostingController):
                                                                 label._ESTIMATED_ON:        estimated_on,
                                                             }
                                             }
+
+            # Check if we are in a rollover situation, because if so we want this manifest to record that it's lineage
+            # comes from a follover.
+            #
+            roll_from_name          = label.rollFromName(my_trace, manifest_nb)
+            if roll_from_name != None:
+                metadata['labels'][RolloverUtils.ROLL_FROM_NAME]        = roll_from_name
+
 
             manifest_dict[ManifestAPIVersion.API_VERSION] = self.api_version(my_trace)
             manifest_dict['kind']       = kind
@@ -1544,7 +1594,26 @@ class SkeletonController(PostingController):
                         
             FMT                     = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
             namespace               = FMT(organization + '.' + kb_area)
-            manifest_name           = self.manifestNameFromLabel(parent_trace, label, kind)
+            roll_from_name          = label.rollFromName(my_trace, manifest_nb)
+            if  roll_from_name != None:
+                # This is an unusual case, and only occurs when rolling from a year (e.g., "FY 22" to "FY 23")
+                # In those situations, we are posting the first manifest for FY 23 but want to see it as a continuation
+                # of the lineage of the manifest history in FY 22. So if in FY 22 the manifest ended at version 4,
+                # the first posting for the manifest in FY 23 will be with a generated form for creating version 5.
+                #
+                # That means we will validate here that version 4 exists before allowing version 5 to be saved,
+                # but when rolling out we shouldn't use the FY 23 name of the manifest but the FY 22's.
+                #
+                # For example, when rolling from "FY 22" to "FY 23", we want to do version integrity by looking if a prior version
+                #   exists in name 
+                #                               "modernization.fy-22.astrea.official",  (which is given by label.rollFromName(-))
+                #  instead of looking in name 
+                #                               "modernization.fy-23.astrea.official",  (which is given by manifestNameFromLabel(-))
+                # where we wouldn't find one.               
+                #
+                manifest_name       = roll_from_name
+            else:
+                manifest_name       = self.manifestNameFromLabel(parent_trace, label, kind)
             
             # Load the prior manifest, to determine which UIDs are already in use so that we don't
             # re-generate them for different data items
@@ -1603,7 +1672,7 @@ class SkeletonController(PostingController):
                                                         ME._DATA_RANGE]
             combined_mandatory_fields.extend(mandatory_fields)
 
-            combined_optional_fields                = [ME._DATA_SHEET, ME._PRIOR_VERSION, ME._READ_ONLY]
+            combined_optional_fields                = [ME._DATA_SHEET, ME._PRIOR_VERSION, ME._READ_ONLY, RolloverUtils.ROLL_FROM_NAME]
             combined_optional_fields.extend(optional_fields)
 
             combined_date_fields                    = [ME._ESTIMATED_ON]
@@ -1729,6 +1798,27 @@ class SkeletonController(PostingController):
                 version_fieldname       = ME._PRIOR_VERSION + "." + str(nb)
                 _infer(version_fieldname,   ["metadata",    "version"                               ])
 
+            roll_from_name          = RolloverUtils().get_rollFromName(parent_trace, manifest_dict)
+            if roll_from_name != None:
+
+                # As documented above in the definition of RolloverUtils.ROLL_FROM_NAME, the existence of this label in manifest_dict
+                # must be treated as a hint that we are in a rollolver situation.
+                #
+                # I.e., we are generating a label for a form meant to be used to create the first manifest of
+                # "the next year" (e.g., "FY 23") even though the "previous" manifest_dict is from "the prior year" (e.g., "FY 22").
+                #
+                # For example, when rolling from "FY 22" to "FY 23", we want version integrity done by looking if a prior version
+                #   exists in name 
+                #                               "modernization.fy-22.astrea.official", 
+                #  instead of looking in name 
+                #                               "modernization.fy-23.astrea.official", 
+                # where we wouldn't find one.            
+                # To make such a version integrity check to be done correctly later one (and not error out), we remember
+                # in the posting label that 
+                #                               RolloverUtils.ROLL_FROM_NAME = "modernization.fy-22.astrea.official"
+                # 
+                _infer(RolloverUtils.ROLL_FROM_NAME,           ["metadata",    "labels",       RolloverUtils.ROLL_FROM_NAME,      ])           
+
             editable_fields = [ME._RECORDED_BY, ME._ESTIMATED_BY, ME._ESTIMATED_ON]
             return editable_fields
 
@@ -1789,6 +1879,16 @@ class SkeletonController(PostingController):
             ME = SkeletonController._MyPostingLabel
 
             field_name      = ME._READ_ONLY + "." + str(manifest_nb)
+            if not field_name in self.ctx.keys():
+                return None
+            val  = self._getField(parent_trace, field_name)
+            return val
+
+        def rollFromName(self, parent_trace, manifest_nb):
+            # Shortcut to reference class static variables
+            ME = SkeletonController._MyPostingLabel
+
+            field_name      = RolloverUtils.ROLL_FROM_NAME
             if not field_name in self.ctx.keys():
                 return None
             val  = self._getField(parent_trace, field_name)

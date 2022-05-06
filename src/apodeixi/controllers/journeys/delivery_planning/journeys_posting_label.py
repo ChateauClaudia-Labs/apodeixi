@@ -1,7 +1,9 @@
 from apodeixi.controllers.admin.static_data.static_data_validator   import StaticDataValidator
 from apodeixi.controllers.util.skeleton_controller                  import SkeletonController
+from apodeixi.util.dictionary_utils import DictionaryUtils
 from apodeixi.util.formatting_utils                                 import StringUtils
 from apodeixi.util.a6i_error                                        import ApodeixiError
+from apodeixi.util.rollover_utils                                   import RolloverUtils
 
 class JourneysPostingLabel(SkeletonController._MyPostingLabel):
     '''
@@ -22,7 +24,7 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
                                                     ME._SCORING_CYCLE,  ]
         combined_mandatory_fields.extend(mandatory_fields)
 
-        combined_optional_fields                = [ME._SCORING_MATURITY]
+        combined_optional_fields                = [ME._SCORING_MATURITY, RolloverUtils.ROLL_FROM_SCORING_CYCLE]
         combined_optional_fields.extend(optional_fields)
 
         combined_date_fields                    = []
@@ -118,9 +120,35 @@ class JourneysPostingLabel(SkeletonController._MyPostingLabel):
         _infer(ME._PRODUCT,             ["metadata",    "labels",       ME._PRODUCT             ])
         _infer(ME._JOURNEY,             ["metadata",    "labels",       ME._JOURNEY,            ])
         _infer(ME._SCENARIO,            ["metadata",    "labels",       ME._SCENARIO,           ])
-        _infer(ME._SCORING_CYCLE,       ["metadata",    "labels",       ME._SCORING_CYCLE,      ])
-        _infer(ME._SCORING_MATURITY,    ["metadata",    "labels",       ME._SCORING_MATURITY,   ])
 
+        check, explanation = DictionaryUtils().validate_path(parent_trace, manifest_dict, "Dict Name", 
+                                            ["metadata",    "labels",       RolloverUtils.ROLL_TO_SCORING_CYCLE,      ], 
+                                            valid_types = ['str'])
+        if check:
+            # As documented above in the definition of _ROLL_TO_SCORING_CYCLE, the existence of this label in manifest_dict
+            # must be treated as a hint that we are in a rollolver situation.
+            #
+            # I.e., we are generating a label for a form meant to be used to create the first manifest of
+            # "the next year" (e.g., "FY 23") even though the "previous" manifest_dict is from "the prior year" (e.g., "FY 22").
+            # Thus, when we have
+            #                       _SCORING_CYCLE="FY 22" & _ROLL_TO_SCORING_CYCLE="FY 23"
+            #
+            # we should set the generated form's posting label's _SCORING_CYCLE to "FY 23", not "FY 22"
+            #
+            _infer(ME._SCORING_CYCLE,           ["metadata",    "labels",       RolloverUtils.ROLL_TO_SCORING_CYCLE,      ])
+
+            # For good measure, we add a purely informative additional field to the posting label, so the user can tell
+            # that the "previous manifest" from which the generated form was created is for the previous year,
+            # not the current year as would be in the "usual" case
+            #
+            _infer(RolloverUtils.ROLL_FROM_SCORING_CYCLE, ["metadata",    "labels",       ME._SCORING_CYCLE,      ])
+        else:
+            # This is the "usual" case: we are not rolling from a period (e.g., FY 22) to the next one (e.g., FY 23),
+            # so populate the label's SCORING_CYCLE with what we have in the manifest_dict for such a field
+            _infer(ME._SCORING_CYCLE,       ["metadata",    "labels",       ME._SCORING_CYCLE,      ])
+
+
+        _infer(ME._SCORING_MATURITY,    ["metadata",    "labels",       ME._SCORING_MATURITY,   ])
         editable_fields.extend([ME._SCORING_MATURITY])
 
         return editable_fields

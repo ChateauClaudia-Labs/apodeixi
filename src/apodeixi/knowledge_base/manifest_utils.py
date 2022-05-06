@@ -16,6 +16,7 @@ from apodeixi.util.dictionary_utils                             import Dictionar
 from apodeixi.util.formatting_utils                             import StringUtils
 from apodeixi.util.a6i_error                                    import ApodeixiError
 from apodeixi.util.dataframe_utils                              import DataFrameUtils, TupleColumnUtils
+from apodeixi.util.rollover_utils                               import RolloverUtils
 
 class ManifestUtils():
     def __init__(self):
@@ -226,15 +227,32 @@ class ManifestUtils():
                                             data = {"version1": str(version1), "version2": str(version2),
                                                     "manifest2": str(manifest_file2)})
 
+            # Check if we are in a rollover situation, because in that case we must modify the name with which
+            # we attempt to retrive the previous manifest
+            #
+            # For example, when rolling from "FY 22" to "FY 23", we want to find the manifest's prior version by looking 
+            #   in name 
+            #                               "modernization.fy-22.astrea.official",  (which is given by label.rollFromName(-))
+            #  instead of looking in name 
+            #                               "modernization.fy-23.astrea.official",  (which is given by manifestNameFromLabel(-))
+            # which would error out   
+            #            
+            roll_from_name              = RolloverUtils().get_rollFromName(parent_trace, manifest_dict2)
+            if roll_from_name != None:
+                name1                   = roll_from_name
+            else:
+                name1                   = name
+
+
             manifest_handle1            = kb_utils.ManifestHandle(          manifest_api        = manifest_api_name, 
                                                                             kind                = kind, 
                                                                             namespace           = namespace,
-                                                                            name                = name, 
+                                                                            name                = name1, 
                                                                             version             = version1)
             manifest_dict1, manifest_path1 \
                                         = store.retrieveManifest(           parent_trace        = my_trace, 
                                                                             manifest_handle     = manifest_handle1)
-            manifest_file1             = _os.path.split(manifest_path1)[1]
+            manifest_file1              = _os.path.split(manifest_path1)[1]
 
         my_trace                        = parent_trace.doing("Extracting manifests' content as a DataFrame",
                                                     data = {"manifest1": str(manifest_file1),

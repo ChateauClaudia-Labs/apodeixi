@@ -5,6 +5,7 @@ from apodeixi.knowledge_base.manifest_utils                 import ManifestUtils
 
 from apodeixi.util.a6i_error                                import ApodeixiError
 from apodeixi.util.path_utils                               import PathUtils
+from apodeixi.util.rollover_utils                           import RolloverUtils
 
 class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
     '''
@@ -447,6 +448,21 @@ class Shutil_KBStore_Impl(Isolation_KBStore_Impl):
         # Check that if we are doing an update a prior version does exist
         prior_handle            = new_handle
         prior_handle.version    = new_version - 1
+
+        # Check if we are in a rollover situation. If so we also use last year's name in the handle, not
+        # the one in manifest_dict.
+        #
+        # For example, when rolling from "FY 22" to "FY 23", we want to do version integrity by looking if a prior version
+        #   exists in name 
+        #                               "modernization.fy-22.astrea.official",  (which is given by label.rollFromName(-))
+        #  instead of looking in name 
+        #                               "modernization.fy-23.astrea.official",  (which is given by manifestNameFromLabel(-))
+        # where we wouldn't find one.    
+        #            
+        roll_from_name          = RolloverUtils().get_rollFromName(parent_trace, manifest_dict)
+        if roll_from_name != None:
+            prior_handle.name   = roll_from_name
+
         prior_manifest, prior_manifest_path     = self.retrieveManifest(parent_trace, prior_handle)
 
         return prior_manifest

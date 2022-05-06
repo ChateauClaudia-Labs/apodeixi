@@ -12,6 +12,8 @@ from apodeixi.util.a6i_error                                                impo
 from apodeixi.util.formatting_utils                                         import StringUtils
 from apodeixi.util.dictionary_utils                                         import DictionaryUtils
 from apodeixi.util.dataframe_utils                                          import DataFrameUtils
+from apodeixi.util.time_buckets                                             import TimebucketStandardizer, FY_Quarter
+from apodeixi.util.rollover_utils                                           import RolloverUtils
 
 class JourneysController(SkeletonController):
     '''
@@ -114,6 +116,139 @@ class JourneysController(SkeletonController):
         name                            = FMT(journey + '.' + scoring_cycle + '.' + product + '.' + scenario)
 
         return name
+
+    def _manifestRolloverNameFromCoords(self, parent_trace, roll_to_name, subnamespace, coords, kind):
+        '''
+        Helper method used in rollover situations, usually used in the context of generating forms. 
+        
+        This is when we are switching fiscal years, such as from FY22 to FY23,
+        and need the name of the previous fiscal year's manifest consistent with the parameters.
+        
+        So in this example, while the method `self.manifestNameFromCoords` would return (among other things)
+        a FY23 name for the manifest this other method would return the FY22 equivalent.
+
+        This makes it possible that when callers ask for "the most recent manifest to update in FY23", and no such manifests
+        exists in FY23, then the get "the last manifest from FY 22" so that their first FY23 update is a continuation of
+        the history of changes in FY22.
+
+        More specifically, it returns three strings, which in the example would be:
+
+        * Something like "modernization.fy-22.astrea.official" - the "roll-from name"
+        * "FY 22" - the "roll-from scoring cycle"
+        * "FY 23" - the "roll-to scoring cycle"
+
+        If rollover functionality is not supported, then a triple of None's is returned. It is up to each concrete controller class
+        to determine whether it supports rollover
+
+        Example: consider a manifest name like "modernization.fy-22.fusionopus.default"
+                in namespace "my-corp.production". 
+
+                To build such a name, this method must receive "modernization" as the subnamespace, and
+                filing coords from which to infer "fy-23" (as opposed to "fy-22", since we are rolling over), 
+                "fusionopus", and "default".
+        @param roll_to_name A string, with the manifest name we would be rolling to. E.g. "modernization.fy-23.astrea.official"
+                when rolling from FY 22 to FY 23
+
+        @param subnamespace A string, which is allowed to be None. If not null, this is a further partioning of
+                        the namespace into finer slices, and a manifest's name is supposed to identify the slice
+                        in which the manifest resides.
+
+        @param coords A FilingCoords object corresponding to this controller. It is used, possibly along with the
+                        `subnamespace` parameter, to build a manifest name.
+        @param kind The kind of manifest for which the name is sought. This parameter can be ignored for controller
+                    classes that use the same name for all supported kinds; it is meant to support controllers that
+                    process multiple manifest kinds and do not use the same name for all of them. For example, controllers
+                    that point to reference data in a different domain/sub-domain.
+        '''
+        if not type(coords) == self.getFilingClass():
+            raise ApodeixiError(parent_trace, "Can't build manifest rollover name because received wrong type of filing coordinates",
+                                                data = {"Type of coords received": str(type(coords)),
+                                                        "Expected type of coords": str(self.getFilingClass())})
+
+        if subnamespace == None:
+            raise ApodeixiError(parent_trace, "Can't build manifest rollover name becase subnamespace is null. Should be "
+                                                + "set to a kind of journey. Example: 'modernization'")
+
+        product                         = coords.product
+        journey                         = subnamespace
+        scenario                        = coords.scenario
+        scoring_cycle                   = coords.scoringCycle
+
+        # Check if the scoring_cycle is a timebucket
+        standardizer                    = TimebucketStandardizer()
+        if not standardizer.is_a_timebucket_column(parent_trace, scoring_cycle, self.a6i_config):
+            # Rollover functionality is not supported unless scoring_cycle is a timebucket
+            return None, None, None
+        else:
+            month_fiscal_year_starts    = self.a6i_config.getMonthFiscalYearStarts(parent_trace)
+            roll_to_timebucket          = FY_Quarter.build_FY_Quarter(parent_trace, str(scoring_cycle), month_fiscal_year_starts)
+            roll_from_timebucket        = FY_Quarter(   fiscal_year                 = roll_to_timebucket.fiscal_year-1, 
+                                                        quarter                     = roll_to_timebucket.quarter,
+                                                        month_fiscal_year_starts    = month_fiscal_year_starts)
+            # We use spacing because in this concrete class we make it a policy that scoring cycles should be like "FY 22" and 
+            # not "FY22". That way when formatted by `StringUtils().format_as_yaml_fieldname` we get "fy-22" instead of "fy22"
+            roll_from_scoring_cycle     = roll_from_timebucket.displayFY(spacing= " ")
+
+            FMT                         = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
+            roll_from_name              = FMT(journey + '.' + roll_from_scoring_cycle + '.' + product + '.' + scenario)
+
+            roll_to_scoring_cycle       = scoring_cycle
+
+            return roll_from_name, roll_from_scoring_cycle, roll_to_scoring_cycle
+
+
+    def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, subnamespace, coords, kind):
+        '''
+        Returns a dictionary corresponding to the most recent manifest meeting the given characteristics, except
+        that its scoring cycle is the previous fiscal year.
+
+        If no such exists, or if scoring cycles are not represented as fiscal years in the format "FY 22", for example,
+        then it returns None
+        '''
+        roll_from_name, roll_from_scoring_cycle, roll_to_scoring_cycle   = self._manifestRolloverNameFromCoords(
+                                                                                        parent_trace, 
+                                                                                        roll_to_name, 
+                                                                                        subnamespace, 
+                                                                                        coords, 
+                                                                                        kind)
+        manifest_dict                           = None
+        if roll_from_name != None:
+            manifest_dict, manifest_path        = self.store.findLatestVersionManifest( 
+                                                                parent_trace        = parent_trace, 
+                                                                manifest_api_name   = manifest_api_name,
+                                                                namespace           = namespace, 
+                                                                name                = roll_from_name, 
+                                                                kind                = kind)
+
+        if manifest_dict != None:
+            # GOTCHA: need to add hints for later use
+            # 
+            # Since manifest_dict != None, that means that the prior year's last manifest can be used 
+            # as the basis for the next year's
+            # 
+            # Problem is: 
+            #       the metadata in the manifest_dict, while correct, would cause any Excel form built from it to
+            # have a scoring cycle for the past year, not the next year as we intend in a rollover.
+            # To fix this we add an additional label as a "hint" for later use in journeys_posting_label::infer, so that it knows
+            # not to take the scoring cycle from manifest_dict's scoring_cycle label (since that is prior year's)
+            # but from this additional label we are adding: RolloverUtils.ROLL_TO_SCORING_CYCLE
+            #
+            # Likewise, we remember the "roll-from name" (i.e., "modernization.fy-22.astrea.official" instead of 
+            # "modernization.fy-23.astrea.official" when rolling from "FY 22" to "FY 23"). This is remembered so that we
+            # don't get errors when checking integrity versions when we post manifests: if we post version 5 of a manifest, say,
+            # Apodeixi will check if version 4 exists. But if Apodeixi looks in the "new year's" name, then it won't find 
+            # a prior manifest for version 4 and error out. To pre-empt this, we remember the "last year's" name so that
+            # Apodeixi can use it to find the prior version 4 of the manifest, and pass the version integrity check.
+            #
+            # The reverence integrity check is dones in skeleton_controller::initialize_UID_Store
+            #
+            manifest_dict['metadata']['labels'][RolloverUtils.ROLL_TO_SCORING_CYCLE]   = roll_to_scoring_cycle
+            manifest_dict['metadata']['labels'][RolloverUtils.ROLL_FROM_NAME]           = roll_from_name
+
+
+            
+
+        return manifest_dict
 
     def manifestLabelsFromCoords(self, parent_trace, subnamespace, coords):
         '''

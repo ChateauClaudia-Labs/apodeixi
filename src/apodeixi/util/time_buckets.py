@@ -158,8 +158,15 @@ class FY_Quarter():
         d = _datetime.date(calendar_year, month, first_day_of_month)
         return d
     
-    def displayFY(self):
-        return 'FY' + str(self.fiscal_year%100)
+    def displayFY(self, spacing=None):
+        '''
+        @param spacing Optional parameter, null by default. If set to a string (such as " " or "-") it will be used
+            as a delimeter. For example, to display "FY 22" instead of "FY22" if a space is used as delimeter
+        '''
+        if type(spacing)==str:
+            return 'FY' + spacing + str(self.fiscal_year%100)
+        else:
+            return 'FY' + str(self.fiscal_year%100)
     
     def displayQuarter(self):
         return 'Q' + str(self.quarter)
