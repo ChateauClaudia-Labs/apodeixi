@@ -450,7 +450,7 @@ class SkeletonController(PostingController):
                                                                             kind                = kind)
 
                 # GOTCHA
-                # See detailed comments in rollover_utils.py for RolloverUtils.POST_ROLL_FROM_NAME as to why
+                # See detailed comments in rollover_utils.py for RolloverUtils.switch_to_post_rollover as to why
                 # we need to do this "label switching".
                 # Basically it is to remove rollover hints in cases where a rollover already happened, so that we
                 # inhibit it from happening again and causing errors
