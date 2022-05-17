@@ -9,12 +9,12 @@ the Apodeixi configuration file to use. The configuration file must be called Ap
 An example configuration (for testing purposes) is included in the test distribution (a separate GIT project), 
 referencing a test database external to the distribution. This example illustrates setting of the environment variable to that sample configuration:
 
-export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/test_db"
+export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/a6i_repos/apodeixi-testdb"
 
 For interactive testing, it is sometimes convenient to set up a UAT environment, with its dedicated configuration
 file, and point Apodeixi to it, as in this example:
 
-export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/apodeixi/UAT_ENV"
+export APODEIXI_CONFIG_DIRECTORY="C:/Users/aleja/Documents/Code/chateauclaudia-labs/a6i_repos/UAT_ENV"
 
 # Using a sandbox in the CLI
 

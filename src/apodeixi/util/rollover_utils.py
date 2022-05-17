@@ -1,3 +1,5 @@
+import copy
+
 from apodeixi.util.dictionary_utils                             import DictionaryUtils
 
 class RolloverUtils():
@@ -125,7 +127,26 @@ class RolloverUtils():
         if manifest_dict == None:
             return # Nothing to do
 
-        modified_manifest_dict      = manifest_dict.copy()
+        # GOTCHA
+        #       Make a *deep* copy of the manifest_dict.
+        #
+        #   Otherwise, we will modify the `manifest_dict` object that was passed to us, and since Apodeixi uses
+        #   a cache for Yaml manifests (see apodeixi.util.yaml_utils), we will probably de mutating the contents of the
+        #   cache, which is buggy since they are supposed to be immutable.
+        #
+        #   That would result in weird bugs such as trying to load a particular manifest (e.g., version 2 of big rocks)
+        #   that is supposed to contain a rollFromName (e.g., if version 1 was in FY 22 and version 2 is the first version of
+        #   FY 23), but it wouldn't because if someone did a "generate form" to get an Excel to create version 3, in the
+        #   process the loaded dictionary was probably passed to this function as `manifest_dict` to "clean up" (i.e. remove)
+        #   the ROLL_FROM_NAME label so that version 3 of the big-rocks won't have such a label.
+        #
+        #   But if we don't do a deep copy here, as a side effect we will also confuse the cache into thinking that we did
+        #   the clean up not only for the yet-to-be version 3 of big-rock, but (buggy) for the already persisted version 2.
+        #
+        #   As a result, attempts to load version 2 will be retrieved without the ROLL_FROM_NAME label (from the cache), even
+        #   though it exists in disk with such a label.
+        #
+        modified_manifest_dict      = copy.deepcopy(manifest_dict)
         
         labels_dict                 = modified_manifest_dict["metadata"]["labels"]
         roll_from_name              = labels_dict.pop(RolloverUtils().ROLL_FROM_NAME, None)

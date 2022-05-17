@@ -197,7 +197,7 @@ class JourneysController(SkeletonController):
             return roll_from_name, roll_from_scoring_cycle, roll_to_scoring_cycle
 
 
-    def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, subnamespace, coords, kind):
+    def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, coords, kind):
         '''
         Returns a dictionary corresponding to the most recent manifest meeting the given characteristics, except
         that its scoring cycle is the previous fiscal year.
@@ -205,6 +205,9 @@ class JourneysController(SkeletonController):
         If no such exists, or if scoring cycles are not represented as fiscal years in the format "FY 22", for example,
         then it returns None
         '''
+        # We expect roll_to_name to be something like "cloud.fy-23.opus.official", so we can extract the subnamespace
+        # (which this Journeys controller requires) by taking the first substring of roll_from_name before the first "."
+        subnamespace                            = roll_to_name.split(".")[0]
         roll_from_name, roll_from_scoring_cycle, roll_to_scoring_cycle   = self._manifestRolloverNameFromCoords(
                                                                                         parent_trace, 
                                                                                         roll_to_name, 
@@ -392,6 +395,23 @@ class JourneysController(SkeletonController):
         labels_dict[MY_PL._SCORING_MATURITY]    = ""
 
         return template_dict, template_df
+
+    def rollOverIsSupported(self, kind):
+        '''
+        Returns a boolean, depending on whether rollover functionality is supported for the `kind` in question.
+        This is used when posting an Excel file in a "immediately after rollover" context, e.g., when  
+        we just did a "get form" for FY 23 and it gave us an Excel that points to a prior version in FY 22 through 
+        its "rollFromName" label field.
+
+        In those situations it may happen that the Excel file leads to the creation of multiple manifests,
+        and possibly for only some of them the prior version should be sought in the prior fiscal year
+        (for example, some manifests may be static data or may not use the same manifest name as the main manifests posted,
+        so the "rollFromName" field in the posting label should not be used for that `kind` of manifest).
+        
+        In those cases, this function allows the concrete controller class to state which kinds support rollover
+        logic, i.e., for which ones it makes sense to look in a prior fiscal yea
+        '''
+        return True
 
     def apply_subproducts_to_df(self, parent_trace, template_dict, template_df):
         '''

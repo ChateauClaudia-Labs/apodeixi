@@ -124,7 +124,8 @@ class JourneysFilingCoordinates(FilingCoordinates):
                                             + str(self.expected_tokens(parent_trace)) 
                                             + ", but instead received a " + str(type(path_tokens)))
         if len(path_tokens)         != 4:
-            raise ApodeixiError(parent_trace, "Expected exactly 4 path tokens like " + str(self.expected_tokens(parent_trace)),
+            raise ApodeixiError(parent_trace, "Are you in the right working folder? Perhaps not, because found this error:\n"
+                                            + "\tExpected exactly 4 path tokens like " + str(self.expected_tokens(parent_trace)),
                                                 data = {'path_tokens': str(path_tokens)})
         if path_tokens[0]           != ME.JOURNEYS:
             raise ApodeixiError(parent_trace, "The first path token is required to be '" + ME.JOURNEYS + "'",

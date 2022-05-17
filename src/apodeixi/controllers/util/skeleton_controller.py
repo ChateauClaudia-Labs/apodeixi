@@ -466,7 +466,7 @@ class SkeletonController(PostingController):
                                                                             manifest_api_name   = manifest_api_name, 
                                                                             namespace           = namespace, 
                                                                             roll_to_name        = name,
-                                                                            subnamespace        = subnamespace, 
+                                                                            #subnamespace        = subnamespace, 
                                                                             coords              = coords, 
                                                                             kind                = kind)
 
@@ -665,7 +665,7 @@ class SkeletonController(PostingController):
                                                 origination = {'concrete class': str(self.__class__.__name__), 
                                                                 'signaled_from': __file__})
                                                                 
-    def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, subnamespace, coords, kind):        
+    def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, coords, kind):        
         '''
         Helper method used in rollover situations, usually used in the context of generating forms. 
         
@@ -867,7 +867,8 @@ class SkeletonController(PostingController):
             #
             roll_from_name          = label.rollFromName(my_trace, manifest_nb)
             if roll_from_name != None:
-                metadata['labels'][RolloverUtils.ROLL_FROM_NAME]        = roll_from_name
+                #rfm_label           = RolloverUtils.ROLL_FROM_NAME + "." + str(manifest_nb)
+                metadata['labels'][RolloverUtils.ROLL_FROM_NAME]   = roll_from_name
 
 
             manifest_dict[ManifestAPIVersion.API_VERSION] = self.api_version(my_trace)
@@ -1570,6 +1571,46 @@ class SkeletonController(PostingController):
         '''
         return template_dict, template_df
 
+    def rollOverIsSupported(self, kind):
+        '''
+        Returns a boolean, depending on whether rollover functionality is supported for the `kind` in question.
+        This is used when posting an Excel file in a "immediately after rollover" context, e.g., when  
+        we just did a "get form" for FY 23 and it gave us an Excel that points to a prior version in FY 22 through 
+        its "rollFromName" label field.
+
+        In those situations it may happen that the Excel file leads to the creation of multiple manifests,
+        and possibly for only some of them the prior version should be sought in the prior fiscal year
+        (for example, some manifests may be static data or may not use the same manifest name as the main manifests posted,
+        so the "rollFromName" field in the posting label should not be used for that `kind` of manifest).
+        
+        In those cases, this function allows the concrete controller class to state which kinds support rollover
+        logic, i.e., for which ones it makes sense to look in a prior fiscal yea
+        '''
+        return False
+
+    def getRollFromName(self, parent_trace, label, kind, manifest_nb):
+        '''
+        Returns either a String, or None.
+
+        Used in situations when there might be a rollover (e.g., starting a scoring cycle FY 23 by loading the
+        last manifests from FY 22).
+
+        In those cases the posting label sometimes has a field to indicate what manifest name we are rolling from,
+        such as "cloud.fy-22.opus.mtp".
+
+        So normally this method would return such a string, "cloud.fy-22.opus.mtp". However, concrete classes
+        may choose to overwrite this method in order to tweak the name based on the type of kind.
+
+        For example, some Excel postings are for multiple manifests, some of which are reference manifests using
+        a different name. So while the main manifest kind in the posting may use "cloud.fy-22.opus.mtp",
+        perhaps a referenced kind in the same posting might use "multiple.fy-22.opus.mtp".
+
+        For this default implementation, the roll_from_name is returned "as is" for all manifest kinds, i.e.,
+        as "cloud.fy-22.opus.mtp" in the example, or None if there we are not in a rollover situation.
+        '''
+        roll_from_name          = label.rollFromName(parent_trace, manifest_nb)
+        return roll_from_name
+
     def initialize_UID_Store(self, parent_trace, posting_data_handle, xlr_config):
         '''
         Creates and returns a UID_Store object.
@@ -1594,8 +1635,9 @@ class SkeletonController(PostingController):
                         
             FMT                     = StringUtils().format_as_yaml_fieldname # Abbreviation for readability
             namespace               = FMT(organization + '.' + kb_area)
-            roll_from_name          = label.rollFromName(my_trace, manifest_nb)
-            if  roll_from_name != None:
+
+            roll_from_name          = self.getRollFromName(my_trace, label, kind, manifest_nb)
+            if  roll_from_name != None and self.rollOverIsSupported(kind):
                 # This is an unusual case, and only occurs when rolling from a year (e.g., "FY 22" to "FY 23")
                 # In those situations, we are posting the first manifest for FY 23 but want to see it as a continuation
                 # of the lineage of the manifest history in FY 22. So if in FY 22 the manifest ended at version 4,
@@ -1815,9 +1857,13 @@ class SkeletonController(PostingController):
                 # where we wouldn't find one.            
                 # To make such a version integrity check to be done correctly later one (and not error out), we remember
                 # in the posting label that 
-                #                               RolloverUtils.ROLL_FROM_NAME = "modernization.fy-22.astrea.official"
+                #                               RolloverUtils.ROLL_FROM_NAME.x = "modernization.fy-22.astrea.official"
+                #
+                #   where ".x" refers to the manifest number (0, 1, 2, ...), as the Excel form may reference multiple
+                #   manifest, not all of which may have the same value for the ROLL_FROM_NAME label.
                 # 
-                _infer(RolloverUtils.ROLL_FROM_NAME,           ["metadata",    "labels",       RolloverUtils.ROLL_FROM_NAME,      ])           
+                rfm_fieldname       = RolloverUtils.ROLL_FROM_NAME + "." + str(nb)
+                _infer(rfm_fieldname,           ["metadata",    "labels",       RolloverUtils.ROLL_FROM_NAME,      ])           
 
             editable_fields = [ME._RECORDED_BY, ME._ESTIMATED_BY, ME._ESTIMATED_ON]
             return editable_fields
@@ -1888,7 +1934,7 @@ class SkeletonController(PostingController):
             # Shortcut to reference class static variables
             ME = SkeletonController._MyPostingLabel
 
-            field_name      = RolloverUtils.ROLL_FROM_NAME
+            field_name      = RolloverUtils.ROLL_FROM_NAME + "." + str(manifest_nb)
             if not field_name in self.ctx.keys():
                 return None
             val  = self._getField(parent_trace, field_name)

@@ -455,6 +455,9 @@ class MilestonesController(JourneysController):
             namespace                       = FMT(organization + '.' + kb_area)
             manifest_name                   = self.controller.manifestNameFromLabel(my_trace, label=self, kind=ME.REFERENCED_KIND)
 
+            BIG_ROCKS_MANIFEST_NB           = 0
+            referenced_manifest_nb          = BIG_ROCKS_MANIFEST_NB
+
             manifest_dict, manifest_path    = self.controller.store.findLatestVersionManifest( 
                                                                         parent_trace        = my_trace, 
                                                                         manifest_api_name   = manifest_api_name,
@@ -462,8 +465,30 @@ class MilestonesController(JourneysController):
                                                                         name                = manifest_name, 
                                                                         kind                = ME.REFERENCED_KIND)
 
-            BIG_ROCKS_MANIFEST_NB           = 0
-            referenced_manifest_nb          = BIG_ROCKS_MANIFEST_NB
+            if manifest_dict == None:
+                # Before error-ing out, check if we are in a rollover situation, in which case we give it one more shot
+                # by lookin for the big-rocks under the prior fiscal year name
+                #
+                roll_from_name              = self.rollFromName(my_trace, manifest_nb=referenced_manifest_nb)
+                if roll_from_name != None: # Try again
+                    manifest_dict, manifest_path    = self.controller.store.findLatestVersionManifest( 
+                                                                        parent_trace        = my_trace, 
+                                                                        manifest_api_name   = manifest_api_name,
+                                                                        namespace           = namespace, 
+                                                                        name                = roll_from_name, 
+                                                                        kind                = ME.REFERENCED_KIND)
+
+
+            if manifest_dict == None:
+                # We already tried twice (with current fiscal year and (for rollover situations) in prior fiscal year) 
+                # and failed in both cases - so error out.
+                raise ApodeixiError(my_trace, "Unable to check referential integrity against non-existent '" +
+                                                ME.REFERENCED_KIND + "' manifest",
+                                                data={  "namespace":            namespace, 
+                                                        "name":                 manifest_name, 
+                                                        "manifest_api_name":    manifest_api_name})
+
+
             last_version_nb                 = ManifestUtils().get_manifest_version(my_trace, manifest_dict)
 
             submitted_version_nb            = self.priorVersion(my_trace, referenced_manifest_nb)
