@@ -227,13 +227,32 @@ class JourneysController(SkeletonController):
             self.using_subproducts  = True # Derived classes can use this in self.getPostingConfig to ensure multiple headers are on
             self.subproducts        = subproducts
 
-        if self.using_subproducts:
+        if self.using_subproducts and self.uses_subproduct_manifests(parent_trace, kind):
             # Then name is something like "cloud.mdi.fy-23.opus.official", and we want to extract "cloud.mdi"
             subnamespace                            = ".".join(name.split(".")[:2])
         else:
             # Then name is something like "cloud.fy-23.opus.official", and we want to extract "cloud"
             subnamespace                            = name.split(".")[0]
         return subnamespace
+
+    def uses_subproduct_manifests(self, parent_trace, kind):
+        '''
+        Returns a boolean, indicating whether (for a given manifest kind) a subproduct-specific subspace should be used in 
+        situations where there are subproducts.
+
+        For example suppose a product "Opus" has a subproduct called "MDI". Manifests for such products use names that
+        are built from one of two kinds of subspaces:
+
+        * If subspaces are subproduct specific, then names are like "cloud.mdi.fy-23.opus.official", so the subspace is "cloud.mdi"
+
+        * If not, names are like "multiple.fy-23.opus.official", and the subspace is "multiple"
+
+        By default this method returns False, which indicates that subspaces are not subproduct-specific.
+        
+        Concrete classes may overwrite it as a way to signal, for specific manifest kinds, that they use subproduct-specific
+        namespaces.
+        '''
+        return False
 
 
     def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, coords, kind):
