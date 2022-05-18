@@ -14,6 +14,7 @@ from apodeixi.util.dictionary_utils                                         impo
 from apodeixi.util.dataframe_utils                                          import DataFrameUtils
 from apodeixi.util.time_buckets                                             import TimebucketStandardizer, FY_Quarter
 from apodeixi.util.rollover_utils                                           import RolloverUtils
+from numpy import product
 
 class JourneysController(SkeletonController):
     '''
@@ -196,6 +197,44 @@ class JourneysController(SkeletonController):
 
             return roll_from_name, roll_from_scoring_cycle, roll_to_scoring_cycle
 
+    def subspace_from_name(self, parent_trace, namespace, name, product, kind):
+        '''
+        Helper method used by self.rollover. Extracts the subspace from a manifest name, taking into account
+        whether there are subproducts or not.
+
+        For example, if there are no subproducts, then we expect to be given names like
+
+                cloud.fy-23.opus.official
+
+        and then the subspace is "cloud".
+
+        However, if there are subproducts and product OPUS has a subproduct called MDI, then we expect names like
+
+                cloud.mdi.fy-23.opus.official
+
+        and then the subspace is "cloud.mdi"
+        '''
+
+
+        # GOTCHA: Normally this is called during "get form" as opposed than during a "post", so the function
+        #       that normally determines if there are subproducts (self._buildOneManifest) might not have been called.
+        #       So in case, we duplicate that logic here
+        validator                   = StaticDataValidator(parent_trace, self.store, self.a6i_config)
+        subproducts                 = validator.getSubProducts(parent_trace, namespace, product)
+        if len(subproducts) == 0:
+            self.using_subproducts  = False
+        else:
+            self.using_subproducts  = True # Derived classes can use this in self.getPostingConfig to ensure multiple headers are on
+            self.subproducts        = subproducts
+
+        if self.using_subproducts:
+            # Then name is something like "cloud.mdi.fy-23.opus.official", and we want to extract "cloud.mdi"
+            subnamespace                            = ".".join(name.split(".")[:2])
+        else:
+            # Then name is something like "cloud.fy-23.opus.official", and we want to extract "cloud"
+            subnamespace                            = name.split(".")[0]
+        return subnamespace
+
 
     def rollover(self, parent_trace, manifest_api_name, namespace, roll_to_name, coords, kind):
         '''
@@ -207,7 +246,22 @@ class JourneysController(SkeletonController):
         '''
         # We expect roll_to_name to be something like "cloud.fy-23.opus.official", so we can extract the subnamespace
         # (which this Journeys controller requires) by taking the first substring of roll_from_name before the first "."
-        subnamespace                            = roll_to_name.split(".")[0]
+        #
+        # First step is to get a product
+        try:
+            product                             = coords.product
+        except Exception as ex:
+            raise ApodeixiError(parent_trace, "Can't do a rollover because coordinates don't have a product",
+                                data = {"manifest_api_name": manifest_api_name,
+                                            "namespace":    namespace,
+                                            "roll_to_name": roll_to_name,
+                                            "coords":       str(coords),
+                                            "kind":         kind})
+        subnamespace                            = self.subspace_from_name(parent_trace, 
+                                                                                        namespace, 
+                                                                                        roll_to_name, 
+                                                                                        product, 
+                                                                                        kind)
         roll_from_name, roll_from_scoring_cycle, roll_to_scoring_cycle   = self._manifestRolloverNameFromCoords(
                                                                                         parent_trace, 
                                                                                         roll_to_name, 
