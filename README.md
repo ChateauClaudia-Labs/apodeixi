@@ -79,6 +79,15 @@ To run all tests except a particularly slow test such as `test_aha_importer`, se
 
 `SMOKE_TESTS_ONLY=True python -m unittest -v`
 
+# Running tests against a specific test database
+
+If the database of expected test results is externalized (i.e., not the default folder), them make sure to set this 
+environment variable to the folder that contains that test db's Apodeixi config file.
+
+For example,
+
+`export INJECTED_CONFIG_DIRECTORY="/c/Users/aleja/Documents/Code/chateauclaudia-labs/a6i_repos/apodeixi-testdb"`
+
 # To build a local development distribution
 
 In the project root folder, modify `__init__.py` if needed so that the version is set to `dev` or `dev.1` or something like that

@@ -1,0 +1,50 @@
+1.	YAML CACHE bug: cache only works for immutable YAMLs because when transactions are committed the cache’s entries for the 
+    sub-environment are not copied to the parent environment. 
+a.	Fix this in the code that commits transactions
+b.	Then remove the flag to make the cache optional (e.g., for foreign key constraints)
+c.	While at it, add compactification to foreign key constraints so that e.g., we only persist a constraint for the latest 
+    version of the milestones manifests, not for each version.
+
+2.	FIX DANGEROUS BUGS
+a.	NEVER allow a posting with a blank column for an entity. Example: “Use Case” in SLA Taxonomy. Why is bad: posting will 
+    silently “seem to work”, but by not having the “missing entity” in the YAML, then when an update is needed and user requests an 
+    update form, the form will miss the entity and so that update posting likely will fail (e.g., will complain that “Use Case” 
+    column is missing). This is bad since it has nothing to do with an error on the part of the user, and the error was seeded 
+    2 CLI operations ago, possibly months ago.
+b.	For joins where manifest B references manifest A, if B has an “almost blank but not blank” row that aligns with a blank 
+    row in A, we get an error message that is confusing to the user. Workaround in Excel is to make sure we delete any content 
+    in that “apparently blank but not really blank” row in B. These “fake blanks” may include: strings consisting of empty spaces; 
+    numbers which are 0 and display as “-“
+c.	The first non-blank row for an entity column (e.e., Applicable Area for SLA) MUST NOT BE AFTER the first non-blank 
+    for other entity columns to its right (e.g., Use case). I found the hard way that this causes a problem similar to a). 
+    Posting will go through, but later if you get form and re-post, there will be corruption because the get-form will re-sort 
+    the rows such that now the first non-blank “Applicable Area” is above the “Use Case” columns, which will now be considered 
+    its children on the second posting but not the first. That is corruption since both postings should produce identical manifests. 
+    In fast the rule in the first sentence of this paragraph needs to be stricter: it is not just the first non-blank in a column, 
+    but the first non-blank for the segment of rows falling under a common grandparent entity.
+3.	Add create environment –environment A <NAME> to create named sub environments for A
+
+4.	Enhance get environments to show the parent of each environment and each environment’s failover policy
+
+5.	Add tests to check that search functions use their environment’s failover policy to search in parent environment as 
+    well if that is the policy
+a.	In CLI get assertions
+b.	In findLatestManifest
+c.	In integrity constraint checks (they should fail if parent environment has a “more recent version” for big rocks, say, 
+that invalidates the posting or a milestones that references an earlier big-rocks manifest)
+d.	Any other “search”-like behavior
+
+6.	Add CLI labels logic
+
+7.	Add a “apo edit <FILENAME>” to launch Excel for a file to edit it. Add a “—launch” as an option to “get form …” so 
+    that the Excel form is not only created in the appropriate folder, but also Excel is launch to allow editing it.
+
+8.	Modify the tags for the filenames of generated form to include the environment they are created in, so user know 
+    which version of an Excel form they are looking at and to be able to open multiple such without conflict. For example, 
+    instead of using just a product tag like “opus” in “opus.big-rocks.journeys.a6i.xlsx”, have 
+    “opus.sandbox210830.091232.big-rocks.journeys.a6i.xlsx”
+
+9.	FIX BUG: ManifestHandle does not include the manifest’s API (only the API version number). So if a publisher 
+    different than CCL ever extends Apodeixi and creates a manifest called ‘big-rock’ but under a different API (e.g., 
+    tracking.fintech.com), there is no way to know which big rock to retrieve (CCL’s or the Fintech’s domain model) 
+    since the ManifestHandle will treat both as “the same”. That is a bug.
