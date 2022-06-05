@@ -96,3 +96,34 @@ In the project root folder, modify `__init__.py` if needed so that the version i
 `python setup.py bdist_wheel`
 
 The resulting distribution will be in the `dist` folder.
+
+# To install and run CI/CD pipelines
+
+Apodeixi pipelines depend on the CCL Chassis toolchain (https://github.com/ChateauClaudia-Labs/ccl-chassis).
+This toolchain is used with Apodeixi-specific pipelines using defined in https://github.com/ChateauClaudia-Labs/apodeixi-devops.
+
+These work only in Linux, so in WSL must be used in Windows environments. They also require Docker.
+
+Therefore, to run CI/CD pipelines the toolchain and Apodeixi-specific pipelines must be installed, and then 
+paths and environment variables set appropriately to invoke the CI/CD pipelines from the installation area.
+
+To accomplish this, Apodeixi includes some scripts in the `toolchain` folder. 
+These scripts must be run in Linux (WSL in Windows)
+
+* Select installation folder and specify which version of the toolchain to use (in `toolchain\config.sh`)
+
+* Install to the toolchain with `toolchain/setup.sh`
+
+* Set up the necessary paths and environment variables by doing `source env.sh` in the `toolchain` folder
+
+Once that is done, pipelines can be invoked from a CLI under the `apdo` command.
+To discover what commands and pipelines are available, simply type
+
+`apdo --help`
+
+in a Linux shell.
+
+# Upgrading the CI/CD pipeline
+
+To upgrade to a new version of the CCL Chassis toolchain and/or Apodeixi pipelines, simply modify the version numbers
+in the `toolchain` folder's script(s), and re-install the toolchain.

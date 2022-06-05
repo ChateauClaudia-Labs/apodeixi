@@ -1,0 +1,7 @@
+export CCL_CHASSIS_VERSION="v1.0.0"
+export APODEIXI_DEVOPS_VERSION="v1.0.0"
+
+export INSTALL_ROOT="/home/alex/technos"
+
+export CCL_CHASSIS_HOME="${INSTALL_ROOT}/ccl-chassis-${CCL_CHASSIS_VERSION}"
+export APODEIXI_DEVOPS_HOME="${INSTALL_ROOT}/apodeixi-devops-${APODEIXI_DEVOPS_VERSION}"
